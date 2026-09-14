@@ -2245,16 +2245,28 @@ const App = {
     const raw = (1/pc) * (1-margin);
     return Math.max(min, Math.min(max, +raw.toFixed(2)));
   },
-  clubForm(){
-    const past = this.pastMatches();
+  // Les cotes doivent se baser sur l'historique face à CET adversaire précis quand on en a un (au moins un
+  // match déjà joué contre lui) — sinon un adversaire qui nous a déjà battus à plate couture afficherait
+  // exactement la même cote qu'un adversaire jamais affronté (ou qu'on écrase à chaque fois), ce qui est une
+  // vraie faille : les cotes ne s'adaptent alors jamais au véritable niveau de l'adversaire du match. On ne
+  // retombe sur l'historique global du club que quand on n'a encore jamais joué cet adversaire précis.
+  matchesAgainst(opponent){
+    const all = this.pastMatches();
+    if(!opponent) return all;
+    const norm = s => (s||"").trim().toLowerCase();
+    const vs = all.filter(m=>norm(m.opponent)===norm(opponent));
+    return vs.length ? vs : all;
+  },
+  clubForm(opponent){
+    const past = this.matchesAgainst(opponent);
     if(!past.length) return {winP:0.42, drawP:0.26, lossP:0.32};
     let w=0,d=0,l=0;
     past.forEach(m=>{ if(!m.score) return; if(m.score.us>m.score.them) w++; else if(m.score.us===m.score.them) d++; else l++; });
     const tot = w+d+l || 1;
     return {winP:w/tot, drawP:d/tot, lossP:l/tot};
   },
-  matchOutcomeOdds(){
-    const f = this.clubForm();
+  matchOutcomeOdds(opponent){
+    const f = this.clubForm(opponent);
     // Un plancher de probabilité assez haut (15%) pour qu'aucune issue ne devienne un pari-cadeau à
     // cote démesurée, même quand le club a un excellent historique — un "outsider" garde toujours une vraie chance.
     const winP = Math.max(0.15,f.winP), drawP = Math.max(0.15,f.drawP), lossP = Math.max(0.15,f.lossP);
@@ -2265,16 +2277,16 @@ const App = {
       them: this.fairOdds(lossP/norm, 0.08, 1.15, 7),
     };
   },
-  diffOdds(){
-    const past = this.pastMatches();
+  diffOdds(opponent){
+    const past = this.matchesAgainst(opponent);
     let under2=0, tot=0;
     past.forEach(m=>{ if(!m.score) return; tot++; if(Math.abs(m.score.us-m.score.them)<2) under2++; });
     const p = tot? under2/tot : 0.55;
     const pC = Math.max(0.18, Math.min(0.82, p));
     return {under2: this.fairOdds(pC, 0.08, 1.15, 6), over2: this.fairOdds(1-pC, 0.08, 1.15, 6)};
   },
-  scoreOdds(us, them){
-    const past = this.pastMatches();
+  scoreOdds(us, them, opponent){
+    const past = this.matchesAgainst(opponent);
     const n = past.length;
     const avgUs = n? past.reduce((s,m)=>s+(m.score?m.score.us:0),0)/n : 1.4;
     const avgThem = n? past.reduce((s,m)=>s+(m.score?m.score.them:0),0)/n : 1.1;
@@ -2375,9 +2387,10 @@ const App = {
     });
   },
   updateScoreBetOdds(matchId){
+    const m = this.state.matches.find(x=>x.id===matchId);
     const us = parseInt(document.getElementById("betScoreUs").value,10)||0;
     const them = parseInt(document.getElementById("betScoreThem").value,10)||0;
-    const odds = this.scoreOdds(us, them);
+    const odds = this.scoreOdds(us, them, m&&m.opponent);
     this._scoreBetOdds = odds;
     const el = document.getElementById("scoreOddsPreview");
     if(el) el.textContent = "Cote : x"+odds;
@@ -2391,9 +2404,10 @@ const App = {
     if(el) el.textContent = "Gain potentiel : "+fmtEuro(stake*(this._scoreBetOdds||1));
   },
   async confirmScoreBet(matchId){
+    const m = this.state.matches.find(x=>x.id===matchId);
     const us = parseInt(document.getElementById("betScoreUs").value,10)||0;
     const them = parseInt(document.getElementById("betScoreThem").value,10)||0;
-    const odds = this._scoreBetOdds || this.scoreOdds(us, them);
+    const odds = this._scoreBetOdds || this.scoreOdds(us, them, m&&m.opponent);
     const stakeEl = document.getElementById("betStake");
     const stake = parseFloat(stakeEl.value)||0;
     if(stake<=0){ toast("Mise invalide"); return; }
@@ -2508,8 +2522,8 @@ const App = {
     this.render();
   },
   renderBetMatchCard(m){
-    const ow = this.matchOutcomeOdds();
-    const od = this.diffOdds();
+    const ow = this.matchOutcomeOdds(m.opponent);
+    const od = this.diffOdds(m.opponent);
     const open = !!(this.state.expandedBetMatch && this.state.expandedBetMatch[m.id]);
     const roster = (m.convoked && m.convoked.length) ? m.convoked : this.state.players.map(p=>p.name);
     const withRate = roster.map(n=>{
