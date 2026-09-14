@@ -2013,13 +2013,14 @@ const App = {
     return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null};
   },
   // Mécanique commune à tous les classements de fin de saison (Ballon d'Or, Pire Joueur, Pire Action) :
-  // seules les topN premières places du classement ont un effet sur le général, et cet effet est d'autant plus
-  // fort qu'on est proche de la 1ère place (idx 0) — la Ne place du top N a encore un petit effet, jamais nul.
-  // Ne pas figurer dans ce top N (classé plus loin, ou pas classé du tout) est neutre : ce mécanisme ne pénalise/
-  // bonifie jamais "par défaut", seul le fait d'être explicitement dans le top N compte. `direction` vaut +1 pour
-  // un classement "des meilleurs" (bonus) ou -1 pour un classement "des pires" (malus). Moyenne sur toutes les
-  // éditions clôturées de ce classement.
-  seasonRankAdj(name, key, topN, direction){
+  // seules les topN premières places du classement ont un effet "bonus" sur le général, et cet effet est
+  // d'autant plus fort qu'on est proche de la 1ère place (idx 0) — la Ne place du top N a encore un petit
+  // effet, jamais nul. `outsideScore` (optionnel, déjà dans le sens du malus, ex: -0.4) donne en plus un léger
+  // écart pour tout le monde hors du top N (classé plus loin, ou pas classé du tout) — resté à 0 par défaut,
+  // ce qui garde ce mécanisme neutre hors du top N (cas de Pire Joueur / Pire Action, inchangés). `direction`
+  // vaut +1 pour un classement "des meilleurs" (bonus) ou -1 pour un classement "des pires" (malus). Moyenne
+  // sur toutes les éditions clôturées de ce classement.
+  seasonRankAdj(name, key, topN, direction, outsideScore){
     const history = (this.state.info && this.state.info.awardsHistory && this.state.info.awardsHistory[key]) || [];
     if(!history.length) return 0;
     let sum = 0, count = 0;
@@ -2028,16 +2029,18 @@ const App = {
       if(!podium.length) return;
       count++;
       const idx = podium.indexOf(name);
-      if(idx===-1 || idx>=topN) return; // hors du top N : neutre, ne contribue pas (mais compte dans la moyenne)
+      if(idx===-1 || idx>=topN){ sum += direction * (outsideScore||0); return; } // hors du top N
       sum += direction * ((topN - idx) / topN);
     });
     if(!count) return 0;
     return sum/count;
   },
-  // Seul le top 10 du Ballon d'Or fait monter le général : 1er = bonus plein, 10e = petit bonus, au-delà (ou
-  // hors classement) = aucun effet.
+  // Le top 10 du Ballon d'Or fait monter le général (1er = bonus plein, 10e = petit bonus). Ne PAS être dans
+  // ce top 10 donne en plus un léger écart vers le bas — plus marqué que la neutralité d'avant, mais volontai-
+  // rement modeste (bien moindre que le bonus du top 10, et sans lien avec la distance au top 10 : 11e ou
+  // dernier reçoivent le même petit écart) pour ne pas punir lourdement le reste de l'effectif.
   ballonDorAdj(name){
-    return this.seasonRankAdj(name, 'ballonDor', 10, 1) * 6;
+    return this.seasonRankAdj(name, 'ballonDor', 10, 1, -0.4) * 6;
   },
   // Seuls les 3 premiers d'un classement "des pires" (Pire Joueur / Pire Action) font baisser le général —
   // le poids (x6 pour Pire Joueur, x3 pour Pire Action) est appliqué par l'appelant.
