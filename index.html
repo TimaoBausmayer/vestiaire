@@ -1995,7 +1995,7 @@ const App = {
     // reste disponible séparément (freekickScored, cornersScored, penaltiesScored) pour la note générale,
     // qui elle valorise différemment un but sur coup franc (très dur) et un but sur penalty (plus facile).
     const goals = openPlayGoals + freekickScored + cornersScored + penaltiesScored;
-    return {goals, openPlayGoals, freekickScored, assists, avgRating, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj};
+    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj};
   },
   // Ratio du classement Ballon d'Or par rapport à la taille de l'effectif : 1er = plein bonus, dernier classé =
   // léger malus, non classé du tout = malus plus lourd. Moyenne sur toutes les éditions clôturées du Ballon d'Or.
@@ -2017,11 +2017,17 @@ const App = {
   cardRating(stats){
     // Chaque façon de marquer pèse différemment sur le général : un but sur coup franc est très difficile à
     // réussir et fait beaucoup monter, un but « classique » (jeu ouvert ou corner direct) a le poids de base,
-    // un but sur penalty est plus facile donc fait un peu moins monter qu'un but classique.
-    const scoringImpact = (stats.openPlayGoals||0)*3.5 + (stats.freekickScored||0)*5.2 + (stats.cornersScored||0)*3.5 + (stats.penaltiesScored||0)*2.1;
-    let r = 58 + scoringImpact + stats.assists*1.6 + (stats.avgRating-5)*5.5 + stats.mvp*1.8 + stats.tacklesWon*0.7 + (stats.shotsOnTarget||0)*0.3
-      + (stats.timesStarter||0)*0.5
-      - stats.penaltiesMissed*2.5 - stats.worstVotesTotal*1.2 - stats.penaltiesCaused*2.2 + (stats.beautifulGoalVotesTotal||0)*0.8 + (stats.ballonDorAdj||0);
+    // un but sur penalty est plus facile donc fait un peu moins monter qu'un but classique — mais monte quand
+    // même. Les poids ci-dessous ont été relevés pour que le général progresse plus facilement dans l'ensemble,
+    // tout en gardant ce même ordre de difficulté entre les types de buts.
+    const scoringImpact = (stats.openPlayGoals||0)*4.2 + (stats.freekickScored||0)*6.5 + (stats.cornersScored||0)*4.2 + (stats.penaltiesScored||0)*3.0;
+    // Tant qu'aucune note individuelle n'a été saisie sur un match (ratingsCount===0), on ne pénalise ni ne
+    // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
+    // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
+    const avgRatingAdj = (stats.ratingsCount>0) ? (stats.avgRating-5)*4 : 0;
+    let r = 52 + scoringImpact + stats.assists*2.0 + avgRatingAdj + stats.mvp*2.2 + stats.tacklesWon*0.8 + (stats.shotsOnTarget||0)*0.35
+      + (stats.timesStarter||0)*0.7
+      - stats.penaltiesMissed*2.5 - stats.worstVotesTotal*1.2 - stats.penaltiesCaused*2.4 + (stats.beautifulGoalVotesTotal||0)*1.0 + (stats.ballonDorAdj||0);
     return this.compressRating(r);
   },
   // Comme sur une vraie carte : en dessous du seuil "élite", la note suit la formule brute normalement.
