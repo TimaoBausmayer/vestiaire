@@ -1920,7 +1920,7 @@ const App = {
         cornersScored=manual.cornersScored||0, cornersTaken=manual.cornersTaken||0,
         shotsOnTarget=manual.shotsOnTarget||0, tacklesWon=manual.tacklesWon||0,
         saves=manual.saves||0, penaltiesSaved=manual.penaltiesSaved||0, penaltiesConceded=manual.penaltiesConceded||0,
-        minutesPlayed=manual.minutesPlayed||0, matchVoteBest=0, matchVoteWorst=0;
+        minutesPlayed=manual.minutesPlayed||0, matchVoteBest=0, matchVoteWorst=0, matchRankSum=0, matchRankCount=0;
     matches.forEach(m=>{
       (m.scorers||[]).forEach(s=>{ if(s.name===name) openPlayGoals += (s.count||0); });
       (m.freekickScored||[]).forEach(s=>{ if(s.name===name) freekickScored += (s.count||0); });
@@ -1965,15 +1965,20 @@ const App = {
       const worstVoteInfo = this.matchVotePoints(m.matchVotes, 'worst', this.MATCH_VOTE_WORST_SIZE);
       const bestAvgPts = bestVoteInfo.raterCount ? (bestVoteInfo.tally[name]||0)/bestVoteInfo.raterCount : 0;
       const worstAvgPts = worstVoteInfo.raterCount ? (worstVoteInfo.tally[name]||0)/worstVoteInfo.raterCount : 0;
-      const voteAdj = (bestAvgPts/this.MATCH_VOTE_BEST_SIZE)*1.5 - (worstAvgPts/this.MATCH_VOTE_WORST_SIZE)*1.5;
       if(bestAvgPts>0) matchVoteBest += bestAvgPts;
       if(worstAvgPts>0) matchVoteWorst += worstAvgPts;
+      // Le classement du match (top 10 meilleurs / top 3 pires voté par l'équipe) a maintenant son PROPRE
+      // impact sur le général, complètement séparé des notes individuelles (avant, il était juste mélangé
+      // dedans avec un poids faible). Sur son échelle -5..+5 par match (même échelle que l'écart des notes
+      // à 5/10), moyenné sur tous les matchs où un classement a été voté (0 si le joueur n'y figure pas).
+      if(bestVoteInfo.raterCount>0 || worstVoteInfo.raterCount>0){
+        matchRankSum += (bestAvgPts/this.MATCH_VOTE_BEST_SIZE)*5 - (worstAvgPts/this.MATCH_VOTE_WORST_SIZE)*5;
+        matchRankCount++;
+      }
       const r = m.ratings && m.ratings[name];
       if(r){
         const vals = Object.values(r);
-        if(vals.length){ ratingsSum += Math.max(0,Math.min(10, avg(vals)+voteAdj)); ratingsCount++; }
-      } else if(voteAdj !== 0){
-        ratingsSum += Math.max(0,Math.min(10, 5+voteAdj)); ratingsCount++;
+        if(vals.length){ ratingsSum += avg(vals); ratingsCount++; }
       }
       const dr = m.detailedRatings && m.detailedRatings[name];
       if(dr){
@@ -1995,6 +2000,7 @@ const App = {
       }
     });
     const avgRating = ratingsCount ? (ratingsSum/ratingsCount) : 0;
+    const matchRankAvg = matchRankCount ? (matchRankSum/matchRankCount) : 0;
     const criteria = {};
     critList.forEach(c=>{ criteria[c.key] = critCounts[c.key] ? (critSums[c.key]/critCounts[c.key]) : 0; });
     const ballonDorAdj = this.ballonDorAdj(name);
@@ -2010,7 +2016,7 @@ const App = {
     // reste disponible séparément (freekickScored, cornersScored, penaltiesScored) pour la note générale,
     // qui elle valorise différemment un but sur coup franc (très dur) et un but sur penalty (plus facile).
     const goals = openPlayGoals + freekickScored + cornersScored + penaltiesScored;
-    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null};
+    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null};
   },
   // Mécanique commune à tous les classements de fin de saison (Ballon d'Or, Pire Joueur, Pire Action) :
   // seules les topN premières places du classement ont un effet "bonus" sur le général, et cet effet est
@@ -2055,6 +2061,11 @@ const App = {
     // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
     // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
     const avgRatingAdj = (stats.ratingsCount>0) ? (stats.avgRating-5)*4.5 : 0;
+    // Le classement du match (top 10 meilleurs / top 3 pires voté par toute l'équipe) pèse maintenant un peu
+    // plus que les notes individuelles, mais pas énormément : même échelle (-5..+5) que l'écart des notes à
+    // 5/10, avec un poids légèrement supérieur (5.2 contre 4.5) — un classement qui va dans un sens a donc un
+    // peu plus de poids qu'une note qui va dans le même sens, sans pour autant écraser les notes.
+    const matchRankAdj = stats.matchRankAvg * 5.2;
     // Le temps de jeu compte maintenant vraiment : un joueur qui joue tout le match (90 min) gagne plus qu'un
     // joueur qui n'en joue qu'une partie, proportionnellement aux minutes réellement jouées (accumulées sur
     // tous ses matchs). Si aucune minute n'a jamais été saisie pour ce joueur (équipe qui ne suit pas ça), on
@@ -2075,7 +2086,7 @@ const App = {
       // exceptionnellement à sens unique (ex : 10 buts encaissés dans un match très ouvert) ne doit pas à lui
       // seul écraser le général au plancher — un match difficile pèse, mais pas de façon disproportionnée.
       const concededPenalty = Math.sqrt(Math.max(0, concededPerMatch)) * 3.2;
-      let rg = 52 + gkImpact + cleanSheetBonus - concededPenalty + stats.assists*2.3 + avgRatingAdj + stats.mvp*6.0
+      let rg = 52 + gkImpact + cleanSheetBonus - concededPenalty + stats.assists*2.3 + avgRatingAdj + matchRankAdj + stats.mvp*6.0
         + playtimeBonus
         - stats.worstVotesTotal*1.4
         - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
@@ -2093,7 +2104,7 @@ const App = {
     // aussi, un rouge punissant nettement plus qu'un jaune.
     // Être élu MVP d'un match (meilleure note du match) doit faire monter le général de façon très nette —
     // ce poids a été nettement augmenté (plus du double) pour que chaque titre de MVP se voie vraiment.
-    let r = 52 + scoringImpact + stats.assists*2.3 + avgRatingAdj + stats.mvp*6.0 + stats.tacklesWon*0.9 + (stats.shotsOnTarget||0)*0.4
+    let r = 52 + scoringImpact + stats.assists*2.3 + avgRatingAdj + matchRankAdj + stats.mvp*6.0 + stats.tacklesWon*0.9 + (stats.shotsOnTarget||0)*0.4
       + playtimeBonus
       - stats.penaltiesMissed*2.8 - stats.worstVotesTotal*1.4 - stats.penaltiesCaused*2.6
       - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
