@@ -2015,12 +2015,11 @@ const App = {
     return (sum/count) * 6;
   },
   cardRating(stats){
-    // Chaque façon de marquer pèse différemment sur le général : un but sur coup franc est très difficile à
-    // réussir et fait beaucoup monter, un but « classique » (jeu ouvert ou corner direct) a le poids de base,
-    // un but sur penalty est plus facile donc fait un peu moins monter qu'un but classique — mais monte quand
-    // même. Les poids ci-dessous ont encore été relevés pour que le général progresse plus facilement dans
-    // l'ensemble, tout en gardant ce même ordre de difficulté entre les types de buts.
-    const scoringImpact = (stats.openPlayGoals||0)*4.8 + (stats.freekickScored||0)*7.5 + (stats.cornersScored||0)*4.8 + (stats.penaltiesScored||0)*3.4;
+    // Chaque façon de marquer pèse différemment sur le général, du plus dur au plus facile :
+    // coup franc (le plus dur) > corner direct (dur, mais moins qu'un coup franc) > but « classique » en jeu
+    // ouvert (poids de base) > penalty (le plus facile). Un corner monte donc plus qu'un but classique, mais
+    // moins qu'un coup franc, comme demandé.
+    const scoringImpact = (stats.openPlayGoals||0)*4.8 + (stats.freekickScored||0)*7.5 + (stats.cornersScored||0)*6.0 + (stats.penaltiesScored||0)*3.4;
     // Tant qu'aucune note individuelle n'a été saisie sur un match (ratingsCount===0), on ne pénalise ni ne
     // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
     // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
