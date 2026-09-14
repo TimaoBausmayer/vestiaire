@@ -1995,7 +1995,7 @@ const App = {
     // reste disponible séparément (freekickScored, cornersScored, penaltiesScored) pour la note générale,
     // qui elle valorise différemment un but sur coup franc (très dur) et un but sur penalty (plus facile).
     const goals = openPlayGoals + freekickScored + cornersScored + penaltiesScored;
-    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj};
+    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj, position: (player && player.position) || null};
   },
   // Ratio du classement Ballon d'Or par rapport à la taille de l'effectif : 1er = plein bonus, dernier classé =
   // léger malus, non classé du tout = malus plus lourd. Moyenne sur toutes les éditions clôturées du Ballon d'Or.
@@ -2018,20 +2018,10 @@ const App = {
     // Un joueur qui n'a jamais disputé le moindre match reste au plancher 45 — pas de général tant qu'il n'y
     // a pas eu au moins un match joué.
     if(!stats.matchesPlayed) return 45;
-    // Chaque façon de marquer pèse différemment sur le général, du plus dur au plus facile :
-    // coup franc (le plus dur, vaut exactement 2 buts classiques) > corner direct (dur, mais moins qu'un coup
-    // franc) > but « classique » en jeu ouvert (poids de base) > penalty (le plus facile). Un corner monte
-    // donc plus qu'un but classique mais moins qu'un coup franc, et un coup franc vaut pile 2 buts classiques.
-    const scoringImpact = (stats.openPlayGoals||0)*4.8 + (stats.freekickScored||0)*9.6 + (stats.cornersScored||0)*6.0 + (stats.penaltiesScored||0)*3.4;
     // Tant qu'aucune note individuelle n'a été saisie sur un match (ratingsCount===0), on ne pénalise ni ne
     // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
     // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
     const avgRatingAdj = (stats.ratingsCount>0) ? (stats.avgRating-5)*4.5 : 0;
-    // Un joueur avec un mauvais match (carton, penalty raté/provoqué, mauvais votes) doit vraiment perdre du
-    // général, pas juste moins en gagner : les cartons (auparavant ignorés par la note) comptent maintenant
-    // aussi, un rouge punissant nettement plus qu'un jaune.
-    // Être élu MVP d'un match (meilleure note du match) doit faire monter le général de façon très nette —
-    // ce poids a été nettement augmenté (plus du double) pour que chaque titre de MVP se voie vraiment.
     // Le temps de jeu compte maintenant vraiment : un joueur qui joue tout le match (90 min) gagne plus qu'un
     // joueur qui n'en joue qu'une partie, proportionnellement aux minutes réellement jouées (accumulées sur
     // tous ses matchs). Si aucune minute n'a jamais été saisie pour ce joueur (équipe qui ne suit pas ça), on
@@ -2039,6 +2029,36 @@ const App = {
     const playtimeBonus = (stats.minutesPlayed>0)
       ? (stats.minutesPlayed/90) * 3.0
       : (stats.timesStarter||0)*0.8;
+    // Un gardien a un barème à part : il ne marque presque jamais et serait donc condamné à rester scotché
+    // au plancher avec le barème des joueurs de champ (pensé pour valoriser les buts/tirs/tacles). Son général
+    // valorise plutôt les arrêts, les penaltys stoppés, et le nombre de buts encaissés PAR MATCH (une moyenne,
+    // pas un total, pour ne pas punir un gardien qui a simplement joué beaucoup de matchs) — une "feuille
+    // blanche" (peu ou pas de buts encaissés en moyenne) donne un vrai bonus.
+    if(stats.position==='Gardien'){
+      const concededPerMatch = stats.goalsConceded / stats.matchesPlayed;
+      const gkImpact = (stats.saves||0)*1.3 + (stats.penaltiesSaved||0)*5.0 + (stats.tacklesWon||0)*0.5;
+      const cleanSheetBonus = Math.max(0, 1 - concededPerMatch) * 5.5;
+      // Rendement décroissant sur la pénalité "buts encaissés" (racine carrée plutôt que linéaire) : un match
+      // exceptionnellement à sens unique (ex : 10 buts encaissés dans un match très ouvert) ne doit pas à lui
+      // seul écraser le général au plancher — un match difficile pèse, mais pas de façon disproportionnée.
+      const concededPenalty = Math.sqrt(Math.max(0, concededPerMatch)) * 3.2;
+      let rg = 52 + gkImpact + cleanSheetBonus - concededPenalty + stats.assists*2.3 + avgRatingAdj + stats.mvp*6.0
+        + playtimeBonus
+        - stats.worstVotesTotal*1.4
+        - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
+        + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0);
+      return this.compressRating(rg);
+    }
+    // Chaque façon de marquer pèse différemment sur le général, du plus dur au plus facile :
+    // coup franc (le plus dur, vaut exactement 2 buts classiques) > corner direct (dur, mais moins qu'un coup
+    // franc) > but « classique » en jeu ouvert (poids de base) > penalty (le plus facile). Un corner monte
+    // donc plus qu'un but classique mais moins qu'un coup franc, et un coup franc vaut pile 2 buts classiques.
+    const scoringImpact = (stats.openPlayGoals||0)*4.8 + (stats.freekickScored||0)*9.6 + (stats.cornersScored||0)*6.0 + (stats.penaltiesScored||0)*3.4;
+    // Un joueur avec un mauvais match (carton, penalty raté/provoqué, mauvais votes) doit vraiment perdre du
+    // général, pas juste moins en gagner : les cartons (auparavant ignorés par la note) comptent maintenant
+    // aussi, un rouge punissant nettement plus qu'un jaune.
+    // Être élu MVP d'un match (meilleure note du match) doit faire monter le général de façon très nette —
+    // ce poids a été nettement augmenté (plus du double) pour que chaque titre de MVP se voie vraiment.
     let r = 52 + scoringImpact + stats.assists*2.3 + avgRatingAdj + stats.mvp*6.0 + stats.tacklesWon*0.9 + (stats.shotsOnTarget||0)*0.4
       + playtimeBonus
       - stats.penaltiesMissed*2.8 - stats.worstVotesTotal*1.4 - stats.penaltiesCaused*2.6
