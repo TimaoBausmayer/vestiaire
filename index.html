@@ -1995,8 +1995,8 @@ const App = {
     // sinon élire quelqu'un pire joueur de la saison n'avait aucun effet sur sa carte, alors que le Ballon d'Or,
     // lui, la fait vraiment monter. Poids plus lourd pour "Pire Joueur" (jugement sur toute la saison) que pour
     // "Pire Action" (un seul moment raté).
-    const pireJoueurAdj = this.worstAwardAdj(name, 'pireJoueur') * 6;
-    const pireActionAdj = this.worstAwardAdj(name, 'pireAction') * 3;
+    const pireJoueurAdj = this.worstAwardAdj(name, 'pireJoueur', 3) * 6;
+    const pireActionAdj = this.worstAwardAdj(name, 'pireAction', 10) * 3;
     // Un but est un but quelle que soit la manière : le total affiché partout (fiche, classement, carte FUT)
     // additionne les buts « en jeu », sur coup franc, sur corner direct et sur penalty. Le détail par type
     // reste disponible séparément (freekickScored, cornersScored, penaltiesScored) pour la note générale,
@@ -2004,40 +2004,37 @@ const App = {
     const goals = openPlayGoals + freekickScored + cornersScored + penaltiesScored;
     return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null};
   },
-  // Ratio du classement Ballon d'Or par rapport à la taille de l'effectif : 1er = plein bonus, dernier classé =
-  // léger malus, non classé du tout = malus plus lourd. Moyenne sur toutes les éditions clôturées du Ballon d'Or.
-  ballonDorAdj(name){
-    const history = (this.state.info && this.state.info.awardsHistory && this.state.info.awardsHistory.ballonDor) || [];
-    if(!history.length) return 0;
-    let sum = 0, count = 0;
-    history.forEach(h=>{
-      const podium = h.podium || [];
-      const N = podium.length;
-      if(N<1) return;
-      const idx = podium.indexOf(name);
-      const score = idx===-1 ? -1.3 : (N>1 ? (1 - 2*idx/(N-1)) : 1);
-      sum += score; count++;
-    });
-    if(!count) return 0;
-    return (sum/count) * 6;
-  },
-  // Même mécanique que ballonDorAdj mais inversée : le classement va du "pire" (indice 0, celui désigné par les
-  // votes) au moins pire. Ne pas figurer dans le classement est neutre (ne pas être parmi les pires n'a pas à
-  // être pénalisé) ; le poids (x6 ou x3) est appliqué par l'appelant.
-  worstAwardAdj(name, key){
+  // Mécanique commune à tous les classements de fin de saison (Ballon d'Or, Pire Joueur, Pire Action) :
+  // seules les topN premières places du classement ont un effet sur le général, et cet effet est d'autant plus
+  // fort qu'on est proche de la 1ère place (idx 0) — la Ne place du top N a encore un petit effet, jamais nul.
+  // Ne pas figurer dans ce top N (classé plus loin, ou pas classé du tout) est neutre : ce mécanisme ne pénalise/
+  // bonifie jamais "par défaut", seul le fait d'être explicitement dans le top N compte. `direction` vaut +1 pour
+  // un classement "des meilleurs" (bonus) ou -1 pour un classement "des pires" (malus). Moyenne sur toutes les
+  // éditions clôturées de ce classement.
+  seasonRankAdj(name, key, topN, direction){
     const history = (this.state.info && this.state.info.awardsHistory && this.state.info.awardsHistory[key]) || [];
     if(!history.length) return 0;
     let sum = 0, count = 0;
     history.forEach(h=>{
       const podium = h.podium || [];
-      const N = podium.length;
-      if(N<1) return;
+      if(!podium.length) return;
+      count++;
       const idx = podium.indexOf(name);
-      const score = idx===-1 ? 0 : (N>1 ? -(1 - idx/(N-1)) : -1);
-      sum += score; count++;
+      if(idx===-1 || idx>=topN) return; // hors du top N : neutre, ne contribue pas (mais compte dans la moyenne)
+      sum += direction * ((topN - idx) / topN);
     });
     if(!count) return 0;
-    return (sum/count);
+    return sum/count;
+  },
+  // Seul le top 10 du Ballon d'Or fait monter le général : 1er = bonus plein, 10e = petit bonus, au-delà (ou
+  // hors classement) = aucun effet.
+  ballonDorAdj(name){
+    return this.seasonRankAdj(name, 'ballonDor', 10, 1) * 6;
+  },
+  // Seuls les 3 premiers d'un classement "des pires" (Pire Joueur / Pire Action) font baisser le général —
+  // le poids (x6 pour Pire Joueur, x3 pour Pire Action) est appliqué par l'appelant.
+  worstAwardAdj(name, key, topN){
+    return this.seasonRankAdj(name, key, topN, -1);
   },
   cardRating(stats){
     // Un joueur qui n'a jamais disputé le moindre match reste au plancher 45 — pas de général tant qu'il n'y
