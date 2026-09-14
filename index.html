@@ -1942,7 +1942,15 @@ const App = {
       if(wasGK && m.score){
         goalsConceded += (m.score.them||0);
       }
-      const wasInvolved = (m.convoked||[]).includes(name) || (m.teamA||[]).includes(name) || (m.teamB||[]).includes(name);
+      // "Convoqué" doit être la source de vérité de "a joué ce match" : décocher quelqu'un dans les
+      // convocations doit vraiment le retirer des stats, même s'il reste listé dans l'équipe A/B (l'équipe
+      // A/B est la composition/effectif du match, pas la liste de présence). Sans ce garde-fou, un joueur
+      // décoché restait quand même compté comme ayant joué dès qu'il figurait dans teamA/teamB — ce qui
+      // arrive dès qu'il a été assigné à une équipe puis décoché ensuite. On ne retombe sur teamA/teamB que
+      // pour les matchs plus anciens qui n'ont jamais utilisé les convocations (convoked resté vide).
+      const wasInvolved = (m.convoked||[]).length
+        ? (m.convoked||[]).includes(name)
+        : ((m.teamA||[]).includes(name) || (m.teamB||[]).includes(name));
       if(wasInvolved){
         matchesPlayed++;
         const wasStarter = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && Object.values(t.assignments).includes(name));
