@@ -2028,7 +2028,9 @@ const App = {
     // Un joueur avec un mauvais match (carton, penalty raté/provoqué, mauvais votes) doit vraiment perdre du
     // général, pas juste moins en gagner : les cartons (auparavant ignorés par la note) comptent maintenant
     // aussi, un rouge punissant nettement plus qu'un jaune.
-    let r = 52 + scoringImpact + stats.assists*2.3 + avgRatingAdj + stats.mvp*2.5 + stats.tacklesWon*0.9 + (stats.shotsOnTarget||0)*0.4
+    // Être élu MVP d'un match (meilleure note du match) doit faire monter le général de façon très nette —
+    // ce poids a été nettement augmenté (plus du double) pour que chaque titre de MVP se voie vraiment.
+    let r = 52 + scoringImpact + stats.assists*2.3 + avgRatingAdj + stats.mvp*6.0 + stats.tacklesWon*0.9 + (stats.shotsOnTarget||0)*0.4
       + (stats.timesStarter||0)*0.8
       - stats.penaltiesMissed*2.8 - stats.worstVotesTotal*1.4 - stats.penaltiesCaused*2.6
       - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
