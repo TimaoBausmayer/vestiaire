@@ -1990,12 +1990,19 @@ const App = {
     const criteria = {};
     critList.forEach(c=>{ criteria[c.key] = critCounts[c.key] ? (critSums[c.key]/critCounts[c.key]) : 0; });
     const ballonDorAdj = this.ballonDorAdj(name);
+    // Symétrique du Ballon d'Or, mais dans l'autre sens : être désigné "Pire Joueur" (ou cumuler des votes
+    // "Pire Action") de la saison doit vraiment faire baisser le général, pas juste ne pas le faire monter —
+    // sinon élire quelqu'un pire joueur de la saison n'avait aucun effet sur sa carte, alors que le Ballon d'Or,
+    // lui, la fait vraiment monter. Poids plus lourd pour "Pire Joueur" (jugement sur toute la saison) que pour
+    // "Pire Action" (un seul moment raté).
+    const pireJoueurAdj = this.worstAwardAdj(name, 'pireJoueur') * 6;
+    const pireActionAdj = this.worstAwardAdj(name, 'pireAction') * 3;
     // Un but est un but quelle que soit la manière : le total affiché partout (fiche, classement, carte FUT)
     // additionne les buts « en jeu », sur coup franc, sur corner direct et sur penalty. Le détail par type
     // reste disponible séparément (freekickScored, cornersScored, penaltiesScored) pour la note générale,
     // qui elle valorise différemment un but sur coup franc (très dur) et un but sur penalty (plus facile).
     const goals = openPlayGoals + freekickScored + cornersScored + penaltiesScored;
-    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj, position: (player && player.position) || null};
+    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null};
   },
   // Ratio du classement Ballon d'Or par rapport à la taille de l'effectif : 1er = plein bonus, dernier classé =
   // léger malus, non classé du tout = malus plus lourd. Moyenne sur toutes les éditions clôturées du Ballon d'Or.
@@ -2013,6 +2020,24 @@ const App = {
     });
     if(!count) return 0;
     return (sum/count) * 6;
+  },
+  // Même mécanique que ballonDorAdj mais inversée : le classement va du "pire" (indice 0, celui désigné par les
+  // votes) au moins pire. Ne pas figurer dans le classement est neutre (ne pas être parmi les pires n'a pas à
+  // être pénalisé) ; le poids (x6 ou x3) est appliqué par l'appelant.
+  worstAwardAdj(name, key){
+    const history = (this.state.info && this.state.info.awardsHistory && this.state.info.awardsHistory[key]) || [];
+    if(!history.length) return 0;
+    let sum = 0, count = 0;
+    history.forEach(h=>{
+      const podium = h.podium || [];
+      const N = podium.length;
+      if(N<1) return;
+      const idx = podium.indexOf(name);
+      const score = idx===-1 ? 0 : (N>1 ? -(1 - idx/(N-1)) : -1);
+      sum += score; count++;
+    });
+    if(!count) return 0;
+    return (sum/count);
   },
   cardRating(stats){
     // Un joueur qui n'a jamais disputé le moindre match reste au plancher 45 — pas de général tant qu'il n'y
@@ -2046,7 +2071,8 @@ const App = {
         + playtimeBonus
         - stats.worstVotesTotal*1.4
         - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
-        + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0);
+        + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0)
+        + (stats.pireJoueurAdj||0) + (stats.pireActionAdj||0);
       return this.compressRating(rg);
     }
     // Chaque façon de marquer pèse différemment sur le général, du plus dur au plus facile :
@@ -2063,7 +2089,8 @@ const App = {
       + playtimeBonus
       - stats.penaltiesMissed*2.8 - stats.worstVotesTotal*1.4 - stats.penaltiesCaused*2.6
       - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
-      + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0);
+      + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0)
+      + (stats.pireJoueurAdj||0) + (stats.pireActionAdj||0);
     return this.compressRating(r);
   },
   // Comme sur une vraie carte : en dessous du seuil "élite", la note suit la formule brute normalement.
