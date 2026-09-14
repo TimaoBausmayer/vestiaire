@@ -2032,8 +2032,15 @@ const App = {
     // aussi, un rouge punissant nettement plus qu'un jaune.
     // Être élu MVP d'un match (meilleure note du match) doit faire monter le général de façon très nette —
     // ce poids a été nettement augmenté (plus du double) pour que chaque titre de MVP se voie vraiment.
+    // Le temps de jeu compte maintenant vraiment : un joueur qui joue tout le match (90 min) gagne plus qu'un
+    // joueur qui n'en joue qu'une partie, proportionnellement aux minutes réellement jouées (accumulées sur
+    // tous ses matchs). Si aucune minute n'a jamais été saisie pour ce joueur (équipe qui ne suit pas ça), on
+    // retombe sur l'ancien bonus fixe « titulaire » pour ne pas pénaliser les données déjà saisies.
+    const playtimeBonus = (stats.minutesPlayed>0)
+      ? (stats.minutesPlayed/90) * 3.0
+      : (stats.timesStarter||0)*0.8;
     let r = 52 + scoringImpact + stats.assists*2.3 + avgRatingAdj + stats.mvp*6.0 + stats.tacklesWon*0.9 + (stats.shotsOnTarget||0)*0.4
-      + (stats.timesStarter||0)*0.8
+      + playtimeBonus
       - stats.penaltiesMissed*2.8 - stats.worstVotesTotal*1.4 - stats.penaltiesCaused*2.6
       - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
       + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0);
