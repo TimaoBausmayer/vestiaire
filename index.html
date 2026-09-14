@@ -324,13 +324,33 @@
   // delete/onSnapshot, orderBy) que celle utilisée partout dans le code de l'appli plus bas
   // — comme ça, aucune autre ligne de l'appli n'a besoin de changer.
   function wrapDocSnap(snap){ return { exists: snap.exists(), data: ()=>snap.data(), id: snap.id }; }
+
+  // Transforme un patch imbriqué (ex: {worstVotes:{Julien:{timao:true}}}) en chemins "à points"
+  // (ex: {"worstVotes.Julien.timao": true}) avant d'appeler updateDoc(). C'est indispensable :
+  // Firestore, quand on lui donne directement un objet imbriqué comme valeur, REMPLACE tout le
+  // champ (donc effacerait les votes/likes/réponses des AUTRES personnes à chaque nouvelle action).
+  // Avec les chemins à points, Firestore ne touche que la feuille précise concernée — exactement
+  // ce dont a besoin une appli où plusieurs personnes votent/likent/répondent sur le même document.
+  function flattenForUpdate(obj, prefix, out){
+    out = out || {};
+    Object.keys(obj).forEach(k=>{
+      const v = obj[k];
+      const path = prefix ? prefix + "." + k : k;
+      if(v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length > 0){
+        flattenForUpdate(v, path, out);
+      } else {
+        out[path] = v;
+      }
+    });
+    return out;
+  }
   function wrapQuerySnap(qs){ return { docs: qs.docs.map(d=>({id:d.id, data:()=>d.data()})) }; }
 
   class VDoc {
     constructor(fs, path){ this._ref = doc(fs, path); }
     get(){ return getDoc(this._ref).then(wrapDocSnap); }
     set(data){ return setDoc(this._ref, data); }
-    update(patch){ return updateDoc(this._ref, patch); }
+    update(patch){ return updateDoc(this._ref, flattenForUpdate(patch)); }
     delete(){ return deleteDoc(this._ref); }
     onSnapshot(cb, errCb){ return onSnapshot(this._ref, s=>cb(wrapDocSnap(s)), errCb||function(){}); }
   }
@@ -391,6 +411,25 @@ function fmtDateTime(iso){
   return d.toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
 }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
+// Calcule l'âge en années à partir d'une date de naissance "YYYY-MM-DD".
+// Recalculé à chaque affichage (jamais stocké), donc toujours juste, même longtemps après la saisie.
+function computeAge(birthDate){
+  if(!birthDate) return null;
+  const b = new Date(birthDate+"T00:00:00");
+  if(isNaN(b)) return null;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const beforeBirthdayThisYear = (now.getMonth() < b.getMonth()) || (now.getMonth()===b.getMonth() && now.getDate() < b.getDate());
+  if(beforeBirthdayThisYear) age--;
+  return age>=0 ? age : null;
+}
+// Âge à afficher pour une recrue : priorité à la date de naissance (toujours à jour),
+// sinon repli sur l'ancien champ "âge" saisi à la main (pour les fiches créées avant cette fonctionnalité).
+function playerAge(p){
+  if(!p) return null;
+  const fromBirth = computeAge(p.birthDate);
+  return fromBirth!=null ? fromBirth : (p.age || null);
+}
 function fmtTimeOnly(iso){
   const d = new Date(iso);
   if(isNaN(d)) return "";
@@ -1874,16 +1913,16 @@ const App = {
     const critList = this.ratingCriteriaFor(player && player.position);
     const critSums = {}, critCounts = {};
     critList.forEach(c=>{ critSums[c.key]=0; critCounts[c.key]=0; });
-    let goals=manual.goals||0, freekickScored=manual.freekickScored||0, assists=manual.assists||0, ratingsSum=0, ratingsCount=0, mvp=0, matchesPlayed=0, goalsConceded=0,
+    let openPlayGoals=manual.goals||0, freekickScored=manual.freekickScored||0, assists=manual.assists||0, ratingsSum=0, ratingsCount=0, mvp=0, matchesPlayed=0, goalsConceded=0,
         timesStarter=manual.timesStarter||0, timesSub=manual.timesSub||0,
-        yellow=manual.yellow||0, red=manual.red||0, worstVotesTotal=0, W=0, D=0, L=0,
+        yellow=manual.yellow||0, red=manual.red||0, worstVotesTotal=0, beautifulGoalVotesTotal=0, W=0, D=0, L=0,
         penaltiesScored=manual.penaltiesScored||0, penaltiesMissed=manual.penaltiesMissed||0, penaltiesCaused=manual.penaltiesCaused||0,
         cornersScored=manual.cornersScored||0, cornersTaken=manual.cornersTaken||0,
         shotsOnTarget=manual.shotsOnTarget||0, tacklesWon=manual.tacklesWon||0,
         saves=manual.saves||0, penaltiesSaved=manual.penaltiesSaved||0, penaltiesConceded=manual.penaltiesConceded||0,
         minutesPlayed=manual.minutesPlayed||0, matchVoteBest=0, matchVoteWorst=0;
     matches.forEach(m=>{
-      (m.scorers||[]).forEach(s=>{ if(s.name===name) goals += (s.count||0); });
+      (m.scorers||[]).forEach(s=>{ if(s.name===name) openPlayGoals += (s.count||0); });
       (m.freekickScored||[]).forEach(s=>{ if(s.name===name) freekickScored += (s.count||0); });
       (m.assists||[]).forEach(s=>{ if(s.name===name) assists += (s.count||0); });
       (m.cardsYellow||[]).forEach(s=>{ if(s.name===name) yellow += (s.count||0); });
@@ -1913,6 +1952,7 @@ const App = {
         if(m.score.us>m.score.them) W++; else if(m.score.us===m.score.them) D++; else L++;
       }
       if(m.worstVotes && m.worstVotes[name]) worstVotesTotal += Object.values(m.worstVotes[name]).filter(Boolean).length;
+      if(m.goalVotes && m.goalVotes[name]) beautifulGoalVotesTotal += Object.values(m.goalVotes[name]).filter(Boolean).length;
       const bestVoteInfo = this.matchVotePoints(m.matchVotes, 'best', this.MATCH_VOTE_BEST_SIZE);
       const worstVoteInfo = this.matchVotePoints(m.matchVotes, 'worst', this.MATCH_VOTE_WORST_SIZE);
       const bestAvgPts = bestVoteInfo.raterCount ? (bestVoteInfo.tally[name]||0)/bestVoteInfo.raterCount : 0;
@@ -1950,7 +1990,12 @@ const App = {
     const criteria = {};
     critList.forEach(c=>{ criteria[c.key] = critCounts[c.key] ? (critSums[c.key]/critCounts[c.key]) : 0; });
     const ballonDorAdj = this.ballonDorAdj(name);
-    return {goals, freekickScored, assists, avgRating, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj};
+    // Un but est un but quelle que soit la manière : le total affiché partout (fiche, classement, carte FUT)
+    // additionne les buts « en jeu », sur coup franc, sur corner direct et sur penalty. Le détail par type
+    // reste disponible séparément (freekickScored, cornersScored, penaltiesScored) pour la note générale,
+    // qui elle valorise différemment un but sur coup franc (très dur) et un but sur penalty (plus facile).
+    const goals = openPlayGoals + freekickScored + cornersScored + penaltiesScored;
+    return {goals, openPlayGoals, freekickScored, assists, avgRating, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, ballonDorAdj};
   },
   // Ratio du classement Ballon d'Or par rapport à la taille de l'effectif : 1er = plein bonus, dernier classé =
   // léger malus, non classé du tout = malus plus lourd. Moyenne sur toutes les éditions clôturées du Ballon d'Or.
@@ -1970,8 +2015,13 @@ const App = {
     return (sum/count) * 6;
   },
   cardRating(stats){
-    let r = 58 + stats.goals*3.5 + stats.assists*1.6 + (stats.avgRating-5)*5.5 + stats.mvp*1.8 + stats.tacklesWon*0.7
-      - stats.penaltiesMissed*2.5 - stats.worstVotesTotal*1.2 - stats.penaltiesCaused*2.2 + (stats.ballonDorAdj||0);
+    // Chaque façon de marquer pèse différemment sur le général : un but sur coup franc est très difficile à
+    // réussir et fait beaucoup monter, un but « classique » (jeu ouvert ou corner direct) a le poids de base,
+    // un but sur penalty est plus facile donc fait un peu moins monter qu'un but classique.
+    const scoringImpact = (stats.openPlayGoals||0)*3.5 + (stats.freekickScored||0)*5.2 + (stats.cornersScored||0)*3.5 + (stats.penaltiesScored||0)*2.1;
+    let r = 58 + scoringImpact + stats.assists*1.6 + (stats.avgRating-5)*5.5 + stats.mvp*1.8 + stats.tacklesWon*0.7 + (stats.shotsOnTarget||0)*0.3
+      + (stats.timesStarter||0)*0.5
+      - stats.penaltiesMissed*2.5 - stats.worstVotesTotal*1.2 - stats.penaltiesCaused*2.2 + (stats.beautifulGoalVotesTotal||0)*0.8 + (stats.ballonDorAdj||0);
     return this.compressRating(r);
   },
   // Comme sur une vraie carte : en dessous du seuil "élite", la note suit la formule brute normalement.
@@ -2475,7 +2525,7 @@ const App = {
     }
     const gpm = stats.matchesPlayed>0 ? stats.goals/stats.matchesPlayed : 0;
     const fVit = 52 + gpm*12;
-    const fTir = 45 + stats.goals*4 + stats.shotsOnTarget*1 + stats.penaltiesScored*2;
+    const fTir = 45 + stats.goals*4 + stats.shotsOnTarget*1;
     const fPas = 45 + stats.assists*3;
     const fDri = 50;
     const fDef = 40 + stats.tacklesWon*2;
@@ -2552,7 +2602,7 @@ const App = {
           const tn = this.teamNames();
           const teamLabel = p.team==='A' ? `${this.teamLogoTag('A',13)} ${esc(tn.a)}` : p.team==='B' ? `${this.teamLogoTag('B',13)} ${esc(tn.b)}` : "";
           return `
-          <div class="kv"><span>${esc(p.name)}${p.jerseyNumber?` #${esc(p.jerseyNumber)}`:""} · ${esc(p.position||"?")}${p.age?` · ${esc(p.age)} ans`:""}${teamLabel?` · ${teamLabel}`:""}</span><span class="muted">arrivé le ${fmtDateShort(p.arrivalDate)}</span></div>
+          <div class="kv"><span>${esc(p.name)}${p.jerseyNumber?` #${esc(p.jerseyNumber)}`:""} · ${esc(p.position||"?")}${playerAge(p)!=null?` · ${playerAge(p)} ans`:""}${teamLabel?` · ${teamLabel}`:""}</span><span class="muted">arrivé le ${fmtDateShort(p.arrivalDate)}</span></div>
         `;}).join("")}
       </div>
     `;
@@ -2567,9 +2617,10 @@ const App = {
       <label class="field">Photo ${p?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="pPhoto" accept="image/*"></label>
       <label class="field">Prénom / Nom <input type="text" id="pName" value="${p?esc(p.name):""}" placeholder="Yanis Kader"></label>
       <div class="grid2">
-        <label class="field">Âge <input type="number" id="pAge" min="0" max="99" value="${p&&p.age?p.age:""}" placeholder="24"></label>
+        <label class="field">Date de naissance <input type="date" id="pBirth" value="${p&&p.birthDate?p.birthDate:""}" oninput="App.previewAge(this.value)"></label>
         <label class="field">N° maillot <input type="number" id="pNum" min="0" max="99" value="${p&&p.jerseyNumber?p.jerseyNumber:""}" placeholder="10"></label>
       </div>
+      <p class="muted" id="pAgePreview" style="font-size:12.5px;margin-top:-10px;">${playerAge(p)!=null ? "Âge actuel : "+playerAge(p)+" ans (calculé automatiquement)" : "Renseigne la date de naissance pour calculer l'âge automatiquement."}</p>
       <label class="field">Poste
         <select id="pPos">
           ${["Gardien","Défenseur","Milieu","Attaquant"].map(pos=>`<option ${p&&p.position===pos?'selected':''}>${pos}</option>`).join("")}
@@ -2586,12 +2637,18 @@ const App = {
       <button class="btn btn-accent btn-block" onclick="App.savePlayerForm('${id||""}')">${p?"Enregistrer":"Ajouter à l'effectif"}</button>
     `);
   },
+  previewAge(birthDate){
+    const el = document.getElementById("pAgePreview");
+    if(!el) return;
+    const a = computeAge(birthDate);
+    el.textContent = a!=null ? "Âge actuel : "+a+" ans (calculé automatiquement)" : "Renseigne la date de naissance pour calculer l'âge automatiquement.";
+  },
   async savePlayerForm(id){
     const name = document.getElementById("pName").value.trim();
     if(!name){ toast("Entre un nom"); return; }
     const position = document.getElementById("pPos").value;
     const team = document.getElementById("pTeam").value;
-    const age = document.getElementById("pAge").value ? parseInt(document.getElementById("pAge").value,10) : null;
+    const birthDate = document.getElementById("pBirth").value || null;
     const jerseyNumber = document.getElementById("pNum").value ? parseInt(document.getElementById("pNum").value,10) : null;
     const arrivalDate = document.getElementById("pArrival").value || todayISO();
     const file = document.getElementById("pPhoto").files[0];
@@ -2599,12 +2656,12 @@ const App = {
     let photo = existing ? (existing.photo||"") : "";
     if(file) photo = await resizeImage(file, 300, 0.6);
     if(existing){
-      await this.db.collection("players").doc(id).set({...existing, name, position, team, age, jerseyNumber, arrivalDate, photo});
+      await this.db.collection("players").doc(id).set({...existing, name, position, team, birthDate, jerseyNumber, arrivalDate, photo});
       this.closeModal();
       toast("Fiche de "+name+" mise à jour");
     } else {
       const newId = slugify(name)+"-"+Date.now().toString(36).slice(-4);
-      await this.db.collection("players").doc(newId).set({name, position, team, age, jerseyNumber, arrivalDate, photo, createdAt:new Date().toISOString()});
+      await this.db.collection("players").doc(newId).set({name, position, team, birthDate, jerseyNumber, arrivalDate, photo, createdAt:new Date().toISOString()});
       this.closeModal();
       toast(name+" a rejoint l'effectif !");
     }
@@ -2629,12 +2686,21 @@ const App = {
   },
 
   /* ============================= TAB 4 : Stats (Joueurs, Équipe & Adversaires) ============================= */
+  // Fusionne toutes les façons de marquer un but dans ce match (jeu ouvert, coup franc, corner direct,
+  // penalty) en une seule liste {name, count} — un but reste un but, peu importe comment il a été inscrit.
+  matchGoalScorers(m){
+    const totals = {};
+    [m.scorers, m.freekickScored, m.cornersScored, m.penaltiesScored].forEach(arr=>{
+      (arr||[]).forEach(s=>{ totals[s.name] = (totals[s.name]||0) + (s.count||0); });
+    });
+    return Object.entries(totals).filter(([,c])=>c>0).map(([name,count])=>({name,count}));
+  },
   globalRankings(){
     const played = this.state.matches.filter(m=>m.played);
     const byPlayer = {};
     this.state.players.forEach(p=> byPlayer[p.name] = {name:p.name, goals:0, assists:0, ratingSum:0, ratingCount:0});
     played.forEach(m=>{
-      (m.scorers||[]).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].goals += s.count; else byPlayer[s.name]={name:s.name,goals:s.count,assists:0,ratingSum:0,ratingCount:0}; });
+      this.matchGoalScorers(m).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].goals += s.count; else byPlayer[s.name]={name:s.name,goals:s.count,assists:0,ratingSum:0,ratingCount:0}; });
       (m.assists||[]).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].assists += s.count; else byPlayer[s.name]={name:s.name,goals:0,assists:s.count,ratingSum:0,ratingCount:0}; });
       Object.entries(m.ratings||{}).forEach(([name,raters])=>{
         const vals = Object.values(raters||{});
@@ -2860,6 +2926,7 @@ const App = {
     if(rk.byAssists.length && rk.byAssists[0].name===p.name && rk.byAssists[0].assists>0) trophies.push("🎯 Meilleur passeur");
     if(rk.byAvg.length && rk.byAvg[0].name===p.name) trophies.push("⭐ Meilleure moyenne");
     if(s.worstVotesTotal>0) trophies.push(`🙈 Pire action ×${s.worstVotesTotal}`);
+    if(s.beautifulGoalVotesTotal>0) trophies.push(`⚽️✨ Plus beau but ×${s.beautifulGoalVotesTotal}`);
     const awHistory = (this.state.info&&this.state.info.awardsHistory)||{};
     const bdHistory = awHistory.ballonDor||[];
     const bd1 = bdHistory.filter(h=>h.podium && h.podium[0]===p.name).length;
@@ -2878,7 +2945,7 @@ const App = {
         ${p.photo?`<img class="avatar-lg" src="${p.photo}">`:`<div class="avatar-lg">${initials(p.name)}</div>`}
         <div>
           <h3 style="margin:0;">${esc(p.name)}${p.jerseyNumber?` <span class="muted">#${esc(p.jerseyNumber)}</span>`:""}</h3>
-          <div class="muted" style="font-size:12.5px;">${esc(p.position||"?")}${p.age?` · ${esc(p.age)} ans`:""}${p.team? ` · ${p.team==='A'?this.teamLogoTag('A',13)+' '+esc(this.teamNames().a):this.teamLogoTag('B',13)+' '+esc(this.teamNames().b)}`:""}</div>
+          <div class="muted" style="font-size:12.5px;">${esc(p.position||"?")}${playerAge(p)!=null?` · ${playerAge(p)} ans`:""}${p.team? ` · ${p.team==='A'?this.teamLogoTag('A',13)+' '+esc(this.teamNames().a):this.teamLogoTag('B',13)+' '+esc(this.teamNames().b)}`:""}</div>
         </div>
         ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.openEditPlayer('${p.id}')">✏️</button>`:""}
         ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.removePlayer('${p.id}')">🗑️</button>`:""}
@@ -3203,7 +3270,7 @@ const App = {
       presence:{}, played:false, score:null, scorers:[], freekickScored:[], assists:[], cardsYellow:[], cardsRed:[],
       penaltiesScored:[], penaltiesMissed:[], penaltiesCaused:[], cornersScored:[], cornersTaken:[], shotsOnTarget:[], tacklesWon:[],
       saves:[], penaltiesSaved:[], penaltiesConceded:[], minutesPlayed:[],
-      ratings:{}, detailedRatings:{}, worstVotes:{}, matchVotes:{},
+      ratings:{}, detailedRatings:{}, worstVotes:{}, goalVotes:{}, matchVotes:{},
       payment:{enabled:payEnabled, amount:payAmount, paid:{}},
       createdAt:new Date().toISOString()
     });
@@ -3937,10 +4004,14 @@ const App = {
     });
     const worst = Object.entries(m.worstVotes||{}).map(([name,votes])=>({name, count:Object.keys(votes||{}).filter(k=>votes[k]).length}))
       .filter(w=>w.count>0).sort((a,b)=>b.count-a.count).slice(0,3);
+    const beautifulGoal = Object.entries(m.goalVotes||{}).map(([name,votes])=>({name, count:Object.keys(votes||{}).filter(k=>votes[k]).length}))
+      .filter(w=>w.count>0).sort((a,b)=>b.count-a.count).slice(0,3);
+    const allScorers = this.matchGoalScorers(m);
     return `
       <div class="kv"><span>${fmtDate(m.date)}${m.opponent?" · "+esc(m.opponent):""} · ${esc(m.location||"")}</span><b>${this.teamLogoTag('A',14)} ${m.score?m.score.us:"–"} - ${m.score?m.score.them:"–"} ${this.teamLogoTag('B',14)}</b></div>
       <p class="muted" style="font-size:11.5px;margin-top:-6px;">${esc(tn.a)} vs ${esc(tn.b)}</p>
-      ${(m.scorers&&m.scorers.length)?`<p style="font-size:13px;" class="muted">⚽ ${m.scorers.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
+      ${allScorers.length?`<p style="font-size:13px;" class="muted">⚽ ${allScorers.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
+      ${(m.freekickScored&&m.freekickScored.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">🎯 Dont coup franc ${m.freekickScored.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
       ${(m.assists&&m.assists.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">🎯 ${m.assists.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
       ${(m.penaltiesScored&&m.penaltiesScored.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">✅ Pen. ${m.penaltiesScored.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
       ${(m.penaltiesMissed&&m.penaltiesMissed.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">❌ Pen. ratés ${m.penaltiesMissed.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
@@ -3982,6 +4053,20 @@ const App = {
       ${worst.length ? `<div style="margin-top:10px;">
         ${worst.map((w,i)=>`<div class="kv"><span>${['🥇','🥈','🥉'][i]} ${esc(w.name)}</span><span class="muted">${w.count} vote${w.count>1?'s':''}</span></div>`).join("")}
       </div>` : `<p class="muted" style="font-size:12.5px;">Aucun vote pour l'instant — juste pour rire, pas de vrai trophée !</p>`}
+
+      ${allScorers.length ? `
+      <hr class="sep">
+      <h3 style="font-size:15px;">⚽️✨ Vote « plus beau but du match »</h3>
+      <div class="wrap">
+        ${allScorers.map(s=>s.name).map(n=>{
+          const votedByMe = this.me && m.goalVotes && m.goalVotes[n] && m.goalVotes[n][slugify(this.me)];
+          return `<span class="chip ${votedByMe?'active':''}" onclick="App.voteBeautifulGoal('${m.id}','${jsa(n)}')">${esc(n)}</span>`;
+        }).join("")}
+      </div>
+      ${beautifulGoal.length ? `<div style="margin-top:10px;">
+        ${beautifulGoal.map((w,i)=>`<div class="kv"><span>${['🥇','🥈','🥉'][i]} ${esc(w.name)}</span><span class="muted">${w.count} vote${w.count>1?'s':''}</span></div>`).join("")}
+      </div>` : `<p class="muted" style="font-size:12.5px;">Aucun vote pour l'instant.</p>`}
+      ` : ""}
     `;
   },
   MATCH_VOTE_BEST_SIZE: 10,
@@ -4103,6 +4188,14 @@ const App = {
       const m = this.state.matches.find(x=>x.id===matchId);
       const already = m.worstVotes && m.worstVotes[name] && m.worstVotes[name][raterKey];
       await this.db.collection("matches").doc(matchId).update({worstVotes:{[name]:{[raterKey]: already? false : true}}});
+    });
+  },
+  async voteBeautifulGoal(matchId, name){
+    this.ensureMe(async (me)=>{
+      const raterKey = slugify(me);
+      const m = this.state.matches.find(x=>x.id===matchId);
+      const already = m.goalVotes && m.goalVotes[name] && m.goalVotes[name][raterKey];
+      await this.db.collection("matches").doc(matchId).update({goalVotes:{[name]:{[raterKey]: already? false : true}}});
     });
   },
   renderHistory(past){
