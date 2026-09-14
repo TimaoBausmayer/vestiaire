@@ -2365,7 +2365,11 @@ const App = {
       return sel==='under2' ? under2 : !under2;
     }
     if(b.type==='scorer'){
-      const g = (finalData.scorers||[]).find(s=>s.name===sel.player);
+      // Un pari "marqueur" doit compter tout but, quel que soit le type (jeu ouvert, coup franc,
+      // corner direct, penalty) — sinon un joueur qui marque uniquement sur penalty ou coup franc
+      // ferait perdre à tort un pari "marque au moins 1/2 but(s)".
+      const merged = finalData.allGoals || [];
+      const g = merged.find(s=>s.name===sel.player);
       return (g? g.count:0) >= sel.threshold;
     }
     if(b.type==='scorer_penalty'){
@@ -4001,7 +4005,7 @@ const App = {
       minutesPlayed: out.minutes,
       cardsYellow: out.yellow, cardsRed: out.red,
     });
-    await this.settleBetsForMatch(matchId, {us, them, scorers: out.goals, freekick: out.freekick, penScored: out.penScored});
+    await this.settleBetsForMatch(matchId, {us, them, scorers: out.goals, freekick: out.freekick, penScored: out.penScored, allGoals: this.matchGoalScorers({scorers: out.goals, freekickScored: out.freekick, cornersScored: out.cornersScored, penaltiesScored: out.penScored})});
     this.closeModal();
     toast("Match enregistré");
   },
