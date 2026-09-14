@@ -2018,16 +2018,21 @@ const App = {
     // Chaque façon de marquer pèse différemment sur le général : un but sur coup franc est très difficile à
     // réussir et fait beaucoup monter, un but « classique » (jeu ouvert ou corner direct) a le poids de base,
     // un but sur penalty est plus facile donc fait un peu moins monter qu'un but classique — mais monte quand
-    // même. Les poids ci-dessous ont été relevés pour que le général progresse plus facilement dans l'ensemble,
-    // tout en gardant ce même ordre de difficulté entre les types de buts.
-    const scoringImpact = (stats.openPlayGoals||0)*4.2 + (stats.freekickScored||0)*6.5 + (stats.cornersScored||0)*4.2 + (stats.penaltiesScored||0)*3.0;
+    // même. Les poids ci-dessous ont encore été relevés pour que le général progresse plus facilement dans
+    // l'ensemble, tout en gardant ce même ordre de difficulté entre les types de buts.
+    const scoringImpact = (stats.openPlayGoals||0)*4.8 + (stats.freekickScored||0)*7.5 + (stats.cornersScored||0)*4.8 + (stats.penaltiesScored||0)*3.4;
     // Tant qu'aucune note individuelle n'a été saisie sur un match (ratingsCount===0), on ne pénalise ni ne
     // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
     // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
-    const avgRatingAdj = (stats.ratingsCount>0) ? (stats.avgRating-5)*4 : 0;
-    let r = 52 + scoringImpact + stats.assists*2.0 + avgRatingAdj + stats.mvp*2.2 + stats.tacklesWon*0.8 + (stats.shotsOnTarget||0)*0.35
-      + (stats.timesStarter||0)*0.7
-      - stats.penaltiesMissed*2.5 - stats.worstVotesTotal*1.2 - stats.penaltiesCaused*2.4 + (stats.beautifulGoalVotesTotal||0)*1.0 + (stats.ballonDorAdj||0);
+    const avgRatingAdj = (stats.ratingsCount>0) ? (stats.avgRating-5)*4.5 : 0;
+    // Un joueur avec un mauvais match (carton, penalty raté/provoqué, mauvais votes) doit vraiment perdre du
+    // général, pas juste moins en gagner : les cartons (auparavant ignorés par la note) comptent maintenant
+    // aussi, un rouge punissant nettement plus qu'un jaune.
+    let r = 52 + scoringImpact + stats.assists*2.3 + avgRatingAdj + stats.mvp*2.5 + stats.tacklesWon*0.9 + (stats.shotsOnTarget||0)*0.4
+      + (stats.timesStarter||0)*0.8
+      - stats.penaltiesMissed*2.8 - stats.worstVotesTotal*1.4 - stats.penaltiesCaused*2.6
+      - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
+      + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0);
     return this.compressRating(r);
   },
   // Comme sur une vraie carte : en dessous du seuil "élite", la note suit la formule brute normalement.
@@ -3423,12 +3428,13 @@ const App = {
   renderTeamCompare(nm){
     const teamA = nm.teamA||[], teamB = nm.teamB||[];
     if(teamA.length===0 && teamB.length===0) return "";
+    const matchGoals = this.matchGoalScorers(nm); // fusionne jeu + coup franc + corner + penalty
     const statFor = (roster)=>{
       let ratingsAll=[], goals=0;
       roster.forEach(n=>{
         const r = nm.ratings && nm.ratings[n];
         if(r) ratingsAll = ratingsAll.concat(Object.values(r));
-        (nm.scorers||[]).forEach(s=>{ if(s.name===n) goals += (s.count||0); });
+        matchGoals.forEach(s=>{ if(s.name===n) goals += (s.count||0); });
       });
       return {count:roster.length, avg: ratingsAll.length?avg(ratingsAll):null, goals};
     };
@@ -4255,6 +4261,12 @@ const App = {
     };
     const out = {};
     this.STAT_COLS.forEach(c=>{ out[c.key] = (arrFor[c.key]||[]).reduce((sum,x)=>sum+(x.count||0),0); });
+    // Le total "Buts" du match doit compter tous les types de buts (jeu, coup franc, corner, penalty),
+    // pas seulement les buts "classiques" (m.scorers) — sinon un but sur coup franc ou penalty semblait
+    // ne jamais être compté dans ce résumé, alors qu'il était bien enregistré.
+    out.goals = ['scorers','freekickScored','cornersScored','penaltiesScored'].reduce(
+      (sum,key)=> sum + ((m[key]||[]).reduce((s,x)=>s+(x.count||0),0)), 0
+    );
     return out;
   },
   renderMatchStatsSummary(m){
