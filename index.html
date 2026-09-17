@@ -4142,10 +4142,16 @@ const App = {
         const raterKey = this.me ? slugify(this.me) : null;
         const mine = raterKey && m.detailedRatings && m.detailedRatings[n] && m.detailedRatings[n][raterKey];
         const myAvg = raterKey && m.ratings && m.ratings[n] && m.ratings[n][raterKey]!=null ? m.ratings[n][raterKey] : null;
+        // Le "Ta note" affichait uniquement ta propre note, sans jamais montrer la moyenne combinée de
+        // tout le monde qui a noté — du coup impossible de VOIR que les notes se cumulent bien (même si,
+        // en interne, la moyenne était déjà correctement calculée). On affiche maintenant aussi la moyenne
+        // de l'équipe + le nombre de votant(e)s dès qu'au moins 2 personnes ont noté ce joueur.
+        const allVals = Object.values((m.ratings && m.ratings[n]) || {});
+        const teamAvg = allVals.length ? avg(allVals) : null;
         return `
         <div class="presence-row">
           <span class="nm">${esc(n)}${p&&p.position==='Gardien'?' 🧤':''}</span>
-          <span class="muted" style="font-size:12px;margin-right:8px;">${myAvg!=null?"Ta note : "+myAvg+"/10":""}</span>
+          <span class="muted" style="font-size:12px;margin-right:8px;">${myAvg!=null?"Ta note : "+myAvg+"/10":""}${allVals.length>1?" · Moyenne équipe : "+teamAvg.toFixed(1)+"/10 ("+allVals.length+" votes)":""}</span>
           <button class="pbtn ${mine?'on-present':''}" onclick="App.openRatePlayer('${m.id}','${jsa(n)}')">${mine?'✏️ Modifier':'📝 Noter'}</button>
         </div>`;
       }).join("")}
