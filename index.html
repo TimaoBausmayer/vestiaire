@@ -2865,6 +2865,22 @@ const App = {
     {key:'defenseur', label:'🛡️ Défenseur', forGK:false, fmt:v=>v.toFixed(1)},
     {key:'polyvalent', label:'🌟 Complet', forGK:false, fmt:v=>String(Math.round(v))+" pts", composite:true, golf:true},
   ],
+  // Classement "dense" façon compétition sportive : deux joueurs à égalité parfaite (même valeur, ex : 0
+  // passe chacun) doivent partager EXACTEMENT le même rang, et le rang suivant reprend juste après (1, 1, 1,
+  // 2, 2, 3...) plutôt que de sauter des places au hasard. Avant ce correctif, le rang était juste "position
+  // dans le tableau trié" (1, 2, 3, 4...) : deux joueurs avec 0 passe chacun pouvaient donc se retrouver l'un
+  // 5e et l'autre 20e, juste à cause de l'ordre interne — aucune vraie égalité n'était possible. `ascending`
+  // à true trie du plus petit au plus grand (utilisé pour "Complet", où moins de points = mieux classé) ;
+  // sinon on trie du plus grand au plus petit (tous les autres classements).
+  assignDenseRanks(rows, ascending){
+    rows.sort((a,b)=> ascending ? a.value-b.value : b.value-a.value);
+    let rank = 0, prevValue;
+    rows.forEach(r=>{
+      if(rank===0 || r.value !== prevValue){ rank++; prevValue = r.value; }
+      r.rank = rank;
+    });
+    return rows;
+  },
   computeCategoryRanking(category, opts){
     const def = this.CLASSEMENT_CATEGORIES.find(c=>c.key===category);
     if(!def) return [];
@@ -2888,9 +2904,7 @@ const App = {
       const rows = Object.entries(scoreByName)
         .filter(([,o])=>o.count===componentKeys.length) // seuls les joueurs présents dans les 5 (donc pas les gardiens)
         .map(([name,o])=>({name, value:o.sum}));
-      rows.sort((a,b)=>a.value-b.value); // moins de points = mieux classé, comme au golf
-      rows.forEach((r,i)=>{ r.rank = i+1; });
-      return rows;
+      return this.assignDenseRanks(rows, true); // ascending : moins de points = mieux classé, comme au golf
     }
     const rows = [];
     this.state.players.forEach(p=>{
@@ -2910,9 +2924,7 @@ const App = {
       if(value==null) return;
       rows.push({name:p.name, position:p.position, value});
     });
-    rows.sort((a,b)=>b.value-a.value);
-    rows.forEach((r,i)=>{ r.rank = i+1; });
-    return rows;
+    return this.assignDenseRanks(rows, false); // descending : plus la valeur est grande, mieux classé
   },
   // Ajoute prevRank/trend en comparant au classement calculé juste avant le dernier match joué — c'est ce
   // qui permet d'afficher "monté" / "descendu" / "nouveau" à chaque nouveau match.
