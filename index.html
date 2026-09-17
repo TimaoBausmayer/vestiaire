@@ -836,7 +836,7 @@ const App = {
     const id = slugify(username);
     const existing = await this.db.collection("accounts").doc(id).get();
     if(existing.exists){ toast("Ce nom est déjà pris"); return; }
-    await this.db.collection("accounts").doc(id).set({username, pinHash:simpleHash(pin), team, deviceId:this.deviceId, createdAt:new Date().toISOString(), wallet:10000, lastSalaryAt:new Date().toISOString(), lastSalaryAmount:0});
+    await this.db.collection("accounts").doc(id).set({username, pinHash:simpleHash(pin), team, deviceId:this.deviceId, createdAt:new Date().toISOString(), wallet:10000, lastSalaryAt:new Date().toISOString(), lastSalaryAmount:0, linkedPlayer:""});
     this.me = username;
     localStorage.setItem("vestiaire_me", username);
     this.closeModal();
@@ -1048,6 +1048,12 @@ const App = {
         <div class="topbar-brand">
           <div class="logo">${brandLogo? `<img src="${brandLogo}" alt="" style="width:30px;height:30px;border-radius:50%;object-fit:cover;vertical-align:middle;">` : esc(info.logoEmoji||"⚽")}</div>
           <div class="name">${esc(brandName)}</div>
+          ${(()=>{
+            if(!this.me) return "";
+            const acc = this.state.accounts.find(a=>a.username===this.me);
+            if(!acc) return "";
+            return `<div class="who" onclick="App.goTab(8)" title="Voir mes paris et mon salaire">💰 ${this.formatMarketValue(acc.wallet||0)}</div>`;
+          })()}
           <div class="who" onclick="App.openAccountMenu()">${this.me? "👤 "+esc(this.me) : "👤 Connexion"}</div>
           <button class="adminbtn ${this.admin?'on':''}" onclick="App.openAdminGate()" title="Mode capitaine">${this.admin?'🛡️':'🔒'}</button>
         </div>
@@ -2465,6 +2471,32 @@ const App = {
       </div>
     </div>`;
   },
+  /* ---------- Identification compte ↔ joueur ("C'est moi") ----------
+     Avant, le salaire cherchait un joueur dont le NOM était exactement égal au pseudo du compte
+     (this.me). Ça ne marchait que si quelqu'un s'était inscrit avec le nom exact de sa fiche joueur —
+     et plein de monde a un pseudo différent (ou proche mais pas identique, ex. deux prénoms), donc ne
+     recevait jamais son salaire. Maintenant, un compte revendique explicitement UNE fiche joueur
+     (acc.linkedPlayer) via un bouton "C'est moi" dans Recrues, et un joueur ne peut être revendiqué
+     que par un seul compte à la fois. */
+  playerClaimedBy(playerName){
+    return this.state.accounts.find(a=>a.linkedPlayer===playerName) || null;
+  },
+  claimPlayer(playerName){
+    this.ensureMe(async (me)=>{
+      const already = this.state.accounts.find(a=>a.linkedPlayer===playerName);
+      if(already && already.username!==me){ toast("Déjà revendiqué par "+already.username); return; }
+      await this.db.collection("accounts").doc(slugify(me)).update({linkedPlayer: playerName});
+      toast("✅ C'est toi maintenant : "+playerName);
+      this.render();
+    });
+  },
+  unclaimPlayer(){
+    if(!this.me) return;
+    this.db.collection("accounts").doc(slugify(this.me)).update({linkedPlayer:""}).then(()=>{
+      toast("Identification retirée");
+      this.render();
+    });
+  },
   /* ---------- Salaire (versé tous les 2 mois, indexé sur la valeur marchande) ---------- */
   playerSalary(name){
     const stats = this.computePlayerStats(name);
@@ -2479,35 +2511,103 @@ const App = {
     const floor = (acc && acc.lastSalaryAmount) || 0;
     return Math.max(current, floor);
   },
-  pendingSalaryInfo(name){
-    const player = this.state.players.find(p=>p.name===name);
+  // "username" est le pseudo du COMPTE connecté ; le joueur pris en compte est celui que ce compte a
+  // revendiqué (acc.linkedPlayer), pas le pseudo lui-même.
+  pendingSalaryInfo(username){
+    const acc = this.state.accounts.find(a=>a.username===username);
+    const linkedName = acc && acc.linkedPlayer;
+    if(!linkedName) return null;
+    const player = this.state.players.find(p=>p.name===linkedName);
     if(!player) return null;
-    const acc = this.state.accounts.find(a=>a.username===name);
     const lastAt = acc && acc.lastSalaryAt ? new Date(acc.lastSalaryAt) : (acc && acc.createdAt ? new Date(acc.createdAt) : new Date());
     const nextAt = new Date(lastAt); nextAt.setMonth(nextAt.getMonth()+2);
-    return {amount: this.effectiveSalary(name, acc), nextAt: isNaN(nextAt) ? null : nextAt.toISOString()};
+    return {amount: this.effectiveSalary(linkedName, acc), nextAt: isNaN(nextAt) ? null : nextAt.toISOString(), linkedName};
   },
   checkAndPaySalaryIfNeeded(){
     if(!this.me || !this.db) return;
     if(this._salaryCheckedFor === this.me) return;
     this._salaryCheckedFor = this.me;
-    const player = this.state.players.find(p=>p.name===this.me);
-    if(!player) return;
     const acc = this.state.accounts.find(a=>a.username===this.me);
     if(!acc) return;
+    const linkedName = acc.linkedPlayer;
+    if(!linkedName) return;
+    const player = this.state.players.find(p=>p.name===linkedName);
+    if(!player) return;
     const lastAt = acc.lastSalaryAt ? new Date(acc.lastSalaryAt) : new Date(acc.createdAt||Date.now());
     if(isNaN(lastAt)) return;
     const now = new Date();
     const monthsElapsed = (now.getFullYear()-lastAt.getFullYear())*12 + (now.getMonth()-lastAt.getMonth());
     const periods = Math.floor(monthsElapsed/2);
     if(periods<1) return;
-    const salary = this.effectiveSalary(this.me, acc);
+    const salary = this.effectiveSalary(linkedName, acc);
     const total = salary*periods;
     const newLastAt = new Date(lastAt); newLastAt.setMonth(newLastAt.getMonth()+periods*2);
     const newWallet = (acc.wallet||0) + total;
     this.db.collection("accounts").doc(slugify(this.me)).update({wallet:newWallet, lastSalaryAt:newLastAt.toISOString(), lastSalaryAmount:salary}).then(()=>{
       toast("💼 Salaire versé : "+fmtEuro(total)+(periods>1? " ("+periods+" versements)":""));
     });
+  },
+  /* ---------- Sanctions & amendes (« quand tu fais un mauvais truc, tu perds de l'argent ») ----------
+     Deux mécanismes : une amende AUTOMATIQUE à chaque carton jaune/rouge saisi sur un match (appliquée
+     au compte qui a revendiqué le joueur, s'il y en a un), et une sanction MANUELLE que le capitaine peut
+     déclencher pour n'importe quelle autre raison (retard, comportement...). Le crédit ne descend jamais
+     sous 0 pour rester simple à comprendre. */
+  CARD_FINE_YELLOW: 1000,
+  CARD_FINE_RED: 3000,
+  // On relit le portefeuille en direct depuis Firestore juste avant d'écrire (plutôt que de faire
+  // confiance à this.state.accounts, alimenté par un onSnapshot qui se resynchronise avec un léger
+  // délai) : ça évite qu'une amende écrase une autre appliquée juste avant sur le même compte, avant
+  // que l'état local n'ait eu le temps de refléter la première déduction.
+  async fineLinkedAccount(playerName, amount, reason){
+    if(amount<=0) return;
+    const linked = this.playerClaimedBy(playerName);
+    if(!linked) return; // personne n'a revendiqué ce joueur : pas de compte à sanctionner
+    const id = slugify(linked.username);
+    const fresh = await this.db.collection("accounts").doc(id).get();
+    const currentWallet = fresh.exists ? (fresh.data().wallet||0) : (linked.wallet||0);
+    const newWallet = Math.max(0, currentWallet - amount);
+    await this.db.collection("accounts").doc(id).update({wallet:newWallet});
+    return {account:linked.username, amount, newWallet, reason};
+  },
+  // Appelé juste après l'enregistrement d'un résultat de match (voir saveResult) : applique l'amende
+  // automatique pour chaque carton jaune/rouge de ce match précis. On additionne d'abord TOUTES les
+  // amendes par joueur (en mémoire, sans toucher à Firestore) avant d'écrire quoi que ce soit : un
+  // joueur qui prend jaune ET rouge dans le même match n'a donc qu'UNE seule écriture, montant cumulé —
+  // plus simple et plus sûr que deux écritures séquentielles sur le même compte.
+  async applyCardFines(cardsYellow, cardsRed){
+    const totalsByPlayer = {};
+    (cardsYellow||[]).forEach(s=>{ const c=s.count||0; if(c>0) totalsByPlayer[s.name] = (totalsByPlayer[s.name]||0) + this.CARD_FINE_YELLOW*c; });
+    (cardsRed||[]).forEach(s=>{ const c=s.count||0; if(c>0) totalsByPlayer[s.name] = (totalsByPlayer[s.name]||0) + this.CARD_FINE_RED*c; });
+    const fined = [];
+    for(const playerName of Object.keys(totalsByPlayer)){
+      const r = await this.fineLinkedAccount(playerName, totalsByPlayer[playerName], "cartons");
+      if(r) fined.push({...r, name:playerName});
+    }
+    if(fined.length){
+      toast("💸 Amendes cartons : "+fined.map(f=>`${f.name} -${fmtEuro(f.amount)}`).join(", "));
+    }
+  },
+  openSanctionPlayer(playerName){
+    if(!this.admin){ toast("Réservé aux capitaines"); return; }
+    const acc = this.playerClaimedBy(playerName);
+    this.modal(`
+      <h3>⚠️ Sanctionner ${esc(playerName)}</h3>
+      ${acc ? `<p class="muted" style="font-size:12.5px;margin-top:-4px;">Compte lié : ${esc(acc.username)} (crédit actuel : ${fmtEuro(acc.wallet||0)}).</p>` :
+        `<p class="muted" style="font-size:12.5px;margin-top:-4px;">⚠️ Personne n'a revendiqué ce joueur ("C'est moi") : la sanction ne pourra pas être appliquée tant que ce n'est pas fait.</p>`}
+      <label class="field">Montant (€) <input type="number" id="sanctionAmount" min="1" value="1000"></label>
+      <label class="field">Raison (optionnel) <input type="text" id="sanctionReason" placeholder="Retard, comportement..."></label>
+      <button class="btn btn-accent btn-block" onclick="App.saveSanction('${jsa(playerName)}')" ${acc?"":"disabled"}>Appliquer la sanction</button>
+    `);
+  },
+  async saveSanction(playerName){
+    if(!this.admin) return;
+    const amount = parseInt(document.getElementById("sanctionAmount").value,10)||0;
+    const reason = document.getElementById("sanctionReason").value.trim();
+    if(amount<=0){ toast("Montant invalide"); return; }
+    const r = await this.fineLinkedAccount(playerName, amount, reason||"sanction");
+    if(!r){ toast("Aucun compte lié à ce joueur"); return; }
+    this.closeModal();
+    toast("⚠️ "+r.account+" a perdu "+fmtEuro(amount)+(reason? " ("+reason+")":""));
   },
   /* ---------- Paris sportifs ---------- */
   factorial(n){ let r=1; for(let i=2;i<=n;i++) r*=i; return r; },
@@ -2796,7 +2896,7 @@ const App = {
     <div class="card">
       <h2>💳 Ton crédit</h2>
       <p class="value-big">${fmtEuro(wallet)}</p>
-      ${salaryInfo ? `<p class="muted" style="font-size:11.5px;">💼 Salaire joueur (indexé sur ta valeur marchande) : ${fmtEuro(salaryInfo.amount)} tous les 2 mois${salaryInfo.nextAt? " · prochain versement le "+fmtDate(salaryInfo.nextAt):""}. Les gains de paris s'ajoutent à ce crédit, jamais à ta valeur marchande.</p>` : `<p class="muted" style="font-size:11.5px;">Le salaire automatique est réservé aux comptes liés à une fiche joueur.</p>`}
+      ${salaryInfo ? `<p class="muted" style="font-size:11.5px;">💼 Salaire de ${esc(salaryInfo.linkedName)} (indexé sur sa valeur marchande) : ${fmtEuro(salaryInfo.amount)} tous les 2 mois${salaryInfo.nextAt? " · prochain versement le "+fmtDate(salaryInfo.nextAt):""}. Les gains de paris s'ajoutent à ce crédit, jamais à la valeur marchande.</p>` : `<p class="muted" style="font-size:11.5px;">Le salaire automatique est réservé aux comptes identifiés à une fiche joueur. Va dans 🃏 Recrues et clique sur "C'est moi" sur ta fiche.</p>`}
     </div>`;
   },
   renderBetLeaderboard(){
@@ -3022,11 +3122,26 @@ const App = {
 
       <div class="card">
         <h3>Fiches joueurs</h3>
+        <p class="muted" style="font-size:11.5px;margin-top:-4px;">Clique sur "C'est moi" sur TA fiche pour recevoir ton salaire automatiquement dans Paris. Un seul compte peut revendiquer chaque joueur.</p>
         ${players.length===0 ? `<div class="empty">—</div>` : players.map(p=>{
           const tn = this.teamNames();
           const teamLabel = p.team==='A' ? `${this.teamLogoTag('A',13)} ${esc(tn.a)}` : p.team==='B' ? `${this.teamLogoTag('B',13)} ${esc(tn.b)}` : "";
+          const claimedBy = this.playerClaimedBy(p.name);
+          const isMine = claimedBy && this.me && claimedBy.username===this.me;
+          const claimCtrl = isMine
+            ? `<button class="btn btn-ghost btn-sm" onclick="App.unclaimPlayer()">✔️ C'est toi — retirer</button>`
+            : claimedBy
+              ? `<span class="muted" style="font-size:11px;">👤 revendiqué par ${esc(claimedBy.username)}</span>`
+              : `<button class="btn btn-ghost btn-sm" onclick="App.claimPlayer('${jsa(p.name)}')">🙋 C'est moi</button>`;
           return `
-          <div class="kv"><span>${esc(p.name)}${p.jerseyNumber?` #${esc(p.jerseyNumber)}`:""} · ${esc(p.position||"?")}${playerAge(p)!=null?` · ${playerAge(p)} ans`:""}${teamLabel?` · ${teamLabel}`:""}</span><span class="muted">arrivé le ${fmtDateShort(p.arrivalDate)}</span></div>
+          <div class="kv" style="flex-wrap:wrap;gap:6px;">
+            <span>${esc(p.name)}${p.jerseyNumber?` #${esc(p.jerseyNumber)}`:""} · ${esc(p.position||"?")}${playerAge(p)!=null?` · ${playerAge(p)} ans`:""}${teamLabel?` · ${teamLabel}`:""}</span>
+            <span class="muted" style="text-align:right;">arrivé le ${fmtDateShort(p.arrivalDate)}</span>
+            <span style="flex-basis:100%;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;">
+              ${claimCtrl}
+              ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.openSanctionPlayer('${jsa(p.name)}')">⚠️ Sanctionner</button>`:""}
+            </span>
+          </div>
         `;}).join("")}
       </div>
     `;
@@ -4869,6 +4984,7 @@ const App = {
   },
   async saveResult(matchId){
     const m = this.state.matches.find(x=>x.id===matchId);
+    const wasAlreadyPlayed = !!(m && m.played);
     const convoked = m.convoked||[];
     const roster = uniq([...convoked, ...this.state.players.map(p=>p.name)]);
     const opponent = document.getElementById("rOpp").value.trim();
@@ -4900,6 +5016,12 @@ const App = {
       cardsYellow: out.yellow, cardsRed: out.red,
     });
     await this.settleBetsForMatch(matchId, {us, them, scorers: out.goals, freekick: out.freekick, penScored: out.penScored, allGoals: this.matchGoalScorers({scorers: out.goals, freekickScored: out.freekick, cornersScored: out.cornersScored, penaltiesScored: out.penScored})});
+    // Amende automatique sur les cartons — seulement au tout premier enregistrement du résultat (si le
+    // match était déjà "joué" avant ce clic, c'est une simple correction/édition : on ne veut surtout pas
+    // resanctionner deux fois pour les mêmes cartons à chaque fois que le capitaine corrige une stat).
+    if(!wasAlreadyPlayed){
+      await this.applyCardFines(out.yellow, out.red);
+    }
     this.closeModal();
     toast("Match enregistré");
   },
