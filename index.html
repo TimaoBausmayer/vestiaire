@@ -1207,9 +1207,12 @@ const App = {
   },
   rankMedal(i){ return ['🥇','🥈','🥉'][i] || (i+1)+"."; },
   effectiveRankSize(key){
-    // Le Ballon d'Or classe tout l'effectif (jusqu'à 30 joueurs) pour que le ratio position/effectif soit cohérent ;
-    // les autres récompenses gardent leur taille fixe (top 5, top 10...).
-    if(key==='ballonDor') return Math.max(1, Math.min(30, this.state.players.length || 1));
+    // Le Ballon d'Or classe tout l'effectif de NOTRE équipe (jusqu'à 30 joueurs) pour que le ratio
+    // position/effectif soit cohérent ; les autres récompenses gardent leur taille fixe (top 5, top
+    // 10...). Ces récompenses ("meilleurs/pires joueurs de LA SAISON") ne concernent que notre propre
+    // équipe (équipe A) — l'effectif de l'équipe adverse (équipe B, suivie pour le comparateur ⚔️) ne
+    // doit pas compter dans ce total, sinon le Ballon d'Or se classait sur 30 joueurs au lieu de 17.
+    if(key==='ballonDor') return Math.max(1, Math.min(30, this.state.players.filter(p=>p.team!=='B').length || 1));
     return this.awardConfig[key].rankSize;
   },
   awardPoints(votes, rankSize){
@@ -1285,7 +1288,10 @@ const App = {
     const info = this.state.info || this.defaultInfo();
     const aw = (info.awards && info.awards[key]) || {active:true, season:"", votes:{}, podium:null};
     const myVote = this.me ? (aw.votes||{})[slugify(this.me)] : null;
-    const opt = (selectedName)=> `<option value="">—</option>` + this.state.players.map(p=>`<option value="${esc(p.name)}" ${selectedName===p.name?'selected':''}>${esc(p.name)}</option>`).join("");
+    // Ces récompenses ne portent que sur notre équipe : on ne propose pas les joueurs de l'équipe
+    // adverse (équipe B) dans la liste des candidats, sinon on pourrait voter "Ballon d'Or" pour un
+    // joueur de FC Nulos.
+    const opt = (selectedName)=> `<option value="">—</option>` + this.state.players.filter(p=>p.team!=='B').map(p=>`<option value="${esc(p.name)}" ${selectedName===p.name?'selected':''}>${esc(p.name)}</option>`).join("");
     const rows = [];
     for(let i=0;i<rankSize;i++){
       rows.push(`<label class="field">${this.rankMedal(i)} ${i+1}${i<3?'':'e'} choix <select id="awr${i}">${opt(myVote&&myVote[i])}</select></label>`);
@@ -1733,7 +1739,7 @@ const App = {
       <div id="sPhotoWrap"><label class="field">Photo <input type="file" id="sPhotoFile" accept="image/*"></label></div>
       <div id="sVideoWrap" style="display:none;"><label class="field">Lien vidéo <input type="url" id="sVideoUrl" placeholder="https://..."></label></div>
       <label class="field">Description (optionnel) <textarea id="sCaption" rows="3" placeholder="Raconte le moment..."></textarea></label>
-      <p class="muted" style="font-size:11.5px;">Visible 24h par l'équipe${this.admin?"":" (après validation)"}.</p>
+      <p class="muted" style="font-size:11.5px;">Visible 24h par l'équipe.</p>
       <button class="btn btn-accent btn-block" onclick="App.saveStory()">Publier la story</button>
     `);
   },
@@ -1750,11 +1756,14 @@ const App = {
       if(!src){ toast("Colle un lien vidéo"); return; }
     }
     this.ensureMe(async (me)=>{
+      // Les stories se publient directement, sans validation du capitaine : c'est du contenu
+      // éphémère (visible 24h seulement), contrairement aux médias (galerie permanente) qui,
+      // eux, restent soumis à validation.
       await this.db.collection("stories").add({
-        type, src, caption, author:me, approved:this.admin, likes:{}, comments:[], createdAt:new Date().toISOString()
+        type, src, caption, author:me, approved:true, likes:{}, comments:[], createdAt:new Date().toISOString()
       });
       this.closeModal();
-      toast(this.admin? "Story publiée" : "Envoyée, en attente de validation");
+      toast("Story publiée");
     });
   },
 
@@ -2986,14 +2995,20 @@ const App = {
   },
   globalRankings(){
     const played = this.state.matches.filter(m=>m.played);
+    // Les classements et le "📈 Stats de l'équipe" ne doivent porter que sur NOTRE équipe (équipe A /
+    // Mot'eau) — sinon les joueurs de l'équipe adverse (équipe B, ex. FC Nulos, suivis dans le même
+    // effectif pour le comparateur ⚔️) se retrouvaient mélangés dans nos propres classements ("Meilleurs
+    // buteurs" pouvait afficher un joueur de FC Nulos, etc.). On garde par défaut tout joueur qui n'est
+    // PAS explicitement en équipe B, pour ne jamais faire disparaître un joueur pas encore étiqueté.
+    const ourNames = new Set(this.state.players.filter(p=>p.team!=='B').map(p=>p.name));
     const byPlayer = {};
-    this.state.players.forEach(p=> byPlayer[p.name] = {name:p.name, goals:0, assists:0, ratingSum:0, ratingCount:0});
+    this.state.players.filter(p=>p.team!=='B').forEach(p=> byPlayer[p.name] = {name:p.name, goals:0, assists:0, ratingSum:0, ratingCount:0});
     played.forEach(m=>{
-      this.matchGoalScorers(m).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].goals += s.count; else byPlayer[s.name]={name:s.name,goals:s.count,assists:0,ratingSum:0,ratingCount:0}; });
-      (m.assists||[]).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].assists += s.count; else byPlayer[s.name]={name:s.name,goals:0,assists:s.count,ratingSum:0,ratingCount:0}; });
+      this.matchGoalScorers(m).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].goals += s.count; else if(ourNames.has(s.name)) byPlayer[s.name]={name:s.name,goals:s.count,assists:0,ratingSum:0,ratingCount:0}; });
+      (m.assists||[]).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].assists += s.count; else if(ourNames.has(s.name)) byPlayer[s.name]={name:s.name,goals:0,assists:s.count,ratingSum:0,ratingCount:0}; });
       Object.entries(m.ratings||{}).forEach(([name,raters])=>{
         const vals = Object.values(raters||{});
-        if(!vals.length) return;
+        if(!vals.length || !ourNames.has(name)) return;
         if(!byPlayer[name]) byPlayer[name]={name,goals:0,assists:0,ratingSum:0,ratingCount:0};
         byPlayer[name].ratingSum += avg(vals); byPlayer[name].ratingCount += 1;
       });
@@ -3065,7 +3080,10 @@ const App = {
       return this.assignDenseRanks(rows, true); // ascending : moins de points = mieux classé, comme au golf
     }
     const rows = [];
-    this.state.players.forEach(p=>{
+    // Classements réservés à notre équipe (équipe A / Mot'eau) — même correctif que globalRankings() /
+    // computeClubTotals() : sans ce filtre, un joueur de l'équipe adverse (équipe B) pouvait apparaître
+    // en tête de "Meilleur buteur" etc.
+    this.state.players.filter(p=>p.team!=='B').forEach(p=>{
       if(p.position==='Gardien' && !def.forGK) return;
       const stats = this.computePlayerStats(p.name, opts);
       if(!stats.matchesPlayed) return; // pas encore joué = pas classé, pour ne pas polluer avec des valeurs par défaut
@@ -3490,7 +3508,10 @@ const App = {
   computeClubTotals(){
     let goals=0, assists=0, yellow=0, red=0, cornersScored=0, cornersTaken=0, freekickScored=0, freekickTaken=0, penaltiesScored=0, penaltiesMissed=0, penaltiesCaused=0,
         shotsOnTarget=0, tacklesWon=0, saves=0, penaltiesSaved=0, penaltiesConceded=0;
-    this.state.players.forEach(p=>{
+    // Uniquement notre équipe (équipe A / Mot'eau) — voir la même remarque dans globalRankings() :
+    // sans ce filtre, les joueurs de l'équipe adverse suivis pour le comparateur ⚔️ gonflaient les
+    // totaux du club.
+    this.state.players.filter(p=>p.team!=='B').forEach(p=>{
       const s = this.computePlayerStats(p.name);
       goals+=s.goals; assists+=s.assists; yellow+=s.yellow; red+=s.red;
       cornersScored+=s.cornersScored; cornersTaken+=s.cornersTaken; freekickScored+=s.freekickScored; freekickTaken+=s.freekickTaken;
