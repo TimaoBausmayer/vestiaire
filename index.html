@@ -1943,7 +1943,7 @@ const App = {
         timesStarter=manual.timesStarter||0, timesSub=manual.timesSub||0,
         yellow=manual.yellow||0, red=manual.red||0, worstVotesTotal=0, beautifulGoalVotesTotal=0, W=0, D=0, L=0,
         penaltiesScored=manual.penaltiesScored||0, penaltiesMissed=manual.penaltiesMissed||0, penaltiesCaused=manual.penaltiesCaused||0,
-        cornersScored=manual.cornersScored||0, cornersTaken=manual.cornersTaken||0,
+        cornersScored=manual.cornersScored||0, cornersTaken=manual.cornersTaken||0, freekickTaken=manual.freekickTaken||0,
         shotsOnTarget=manual.shotsOnTarget||0, tacklesWon=manual.tacklesWon||0,
         saves=manual.saves||0, penaltiesSaved=manual.penaltiesSaved||0, penaltiesConceded=manual.penaltiesConceded||0,
         minutesPlayed=manual.minutesPlayed||0, matchVoteBest=0, matchVoteWorst=0, matchRankSum=0, matchRankCount=0;
@@ -1974,6 +1974,7 @@ const App = {
       (m.penaltiesCaused||[]).forEach(s=>{ if(s.name===name){ penaltiesCaused += (s.count||0); wPenaltiesCaused += (s.count||0)*w; } });
       (m.cornersScored||[]).forEach(s=>{ if(s.name===name){ cornersScored += (s.count||0); wCornersScored += (s.count||0)*w; } });
       (m.cornersTaken||[]).forEach(s=>{ if(s.name===name) cornersTaken += (s.count||0); });
+      (m.freekickTaken||[]).forEach(s=>{ if(s.name===name) freekickTaken += (s.count||0); });
       (m.shotsOnTarget||[]).forEach(s=>{ if(s.name===name){ shotsOnTarget += (s.count||0); wShotsOnTarget += (s.count||0)*w; } });
       (m.tacklesWon||[]).forEach(s=>{ if(s.name===name){ tacklesWon += (s.count||0); wTacklesWon += (s.count||0)*w; } });
       (m.saves||[]).forEach(s=>{ if(s.name===name){ saves += (s.count||0); wSaves += (s.count||0)*w; } });
@@ -1982,8 +1983,12 @@ const App = {
       (m.minutesPlayed||[]).forEach(s=>{ if(s.name===name){ minutesPlayed += (s.count||0); wMinutesPlayed += (s.count||0)*w; } });
       const wasGK = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && t.assignments.GK===name);
       if(wasGK && m.score){
-        goalsConceded += (m.score.them||0);
-        wGoalsConceded += (m.score.them||0)*w;
+        // m.score.us / m.score.them sont toujours du point de vue de l'équipe A ("nous", Mot'eau). Un
+        // gardien de l'équipe B (adverse, ex. FC Nulos) encaisse donc nos buts à NOUS (m.score.us), pas
+        // m.score.them — sinon son total de buts encaissés était en fait celui du gardien adverse.
+        const conceded = (player && player.team==='B') ? (m.score.us||0) : (m.score.them||0);
+        goalsConceded += conceded;
+        wGoalsConceded += conceded*w;
         wGkWeight += w;
       }
       // "Convoqué" doit être la source de vérité de "a joué ce match" : décocher quelqu'un dans les
@@ -2001,7 +2006,13 @@ const App = {
         if(wasStarter){ timesStarter++; wTimesStarter += w; } else timesSub++;
       }
       if(wasInvolved && m.score){
-        if(m.score.us>m.score.them) W++; else if(m.score.us===m.score.them) D++; else L++;
+        // Même logique : m.score.us/them est toujours du point de vue de l'équipe A. Pour un joueur de
+        // l'équipe B (adverse), on inverse — leur victoire est notre défaite et inversement — sinon les
+        // joueurs de l'équipe B héritaient de NOS résultats (ex. FC Nulos affiché avec une défaite au lieu
+        // d'une victoire).
+        const forPlayer = (player && player.team==='B') ? (m.score.them||0) : (m.score.us||0);
+        const against = (player && player.team==='B') ? (m.score.us||0) : (m.score.them||0);
+        if(forPlayer>against) W++; else if(forPlayer===against) D++; else L++;
       }
       if(m.worstVotes && m.worstVotes[name]){ const n = Object.values(m.worstVotes[name]).filter(Boolean).length; worstVotesTotal += n; wWorstVotesTotal += n*w; }
       if(m.goalVotes && m.goalVotes[name]){ const n = Object.values(m.goalVotes[name]).filter(Boolean).length; beautifulGoalVotesTotal += n; wBeautifulGoalVotesTotal += n*w; }
@@ -2076,7 +2087,7 @@ const App = {
       yellow: wYellow, red: wRed, matchRankAvg: wMatchRankAvg,
       goalsConceded: wGoalsConceded, gkWeight: wGkWeight, saves: wSaves, penaltiesSaved: wPenaltiesSaved,
     };
-    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted};
+    return {goals, openPlayGoals, freekickScored, freekickTaken, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted};
   },
   // Poids d'un match dans le calcul du général, selon son "importance" (1 à 10, saisie sur la fiche du
   // match). 5/10 = poids normal (1x, comportement identique à avant cette fonctionnalité — c'est aussi la
@@ -2391,11 +2402,48 @@ const App = {
     const tot = w+d+l || 1;
     return {winP:w/tot, drawP:d/tot, lossP:l/tot};
   },
+  // Moyenne de buts marqués/encaissés par match, face à CET adversaire précis (ou sur l'historique global
+  // du club si on ne l'a encore jamais affronté — mêmes valeurs de repli que scoreOdds() avant, maintenant
+  // centralisées ici pour que l'affichage ("notre moyenne" / "leur moyenne") et le calcul des probabilités
+  // utilisent exactement les mêmes chiffres.
+  goalAverages(opponent){
+    const past = this.matchesAgainst(opponent);
+    const n = past.length;
+    const avgUs = n ? past.reduce((s,m)=>s+(m.score?m.score.us:0),0)/n : 1.4;
+    const avgThem = n ? past.reduce((s,m)=>s+(m.score?m.score.them:0),0)/n : 1.1;
+    return {avgUs, avgThem, n};
+  },
+  // Probabilité victoire/nul/défaite en simulant tous les scores possibles (loi de Poisson des deux côtés,
+  // comme un vrai modèle de pronostic) à partir de la moyenne de buts de chaque équipe — contrairement au
+  // simple décompte victoires/nuls/défaites, ça capture directement qu'une équipe qui marque beaucoup plus
+  // que l'autre en moyenne a une vraie longueur d'avance, même sur un historique très court (voire un seul
+  // match : un match 7-10 doit clairement pencher pour l'adversaire au prochain match, pas juste "1 défaite
+  // sur 1" traitée comme n'importe quelle autre défaite).
+  poissonOutcomeProbs(avgUs, avgThem){
+    let winP=0, drawP=0, lossP=0;
+    for(let i=0;i<=9;i++){
+      for(let j=0;j<=9;j++){
+        const p = this.poissonP(Math.max(0.15,avgUs), i) * this.poissonP(Math.max(0.15,avgThem), j);
+        if(i>j) winP+=p; else if(i===j) drawP+=p; else lossP+=p;
+      }
+    }
+    const tot = winP+drawP+lossP || 1;
+    return {winP:winP/tot, drawP:drawP/tot, lossP:lossP/tot};
+  },
   matchOutcomeOdds(opponent){
     const f = this.clubForm(opponent);
+    const ga = this.goalAverages(opponent);
+    const poi = this.poissonOutcomeProbs(ga.avgUs, ga.avgThem);
+    // Avec peu de matchs joués contre cet adversaire, le simple décompte V/N/D est très bruité (un seul
+    // match joué = 100% victoire OU 100% défaite, rien entre les deux) : on fait alors surtout confiance à
+    // l'écart de buts réel (poi). Le décompte V/N/D ne prend le dessus que quand on a un vrai historique
+    // (poids jusqu'à 0.75 à partir d'environ 5 matchs joués contre cet adversaire).
+    const histWeight = Math.min(0.75, ga.n*0.15);
     // Un plancher de probabilité assez haut (15%) pour qu'aucune issue ne devienne un pari-cadeau à
     // cote démesurée, même quand le club a un excellent historique — un "outsider" garde toujours une vraie chance.
-    const winP = Math.max(0.15,f.winP), drawP = Math.max(0.15,f.drawP), lossP = Math.max(0.15,f.lossP);
+    const winP = Math.max(0.15, f.winP*histWeight + poi.winP*(1-histWeight));
+    const drawP = Math.max(0.15, f.drawP*histWeight + poi.drawP*(1-histWeight));
+    const lossP = Math.max(0.15, f.lossP*histWeight + poi.lossP*(1-histWeight));
     const norm = winP+drawP+lossP;
     return {
       us: this.fairOdds(winP/norm, 0.08, 1.15, 7),
@@ -2412,12 +2460,9 @@ const App = {
     return {under2: this.fairOdds(pC, 0.08, 1.15, 6), over2: this.fairOdds(1-pC, 0.08, 1.15, 6)};
   },
   scoreOdds(us, them, opponent){
-    const past = this.matchesAgainst(opponent);
-    const n = past.length;
-    const avgUs = n? past.reduce((s,m)=>s+(m.score?m.score.us:0),0)/n : 1.4;
-    const avgThem = n? past.reduce((s,m)=>s+(m.score?m.score.them:0),0)/n : 1.1;
-    const pUs = this.poissonP(Math.max(0.2,avgUs), us);
-    const pThem = this.poissonP(Math.max(0.2,avgThem), them);
+    const ga = this.goalAverages(opponent);
+    const pUs = this.poissonP(Math.max(0.2,ga.avgUs), us);
+    const pThem = this.poissonP(Math.max(0.2,ga.avgThem), them);
     const p = Math.max(0.004, pUs*pThem);
     return this.fairOdds(p, 0.15, 3, 40);
   },
@@ -2650,6 +2695,11 @@ const App = {
   renderBetMatchCard(m){
     const ow = this.matchOutcomeOdds(m.opponent);
     const od = this.diffOdds(m.opponent);
+    const ga = this.goalAverages(m.opponent);
+    const h2h = this.matchesAgainst(m.opponent);
+    let hw=0, hd=0, hl=0;
+    h2h.forEach(x=>{ if(!x.score) return; if(x.score.us>x.score.them) hw++; else if(x.score.us===x.score.them) hd++; else hl++; });
+    const h2hIsSpecific = h2h.length>0 && m.opponent && h2h.every(x=>(x.opponent||"").trim().toLowerCase()===(m.opponent||"").trim().toLowerCase());
     const open = !!(this.state.expandedBetMatch && this.state.expandedBetMatch[m.id]);
     const roster = (m.convoked && m.convoked.length) ? m.convoked : this.state.players.map(p=>p.name);
     const withRate = roster.map(n=>{
@@ -2672,6 +2722,13 @@ const App = {
         </div>
       </div>
       ${open ? `
+      <p class="muted" style="font-size:11px;font-weight:700;margin:10px 0 4px;">📊 Face-à-face${h2hIsSpecific?' contre '+esc(m.opponent||''):' — historique global (jamais affronté)'}</p>
+      <div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:4px;">
+        <span>⚽ Buts marqués en moyenne / match</span><b>Nous ${ga.avgUs.toFixed(1)} — Eux ${ga.avgThem.toFixed(1)}</b>
+      </div>
+      <div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:8px;">
+        <span>🏅 Bilan (V-N-D)</span><b>${hw}-${hd}-${hl}${h2h.length?' sur '+h2h.length+' match'+(h2h.length>1?'s':''):''}</b>
+      </div>
       <p class="muted" style="font-size:11px;font-weight:700;margin:10px 0 4px;">🏆 Résultat du match</p>
       <div class="bet-row">
         <button class="bet-chip" onclick="App.openBetModal('${m.id}','winner','us',null,${ow.us},'Victoire${m.opponent?' vs '+jsa(m.opponent):''}')">✅ Victoire<b>x${ow.us}</b></button>
@@ -3147,20 +3204,40 @@ const App = {
   },
   computeTeamSplitStats(key){
     const players = this.state.players.filter(p=>p.team===key);
-    let goals=0, assists=0, yellow=0, red=0, cornersScored=0, cornersTaken=0, penaltiesScored=0, penaltiesMissed=0, penaltiesCaused=0,
-        shotsOnTarget=0, tacklesWon=0, saves=0, penaltiesSaved=0, penaltiesConceded=0, minutesPlayed=0, ratingSum=0, ratingCount=0, mvp=0,
-        matchesPlayed=0, W=0, D=0, L=0;
+    const names = new Set(players.map(p=>p.name));
+    let goals=0, assists=0, yellow=0, red=0, cornersScored=0, cornersTaken=0, freekickScored=0, freekickTaken=0, penaltiesScored=0, penaltiesMissed=0, penaltiesCaused=0,
+        shotsOnTarget=0, tacklesWon=0, saves=0, penaltiesSaved=0, penaltiesConceded=0, minutesPlayed=0, ratingSum=0, ratingCount=0, mvp=0;
     players.forEach(p=>{
       const s = this.computePlayerStats(p.name);
       goals+=s.goals; assists+=s.assists; yellow+=s.yellow; red+=s.red;
-      cornersScored+=s.cornersScored; cornersTaken+=s.cornersTaken;
+      cornersScored+=s.cornersScored; cornersTaken+=s.cornersTaken; freekickScored+=s.freekickScored; freekickTaken+=s.freekickTaken;
       penaltiesScored+=s.penaltiesScored; penaltiesMissed+=s.penaltiesMissed; penaltiesCaused+=s.penaltiesCaused;
       shotsOnTarget+=s.shotsOnTarget; tacklesWon+=s.tacklesWon; saves+=s.saves; penaltiesSaved+=s.penaltiesSaved; penaltiesConceded+=s.penaltiesConceded;
-      minutesPlayed+=s.minutesPlayed; mvp+=s.mvp; matchesPlayed+=s.matchesPlayed; W+=s.W; D+=s.D; L+=s.L;
+      minutesPlayed+=s.minutesPlayed; mvp+=s.mvp;
       if(s.avgRating>0){ ratingSum+=s.avgRating; ratingCount++; }
     });
+    // Le nombre de "matchs joués" ET le bilan V-N-D de l'équipe doivent compter les MATCHS réellement
+    // disputés (un match compte pour 1, même si plusieurs joueurs de l'équipe y ont participé) — PAS la
+    // somme des matchs joués / victoires-nuls-défaites individuels de chaque joueur (l'ancien calcul :
+    // `matchesPlayed += s.matchesPlayed` et `W += s.W` etc. pour chaque joueur). Avec cet ancien calcul, un
+    // seul match où 7 joueurs de l'équipe étaient convoqués comptait pour 7 "matchs joués" (écrasant "buts
+    // par match" vers ~1.0 au lieu du vrai total marqué dans ce match) ET pour 7 victoires/défaites au lieu
+    // d'1 seule (ex : un match 7-10 doit afficher 7.00 but/match et un bilan 0V-0N-1D pour nous, pas
+    // 0V-0N-7D). m.score.us/them est toujours du point de vue de l'équipe A ("nous") : pour l'équipe B
+    // (adverse, ex. FC Nulos) il faut inverser, sinon elle hérite de NOS résultats.
+    let matchesPlayed = 0, W = 0, D = 0, L = 0;
+    this.state.matches.forEach(m=>{
+      if(!m.played) return;
+      const roster = (m.convoked||[]).length ? m.convoked : uniq([...(m.teamA||[]), ...(m.teamB||[])]);
+      if(!roster.some(n=>names.has(n))) return;
+      matchesPlayed++;
+      if(!m.score) return;
+      const forTeam = key==='B' ? (m.score.them||0) : (m.score.us||0);
+      const against = key==='B' ? (m.score.us||0) : (m.score.them||0);
+      if(forTeam>against) W++; else if(forTeam===against) D++; else L++;
+    });
     const avgRating = ratingCount? ratingSum/ratingCount : 0;
-    return {count:players.length, goals, assists, yellow, red, cornersScored, cornersTaken, penaltiesScored, penaltiesMissed, penaltiesCaused, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, avgRating, mvp, matchesPlayed, W, D, L};
+    return {count:players.length, goals, assists, yellow, red, cornersScored, cornersTaken, freekickScored, freekickTaken, penaltiesScored, penaltiesMissed, penaltiesCaused, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, avgRating, mvp, matchesPlayed, W, D, L};
   },
   teamWinStrength(s){
     // Petit indice "forme" maison — pas une vraie stat pro, juste pour comparer les deux équipes du club.
@@ -3191,6 +3268,8 @@ const App = {
         <div class="kv" style="border:none;"><span>🚫 Pen. provoqués</span><b>${s.penaltiesCaused}</b></div>
         <div class="kv" style="border:none;"><span>Coufrans marq./tirés</span><b>${s.cornersScored}/${s.cornersTaken}</b></div>
         <div class="kv" style="border:none;"><span>🎯 Taux réussite coufran</span><b>${pctStr(s.cornersScored, s.cornersTaken)}</b></div>
+        <div class="kv" style="border:none;"><span>Coups francs marq./tentés</span><b>${s.freekickScored}/${s.freekickTaken}</b></div>
+        <div class="kv" style="border:none;"><span>🎯 Taux réussite coup franc</span><b>${pctStr(s.freekickScored, s.freekickTaken)}</b></div>
         <div class="kv" style="border:none;"><span>Tirs cadrés</span><b>${s.shotsOnTarget}</b></div>
         <div class="kv" style="border:none;"><span>🛡️ Tacles réussis</span><b>${s.tacklesWon}</b></div>
         <div class="kv" style="border:none;"><span>Arrêts (GK)</span><b>${s.saves}</b></div>
@@ -3319,6 +3398,8 @@ const App = {
         <div class="kv"><span>Buts marqués</span><b>${s.goals}</b></div>
         <div class="kv"><span>⚽ Buts / match (moy.)</span><b>${perMatchStr(s.goals, s.matchesPlayed)}</b></div>
         <div class="kv"><span>🎯 Buts sur coup franc</span><b>${s.freekickScored}</b></div>
+        <div class="kv"><span>Coups francs tentés</span><b>${s.freekickTaken}</b></div>
+        <div class="kv"><span>🎯 Taux de réussite coup franc</span><b>${pctStr(s.freekickScored, s.freekickTaken)}</b></div>
         <div class="kv"><span>Passes décisives</span><b>${s.assists}</b></div>
         <div class="kv"><span>Penaltys marqués</span><b>${s.penaltiesScored}</b></div>
         <div class="kv"><span>Penaltys loupés</span><b>${s.penaltiesMissed}</b></div>
@@ -3363,6 +3444,7 @@ const App = {
       <div class="grid2">
         <label class="field">Buts <input type="number" id="msGoals" value="${m.goals||0}"></label>
         <label class="field">🎯 Buts sur coup franc <input type="number" id="msFreekick" value="${m.freekickScored||0}"></label>
+        <label class="field">Coups francs tentés <input type="number" id="msFreekickTaken" value="${m.freekickTaken||0}"></label>
         <label class="field">Passes décisives <input type="number" id="msAssists" value="${m.assists||0}"></label>
         <label class="field">Penaltys marqués <input type="number" id="msPenS" value="${m.penaltiesScored||0}"></label>
         <label class="field">Penaltys loupés <input type="number" id="msPenM" value="${m.penaltiesMissed||0}"></label>
@@ -3386,7 +3468,7 @@ const App = {
   async saveManualStats(playerId){
     const val = id => parseInt(document.getElementById(id).value,10)||0;
     const manualStats = {
-      goals: val("msGoals"), freekickScored: val("msFreekick"), assists: val("msAssists"),
+      goals: val("msGoals"), freekickScored: val("msFreekick"), freekickTaken: val("msFreekickTaken"), assists: val("msAssists"),
       penaltiesScored: val("msPenS"), penaltiesMissed: val("msPenM"), penaltiesCaused: val("msPenCaused"),
       cornersScored: val("msCoS"), cornersTaken: val("msCoT"), shotsOnTarget: val("msShots"), tacklesWon: val("msTackles"),
       saves: val("msSaves"), penaltiesSaved: val("msPenSaved"), penaltiesConceded: val("msPenConceded"), minutesPlayed: val("msMinutes"),
@@ -3398,16 +3480,16 @@ const App = {
     toast("Stats mises à jour");
   },
   computeClubTotals(){
-    let goals=0, assists=0, yellow=0, red=0, cornersScored=0, cornersTaken=0, penaltiesScored=0, penaltiesMissed=0, penaltiesCaused=0,
+    let goals=0, assists=0, yellow=0, red=0, cornersScored=0, cornersTaken=0, freekickScored=0, freekickTaken=0, penaltiesScored=0, penaltiesMissed=0, penaltiesCaused=0,
         shotsOnTarget=0, tacklesWon=0, saves=0, penaltiesSaved=0, penaltiesConceded=0;
     this.state.players.forEach(p=>{
       const s = this.computePlayerStats(p.name);
       goals+=s.goals; assists+=s.assists; yellow+=s.yellow; red+=s.red;
-      cornersScored+=s.cornersScored; cornersTaken+=s.cornersTaken;
+      cornersScored+=s.cornersScored; cornersTaken+=s.cornersTaken; freekickScored+=s.freekickScored; freekickTaken+=s.freekickTaken;
       penaltiesScored+=s.penaltiesScored; penaltiesMissed+=s.penaltiesMissed; penaltiesCaused+=s.penaltiesCaused;
       shotsOnTarget+=s.shotsOnTarget; tacklesWon+=s.tacklesWon; saves+=s.saves; penaltiesSaved+=s.penaltiesSaved; penaltiesConceded+=s.penaltiesConceded;
     });
-    return {goals, assists, yellow, red, cornersScored, cornersTaken, penaltiesScored, penaltiesMissed, penaltiesCaused, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded};
+    return {goals, assists, yellow, red, cornersScored, cornersTaken, freekickScored, freekickTaken, penaltiesScored, penaltiesMissed, penaltiesCaused, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded};
   },
   /* ---------- Tableau de bord équipe (série en cours + compte à rebours du prochain match) ---------- */
   // Série actuelle du club : on part du match le plus récent et on remonte tant que le résultat est le
@@ -3500,7 +3582,21 @@ const App = {
     if(!pA || !pB) return "";
     const sA = this.computePlayerStats(pA.name), sB = this.computePlayerStats(pB.name);
     const ratingA = this.cardRating(sA), ratingB = this.cardRating(sB);
-    const rows = [
+    // Si les deux joueurs comparés sont gardiens, on remplace les stats de joueur de champ (buts, passes,
+    // tacles...) qui n'ont pas de sens pour eux par leurs stats spécifiques de gardien (arrêts, penaltys
+    // arrêtés/pris, taux d'arrêt, buts encaissés) — sinon la comparaison "n'est pas vraiment bien comprise".
+    const bothGK = pA.position==='Gardien' && pB.position==='Gardien';
+    const rows = bothGK ? [
+      {label:"⭐ Général", a:ratingA, b:ratingB, fmt:v=>v.toFixed(1)},
+      {label:"🧤 Arrêts", a:sA.saves, b:sB.saves},
+      {label:"🧤 Penaltys attrapés", a:sA.penaltiesSaved, b:sB.penaltiesSaved},
+      {label:"🥅 Penaltys pris", a:sA.penaltiesConceded, b:sB.penaltiesConceded},
+      {label:"🎯 Taux d'arrêt penalty", a:(sA.penaltiesSaved+sA.penaltiesConceded)>0?sA.penaltiesSaved/(sA.penaltiesSaved+sA.penaltiesConceded):-1, b:(sB.penaltiesSaved+sB.penaltiesConceded)>0?sB.penaltiesSaved/(sB.penaltiesSaved+sB.penaltiesConceded):-1, fmt:v=>v<0?'–':Math.round(v*100)+'%'},
+      {label:"Buts encaissés", a:sA.goalsConceded, b:sB.goalsConceded, lowerIsBetter:true},
+      {label:"Note moyenne", a:sA.avgRating, b:sB.avgRating, fmt:v=>v?v.toFixed(1):"–"},
+      {label:"Matchs joués", a:sA.matchesPlayed, b:sB.matchesPlayed},
+      {label:"🏆 MVP", a:sA.mvp, b:sB.mvp},
+    ] : [
       {label:"⭐ Général", a:ratingA, b:ratingB, fmt:v=>v.toFixed(1)},
       {label:"⚽ Buts", a:sA.goals, b:sB.goals},
       {label:"🎯 Passes décisives", a:sA.assists, b:sB.assists},
@@ -3523,7 +3619,7 @@ const App = {
         <div>${pB.photo?`<img class="avatar" src="${pB.photo}">`:`<div class="avatar">${initials(pB.name)}</div>`}<div style="font-weight:600;font-size:13px;margin-top:4px;">${esc(pB.name)}</div></div>
       </div>
       ${rows.map(r=>{
-        const bestA = r.a>r.b, bestB = r.b>r.a;
+        const bestA = r.lowerIsBetter ? r.a<r.b : r.a>r.b, bestB = r.lowerIsBetter ? r.b<r.a : r.b>r.a;
         return `<div class="kv"><span style="flex:1;text-align:left;">${cell(r.a,bestA,r.fmt)}</span><span class="muted" style="flex:1.4;text-align:center;font-size:11.5px;">${r.label}</span><span style="flex:1;text-align:right;">${cell(r.b,bestB,r.fmt)}</span></div>`;
       }).join("")}
     </div>`;
@@ -3571,6 +3667,7 @@ const App = {
   // Contribution d'UN SEUL match pour un joueur (pas cumulé, contrairement à computePlayerStats) — sert de
   // brique de base pour calculer des séries "d'affilée" (ex : buts marqués sur plusieurs matchs consécutifs).
   matchContribution(name, m){
+    const player = this.state.players.find(p=>p.name===name);
     const countIn = (arr) => (arr||[]).reduce((s,x)=> x && x.name===name ? s+(x.count||0) : s, 0);
     const freekick = countIn(m.freekickScored);
     const goals = countIn(m.scorers) + freekick + countIn(m.cornersScored) + countIn(m.penaltiesScored);
@@ -3593,7 +3690,7 @@ const App = {
       isMVP = best===name;
     }
     const wasGK = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && t.assignments.GK===name);
-    const concededAsGK = wasGK && m.score ? (m.score.them||0) : null;
+    const concededAsGK = wasGK && m.score ? ((player && player.team==='B') ? (m.score.us||0) : (m.score.them||0)) : null;
     const wasInvolved = (m.convoked||[]).length ? (m.convoked||[]).includes(name) : ((m.teamA||[]).includes(name) || (m.teamB||[]).includes(name));
     return {goals, freekick, assists, yellow, red, tacklesWon, rating, isMVP, wasGK, concededAsGK, wasInvolved};
   },
@@ -3685,6 +3782,8 @@ const App = {
       <div class="kv"><span>🚫 Pen. provoqués (faute)</span><b>${ct.penaltiesCaused}</b></div>
       <div class="kv"><span>Coufrans marqués/tirés</span><b>${ct.cornersScored}/${ct.cornersTaken}</b></div>
       <div class="kv"><span>🎯 Taux de réussite coufran</span><b>${pctStr(ct.cornersScored, ct.cornersTaken)}</b></div>
+      <div class="kv"><span>Coups francs marqués/tentés</span><b>${ct.freekickScored}/${ct.freekickTaken}</b></div>
+      <div class="kv"><span>🎯 Taux de réussite coup franc</span><b>${pctStr(ct.freekickScored, ct.freekickTaken)}</b></div>
       <div class="kv"><span>Tirs cadrés</span><b>${ct.shotsOnTarget}</b></div>
       <div class="kv"><span>🛡️ Tacles réussis</span><b>${ct.tacklesWon}</b></div>
       <div class="kv"><span>Arrêts (GK)</span><b>${ct.saves}</b></div>
@@ -3923,7 +4022,7 @@ const App = {
       opponent, date, time, location, jerseyHome, jerseyAway, importance,
       convoked:[], teamA:[], teamB:[],
       tactic:{formation:"4-3-3", assignments:{}, moves:[]}, tacticA:{formation:"4-3-3", assignments:{}, moves:[]}, tacticB:{formation:"4-3-3", assignments:{}, moves:[]},
-      presence:{}, played:false, score:null, scorers:[], freekickScored:[], assists:[], cardsYellow:[], cardsRed:[],
+      presence:{}, played:false, score:null, scorers:[], freekickScored:[], freekickTaken:[], assists:[], cardsYellow:[], cardsRed:[],
       penaltiesScored:[], penaltiesMissed:[], penaltiesCaused:[], cornersScored:[], cornersTaken:[], shotsOnTarget:[], tacklesWon:[],
       saves:[], penaltiesSaved:[], penaltiesConceded:[], minutesPlayed:[],
       ratings:{}, detailedRatings:{}, worstVotes:{}, goalVotes:{}, matchVotes:{},
@@ -4546,6 +4645,7 @@ const App = {
     {key:"minutes", id:"mn", label:"⏱️ Minutes jouées"},
     {key:"goals", id:"g", label:"⚽ Buts"},
     {key:"freekick", id:"fk", label:"🎯 Buts coup franc"},
+    {key:"freekickTaken", id:"fkt", label:"🎯 Coups francs tentés"},
     {key:"assists", id:"a", label:"🎯 Passes déc."},
     {key:"penScored", id:"ps", label:"✅ Pen. marqués"},
     {key:"penMissed", id:"pm", label:"❌ Pen. ratés"},
@@ -4567,7 +4667,7 @@ const App = {
     const convoked = m.convoked||[];
     const roster = uniq([...convoked, ...this.state.players.map(p=>p.name)]);
     const arrFor = {
-      minutes:m.minutesPlayed, goals:m.scorers, freekick:m.freekickScored, assists:m.assists, penScored:m.penaltiesScored, penMissed:m.penaltiesMissed,
+      minutes:m.minutesPlayed, goals:m.scorers, freekick:m.freekickScored, freekickTaken:m.freekickTaken, assists:m.assists, penScored:m.penaltiesScored, penMissed:m.penaltiesMissed,
       penCaused:m.penaltiesCaused,
       cornersScored:m.cornersScored, cornersTaken:m.cornersTaken, shots:m.shotsOnTarget, tackles:m.tacklesWon,
       saves:m.saves, penSaved:m.penaltiesSaved, penConceded:m.penaltiesConceded,
@@ -4637,7 +4737,7 @@ const App = {
     await this.db.collection("matches").doc(matchId).update({
       opponent, date, time, location, jerseyHome, jerseyAway, importance,
       played:true, score:{us,them},
-      scorers: out.goals, freekickScored: out.freekick, assists: out.assists,
+      scorers: out.goals, freekickScored: out.freekick, freekickTaken: out.freekickTaken, assists: out.assists,
       penaltiesScored: out.penScored, penaltiesMissed: out.penMissed, penaltiesCaused: out.penCaused,
       cornersScored: out.cornersScored, cornersTaken: out.cornersTaken, shotsOnTarget: out.shots, tacklesWon: out.tackles,
       saves: out.saves, penaltiesSaved: out.penSaved, penaltiesConceded: out.penConceded,
@@ -4936,7 +5036,7 @@ const App = {
   },
   matchStatTotals(m){
     const arrFor = {
-      minutes:m.minutesPlayed, goals:m.scorers, freekick:m.freekickScored, assists:m.assists, penScored:m.penaltiesScored, penMissed:m.penaltiesMissed,
+      minutes:m.minutesPlayed, goals:m.scorers, freekick:m.freekickScored, freekickTaken:m.freekickTaken, assists:m.assists, penScored:m.penaltiesScored, penMissed:m.penaltiesMissed,
       penCaused:m.penaltiesCaused,
       cornersScored:m.cornersScored, cornersTaken:m.cornersTaken, shots:m.shotsOnTarget, tackles:m.tacklesWon,
       saves:m.saves, penSaved:m.penaltiesSaved, penConceded:m.penaltiesConceded,
@@ -4961,6 +5061,8 @@ const App = {
       <div class="kv"><span>Pen. marqués / ratés</span><b>${t.penScored} / ${t.penMissed}</b></div>
       <div class="kv"><span>🎯 Taux réussite penalty (ce match)</span><b>${pctStr(t.penScored, t.penScored+t.penMissed)}</b></div>
       <div class="kv"><span>🚫 Pen. provoqués (faute)</span><b>${t.penCaused}</b></div>
+      <div class="kv"><span>🎯 Coups francs marq. / tentés</span><b>${t.freekick} / ${t.freekickTaken}</b></div>
+      <div class="kv"><span>🎯 Taux réussite coup franc (ce match)</span><b>${pctStr(t.freekick, t.freekickTaken)}</b></div>
       <div class="kv"><span>⛳ Coufrans marq. / tirés</span><b>${t.cornersScored} / ${t.cornersTaken}</b></div>
       <div class="kv"><span>🎯 Taux réussite coufran (ce match)</span><b>${pctStr(t.cornersScored, t.cornersTaken)}</b></div>
       <div class="kv"><span>🎯 Tirs cadrés</span><b>${t.shots}</b></div>
