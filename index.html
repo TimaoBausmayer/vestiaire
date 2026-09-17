@@ -2068,9 +2068,10 @@ const App = {
     return this.seasonRankAdj(name, key, topN, -1);
   },
   cardRating(stats){
-    // Un joueur qui n'a jamais disputé le moindre match reste au plancher 45 — pas de général tant qu'il n'y
-    // a pas eu au moins un match joué.
-    if(!stats.matchesPlayed) return 45;
+    // Un joueur qui n'a jamais disputé le moindre match part à 30 (pas de général tant qu'il n'y a pas eu au
+    // moins un match joué). Le plancher général est maintenant 30 (au lieu de 45) : un joueur qui enchaîne les
+    // mauvaises performances doit pouvoir vraiment redescendre, pas juste stagner à 45 quoi qu'il arrive.
+    if(!stats.matchesPlayed) return 30;
     // Tant qu'aucune note individuelle n'a été saisie sur un match (ratingsCount===0), on ne pénalise ni ne
     // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
     // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
@@ -2131,7 +2132,7 @@ const App = {
   // meilleurs joueurs plafonnent naturellement autour de 93-95 et que 99 reste quasiment hors de portée —
   // ça évite aussi qu'un seul gros match fasse bondir le général d'un coup une fois qu'on est déjà haut.
   compressRating(raw){
-    const floor = 45, softCap = 70, ceil = 99;
+    const floor = 30, softCap = 70, ceil = 99;
     // Arrondi au dixième (pas à l'entier) : avec un entier, deux notes très proches (ex: 7,2 et 7,3) peuvent
     // donner exactement le même général arrondi, et on dirait que la moyenne des notes n'a servi à rien alors
     // qu'elle est bien prise en compte en interne. Avec un dixième, le général bouge visiblement dès qu'une
@@ -2155,7 +2156,10 @@ const App = {
     return played[0] || null;
   },
   marketValueFromRating(rating){
-    const r = Math.max(45, Math.min(99, rating));
+    // Le plancher du général est maintenant 30 (au lieu de 45) : la valeur marchande doit suivre, sinon un
+    // joueur dont le général baisse entre 30 et 44 verrait sa valeur marchande rester figée comme avant,
+    // recréant le même problème que le général qui ne bougeait pas visiblement.
+    const r = Math.max(30, Math.min(99, rating));
     const raw = 50000 * Math.pow(1.11, r-45);
     return Math.round(raw/1000)*1000;
   },
