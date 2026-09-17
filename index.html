@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vestiaire</title>
+<!-- PWA : rend l'appli installable ("Ajouter à l'écran d'accueil") sur iPhone et Android. -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0e0e10">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mot'eau">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
 <style>
@@ -5347,6 +5355,13 @@ const App = {
 window.App = App;
 document.addEventListener("DOMContentLoaded", ()=>App.init());
 if(document.readyState !== "loading") App.init();
+// PWA : enregistre le service worker pour que l'appli soit installable ("Ajouter à l'écran
+// d'accueil") sur Android (et affichée en plein écran sans barre de navigateur une fois installée).
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  });
+}
 })();
 </script>
 
