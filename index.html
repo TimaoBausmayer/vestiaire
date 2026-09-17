@@ -658,6 +658,7 @@ const App = {
       logoEmoji:"⚽",
       reglement:"1. Chaque match commence à l'heure annoncée, merci d'arriver 15 minutes avant pour l'échauffement.\n2. Les équipes sont composées par le capitaine en fonction des présences.\n3. Le respect entre coéquipiers et adversaires est non négociable.\n4. Chacun ramène ses affaires (crampons, protège-tibias, gourde).\n5. En cas d'absence, prévenir au moins 24h à l'avance.\n\nModifiez ce texte à tout moment avec le bouton « Modifier » ci-dessous.",
       decharge:"La participation aux entraînements et matchs organisés par l'équipe se fait sous l'entière responsabilité de chaque participant. Chacun déclare être en bonne condition physique pour la pratique du football amateur et reconnaît que ce sport comporte des risques de blessure.\n\nEn cochant la case ci-dessous, vous reconnaissez avoir pris connaissance du règlement et acceptez de participer sous votre propre responsabilité en cas de blessure ou d'accident survenant lors d'un match ou d'un entraînement.",
+      reglesFoot:"⚽ But du jeu : marquer plus de buts que l'équipe adverse en envoyant le ballon dans la cage adverse.\n\n👥 Nombre de joueurs : à définir selon le nombre présent (ex. 5 à 7 par équipe), remplacements libres pendant les arrêts de jeu.\n\n🤾 Touche : quand le ballon sort sur les côtés, on rejoue à la main pour l'équipe qui n'a PAS touché le ballon en dernier.\n\n🥅 Corner / dégagement : si le ballon sort derrière la cage, corner pour l'attaque si c'est la défense qui l'a touché en dernier, sinon dégagement pour le gardien.\n\n🚫 Faute : tacle dangereux, croche-pied ou main volontaire = faute, coup franc pour l'équipe adverse. Faute dans la surface = penalty.\n\n🟨🟥 Carton jaune / rouge : jaune = avertissement, rouge = exclusion du match.\n\n🚩 Hors-jeu : on décide ensemble si on l'applique ou non selon le nombre de joueurs.\n\n⏱️ Durée : à définir avant le match (ex. 2 mi-temps de 20-25 minutes).\n\nCe texte est fait pour qu'on écrive NOS règles à nous : si on décide de changer un truc entre nous (durée, hors-jeu, nombre de joueurs...), on le modifie ici avec le bouton « Modifier » pour que tout le monde soit au courant.",
       adminPinHash: simpleHash("1234"),
       teamAName:"Mot'eau",
       teamBName:"FC Nulos",
@@ -1041,6 +1042,14 @@ const App = {
       </div>
 
       <div class="card">
+        <h2>⚽ Règles du foot (pour nous)</h2>
+        ${editing ? `
+          <textarea id="reglesFootInput" rows="14">${esc(info.reglesFoot||"")}</textarea>
+          <button class="btn btn-accent btn-block" style="margin-top:10px;" onclick="App.saveReglesFoot()">Enregistrer les règles du foot</button>
+        ` : `<div class="rules-text">${esc(info.reglesFoot||"")}</div>`}
+      </div>
+
+      <div class="card">
         <h2>🩹 Décharge de responsabilité</h2>
         ${editing ? `
           <textarea id="dechargeInput" rows="7">${esc(info.decharge)}</textarea>
@@ -1082,6 +1091,11 @@ const App = {
     const v = document.getElementById("dechargeInput").value;
     await this.db.doc("team/info").set({...(this.state.info||this.defaultInfo()), decharge:v});
     toast("Décharge mise à jour");
+  },
+  async saveReglesFoot(){
+    const v = document.getElementById("reglesFootInput").value;
+    await this.db.doc("team/info").set({...(this.state.info||this.defaultInfo()), reglesFoot:v});
+    toast("Règles du foot mises à jour");
   },
   toggleConsent(checked){
     this.ensureMe(async (name)=>{
