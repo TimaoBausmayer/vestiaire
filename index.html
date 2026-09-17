@@ -2863,33 +2863,32 @@ const App = {
     {key:'tireur', label:'🥅 Tireur', forGK:false, fmt:v=>v.toFixed(1)},
     {key:'dribbleur', label:'🌀 Dribbleur', forGK:false, fmt:v=>v.toFixed(1)},
     {key:'defenseur', label:'🛡️ Défenseur', forGK:false, fmt:v=>v.toFixed(1)},
-    {key:'polyvalent', label:'🌟 Complet', forGK:false, fmt:v=>v.toFixed(1), composite:true},
+    {key:'polyvalent', label:'🌟 Complet', forGK:false, fmt:v=>String(Math.round(v))+" pts", composite:true, golf:true},
   ],
   computeCategoryRanking(category, opts){
     const def = this.CLASSEMENT_CATEGORIES.find(c=>c.key===category);
     if(!def) return [];
     if(def.composite){
-      // "Complet" : le classement "entre" tous les autres, qui mélange un peu de tout (buteur, passeur,
-      // tireur, dribbleur, défenseur) plutôt qu'une seule spécialité — contrairement au Général, il ne
-      // prend PAS en compte les votes/MVP/cartons, juste ces 5 classements combinés. Pour chaque catégorie,
-      // chaque joueur reçoit un score de 0 (dernier) à 1 (premier) selon sa place ; son score "Complet" est
-      // la moyenne de ces 5 scores, ramenée sur 100 — donc être bon un peu partout fait mieux monter que
-      // d'être élite dans un seul domaine et mauvais dans les autres.
+      // "Complet" : classement "à la golf" — pour chaque catégorie (buteur, passeur, tireur, dribbleur,
+      // défenseur), un joueur prend autant de points que sa PLACE dans ce classement (20e du classement
+      // Défenseur = 20 points, 3e du classement Dribbleur = 3 points de plus, etc.). Son score "Complet" est
+      // la somme de ses points sur les 5 catégories, et c'est celui qui a le MOINS de points au total qui est
+      // devant (comme au golf) — donc être bon un peu partout fait vraiment mieux descendre le score que
+      // d'être élite dans un seul domaine et mauvais dans les autres. Comme le Général, il ne prend PAS en
+      // compte les votes/MVP/cartons, juste ces 5 classements combinés.
       const componentKeys = ['buteur','passeur','tireur','dribbleur','defenseur'];
       const scoreByName = {};
       componentKeys.forEach(k=>{
         const list = this.computeCategoryRanking(k, opts);
-        const n = list.length;
         list.forEach(r=>{
-          const pct = n>1 ? (n-r.rank)/(n-1) : 1;
           if(!scoreByName[r.name]) scoreByName[r.name] = {sum:0, count:0};
-          scoreByName[r.name].sum += pct; scoreByName[r.name].count++;
+          scoreByName[r.name].sum += r.rank; scoreByName[r.name].count++;
         });
       });
       const rows = Object.entries(scoreByName)
         .filter(([,o])=>o.count===componentKeys.length) // seuls les joueurs présents dans les 5 (donc pas les gardiens)
-        .map(([name,o])=>({name, value:(o.sum/o.count)*100}));
-      rows.sort((a,b)=>b.value-a.value);
+        .map(([name,o])=>({name, value:o.sum}));
+      rows.sort((a,b)=>a.value-b.value); // moins de points = mieux classé, comme au golf
       rows.forEach((r,i)=>{ r.rank = i+1; });
       return rows;
     }
@@ -2945,7 +2944,7 @@ const App = {
     return `
     <div class="card">
       <h2>🏆 Classements</h2>
-      <p class="muted" style="font-size:12px;margin-top:-6px;">${rows.length} joueur${rows.length>1?'s':''} classé${rows.length>1?'s':''} dans "${esc(cat.label.replace(/^\S+\s/,''))}". Choisis une catégorie ci-dessous — après chaque nouveau match, regarde si tu montes ▲ ou descends ▼ !</p>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">${rows.length} joueur${rows.length>1?'s':''} classé${rows.length>1?'s':''} dans "${esc(cat.label.replace(/^\S+\s/,''))}". Choisis une catégorie ci-dessous — après chaque nouveau match, regarde si tu montes ▲ ou descends ▼ !${cat.golf?` <b>Comme au golf : moins de points = mieux classé</b> (tes points = la somme de tes places dans Buteur, Passeur, Tireur, Dribbleur et Défenseur).`:``}</p>
       <div class="wrap" style="margin-bottom:10px;">
         ${cats.map(c=>`<span class="chip ${active===c.key?'active':''}" onclick="App.setClassementCat('${c.key}')">${c.label}</span>`).join("")}
       </div>
