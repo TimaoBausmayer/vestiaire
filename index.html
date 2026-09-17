@@ -2827,6 +2827,91 @@ const App = {
     played.forEach(m=>{ if(!m.score) return; gf+=m.score.us||0; ga+=m.score.them||0; if(m.score.us>m.score.them) W++; else if(m.score.us===m.score.them) N++; else D++; });
     return {byAvg, byGoals, byAssists, W, N, D, gf, ga, played: played.length};
   },
+  // Les 6 classements par catégorie ("Général", "Buteur", "Passeur", "Tireur", "Dribbleur", "Défenseur")
+  // demandés pour voir en un coup d'œil qui est le/la meilleur(e) dans chaque domaine, et combien de
+  // joueurs sont classés. "Tireur"/"Dribbleur"/"Défenseur" reprennent directement les attributs TIR/DRI/DÉF
+  // déjà affichés sur la carte FUT de chaque joueur (cardSubStats) — donc noter un joueur sur ces critères
+  // après un match a un effet direct ici aussi. Un gardien n'a pas ces attributs (son jeu de carte est
+  // différent : PLO/REL/RÉF/PLA/AUT), donc il est exclu de ces 3 classements-là, mais reste dans les 3 autres.
+  // `opts` (optionnel) se transmet tel quel à computePlayerStats — utilisé pour recalculer un classement
+  // "avant le dernier match" et ainsi détecter si quelqu'un est monté ou descendu.
+  CLASSEMENT_CATEGORIES: [
+    {key:'general', label:'⭐ Général', forGK:true, fmt:v=>v.toFixed(1)},
+    {key:'buteur', label:'⚽ Buteur', forGK:true, fmt:v=>String(Math.round(v))},
+    {key:'passeur', label:'🎯 Passeur', forGK:true, fmt:v=>String(Math.round(v))},
+    {key:'tireur', label:'🥅 Tireur', forGK:false, fmt:v=>String(Math.round(v))},
+    {key:'dribbleur', label:'🌀 Dribbleur', forGK:false, fmt:v=>String(Math.round(v))},
+    {key:'defenseur', label:'🛡️ Défenseur', forGK:false, fmt:v=>String(Math.round(v))},
+  ],
+  computeCategoryRanking(category, opts){
+    const def = this.CLASSEMENT_CATEGORIES.find(c=>c.key===category);
+    if(!def) return [];
+    const rows = [];
+    this.state.players.forEach(p=>{
+      if(p.position==='Gardien' && !def.forGK) return;
+      const stats = this.computePlayerStats(p.name, opts);
+      if(!stats.matchesPlayed) return; // pas encore joué = pas classé, pour ne pas polluer avec des valeurs par défaut
+      let value;
+      if(category==='general') value = this.cardRating(stats);
+      else if(category==='buteur') value = stats.goals;
+      else if(category==='passeur') value = stats.assists;
+      else {
+        const sub = this.cardSubStats(p, stats);
+        if(category==='tireur') value = sub.TIR;
+        else if(category==='dribbleur') value = sub.DRI;
+        else if(category==='defenseur') value = sub["DÉF"];
+      }
+      if(value==null) return;
+      rows.push({name:p.name, position:p.position, value});
+    });
+    rows.sort((a,b)=>b.value-a.value);
+    rows.forEach((r,i)=>{ r.rank = i+1; });
+    return rows;
+  },
+  // Ajoute prevRank/trend en comparant au classement calculé juste avant le dernier match joué — c'est ce
+  // qui permet d'afficher "monté" / "descendu" / "nouveau" à chaque nouveau match.
+  computeCategoryRankingWithTrend(category){
+    const current = this.computeCategoryRanking(category);
+    const lastMatch = this.lastPlayedMatch();
+    const prevRows = lastMatch ? this.computeCategoryRanking(category, lastMatch.id) : [];
+    const prevRankByName = {};
+    prevRows.forEach(r=>{ prevRankByName[r.name] = r.rank; });
+    current.forEach(r=>{
+      const pr = prevRankByName[r.name];
+      r.prevRank = pr!=null ? pr : null;
+      r.trend = pr==null ? 'new' : pr>r.rank ? 'up' : pr<r.rank ? 'down' : 'same';
+    });
+    return current;
+  },
+  setClassementCat(key){ this.state.classementCat = key; this.render(); },
+  renderClassementsSection(){
+    const cats = this.CLASSEMENT_CATEGORIES;
+    const active = cats.find(c=>c.key===this.state.classementCat) ? this.state.classementCat : 'general';
+    const cat = cats.find(c=>c.key===active);
+    const rows = this.computeCategoryRankingWithTrend(active);
+    const trendTag = (r)=>{
+      if(r.trend==='new') return `<span class="muted" style="font-size:11px;">🆕 nouveau</span>`;
+      if(r.trend==='same') return `<span class="muted" style="font-size:11px;">▬ pareil</span>`;
+      if(r.trend==='up') return `<span style="font-size:11px;color:#2e7d32;">▲ ${r.prevRank}e ➜ ${r.rank}e</span>`;
+      return `<span style="font-size:11px;color:#c62828;">▼ ${r.prevRank}e ➜ ${r.rank}e</span>`;
+    };
+    return `
+    <div class="card">
+      <h2>🏆 Classements</h2>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">${rows.length} joueur${rows.length>1?'s':''} classé${rows.length>1?'s':''} dans "${esc(cat.label.replace(/^\S+\s/,''))}". Choisis une catégorie ci-dessous — après chaque nouveau match, regarde si tu montes ▲ ou descends ▼ !</p>
+      <div class="wrap" style="margin-bottom:10px;">
+        ${cats.map(c=>`<span class="chip ${active===c.key?'active':''}" onclick="App.setClassementCat('${c.key}')">${c.label}</span>`).join("")}
+      </div>
+      ${rows.length===0 ? `<p class="muted" style="font-size:12.5px;">Personne n'a encore assez joué pour ce classement.</p>` :
+        rows.map(r=>`
+        <div class="presence-row" style="cursor:pointer;" onclick="App.selectStatsPlayer('${jsa(r.name)}')">
+          <span class="nm">${this.rankMedal(r.rank-1)} ${esc(r.name)}</span>
+          <span style="text-align:right;">
+            <b>${cat.fmt(r.value)}</b><br>${trendTag(r)}
+          </span>
+        </div>`).join("")}
+    </div>`;
+  },
   computeOpponents(){
     const played = this.state.matches.filter(m=>m.played && m.opponent);
     const byOpp = {};
@@ -2864,6 +2949,7 @@ const App = {
           `).join("")}
       </div>
 
+      ${this.renderClassementsSection()}
       ${this.renderStatsTable()}
       ${selected ? this.renderPlayerSheet(selected) : ""}
       ${this.renderTeamRostersSection()}
