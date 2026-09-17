@@ -546,6 +546,9 @@ const App = {
     expandedValueChart: {},
     expandedBetMatch: {},
     expandedBetScorers: {},
+    expandedRatingChart: {},
+    compareA: null,
+    compareB: null,
   },
 
   async init(){
@@ -2988,6 +2991,7 @@ const App = {
     const players = this.state.players.filter(p=> !search || norm(p.name).includes(norm(search)));
     const selected = this.state.statsSelected && this.state.players.find(p=>p.name===this.state.statsSelected);
     return `
+      ${this.renderTeamDashboard()}
       <div class="card">
         <h2>🔎 Rechercher un joueur</h2>
         <div class="search-wrap">
@@ -3008,6 +3012,7 @@ const App = {
       </div>
 
       ${this.renderClassementsSection()}
+      ${this.renderPlayerComparator()}
       ${this.renderStatsTable()}
       ${selected ? this.renderPlayerSheet(selected) : ""}
       ${this.renderTeamRostersSection()}
@@ -3205,14 +3210,20 @@ const App = {
         ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.removePlayer('${p.id}')">🗑️</button>`:""}
       </div>
       ${trophies.length? `<div class="trophy-row">${trophies.map(t=>`<span class="trophy-chip">${t}</span>`).join("")}</div>`:""}
+      ${(()=>{ const badges = this.computeBadges(p.name);
+        if(!badges.length) return "";
+        return `<div class="trophy-row">${badges.map(b=>`<span class="trophy-chip" style="background:var(--surface-2);color:var(--text);" title="${esc(b.desc)}">${b.icon} ${esc(b.label)}</span>`).join("")}</div>`; })()}
       ${(()=>{ const mv=this.marketValueTrend(p.name); const arrow=mv.dir==='up'?'▲':mv.dir==='down'?'▼':'▬'; const col=mv.dir==='up'?'var(--accent2)':mv.dir==='down'?'var(--danger)':'var(--text-muted)';
         const chartOpen = this.state.expandedValueChart && this.state.expandedValueChart[p.name];
+        const ratingChartOpen = this.state.expandedRatingChart && this.state.expandedRatingChart[p.name];
         return `<div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin:8px 0 4px;">
           <span>💰 Valeur marchande</span>
           <b style="text-align:right;">${this.formatMarketValue(mv.value)} <span style="color:${col};">${arrow}${mv.dir!=='flat'?' '+(mv.pct>=0?'+':'')+mv.pct.toFixed(1)+'%':''}</span></b>
         </div>
         <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px;" onclick="App.toggleValueChart('${jsa(p.name)}')">📈 ${chartOpen?'Masquer':'Voir'} l'évolution de la valeur</button>
-        ${chartOpen? this.renderValueHistoryChart(p.name):''}`; })()}
+        ${chartOpen? this.renderValueHistoryChart(p.name):''}
+        <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px;" onclick="App.toggleRatingChart('${jsa(p.name)}')">⭐ ${ratingChartOpen?'Masquer':'Voir'} la progression du général</button>
+        ${ratingChartOpen? this.renderRatingHistoryChart(p.name):''}`; })()}
       <hr class="sep">
       <div class="stat-grid">
         <div class="kv"><span>Buts marqués</span><b>${s.goals}</b></div>
@@ -3307,6 +3318,256 @@ const App = {
       shotsOnTarget+=s.shotsOnTarget; tacklesWon+=s.tacklesWon; saves+=s.saves; penaltiesSaved+=s.penaltiesSaved; penaltiesConceded+=s.penaltiesConceded;
     });
     return {goals, assists, yellow, red, cornersScored, cornersTaken, penaltiesScored, penaltiesMissed, penaltiesCaused, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded};
+  },
+  /* ---------- Tableau de bord équipe (série en cours + compte à rebours du prochain match) ---------- */
+  // Série actuelle du club : on part du match le plus récent et on remonte tant que le résultat est le
+  // même (victoire, nul ou défaite). Ça donne un vrai "3 victoires d'affilée" ou "2 défaites d'affilée"
+  // plutôt qu'un simple total sur la saison.
+  computeCurrentStreak(){
+    const past = this.pastMatches(); // le plus récent en premier
+    if(!past.length) return {type:null, count:0};
+    const resultOf = m => {
+      if(!m.score) return null;
+      if(m.score.us>m.score.them) return 'victoire';
+      if(m.score.us===m.score.them) return 'nul';
+      return 'défaite';
+    };
+    const firstResult = resultOf(past[0]);
+    if(!firstResult) return {type:null, count:0};
+    let count = 0;
+    for(const m of past){
+      if(resultOf(m)===firstResult) count++; else break;
+    }
+    return {type:firstResult, count};
+  },
+  // Texte du compte à rebours avant le prochain match : "Aujourd'hui !", "Demain !", "Dans X jours"...
+  formatCountdown(nm){
+    if(!nm || !nm.date) return null;
+    const target = new Date(nm.date+"T"+(nm.time||"00:00")+":00");
+    if(isNaN(target)) return null;
+    const now = new Date();
+    const oneDay = 24*3600*1000;
+    const dKey = new Date(target.getFullYear(),target.getMonth(),target.getDate()).getTime();
+    const nKey = new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+    const diffDays = Math.round((dKey-nKey)/oneDay);
+    if(diffDays<0) return "Match passé";
+    if(diffDays===0) return nm.time ? `Aujourd'hui à ${esc(nm.time)} !` : "Aujourd'hui !";
+    if(diffDays===1) return "Demain !";
+    return `Dans ${diffDays} jours`;
+  },
+  renderTeamDashboard(){
+    const info = this.state.info || this.defaultInfo();
+    const rk = this.globalRankings();
+    const streak = this.computeCurrentStreak();
+    const nm = this.nextMatch();
+    const countdown = this.formatCountdown(nm);
+    const streakLabel = streak.count>=2
+      ? (streak.type==='victoire' ? `🔥 ${streak.count} victoires d'affilée`
+        : streak.type==='défaite' ? `😬 ${streak.count} défaites d'affilée`
+        : `🤝 ${streak.count} nuls d'affilée`)
+      : (streak.type ? `Dernier match : ${streak.type}` : "Pas encore de match joué");
+    const topScorer = rk.byGoals[0];
+    const topPasser = rk.byAssists[0];
+    return `
+    <div class="card" style="background:linear-gradient(135deg,var(--surface-2),var(--surface));">
+      <div class="section-title">
+        <h2 style="margin:0;">📊 Tableau de bord — ${esc(info.teamName||"Mon Équipe")}</h2>
+      </div>
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="card tight" style="margin:0;text-align:center;">
+          <div class="fut-rating" style="font-size:22px;color:var(--accent2);">${rk.W}-${rk.N}-${rk.D}</div>
+          <div class="muted" style="font-size:11px;">V-N-D (${rk.played} match${rk.played>1?'s':''})</div>
+        </div>
+        <div class="card tight" style="margin:0;text-align:center;">
+          <div class="fut-rating" style="font-size:22px;color:var(--gold);">${rk.gf}-${rk.ga}</div>
+          <div class="muted" style="font-size:11px;">Buts marqués-encaissés</div>
+        </div>
+      </div>
+      <div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:6px;">
+        <span>📈 Série en cours</span><b>${streakLabel}</b>
+      </div>
+      <div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:6px;">
+        <span>⏳ Prochain match</span>
+        <b style="text-align:right;">${nm ? `${countdown}${nm.opponent?' vs '+esc(nm.opponent):''}` : "Aucun match prévu"}</b>
+      </div>
+      ${topScorer||topPasser ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px;">
+        ${topScorer && topScorer.goals>0 ? `<span class="trophy-chip">⚽ ${esc(topScorer.name)} (${topScorer.goals})</span>`:""}
+        ${topPasser && topPasser.assists>0 ? `<span class="trophy-chip">🎯 ${esc(topPasser.name)} (${topPasser.assists})</span>`:""}
+      </div>` : ""}
+    </div>`;
+  },
+  /* ---------- Comparateur de joueurs ---------- */
+  setCompareA(name){ this.state.compareA = name||null; this.render(); },
+  setCompareB(name){ this.state.compareB = name||null; this.render(); },
+  renderPlayerComparator(){
+    const players = this.state.players;
+    if(players.length<2) return "";
+    const nameA = this.state.compareA || players[0].name;
+    const nameB = this.state.compareB || (players[1] ? players[1].name : players[0].name);
+    const pA = players.find(p=>p.name===nameA);
+    const pB = players.find(p=>p.name===nameB);
+    const options = sel => players.map(p=>`<option value="${esc(p.name)}" ${p.name===sel?'selected':''}>${esc(p.name)}</option>`).join("");
+    if(!pA || !pB) return "";
+    const sA = this.computePlayerStats(pA.name), sB = this.computePlayerStats(pB.name);
+    const ratingA = this.cardRating(sA), ratingB = this.cardRating(sB);
+    const rows = [
+      {label:"⭐ Général", a:ratingA, b:ratingB, fmt:v=>v.toFixed(1)},
+      {label:"⚽ Buts", a:sA.goals, b:sB.goals},
+      {label:"🎯 Passes décisives", a:sA.assists, b:sB.assists},
+      {label:"Note moyenne", a:sA.avgRating, b:sB.avgRating, fmt:v=>v?v.toFixed(1):"–"},
+      {label:"🛡️ Tacles réussis", a:sA.tacklesWon, b:sB.tacklesWon},
+      {label:"Tirs cadrés", a:sA.shotsOnTarget, b:sB.shotsOnTarget},
+      {label:"Matchs joués", a:sA.matchesPlayed, b:sB.matchesPlayed},
+      {label:"🏆 MVP", a:sA.mvp, b:sB.mvp},
+    ];
+    const cell = (v, isBest, fmt) => `<span style="${isBest?'color:var(--accent2);font-weight:700;':''}">${fmt?fmt(v):v}</span>`;
+    return `
+    <div class="card">
+      <h2>⚖️ Comparateur de joueurs</h2>
+      <div class="grid2" style="margin-bottom:10px;">
+        <select onchange="App.setCompareA(this.value)" style="width:100%;">${options(nameA)}</select>
+        <select onchange="App.setCompareB(this.value)" style="width:100%;">${options(nameB)}</select>
+      </div>
+      <div class="grid2" style="margin-bottom:8px;text-align:center;">
+        <div>${pA.photo?`<img class="avatar" src="${pA.photo}">`:`<div class="avatar">${initials(pA.name)}</div>`}<div style="font-weight:600;font-size:13px;margin-top:4px;">${esc(pA.name)}</div></div>
+        <div>${pB.photo?`<img class="avatar" src="${pB.photo}">`:`<div class="avatar">${initials(pB.name)}</div>`}<div style="font-weight:600;font-size:13px;margin-top:4px;">${esc(pB.name)}</div></div>
+      </div>
+      ${rows.map(r=>{
+        const bestA = r.a>r.b, bestB = r.b>r.a;
+        return `<div class="kv"><span style="flex:1;text-align:left;">${cell(r.a,bestA,r.fmt)}</span><span class="muted" style="flex:1.4;text-align:center;font-size:11.5px;">${r.label}</span><span style="flex:1;text-align:right;">${cell(r.b,bestB,r.fmt)}</span></div>`;
+      }).join("")}
+    </div>`;
+  },
+  /* ---------- Courbe de progression du général (même principe que l'évolution de la valeur marchande) ---------- */
+  playerRatingHistory(name){
+    const played = this.state.matches.filter(m=>m.played).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    const ids = [];
+    return played.map(m=>{
+      ids.push(m.id);
+      const stats = this.computePlayerStats(name, {includeIds:[...ids]});
+      const rating = this.cardRating(stats);
+      return {date:m.date, opponent:m.opponent, value:rating};
+    });
+  },
+  toggleRatingChart(name){
+    this.state.expandedRatingChart = this.state.expandedRatingChart || {};
+    this.state.expandedRatingChart[name] = !this.state.expandedRatingChart[name];
+    this.render();
+  },
+  renderRatingHistoryChart(name){
+    const points = this.playerRatingHistory(name);
+    if(points.length<2) return `<p class="muted" style="font-size:11.5px;">Pas encore assez de matchs joués pour tracer une évolution.</p>`;
+    const values = points.map(p=>p.value);
+    const min = Math.min(...values), max = Math.max(...values);
+    const range = (max-min) || 1;
+    const W=100, H=40;
+    const stepX = points.length>1 ? W/(points.length-1) : 0;
+    const coords = points.map((p,i)=>({x:i*stepX, y:H-((p.value-min)/range)*H, ...p}));
+    const path = coords.map((c,i)=>(i===0?'M':'L')+c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
+    const last = coords[coords.length-1];
+    return `
+    <div style="margin-top:6px;">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:70px;background:var(--surface-2);border-radius:8px;">
+        <path d="${path}" fill="none" stroke="var(--gold)" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+        <circle cx="${last.x}" cy="${last.y}" r="1.6" fill="var(--gold)"></circle>
+      </svg>
+      <div class="row" style="justify-content:space-between;">
+        <span class="muted" style="font-size:10px;">${fmtDate(points[0].date)} · ${points[0].value.toFixed(1)}</span>
+        <span class="muted" style="font-size:10px;">${fmtDate(points[points.length-1].date)} · ${points[points.length-1].value.toFixed(1)}</span>
+      </div>
+    </div>`;
+  },
+  /* ---------- Badges & records ---------- */
+  // Contribution d'UN SEUL match pour un joueur (pas cumulé, contrairement à computePlayerStats) — sert de
+  // brique de base pour calculer des séries "d'affilée" (ex : buts marqués sur plusieurs matchs consécutifs).
+  matchContribution(name, m){
+    const countIn = (arr) => (arr||[]).reduce((s,x)=> x && x.name===name ? s+(x.count||0) : s, 0);
+    const freekick = countIn(m.freekickScored);
+    const goals = countIn(m.scorers) + freekick + countIn(m.cornersScored) + countIn(m.penaltiesScored);
+    const assists = countIn(m.assists);
+    const yellow = countIn(m.cardsYellow);
+    const red = countIn(m.cardsRed);
+    const tacklesWon = countIn(m.tacklesWon);
+    const r = m.ratings && m.ratings[name];
+    const ratingVals = r ? Object.values(r) : [];
+    const rating = ratingVals.length ? avg(ratingVals) : null;
+    let isMVP = false;
+    if(m.ratings){
+      let best=null, bestAvg=-1;
+      Object.keys(m.ratings).forEach(p=>{
+        const vals = Object.values(m.ratings[p]||{});
+        if(!vals.length) return;
+        const a = avg(vals);
+        if(a>bestAvg){ bestAvg=a; best=p; }
+      });
+      isMVP = best===name;
+    }
+    const wasGK = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && t.assignments.GK===name);
+    const concededAsGK = wasGK && m.score ? (m.score.them||0) : null;
+    const wasInvolved = (m.convoked||[]).length ? (m.convoked||[]).includes(name) : ((m.teamA||[]).includes(name) || (m.teamB||[]).includes(name));
+    return {goals, freekick, assists, yellow, red, tacklesWon, rating, isMVP, wasGK, concededAsGK, wasInvolved};
+  },
+  // Plus longue série de matchs JOUÉS consécutifs (les matchs où le joueur n'était pas convoqué sont
+  // simplement ignorés — ils ne cassent pas la série, sinon une simple absence ferait perdre une série de
+  // plusieurs semaines sans lien avec la performance) où `predicate` est vrai.
+  longestStreak(name, predicate){
+    const played = this.state.matches.filter(m=>m.played).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    let best=0, cur=0;
+    played.forEach(m=>{
+      const c = this.matchContribution(name, m);
+      if(!c.wasInvolved) return;
+      if(predicate(c)){ cur++; best=Math.max(best,cur); } else { cur=0; }
+    });
+    return best;
+  },
+  computeBadges(name){
+    const player = this.state.players.find(p=>p.name===name);
+    if(!player) return [];
+    const stats = this.computePlayerStats(name);
+    const played = this.state.matches.filter(m=>m.played).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    const badges = [];
+    // Triplé (ou plus) sur un seul match
+    const hatTrick = played.some(m=>this.matchContribution(name,m).goals>=3);
+    if(hatTrick) badges.push({icon:'🎩', label:'Triplé', desc:'Au moins 3 buts marqués dans un même match.'});
+    // Série de buts sur plusieurs matchs d'affilée
+    const goalStreak = this.longestStreak(name, c=>c.goals>=1);
+    if(goalStreak>=2) badges.push({icon:'🔥', label:`Série de buts ×${goalStreak}`, desc:`A marqué au moins un but sur ${goalStreak} matchs joués d'affilée.`});
+    // Série de coups francs marqués d'affilée
+    const freekickStreak = this.longestStreak(name, c=>c.freekick>=1);
+    if(freekickStreak>=2) badges.push({icon:'🦵', label:`Série de coups francs ×${freekickStreak}`, desc:`A marqué au moins un coup franc sur ${freekickStreak} matchs joués d'affilée.`});
+    // Série de passes décisives d'affilée
+    const assistStreak = this.longestStreak(name, c=>c.assists>=1);
+    if(assistStreak>=2) badges.push({icon:'🎯', label:`Série de passes ×${assistStreak}`, desc:`Au moins une passe décisive sur ${assistStreak} matchs joués d'affilée.`});
+    // Série de MVP d'affilée
+    const mvpStreak = this.longestStreak(name, c=>c.isMVP);
+    if(mvpStreak>=2) badges.push({icon:'🏅', label:`MVP ×${mvpStreak} d'affilée`, desc:`Meilleure note de l'équipe sur ${mvpStreak} matchs joués d'affilée.`});
+    // Grosse performance : une note individuelle >= 9/10 sur un match
+    const bigPerf = played.some(m=>{ const c=this.matchContribution(name,m); return c.rating!=null && c.rating>=9; });
+    if(bigPerf) badges.push({icon:'⭐', label:'Performance 9+', desc:'Note moyenne d\'au moins 9/10 sur un match.'});
+    // Séries de "clean sheets" pour les gardiens
+    if(player.position==='Gardien'){
+      const cleanSheetStreak = this.longestStreak(name, c=>c.wasGK && c.concededAsGK===0);
+      if(cleanSheetStreak>=2) badges.push({icon:'🧤', label:`Cage inviolée ×${cleanSheetStreak}`, desc:`Aucun but encaissé sur ${cleanSheetStreak} matchs gardés d'affilée.`});
+    }
+    // Fair-play : au moins 5 matchs joués, aucun carton
+    if(stats.matchesPlayed>=5 && (stats.yellow||0)===0 && (stats.red||0)===0){
+      badges.push({icon:'🕊️', label:'Fair-play', desc:`Aucun carton en ${stats.matchesPlayed} matchs joués.`});
+    }
+    // Paliers de buts en carrière (le plus haut palier atteint)
+    const goalMilestones = [20,10,5];
+    const goalMilestone = goalMilestones.find(n=>stats.goals>=n);
+    if(goalMilestone) badges.push({icon:'💯', label:`${goalMilestone} buts en carrière`, desc:`A dépassé les ${goalMilestone} buts marqués au total.`});
+    // Muraille défensive : beaucoup de tacles réussis au total
+    if((stats.tacklesWon||0)>=20) badges.push({icon:'🧱', label:'Muraille', desc:`Au moins 20 tacles réussis au total (${stats.tacklesWon}).`});
+    // Grimpeur : le général a nettement progressé sur les 3 derniers matchs
+    const lastThree = played.slice(-3);
+    if(lastThree.length===3){
+      const idsBefore = played.slice(0,-3).map(m=>m.id);
+      const before = idsBefore.length ? this.cardRating(this.computePlayerStats(name, {includeIds:idsBefore})) : null;
+      const now = this.cardRating(stats);
+      if(before!=null && now-before>=8) badges.push({icon:'📈', label:'En pleine progression', desc:`Général en hausse de +${(now-before).toFixed(1)} sur les 3 derniers matchs.`});
+    }
+    return badges;
   },
   renderTeamStats(){
     const info = this.state.info || this.defaultInfo();
