@@ -219,6 +219,9 @@
   .pbtn.on-present{background:var(--accent2-soft);color:var(--accent2);border-color:transparent;}
   .pbtn.on-absent{background:var(--danger-soft);color:var(--danger);border-color:transparent;}
   .pbtn.on-late{background:var(--gold-soft);color:var(--gold);border-color:transparent;}
+  .pbtn.on-unsure{background:var(--surface);color:var(--text-muted);border-color:var(--text-muted);}
+  .pbtn.has-note{box-shadow:0 0 0 2px var(--accent2) inset;}
+  .presence-note-preview{font-size:10.5px;color:var(--text-muted);font-style:italic;margin:-4px 0 4px;}
 
   .stat-table-wrap{overflow-x:auto;margin:10px 0;border:1px solid var(--line);border-radius:12px;}
   table.stat-table{border-collapse:collapse;width:100%;font-size:12px;}
@@ -461,6 +464,12 @@ function pctStr(made, attempts){ return attempts>0 ? Math.round(made/attempts*10
 function perMatchStr(total, matches){ return matches>0 ? (total/matches).toFixed(2) : "–"; }
 function fmtEuro(n){ return Math.round(n||0).toLocaleString("fr-FR") + " €"; }
 function uniq(arr){ return [...new Set(arr)]; }
+// Une réponse de présence (match ou entraînement/compétition) était autrefois stockée comme une simple
+// chaîne ("present"/"late"/"absent"). Elle est maintenant un objet {status, note} pour pouvoir y accrocher
+// une petite note visible par tous. Ces deux fonctions lisent les deux formats sans distinction, pour que
+// les anciennes réponses déjà enregistrées (avant cette fonctionnalité) continuent de s'afficher correctement.
+function presenceStatus(entry){ return entry && typeof entry==='object' ? (entry.status||null) : (entry||null); }
+function presenceNote(entry){ return (entry && typeof entry==='object' && entry.note) ? entry.note : ""; }
 function simpleHash(s){
   s = String(s==null?"":s);
   let h = 5381;
@@ -1938,26 +1947,44 @@ const App = {
         shotsOnTarget=manual.shotsOnTarget||0, tacklesWon=manual.tacklesWon||0,
         saves=manual.saves||0, penaltiesSaved=manual.penaltiesSaved||0, penaltiesConceded=manual.penaltiesConceded||0,
         minutesPlayed=manual.minutesPlayed||0, matchVoteBest=0, matchVoteWorst=0, matchRankSum=0, matchRankCount=0;
+    // Version "pondérée" de ces mêmes totaux, utilisée UNIQUEMENT pour calculer le général (cardRating) :
+    // chaque match n'y contribue plus pour 1x, mais pour son poids d'importance (voir matchWeight / le
+    // barème IMPORTANCE_BAREME) — un match noté 1/10 pèse 5x moins qu'un match "normal" (5/10, poids 1x),
+    // un match noté 10/10 pèse 2x plus. Les stats manuelles (import, sans match associé) gardent un poids
+    // normal (1x). Les totaux BRUTS ci-dessus restent inchangés et continuent d'alimenter les classements
+    // (Buteur, Passeur, etc.) et les fiches joueur, qui doivent rester de vrais compteurs, pas des valeurs
+    // pondérées.
+    let wOpenPlayGoals=manual.goals||0, wFreekickScored=manual.freekickScored||0, wCornersScored=manual.cornersScored||0, wPenaltiesScored=manual.penaltiesScored||0,
+        wAssists=manual.assists||0, wRatingsSum=0, wRatingsWeight=0, wMvp=0, wGoalsConceded=0, wGkWeight=0,
+        wTimesStarter=manual.timesStarter||0, wMinutesPlayed=manual.minutesPlayed||0,
+        wYellow=manual.yellow||0, wRed=manual.red||0, wWorstVotesTotal=0, wBeautifulGoalVotesTotal=0,
+        wPenaltiesMissed=manual.penaltiesMissed||0, wPenaltiesCaused=manual.penaltiesCaused||0,
+        wShotsOnTarget=manual.shotsOnTarget||0, wTacklesWon=manual.tacklesWon||0,
+        wSaves=manual.saves||0, wPenaltiesSaved=manual.penaltiesSaved||0,
+        wMatchRankSum=0, wMatchRankWeight=0;
     matches.forEach(m=>{
-      (m.scorers||[]).forEach(s=>{ if(s.name===name) openPlayGoals += (s.count||0); });
-      (m.freekickScored||[]).forEach(s=>{ if(s.name===name) freekickScored += (s.count||0); });
-      (m.assists||[]).forEach(s=>{ if(s.name===name) assists += (s.count||0); });
-      (m.cardsYellow||[]).forEach(s=>{ if(s.name===name) yellow += (s.count||0); });
-      (m.cardsRed||[]).forEach(s=>{ if(s.name===name) red += (s.count||0); });
-      (m.penaltiesScored||[]).forEach(s=>{ if(s.name===name) penaltiesScored += (s.count||0); });
-      (m.penaltiesMissed||[]).forEach(s=>{ if(s.name===name) penaltiesMissed += (s.count||0); });
-      (m.penaltiesCaused||[]).forEach(s=>{ if(s.name===name) penaltiesCaused += (s.count||0); });
-      (m.cornersScored||[]).forEach(s=>{ if(s.name===name) cornersScored += (s.count||0); });
+      const w = this.matchWeight(m);
+      (m.scorers||[]).forEach(s=>{ if(s.name===name){ openPlayGoals += (s.count||0); wOpenPlayGoals += (s.count||0)*w; } });
+      (m.freekickScored||[]).forEach(s=>{ if(s.name===name){ freekickScored += (s.count||0); wFreekickScored += (s.count||0)*w; } });
+      (m.assists||[]).forEach(s=>{ if(s.name===name){ assists += (s.count||0); wAssists += (s.count||0)*w; } });
+      (m.cardsYellow||[]).forEach(s=>{ if(s.name===name){ yellow += (s.count||0); wYellow += (s.count||0)*w; } });
+      (m.cardsRed||[]).forEach(s=>{ if(s.name===name){ red += (s.count||0); wRed += (s.count||0)*w; } });
+      (m.penaltiesScored||[]).forEach(s=>{ if(s.name===name){ penaltiesScored += (s.count||0); wPenaltiesScored += (s.count||0)*w; } });
+      (m.penaltiesMissed||[]).forEach(s=>{ if(s.name===name){ penaltiesMissed += (s.count||0); wPenaltiesMissed += (s.count||0)*w; } });
+      (m.penaltiesCaused||[]).forEach(s=>{ if(s.name===name){ penaltiesCaused += (s.count||0); wPenaltiesCaused += (s.count||0)*w; } });
+      (m.cornersScored||[]).forEach(s=>{ if(s.name===name){ cornersScored += (s.count||0); wCornersScored += (s.count||0)*w; } });
       (m.cornersTaken||[]).forEach(s=>{ if(s.name===name) cornersTaken += (s.count||0); });
-      (m.shotsOnTarget||[]).forEach(s=>{ if(s.name===name) shotsOnTarget += (s.count||0); });
-      (m.tacklesWon||[]).forEach(s=>{ if(s.name===name) tacklesWon += (s.count||0); });
-      (m.saves||[]).forEach(s=>{ if(s.name===name) saves += (s.count||0); });
-      (m.penaltiesSaved||[]).forEach(s=>{ if(s.name===name) penaltiesSaved += (s.count||0); });
+      (m.shotsOnTarget||[]).forEach(s=>{ if(s.name===name){ shotsOnTarget += (s.count||0); wShotsOnTarget += (s.count||0)*w; } });
+      (m.tacklesWon||[]).forEach(s=>{ if(s.name===name){ tacklesWon += (s.count||0); wTacklesWon += (s.count||0)*w; } });
+      (m.saves||[]).forEach(s=>{ if(s.name===name){ saves += (s.count||0); wSaves += (s.count||0)*w; } });
+      (m.penaltiesSaved||[]).forEach(s=>{ if(s.name===name){ penaltiesSaved += (s.count||0); wPenaltiesSaved += (s.count||0)*w; } });
       (m.penaltiesConceded||[]).forEach(s=>{ if(s.name===name) penaltiesConceded += (s.count||0); });
-      (m.minutesPlayed||[]).forEach(s=>{ if(s.name===name) minutesPlayed += (s.count||0); });
+      (m.minutesPlayed||[]).forEach(s=>{ if(s.name===name){ minutesPlayed += (s.count||0); wMinutesPlayed += (s.count||0)*w; } });
       const wasGK = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && t.assignments.GK===name);
       if(wasGK && m.score){
         goalsConceded += (m.score.them||0);
+        wGoalsConceded += (m.score.them||0)*w;
+        wGkWeight += w;
       }
       // "Convoqué" doit être la source de vérité de "a joué ce match" : décocher quelqu'un dans les
       // convocations doit vraiment le retirer des stats, même s'il reste listé dans l'équipe A/B (l'équipe
@@ -1971,13 +1998,13 @@ const App = {
       if(wasInvolved){
         matchesPlayed++;
         const wasStarter = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && Object.values(t.assignments).includes(name));
-        if(wasStarter) timesStarter++; else timesSub++;
+        if(wasStarter){ timesStarter++; wTimesStarter += w; } else timesSub++;
       }
       if(wasInvolved && m.score){
         if(m.score.us>m.score.them) W++; else if(m.score.us===m.score.them) D++; else L++;
       }
-      if(m.worstVotes && m.worstVotes[name]) worstVotesTotal += Object.values(m.worstVotes[name]).filter(Boolean).length;
-      if(m.goalVotes && m.goalVotes[name]) beautifulGoalVotesTotal += Object.values(m.goalVotes[name]).filter(Boolean).length;
+      if(m.worstVotes && m.worstVotes[name]){ const n = Object.values(m.worstVotes[name]).filter(Boolean).length; worstVotesTotal += n; wWorstVotesTotal += n*w; }
+      if(m.goalVotes && m.goalVotes[name]){ const n = Object.values(m.goalVotes[name]).filter(Boolean).length; beautifulGoalVotesTotal += n; wBeautifulGoalVotesTotal += n*w; }
       const bestVoteInfo = this.matchVotePoints(m.matchVotes, 'best', this.MATCH_VOTE_BEST_SIZE);
       const worstVoteInfo = this.matchVotePoints(m.matchVotes, 'worst', this.MATCH_VOTE_WORST_SIZE);
       const bestAvgPts = bestVoteInfo.raterCount ? (bestVoteInfo.tally[name]||0)/bestVoteInfo.raterCount : 0;
@@ -1989,13 +2016,16 @@ const App = {
       // dedans avec un poids faible). Sur son échelle -5..+5 par match (même échelle que l'écart des notes
       // à 5/10), moyenné sur tous les matchs où un classement a été voté (0 si le joueur n'y figure pas).
       if(bestVoteInfo.raterCount>0 || worstVoteInfo.raterCount>0){
-        matchRankSum += (bestAvgPts/this.MATCH_VOTE_BEST_SIZE)*5 - (worstAvgPts/this.MATCH_VOTE_WORST_SIZE)*5;
+        const rankPts = (bestAvgPts/this.MATCH_VOTE_BEST_SIZE)*5 - (worstAvgPts/this.MATCH_VOTE_WORST_SIZE)*5;
+        matchRankSum += rankPts;
         matchRankCount++;
+        wMatchRankSum += rankPts*w;
+        wMatchRankWeight += w;
       }
       const r = m.ratings && m.ratings[name];
       if(r){
         const vals = Object.values(r);
-        if(vals.length){ ratingsSum += avg(vals); ratingsCount++; }
+        if(vals.length){ const a = avg(vals); ratingsSum += a; ratingsCount++; wRatingsSum += a*w; wRatingsWeight += w; }
       }
       const dr = m.detailedRatings && m.detailedRatings[name];
       if(dr){
@@ -2013,11 +2043,13 @@ const App = {
           const a = avg(vals);
           if(a>bestAvg){ bestAvg=a; best=p; }
         });
-        if(best===name) mvp++;
+        if(best===name){ mvp++; wMvp += w; }
       }
     });
     const avgRating = ratingsCount ? (ratingsSum/ratingsCount) : 0;
     const matchRankAvg = matchRankCount ? (matchRankSum/matchRankCount) : 0;
+    const wAvgRating = wRatingsWeight ? (wRatingsSum/wRatingsWeight) : 0;
+    const wMatchRankAvg = wMatchRankWeight ? (wMatchRankSum/wMatchRankWeight) : 0;
     const criteria = {};
     critList.forEach(c=>{ criteria[c.key] = critCounts[c.key] ? (critSums[c.key]/critCounts[c.key]) : 0; });
     const ballonDorAdj = this.ballonDorAdj(name);
@@ -2033,7 +2065,58 @@ const App = {
     // reste disponible séparément (freekickScored, cornersScored, penaltiesScored) pour la note générale,
     // qui elle valorise différemment un but sur coup franc (très dur) et un but sur penalty (plus facile).
     const goals = openPlayGoals + freekickScored + cornersScored + penaltiesScored;
-    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null};
+    // Sous-objet dédié au calcul du général : mêmes clés que les stats brutes correspondantes, mais
+    // pondérées par l'importance de chaque match (voir commentaire plus haut). cardRating() lit ces
+    // valeurs-là, jamais les valeurs brutes ci-dessus.
+    const weighted = {
+      openPlayGoals: wOpenPlayGoals, freekickScored: wFreekickScored, cornersScored: wCornersScored, penaltiesScored: wPenaltiesScored,
+      assists: wAssists, avgRating: wAvgRating, ratingsCount: wRatingsWeight, mvp: wMvp,
+      tacklesWon: wTacklesWon, shotsOnTarget: wShotsOnTarget, minutesPlayed: wMinutesPlayed, timesStarter: wTimesStarter,
+      penaltiesMissed: wPenaltiesMissed, penaltiesCaused: wPenaltiesCaused, worstVotesTotal: wWorstVotesTotal, beautifulGoalVotesTotal: wBeautifulGoalVotesTotal,
+      yellow: wYellow, red: wRed, matchRankAvg: wMatchRankAvg,
+      goalsConceded: wGoalsConceded, gkWeight: wGkWeight, saves: wSaves, penaltiesSaved: wPenaltiesSaved,
+    };
+    return {goals, openPlayGoals, freekickScored, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted};
+  },
+  // Poids d'un match dans le calcul du général, selon son "importance" (1 à 10, saisie sur la fiche du
+  // match). 5/10 = poids normal (1x, comportement identique à avant cette fonctionnalité — c'est aussi la
+  // valeur par défaut de tout match sans importance renseignée, donc les anciens matchs ne changent pas de
+  // poids). En dessous, le match compte de moins en moins (jusqu'à 0.2x à 1/10) ; au-dessus, il compte de
+  // plus en plus (jusqu'à 2x à 10/10). Seul l'impact sur le général (cardRating) est concerné : les vrais
+  // compteurs de buts/passes/etc. et les classements associés ne sont JAMAIS pondérés.
+  matchWeight(m){
+    const imp = (m && m.importance!=null) ? m.importance : 5;
+    return imp/5;
+  },
+  IMPORTANCE_BAREME: [
+    {min:1, max:2, emoji:'⚪', label:'Entraînement / amical', desc:'impact très faible'},
+    {min:3, max:4, emoji:'🔵', label:'Championnat, faible enjeu', desc:'impact faible'},
+    {min:5, max:6, emoji:'🟢', label:'Championnat, match normal', desc:'impact normal (référence)'},
+    {min:7, max:8, emoji:'🟠', label:'Match important (choc, qualification)', desc:'impact fort'},
+    {min:9, max:10, emoji:'🔴', label:'Finale / match décisif', desc:'impact très fort'},
+  ],
+  importanceInfo(imp){
+    imp = (imp==null) ? 5 : imp;
+    const tier = this.IMPORTANCE_BAREME.find(t=>imp>=t.min && imp<=t.max) || this.IMPORTANCE_BAREME[2];
+    return {emoji:tier.emoji, label:tier.label, desc:tier.desc, value:imp, weight: imp/5};
+  },
+  renderImportanceLegend(){
+    return `<div class="card tight" style="margin:8px 0;background:var(--surface-2);">
+      <p class="muted" style="font-size:11px;margin:0 0 4px;font-weight:700;">🎚️ Barème d'importance (à quel point ce match fait monter/descendre le général)</p>
+      ${this.IMPORTANCE_BAREME.map(t=>`<p class="muted" style="font-size:11px;margin:2px 0;">${t.emoji} <b>${t.min===t.max?t.min:t.min+'-'+t.max}</b> — ${esc(t.label)} <span style="opacity:.75;">(${esc(t.desc)})</span></p>`).join("")}
+    </div>`;
+  },
+  renderImportanceField(id, current){
+    const val = (current==null) ? 5 : current;
+    return `<label class="field">⭐ Importance du match (1 = anecdotique, 10 = décisif)
+      <select id="${id}">
+        ${Array.from({length:10},(_,i)=>i+1).map(n=>{
+          const info = this.importanceInfo(n);
+          return `<option value="${n}" ${n===val?'selected':''}>${n} — ${info.emoji} ${esc(info.label)}${n===5?' (défaut)':''}</option>`;
+        }).join("")}
+      </select>
+    </label>
+    ${this.renderImportanceLegend()}`;
   },
   // Mécanique commune à tous les classements de fin de saison (Ballon d'Or, Pire Joueur, Pire Action) :
   // seules les topN premières places du classement ont un effet "bonus" sur le général, et cet effet est
@@ -2075,40 +2158,47 @@ const App = {
     // moins un match joué). Le plancher général est maintenant 30 (au lieu de 45) : un joueur qui enchaîne les
     // mauvaises performances doit pouvoir vraiment redescendre, pas juste stagner à 45 quoi qu'il arrive.
     if(!stats.matchesPlayed) return 30;
+    // À partir d'ici, tout ce qui vient des matchs (notes, buts, cartons, temps de jeu, etc.) est lu depuis
+    // stats.weighted plutôt que depuis les totaux bruts : chaque match y contribue selon son importance
+    // (1 à 10, voir matchWeight/IMPORTANCE_BAREME), donc un match "anecdotique" (1-2/10) ne fait presque pas
+    // bouger le général, alors qu'une finale (9-10/10) le fait bouger jusqu'à 2x plus qu'un match normal.
+    // stats.matchesPlayed lui-même reste NON pondéré : avoir déjà joué au moins un match (même peu important)
+    // suffit à sortir du plancher à 30, ça reste une simple question d'existence, pas de score.
+    const w = stats.weighted || {};
     // Tant qu'aucune note individuelle n'a été saisie sur un match (ratingsCount===0), on ne pénalise ni ne
     // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
     // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
-    const avgRatingAdj = (stats.ratingsCount>0) ? (stats.avgRating-5)*4.5 : 0;
+    const avgRatingAdj = (w.ratingsCount>0) ? (w.avgRating-5)*4.5 : 0;
     // Le classement du match (top 10 meilleurs / top 3 pires voté par toute l'équipe) pèse maintenant un peu
     // plus que les notes individuelles, mais pas énormément : même échelle (-5..+5) que l'écart des notes à
     // 5/10, avec un poids légèrement supérieur (5.2 contre 4.5) — un classement qui va dans un sens a donc un
     // peu plus de poids qu'une note qui va dans le même sens, sans pour autant écraser les notes.
-    const matchRankAdj = stats.matchRankAvg * 5.2;
+    const matchRankAdj = (w.matchRankAvg||0) * 5.2;
     // Le temps de jeu compte maintenant vraiment : un joueur qui joue tout le match (90 min) gagne plus qu'un
     // joueur qui n'en joue qu'une partie, proportionnellement aux minutes réellement jouées (accumulées sur
     // tous ses matchs). Si aucune minute n'a jamais été saisie pour ce joueur (équipe qui ne suit pas ça), on
     // retombe sur l'ancien bonus fixe « titulaire » pour ne pas pénaliser les données déjà saisies.
-    const playtimeBonus = (stats.minutesPlayed>0)
-      ? (stats.minutesPlayed/90) * 3.0
-      : (stats.timesStarter||0)*0.8;
+    const playtimeBonus = (w.minutesPlayed>0)
+      ? (w.minutesPlayed/90) * 3.0
+      : (w.timesStarter||0)*0.8;
     // Un gardien a un barème à part : il ne marque presque jamais et serait donc condamné à rester scotché
     // au plancher avec le barème des joueurs de champ (pensé pour valoriser les buts/tirs/tacles). Son général
     // valorise plutôt les arrêts, les penaltys stoppés, et le nombre de buts encaissés PAR MATCH (une moyenne,
     // pas un total, pour ne pas punir un gardien qui a simplement joué beaucoup de matchs) — une "feuille
     // blanche" (peu ou pas de buts encaissés en moyenne) donne un vrai bonus.
     if(stats.position==='Gardien'){
-      const concededPerMatch = stats.goalsConceded / stats.matchesPlayed;
-      const gkImpact = (stats.saves||0)*1.3 + (stats.penaltiesSaved||0)*5.0 + (stats.tacklesWon||0)*0.5;
+      const concededPerMatch = w.gkWeight ? (w.goalsConceded / w.gkWeight) : 0;
+      const gkImpact = (w.saves||0)*1.3 + (w.penaltiesSaved||0)*5.0 + (w.tacklesWon||0)*0.5;
       const cleanSheetBonus = Math.max(0, 1 - concededPerMatch) * 5.5;
       // Rendement décroissant sur la pénalité "buts encaissés" (racine carrée plutôt que linéaire) : un match
       // exceptionnellement à sens unique (ex : 10 buts encaissés dans un match très ouvert) ne doit pas à lui
       // seul écraser le général au plancher — un match difficile pèse, mais pas de façon disproportionnée.
       const concededPenalty = Math.sqrt(Math.max(0, concededPerMatch)) * 3.2;
-      let rg = 52 + gkImpact + cleanSheetBonus - concededPenalty + stats.assists*2.3 + avgRatingAdj + matchRankAdj + stats.mvp*6.0
+      let rg = 52 + gkImpact + cleanSheetBonus - concededPenalty + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0
         + playtimeBonus
-        - stats.worstVotesTotal*1.4
-        - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
-        + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0)
+        - w.worstVotesTotal*1.4
+        - (w.yellow||0)*0.8 - (w.red||0)*3.2
+        + (w.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0)
         + (stats.pireJoueurAdj||0) + (stats.pireActionAdj||0);
       return this.compressRating(rg);
     }
@@ -2116,17 +2206,17 @@ const App = {
     // coup franc (le plus dur, vaut exactement 2 buts classiques) > corner direct (dur, mais moins qu'un coup
     // franc) > but « classique » en jeu ouvert (poids de base) > penalty (le plus facile). Un corner monte
     // donc plus qu'un but classique mais moins qu'un coup franc, et un coup franc vaut pile 2 buts classiques.
-    const scoringImpact = (stats.openPlayGoals||0)*4.8 + (stats.freekickScored||0)*9.6 + (stats.cornersScored||0)*6.0 + (stats.penaltiesScored||0)*3.4;
+    const scoringImpact = (w.openPlayGoals||0)*4.8 + (w.freekickScored||0)*9.6 + (w.cornersScored||0)*6.0 + (w.penaltiesScored||0)*3.4;
     // Un joueur avec un mauvais match (carton, penalty raté/provoqué, mauvais votes) doit vraiment perdre du
     // général, pas juste moins en gagner : les cartons (auparavant ignorés par la note) comptent maintenant
     // aussi, un rouge punissant nettement plus qu'un jaune.
     // Être élu MVP d'un match (meilleure note du match) doit faire monter le général de façon très nette —
     // ce poids a été nettement augmenté (plus du double) pour que chaque titre de MVP se voie vraiment.
-    let r = 52 + scoringImpact + stats.assists*2.3 + avgRatingAdj + matchRankAdj + stats.mvp*6.0 + stats.tacklesWon*0.9 + (stats.shotsOnTarget||0)*0.4
+    let r = 52 + scoringImpact + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0 + w.tacklesWon*0.9 + (w.shotsOnTarget||0)*0.4
       + playtimeBonus
-      - stats.penaltiesMissed*2.8 - stats.worstVotesTotal*1.4 - stats.penaltiesCaused*2.6
-      - (stats.yellow||0)*0.8 - (stats.red||0)*3.2
-      + (stats.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0)
+      - w.penaltiesMissed*2.8 - w.worstVotesTotal*1.4 - w.penaltiesCaused*2.6
+      - (w.yellow||0)*0.8 - (w.red||0)*3.2
+      + (w.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0)
       + (stats.pireJoueurAdj||0) + (stats.pireActionAdj||0);
     return this.compressRating(r);
   },
@@ -3664,6 +3754,7 @@ const App = {
         <div class="kv"><span>📍 Lieu</span><b>${esc(nm.location||"—")}</b></div>
         <div class="kv"><span>🎽 Maillot dom.</span><b>${esc(nm.jerseyHome||"—")}</b></div>
         <div class="kv"><span>🎽 Maillot ext.</span><b>${esc(nm.jerseyAway||"—")}</b></div>
+        ${(()=>{ const info = this.importanceInfo(nm.importance); return `<div class="kv"><span>⭐ Importance</span><b>${info.emoji} ${info.value}/10 — ${esc(info.label)}</b></div>`; })()}
         <div class="row" style="gap:8px;margin-top:6px;">
           ${this.admin ? `<button class="btn btn-ghost btn-sm" onclick="App.openEditMatchInfo('${nm.id}')">✏️ Modifier les infos du match</button>` : ""}
           <button class="btn btn-ghost btn-sm" onclick="App.viewMediaFor('match','${nm.id}')">📸 Photos / vidéos</button>
@@ -3671,18 +3762,66 @@ const App = {
         ${nm.payment && nm.payment.enabled ? this.renderPaymentSection(nm) : ""}
         <hr class="sep">
         <h3 style="font-size:16px;">Présent(e) ce jour-là ?</h3>
+        ${this.renderPresenceSummary(nm.presence, players)}
         ${players.length===0 ? `<p class="muted">Ajoute des joueurs dans l'onglet Recrues.</p>` : players.map(p=>{
-          const st = (nm.presence||{})[p.name];
+          const entry = (nm.presence||{})[p.name];
+          const st = presenceStatus(entry);
+          const note = presenceNote(entry);
           return `<div class="presence-row">
             <span class="nm">${esc(p.name)}</span>
             <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','present')">✅</button>
             <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','late')">⏰</button>
+            <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','unsure')">🤷</button>
             <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','absent')">❌</button>
-          </div>`;
+            <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('match','${nm.id}','${jsa(p.name)}')">🗨️</button>
+          </div>
+          ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;
         }).join("")}
         ${this.admin ? `<button class="btn btn-outline btn-block" style="margin-top:12px;" onclick="App.openMatchResult('${nm.id}')">📝 Saisir le résultat</button>` : ""}
       `}
     </div>`;
+  },
+  // Petit résumé "qui vient / qui ne vient pas / qui ne sait pas / qui n'a pas répondu", pour que le
+  // capitaine puisse voir d'un coup d'œil où en sont les présences sans avoir à parcourir toute la liste.
+  renderPresenceSummary(presenceMap, players){
+    const counts = {present:0, late:0, unsure:0, absent:0};
+    (players||[]).forEach(p=>{ const st = presenceStatus((presenceMap||{})[p.name]); if(st && counts[st]!==undefined) counts[st]++; });
+    const noResponse = Math.max(0, (players||[]).length - counts.present - counts.late - counts.unsure - counts.absent);
+    return `<div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:6px;">
+      <span>Réponses</span><b>✅ ${counts.present} · ⏰ ${counts.late} · 🤷 ${counts.unsure} · ❌ ${counts.absent} · ❔ ${noResponse}</b>
+    </div>`;
+  },
+  // Modale pour ajouter/modifier la petite note (optionnelle) attachée à une réponse de présence — visible
+  // par toute l'équipe ("wasGK" etc. laissé de côté ici : ce n'est qu'un mot laissé libre par le joueur, ex.
+  // "je serai en retard de 10 min" ou "absent, je suis malade"). "kind" vaut 'match' ou 'event'.
+  openPresenceNote(kind, id, name){
+    const list = kind==='event' ? this.state.events : this.state.matches;
+    const item = list.find(x=>x.id===id);
+    const responseMap = kind==='event' ? (item&&item.responses) : (item&&item.presence);
+    const note = presenceNote((responseMap||{})[name]);
+    this.modal(`
+      <h3>🗨️ Petite note — ${esc(name)}</h3>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">Visible par toute l'équipe. Ex : « en retard de 10 min », « absent, je suis malade »…</p>
+      <label class="field"><textarea id="presenceNoteInput" rows="3" placeholder="Optionnel">${esc(note)}</textarea></label>
+      <button class="btn btn-accent btn-block" onclick="App.savePresenceNote('${kind}','${id}','${jsa(name)}')">Enregistrer</button>
+    `);
+  },
+  async savePresenceNote(kind, id, name){
+    const val = document.getElementById("presenceNoteInput").value.trim();
+    const field = kind==='event' ? 'responses' : 'presence';
+    const coll = kind==='event' ? 'events' : 'matches';
+    const list = kind==='event' ? this.state.events : this.state.matches;
+    const item = list.find(x=>x.id===id);
+    // Les anciennes réponses (avant cette fonctionnalité) sont stockées comme une simple chaîne
+    // ("present"/"late"/"absent"), sans place pour une note. Pour ne pas perdre ce statut au premier
+    // ajout d'une note sur une telle réponse, on le réécrit explicitement en même temps que la note —
+    // sinon la valeur (simple chaîne) serait remplacée par un objet ne contenant que la note.
+    const currentStatus = presenceStatus((item && item[field] && item[field][name]) || null);
+    const patch = {note: val};
+    if(currentStatus) patch.status = currentStatus;
+    await this.db.collection(coll).doc(id).update({[field]:{[name]:patch}});
+    this.closeModal();
+    toast("Note enregistrée");
   },
   renderPaymentSection(m){
     const pay = m.payment || {enabled:false, amount:0, paid:{}};
@@ -3766,6 +3905,7 @@ const App = {
       <div id="nmPayAmountWrap" style="display:none;">
         <label class="field">Montant par joueur (€) <input type="number" id="nmPayAmount" step="0.5" min="0" placeholder="5"></label>
       </div>
+      ${this.renderImportanceField('nmImportance', 5)}
       <button class="btn btn-accent btn-block" onclick="App.saveNewMatch()">Créer le match</button>
     `);
   },
@@ -3778,8 +3918,9 @@ const App = {
     const jerseyAway = document.getElementById("nmJa").value.trim();
     const payEnabled = document.getElementById("nmPayEnabled").checked;
     const payAmount = parseFloat(document.getElementById("nmPayAmount").value) || 0;
+    const importance = parseInt(document.getElementById("nmImportance").value,10) || 5;
     await this.db.collection("matches").add({
-      opponent, date, time, location, jerseyHome, jerseyAway,
+      opponent, date, time, location, jerseyHome, jerseyAway, importance,
       convoked:[], teamA:[], teamB:[],
       tactic:{formation:"4-3-3", assignments:{}, moves:[]}, tacticA:{formation:"4-3-3", assignments:{}, moves:[]}, tacticB:{formation:"4-3-3", assignments:{}, moves:[]},
       presence:{}, played:false, score:null, scorers:[], freekickScored:[], assists:[], cardsYellow:[], cardsRed:[],
@@ -3811,6 +3952,7 @@ const App = {
       <div id="nmPayAmountWrap" style="display:${m.payment&&m.payment.enabled?'block':'none'};">
         <label class="field">Montant par joueur (€) <input type="number" id="nmPayAmount" step="0.5" min="0" value="${m.payment?m.payment.amount||0:0}" placeholder="5"></label>
       </div>
+      ${this.renderImportanceField('nmImportance', m.importance)}
       <button class="btn btn-accent btn-block" onclick="App.saveEditMatchInfo('${matchId}')">Enregistrer</button>
       ${this.admin? `<button class="btn btn-ghost btn-block" style="margin-top:8px;color:var(--danger);" onclick="App.deleteMatch('${matchId}')">🗑️ Supprimer ce match</button>`:""}
     `);
@@ -3824,9 +3966,10 @@ const App = {
     const jerseyAway = document.getElementById("nmJa").value.trim();
     const payEnabled = document.getElementById("nmPayEnabled").checked;
     const payAmount = parseFloat(document.getElementById("nmPayAmount").value) || 0;
+    const importance = parseInt(document.getElementById("nmImportance").value,10) || 5;
     const m = this.state.matches.find(x=>x.id===matchId);
     const prevPaid = (m && m.payment && m.payment.paid) || {};
-    await this.db.collection("matches").doc(matchId).update({opponent, date, time, location, jerseyHome, jerseyAway, payment:{enabled:payEnabled, amount:payAmount, paid:prevPaid}});
+    await this.db.collection("matches").doc(matchId).update({opponent, date, time, location, jerseyHome, jerseyAway, importance, payment:{enabled:payEnabled, amount:payAmount, paid:prevPaid}});
     this.closeModal();
     toast("Infos du match mises à jour");
   },
@@ -3838,7 +3981,9 @@ const App = {
   async setPresence(matchId, name, status){
     this.ensureMe(async ()=>{
       const ref = this.db.collection("matches").doc(matchId);
-      await ref.update({presence:{[name]:status}});
+      // Écrit uniquement la feuille "status" (jamais l'objet entier) pour ne pas effacer une éventuelle
+      // note déjà enregistrée pour ce joueur sur ce match (voir flattenForUpdate plus haut dans le fichier).
+      await ref.update({presence:{[name]:{status}}});
     });
   },
   teamNames(){
@@ -4444,6 +4589,7 @@ const App = {
             <label class="field">Maillot dom. <input type="text" id="rJh" value="${esc(m.jerseyHome||"")}"></label>
             <label class="field">Maillot ext. <input type="text" id="rJa" value="${esc(m.jerseyAway||"")}"></label>
           </div>
+          ${this.renderImportanceField('rImportance', m.importance)}
         </div>
       </details>
       <div class="grid2">
@@ -4478,6 +4624,7 @@ const App = {
     const jerseyAway = document.getElementById("rJa").value.trim();
     const us = parseInt(document.getElementById("rUs").value,10)||0;
     const them = parseInt(document.getElementById("rThem").value,10)||0;
+    const importance = parseInt(document.getElementById("rImportance").value,10) || 5;
     const out = {};
     this.STAT_COLS.forEach(c=>{ out[c.key] = []; });
     roster.forEach(n=>{
@@ -4488,7 +4635,7 @@ const App = {
       });
     });
     await this.db.collection("matches").doc(matchId).update({
-      opponent, date, time, location, jerseyHome, jerseyAway,
+      opponent, date, time, location, jerseyHome, jerseyAway, importance,
       played:true, score:{us,them},
       scorers: out.goals, freekickScored: out.freekick, assists: out.assists,
       penaltiesScored: out.penScored, penaltiesMissed: out.penMissed, penaltiesCaused: out.penCaused,
@@ -4529,6 +4676,7 @@ const App = {
     return `
       <div class="kv"><span>${fmtDate(m.date)}${m.opponent?" · "+esc(m.opponent):""} · ${esc(m.location||"")}</span><b>${this.teamLogoTag('A',14)} ${m.score?m.score.us:"–"} - ${m.score?m.score.them:"–"} ${this.teamLogoTag('B',14)}</b></div>
       <p class="muted" style="font-size:11.5px;margin-top:-6px;">${esc(tn.a)} vs ${esc(tn.b)}</p>
+      ${(()=>{ const info = this.importanceInfo(m.importance); return `<p class="muted" style="font-size:11px;margin-top:-6px;">${info.emoji} Importance : ${info.value}/10 — ${esc(info.label)}</p>`; })()}
       ${allScorers.length?`<p style="font-size:13px;" class="muted">⚽ ${allScorers.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
       ${(m.freekickScored&&m.freekickScored.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">🎯 Dont coup franc ${m.freekickScored.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
       ${(m.assists&&m.assists.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">🎯 ${m.assists.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
@@ -4903,7 +5051,7 @@ const App = {
         <h2 style="margin:0;">📅 Planning</h2>
         ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.openNewEvent()">+ Nouvel événement</button>`:""}
       </div>
-      <p class="muted" style="font-size:12.5px;margin-top:-4px;">Compétitions et entraînements à venir. Indique si tu es présent(e), en retard ou absent(e) pour aider le capitaine à s'organiser.</p>
+      <p class="muted" style="font-size:12.5px;margin-top:-4px;">Compétitions et entraînements à venir. Indique si tu es présent(e), en retard, absent(e) ou si tu ne sais pas encore (🤷) pour aider le capitaine à s'organiser — tu peux aussi laisser une petite note (🗨️).</p>
       ${upcoming.length===0 ? `<div class="empty"><span class="e-ic">🗓️</span>Aucun événement à venir.${this.admin? "" : " Demande à ton capitaine d'en programmer un."}</div>` :
         upcoming.map(ev=>this.renderEventCard(ev,false)).join("")}
     </div>
@@ -4985,9 +5133,9 @@ const App = {
   renderEventCard(ev, isPast){
     const players = this.state.players;
     const responses = ev.responses || {};
-    const counts = {present:0, late:0, absent:0};
-    players.forEach(p=>{ const st = responses[p.name]; if(st && counts[st]!==undefined) counts[st]++; });
-    const noResponse = Math.max(0, players.length - counts.present - counts.late - counts.absent);
+    const counts = {present:0, late:0, unsure:0, absent:0};
+    players.forEach(p=>{ const st = presenceStatus(responses[p.name]); if(st && counts[st]!==undefined) counts[st]++; });
+    const noResponse = Math.max(0, players.length - counts.present - counts.late - counts.unsure - counts.absent);
     return `
     <div class="card tight" style="margin-bottom:10px;">
       <div class="section-title">
@@ -4996,18 +5144,23 @@ const App = {
       </div>
       <div class="muted" style="font-size:12px;margin-bottom:6px;">${this.eventLabel(ev.type)} · ${fmtDate(ev.date)}${ev.time?" à "+esc(ev.time):""}${ev.location?" · "+esc(ev.location):""}</div>
       ${ev.notes? `<p style="font-size:13px;margin:4px 0 8px;">${esc(ev.notes)}</p>`:""}
-      <div class="kv" style="border:none;"><span>Réponses</span><b>✅ ${counts.present} · ⏰ ${counts.late} · ❌ ${counts.absent} · ❔ ${noResponse}</b></div>
+      <div class="kv" style="border:none;"><span>Réponses</span><b>✅ ${counts.present} · ⏰ ${counts.late} · 🤷 ${counts.unsure} · ❌ ${counts.absent} · ❔ ${noResponse}</b></div>
       <button class="btn btn-ghost btn-sm" onclick="App.viewMediaFor('event','${ev.id}')">📸 Photos / vidéos</button>
       ${!isPast ? `
       <hr class="sep">
       ${players.length===0 ? `<p class="muted">Ajoute des joueurs dans l'onglet Recrues.</p>` : players.map(p=>{
-        const st = responses[p.name];
+        const entry = responses[p.name];
+        const st = presenceStatus(entry);
+        const note = presenceNote(entry);
         return `<div class="presence-row">
           <span class="nm">${esc(p.name)}</span>
           <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','present')">✅</button>
           <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','late')">⏰</button>
+          <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','unsure')">🤷</button>
           <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','absent')">❌</button>
-        </div>`;
+          <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('event','${ev.id}','${jsa(p.name)}')">🗨️</button>
+        </div>
+        ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;
       }).join("")}
       ` : ""}
     </div>`;
@@ -5082,7 +5235,9 @@ const App = {
   },
   async setEventPresence(eventId, name, status){
     this.ensureMe(async ()=>{
-      await this.db.collection("events").doc(eventId).update({responses:{[name]:status}});
+      // Écrit uniquement la feuille "status" pour ne pas effacer une éventuelle note déjà enregistrée
+      // (voir flattenForUpdate plus haut dans le fichier, et le même choix dans setPresence()).
+      await this.db.collection("events").doc(eventId).update({responses:{[name]:{status}}});
     });
   },
 };
