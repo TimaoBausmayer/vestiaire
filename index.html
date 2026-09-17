@@ -2118,12 +2118,16 @@ const App = {
   // ça évite aussi qu'un seul gros match fasse bondir le général d'un coup une fois qu'on est déjà haut.
   compressRating(raw){
     const floor = 45, softCap = 70, ceil = 99;
-    if(raw <= softCap) return Math.max(floor, Math.round(raw));
+    // Arrondi au dixième (pas à l'entier) : avec un entier, deux notes très proches (ex: 7,2 et 7,3) peuvent
+    // donner exactement le même général arrondi, et on dirait que la moyenne des notes n'a servi à rien alors
+    // qu'elle est bien prise en compte en interne. Avec un dixième, le général bouge visiblement dès qu'une
+    // note change, même un tout petit peu — plus honnête pour montrer que chaque nouvelle note compte.
+    if(raw <= softCap) return Math.max(floor, Math.round(raw*10)/10);
     const excess = raw - softCap;
     const span = ceil - softCap;
     const hardness = 22.75; // plus ce chiffre est grand, plus il faut de performance pour grimper près de 99
     const compressed = span * (1 - Math.exp(-excess/hardness));
-    return Math.min(ceil, Math.round(softCap + compressed));
+    return Math.min(ceil, Math.round((softCap + compressed)*10)/10);
   },
   cardTier(rating){
     if(rating>=85) return "icon";
@@ -2658,7 +2662,7 @@ const App = {
     <div class="fut-card ${tier}" id="${opts.id||''}">
       ${p.jerseyNumber? `<div class="fut-num">${esc(p.jerseyNumber)}</div>`:""}
       <div class="fut-top">
-        <div class="fut-rating">${rating}</div>
+        <div class="fut-rating">${rating.toFixed(1)}</div>
         <div class="fut-pos">${esc(p.position||"?")}</div>
       </div>
       ${p.photo ? `<img class="fut-photo" src="${p.photo}">` : `<div class="fut-photo ph">${initials(p.name)}</div>`}
