@@ -1044,9 +1044,9 @@ const App = {
       <div class="card">
         <h2>⚽ Règles du foot (pour nous)</h2>
         ${editing ? `
-          <textarea id="reglesFootInput" rows="14">${esc(info.reglesFoot||"")}</textarea>
+          <textarea id="reglesFootInput" rows="14">${esc(info.reglesFoot||this.defaultInfo().reglesFoot)}</textarea>
           <button class="btn btn-accent btn-block" style="margin-top:10px;" onclick="App.saveReglesFoot()">Enregistrer les règles du foot</button>
-        ` : `<div class="rules-text">${esc(info.reglesFoot||"")}</div>`}
+        ` : `<div class="rules-text">${esc(info.reglesFoot||this.defaultInfo().reglesFoot)}</div>`}
       </div>
 
       <div class="card">
