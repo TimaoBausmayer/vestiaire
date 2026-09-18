@@ -3360,16 +3360,19 @@ const App = {
     });
     return Object.entries(totals).filter(([,c])=>c>0).map(([name,count])=>({name,count}));
   },
-  globalRankings(){
+  // `teamKey` ('A' ou 'B') dit de quelle équipe on calcule les classements — par défaut celle
+  // actuellement affichée dans l'onglet Stats (currentStatsTeam(), qui suit l'équipe du compte connecté
+  // si connue, sinon l'équipe A). Avant ce correctif la fonction ne regardait QUE l'équipe A (Mot'eau),
+  // donc un supporter de FC Nulos voyait le bilan et les classements de Mot'eau affichés comme si
+  // c'était "son équipe", et les joueurs de FC Nulos n'apparaissaient jamais dans aucun classement.
+  globalRankings(teamKey){
+    const key = teamKey || this.currentStatsTeam();
     const played = this.state.matches.filter(m=>m.played);
-    // Les classements et le "📈 Stats de l'équipe" ne doivent porter que sur NOTRE équipe (équipe A /
-    // Mot'eau) — sinon les joueurs de l'équipe adverse (équipe B, ex. FC Nulos, suivis dans le même
-    // effectif pour le comparateur ⚔️) se retrouvaient mélangés dans nos propres classements ("Meilleurs
-    // buteurs" pouvait afficher un joueur de FC Nulos, etc.). On garde par défaut tout joueur qui n'est
-    // PAS explicitement en équipe B, pour ne jamais faire disparaître un joueur pas encore étiqueté.
-    const ourNames = new Set(this.state.players.filter(p=>p.team!=='B').map(p=>p.name));
+    // On garde par défaut tout joueur qui n'est pas explicitement dans l'AUTRE équipe, pour ne jamais
+    // faire disparaître un joueur pas encore étiqueté (comportement conservé pour l'équipe A comme avant).
+    const ourNames = new Set(this.state.players.filter(p=> key==='B' ? p.team==='B' : p.team!=='B').map(p=>p.name));
     const byPlayer = {};
-    this.state.players.filter(p=>p.team!=='B').forEach(p=> byPlayer[p.name] = {name:p.name, goals:0, assists:0, ratingSum:0, ratingCount:0});
+    this.state.players.filter(p=>ourNames.has(p.name)).forEach(p=> byPlayer[p.name] = {name:p.name, goals:0, assists:0, ratingSum:0, ratingCount:0});
     played.forEach(m=>{
       this.matchGoalScorers(m).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].goals += s.count; else if(ourNames.has(s.name)) byPlayer[s.name]={name:s.name,goals:s.count,assists:0,ratingSum:0,ratingCount:0}; });
       (m.assists||[]).forEach(s=>{ if(byPlayer[s.name]) byPlayer[s.name].assists += s.count; else if(ourNames.has(s.name)) byPlayer[s.name]={name:s.name,goals:0,assists:s.count,ratingSum:0,ratingCount:0}; });
@@ -3384,9 +3387,17 @@ const App = {
     const byAvg = list.filter(p=>p.ratingCount>0).map(p=>({...p, avg:p.ratingSum/p.ratingCount})).sort((a,b)=>b.avg-a.avg);
     const byGoals = list.slice().sort((a,b)=>b.goals-a.goals).filter(p=>p.goals>0);
     const byAssists = list.slice().sort((a,b)=>b.assists-a.assists).filter(p=>p.assists>0);
+    // m.score.us/them est toujours du point de vue de l'équipe A : pour l'équipe B il faut inverser,
+    // sinon FC Nulos hérite du bilan de Mot'eau (voir aussi computeTeamSplitStats, même correctif).
     let W=0,N=0,D=0, gf=0, ga=0;
-    played.forEach(m=>{ if(!m.score) return; gf+=m.score.us||0; ga+=m.score.them||0; if(m.score.us>m.score.them) W++; else if(m.score.us===m.score.them) N++; else D++; });
-    return {byAvg, byGoals, byAssists, W, N, D, gf, ga, played: played.length};
+    played.forEach(m=>{
+      if(!m.score) return;
+      const forTeam = key==='B' ? (m.score.them||0) : (m.score.us||0);
+      const against = key==='B' ? (m.score.us||0) : (m.score.them||0);
+      gf+=forTeam; ga+=against;
+      if(forTeam>against) W++; else if(forTeam===against) N++; else D++;
+    });
+    return {byAvg, byGoals, byAssists, W, N, D, gf, ga, played: played.length, teamKey:key};
   },
   // Les 6 classements par catégorie ("Général", "Buteur", "Passeur", "Tireur", "Dribbleur", "Défenseur")
   // demandés pour voir en un coup d'œil qui est le/la meilleur(e) dans chaque domaine, et combien de
@@ -3421,7 +3432,10 @@ const App = {
     });
     return rows;
   },
-  computeCategoryRanking(category, opts){
+  // `teamKey` ('A' ou 'B') : quelle équipe classer — par défaut currentStatsTeam(). Voir la même
+  // remarque que dans globalRankings() : avant ce correctif seule l'équipe A était jamais classée.
+  computeCategoryRanking(category, opts, teamKey){
+    const key = teamKey || this.currentStatsTeam();
     const def = this.CLASSEMENT_CATEGORIES.find(c=>c.key===category);
     if(!def) return [];
     if(def.composite){
@@ -3435,7 +3449,7 @@ const App = {
       const componentKeys = ['buteur','passeur','tireur','dribbleur','defenseur'];
       const scoreByName = {};
       componentKeys.forEach(k=>{
-        const list = this.computeCategoryRanking(k, opts);
+        const list = this.computeCategoryRanking(k, opts, key);
         list.forEach(r=>{
           if(!scoreByName[r.name]) scoreByName[r.name] = {sum:0, count:0};
           scoreByName[r.name].sum += r.rank; scoreByName[r.name].count++;
@@ -3447,10 +3461,7 @@ const App = {
       return this.assignDenseRanks(rows, true); // ascending : moins de points = mieux classé, comme au golf
     }
     const rows = [];
-    // Classements réservés à notre équipe (équipe A / Mot'eau) — même correctif que globalRankings() /
-    // computeClubTotals() : sans ce filtre, un joueur de l'équipe adverse (équipe B) pouvait apparaître
-    // en tête de "Meilleur buteur" etc.
-    this.state.players.filter(p=>p.team!=='B').forEach(p=>{
+    this.state.players.filter(p=> key==='B' ? p.team==='B' : p.team!=='B').forEach(p=>{
       if(p.position==='Gardien' && !def.forGK) return;
       const stats = this.computePlayerStats(p.name, opts);
       if(!stats.matchesPlayed) return; // pas encore joué = pas classé, pour ne pas polluer avec des valeurs par défaut
@@ -3471,10 +3482,11 @@ const App = {
   },
   // Ajoute prevRank/trend en comparant au classement calculé juste avant le dernier match joué — c'est ce
   // qui permet d'afficher "monté" / "descendu" / "nouveau" à chaque nouveau match.
-  computeCategoryRankingWithTrend(category){
-    const current = this.computeCategoryRanking(category);
+  computeCategoryRankingWithTrend(category, teamKey){
+    const key = teamKey || this.currentStatsTeam();
+    const current = this.computeCategoryRanking(category, undefined, key);
     const lastMatch = this.lastPlayedMatch();
-    const prevRows = lastMatch ? this.computeCategoryRanking(category, lastMatch.id) : [];
+    const prevRows = lastMatch ? this.computeCategoryRanking(category, lastMatch.id, key) : [];
     const prevRankByName = {};
     prevRows.forEach(r=>{ prevRankByName[r.name] = r.rank; });
     current.forEach(r=>{
@@ -3489,7 +3501,9 @@ const App = {
     const cats = this.CLASSEMENT_CATEGORIES;
     const active = cats.find(c=>c.key===this.state.classementCat) ? this.state.classementCat : 'general';
     const cat = cats.find(c=>c.key===active);
-    const rows = this.computeCategoryRankingWithTrend(active);
+    const tn = this.teamNames();
+    const key = this.currentStatsTeam();
+    const rows = this.computeCategoryRankingWithTrend(active, key);
     const trendTag = (r)=>{
       if(r.trend==='new') return `<span class="muted" style="font-size:11px;">🆕 nouveau</span>`;
       if(r.trend==='same') return `<span class="muted" style="font-size:11px;">▬ pareil</span>`;
@@ -3498,8 +3512,12 @@ const App = {
     };
     return `
     <div class="card">
-      <h2>🏆 Classements</h2>
+      <h2>🏆 Classements — ${this.teamLogoTag(key,15)} ${esc(key==='A'?tn.a:tn.b)}</h2>
       <p class="muted" style="font-size:12px;margin-top:-6px;">${rows.length} joueur${rows.length>1?'s':''} classé${rows.length>1?'s':''} dans "${esc(cat.label.replace(/^\S+\s/,''))}". Choisis une catégorie ci-dessous — après chaque nouveau match, regarde si tu montes ▲ ou descends ▼ !${cat.golf?` <b>Comme au golf : moins de points = mieux classé</b> (tes points = la somme de tes places dans Buteur, Passeur, Tireur, Dribbleur et Défenseur).`:``}</p>
+      <div class="wrap" style="margin-bottom:6px;">
+        <span class="chip ${key==='A'?'active':''}" onclick="App.setStatsTeamView('A')">${this.teamLogoTag('A',13)} ${esc(tn.a)}</span>
+        <span class="chip ${key==='B'?'active':''}" onclick="App.setStatsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
+      </div>
       <div class="wrap" style="margin-bottom:10px;">
         ${cats.map(c=>`<span class="chip ${active===c.key?'active':''}" onclick="App.setClassementCat('${c.key}')">${c.label}</span>`).join("")}
       </div>
@@ -3790,7 +3808,9 @@ const App = {
   },
   renderPlayerSheet(p){
     const s = this.computePlayerStats(p.name);
-    const rk = this.globalRankings();
+    // Les trophées ("Meilleur buteur"...) doivent comparer ce joueur au classement de SA PROPRE équipe
+    // (p.team), pas à celui actuellement affiché dans le sélecteur 🟠/🟢 des Classements plus haut.
+    const rk = this.globalRankings(p.team==='B' ? 'B' : 'A');
     const trophies = [];
     if(s.mvp>0) trophies.push(`🏆 MVP ×${s.mvp}`);
     if(rk.byGoals.length && rk.byGoals[0].name===p.name && rk.byGoals[0].goals>0) trophies.push("⚽ Meilleur buteur");
@@ -3922,13 +3942,13 @@ const App = {
     this.closeModal();
     toast("Stats mises à jour");
   },
-  computeClubTotals(){
+  // `teamKey` ('A' ou 'B') : quelle équipe totaliser — par défaut currentStatsTeam(). Même remarque que
+  // dans globalRankings() : avant ce correctif ces totaux ne portaient jamais que sur l'équipe A.
+  computeClubTotals(teamKey){
+    const key = teamKey || this.currentStatsTeam();
     let goals=0, assists=0, yellow=0, red=0, cornersScored=0, cornersTaken=0, freekickScored=0, freekickTaken=0, penaltiesScored=0, penaltiesMissed=0, penaltiesCaused=0,
         shotsOnTarget=0, tacklesWon=0, saves=0, penaltiesSaved=0, penaltiesConceded=0;
-    // Uniquement notre équipe (équipe A / Mot'eau) — voir la même remarque dans globalRankings() :
-    // sans ce filtre, les joueurs de l'équipe adverse suivis pour le comparateur ⚔️ gonflaient les
-    // totaux du club.
-    this.state.players.filter(p=>p.team!=='B').forEach(p=>{
+    this.state.players.filter(p=> key==='B' ? p.team==='B' : p.team!=='B').forEach(p=>{
       const s = this.computePlayerStats(p.name);
       goals+=s.goals; assists+=s.assists; yellow+=s.yellow; red+=s.red;
       cornersScored+=s.cornersScored; cornersTaken+=s.cornersTaken; freekickScored+=s.freekickScored; freekickTaken+=s.freekickTaken;
@@ -3941,13 +3961,19 @@ const App = {
   // Série actuelle du club : on part du match le plus récent et on remonte tant que le résultat est le
   // même (victoire, nul ou défaite). Ça donne un vrai "3 victoires d'affilée" ou "2 défaites d'affilée"
   // plutôt qu'un simple total sur la saison.
-  computeCurrentStreak(){
+  // `teamKey` ('A' ou 'B') dit de quelle équipe on regarde la série — par défaut celle actuellement
+  // affichée dans l'onglet Stats (currentStatsTeam()). m.score.us/them est toujours du point de vue de
+  // l'équipe A : pour l'équipe B il faut inverser, sinon FC Nulos hérite de la série de Mot'eau.
+  computeCurrentStreak(teamKey){
+    const key = teamKey || this.currentStatsTeam();
     const past = this.pastMatches(); // le plus récent en premier
     if(!past.length) return {type:null, count:0};
     const resultOf = m => {
       if(!m.score) return null;
-      if(m.score.us>m.score.them) return 'victoire';
-      if(m.score.us===m.score.them) return 'nul';
+      const forTeam = key==='B' ? (m.score.them||0) : (m.score.us||0);
+      const against = key==='B' ? (m.score.us||0) : (m.score.them||0);
+      if(forTeam>against) return 'victoire';
+      if(forTeam===against) return 'nul';
       return 'défaite';
     };
     const firstResult = resultOf(past[0]);
@@ -3974,9 +4000,10 @@ const App = {
     return `Dans ${diffDays} jours`;
   },
   renderTeamDashboard(){
-    const info = this.state.info || this.defaultInfo();
-    const rk = this.globalRankings();
-    const streak = this.computeCurrentStreak();
+    const tn = this.teamNames();
+    const key = this.currentStatsTeam();
+    const rk = this.globalRankings(key);
+    const streak = this.computeCurrentStreak(key);
     const nm = this.nextMatch();
     const countdown = this.formatCountdown(nm);
     const streakLabel = streak.count>=2
@@ -3989,7 +4016,11 @@ const App = {
     return `
     <div class="card" style="background:linear-gradient(135deg,var(--surface-2),var(--surface));">
       <div class="section-title">
-        <h2 style="margin:0;">📊 Tableau de bord — ${esc(info.teamName||"Mon Équipe")}</h2>
+        <h2 style="margin:0;">📊 Tableau de bord — ${this.teamLogoTag(key,16)} ${esc(key==='A'?tn.a:tn.b)}</h2>
+      </div>
+      <div class="wrap" style="margin-bottom:8px;">
+        <span class="chip ${key==='A'?'active':''}" onclick="App.setStatsTeamView('A')">${this.teamLogoTag('A',13)} ${esc(tn.a)}</span>
+        <span class="chip ${key==='B'?'active':''}" onclick="App.setStatsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
       </div>
       <div class="grid2" style="margin-bottom:10px;">
         <div class="card tight" style="margin:0;text-align:center;">
@@ -4206,16 +4237,21 @@ const App = {
     return badges;
   },
   renderTeamStats(){
-    const info = this.state.info || this.defaultInfo();
-    const rk = this.globalRankings();
-    const ct = this.computeClubTotals();
+    const tn = this.teamNames();
+    const key = this.currentStatsTeam();
+    const rk = this.globalRankings(key);
+    const ct = this.computeClubTotals(key);
     const medal = i => ['🥇','🥈','🥉'][i] || (i+1)+".";
     const table = (rows, valueKey, label, fmt) => rows.length===0 ? `<p class="muted" style="font-size:12.5px;">Pas encore de données.</p>` : `
       <table class="stats"><thead><tr><th></th><th>Joueur</th><th style="text-align:right;">${label}</th></tr></thead>
       <tbody>${rows.slice(0,10).map((p,i)=>`<tr><td class="rank-medal">${medal(i)}</td><td>${esc(p.name)}</td><td class="num">${fmt?fmt(p[valueKey]):p[valueKey]}</td></tr>`).join("")}</tbody></table>`;
     return `
     <div class="card">
-      <h2>📈 Stats de l'équipe — ${esc(info.teamName||"Mon Équipe")}</h2>
+      <h2>📈 Stats de l'équipe — ${this.teamLogoTag(key,16)} ${esc(key==='A'?tn.a:tn.b)}</h2>
+      <div class="wrap" style="margin-bottom:8px;">
+        <span class="chip ${key==='A'?'active':''}" onclick="App.setStatsTeamView('A')">${this.teamLogoTag('A',13)} ${esc(tn.a)}</span>
+        <span class="chip ${key==='B'?'active':''}" onclick="App.setStatsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
+      </div>
       <div class="grid2" style="margin-bottom:14px;">
         <div class="card tight" style="margin:0;text-align:center;"><div class="fut-rating" style="font-size:26px;color:var(--accent2);">${rk.W}</div><div class="muted" style="font-size:11px;">Victoires</div></div>
         <div class="card tight" style="margin:0;text-align:center;"><div class="fut-rating" style="font-size:26px;color:var(--gold);">${rk.N}</div><div class="muted" style="font-size:11px;">Nuls</div></div>
@@ -4545,6 +4581,15 @@ const App = {
     const p = this.state.players.find(p=>p.name===this.me);
     return (p && p.team) ? p.team : null;
   },
+  // Équipe actuellement affichée dans le Tableau de bord / les Classements / les Stats de l'équipe (onglet
+  // Stats) : celle choisie explicitement via les puces 🟠/🟢, sinon celle du compte connecté (myTeamKey()),
+  // sinon l'équipe A par défaut. Avant l'ajout de ce sélecteur, ces sections ne montraient TOUJOURS que
+  // l'équipe A (Mot'eau) — un supporter de FC Nulos y voyait le bilan et les classements de l'autre équipe.
+  currentStatsTeam(){
+    const t = this.state.statsTeamView;
+    return (t==='A' || t==='B') ? t : (this.myTeamKey() || 'A');
+  },
+  setStatsTeamView(key){ this.state.statsTeamView = key; this.render(); },
   teamLogo(key){
     const info = this.state.info || this.defaultInfo();
     return key==='B' ? (info.teamBLogo||null) : (info.teamALogo||null);
