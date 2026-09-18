@@ -2135,6 +2135,14 @@ const App = {
         wMatchRankSum=0, wMatchRankWeight=0;
     matches.forEach(m=>{
       const w = this.matchWeight(m);
+      // Équipe sur laquelle CE joueur a vraiment joué CE match précis : basé sur m.teamA/m.teamB (la
+      // composition réelle du match), pas sur sa fiche permanente (player.team), qui peut changer après
+      // coup (transfert). Un joueur transféré doit garder son résultat (victoire/défaite) et ses buts
+      // encaissés (gardien) tels qu'ils se sont vraiment passés CE jour-là, même si sa fiche indique
+      // aujourd'hui un autre club — l'histoire ne se réécrit pas avec un transfert. On ne retombe sur la
+      // fiche permanente que si le joueur n'apparaît dans aucune des deux listes (match trop ancien, stats
+      // manuelles sans match associé...).
+      const sideInMatch = (m.teamA||[]).includes(name) ? 'A' : ((m.teamB||[]).includes(name) ? 'B' : (player && player.team));
       (m.scorers||[]).forEach(s=>{ if(s.name===name){ openPlayGoals += (s.count||0); wOpenPlayGoals += (s.count||0)*w; } });
       (m.freekickScored||[]).forEach(s=>{ if(s.name===name){ freekickScored += (s.count||0); wFreekickScored += (s.count||0)*w; } });
       (m.assists||[]).forEach(s=>{ if(s.name===name){ assists += (s.count||0); wAssists += (s.count||0)*w; } });
@@ -2155,9 +2163,9 @@ const App = {
       const wasGK = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && t.assignments.GK===name);
       if(wasGK && m.score){
         // m.score.us / m.score.them sont toujours du point de vue de l'équipe A ("nous", Mot'eau). Un
-        // gardien de l'équipe B (adverse, ex. FC Nulos) encaisse donc nos buts à NOUS (m.score.us), pas
-        // m.score.them — sinon son total de buts encaissés était en fait celui du gardien adverse.
-        const conceded = (player && player.team==='B') ? (m.score.us||0) : (m.score.them||0);
+        // gardien qui a joué côté équipe B (adverse) CE match encaisse donc nos buts à NOUS (m.score.us),
+        // pas m.score.them — sinon son total de buts encaissés était en fait celui du gardien adverse.
+        const conceded = (sideInMatch==='B') ? (m.score.us||0) : (m.score.them||0);
         goalsConceded += conceded;
         wGoalsConceded += conceded*w;
         wGkWeight += w;
@@ -2177,12 +2185,13 @@ const App = {
         if(wasStarter){ timesStarter++; wTimesStarter += w; } else timesSub++;
       }
       if(wasInvolved && m.score){
-        // Même logique : m.score.us/them est toujours du point de vue de l'équipe A. Pour un joueur de
-        // l'équipe B (adverse), on inverse — leur victoire est notre défaite et inversement — sinon les
-        // joueurs de l'équipe B héritaient de NOS résultats (ex. FC Nulos affiché avec une défaite au lieu
-        // d'une victoire).
-        const forPlayer = (player && player.team==='B') ? (m.score.them||0) : (m.score.us||0);
-        const against = (player && player.team==='B') ? (m.score.us||0) : (m.score.them||0);
+        // Même logique : m.score.us/them est toujours du point de vue de l'équipe A. Le résultat
+        // (victoire/nul/défaite) de CE match pour ce joueur dépend du côté où il a VRAIMENT joué ce
+        // match-là (sideInMatch), pas de sa fiche permanente — sinon un joueur transféré après coup voit
+        // son historique réécrit (ex. un but et une victoire gagnés avec FC Nulos qui deviennent une
+        // défaite une fois le joueur transféré à Mot'eau).
+        const forPlayer = (sideInMatch==='B') ? (m.score.them||0) : (m.score.us||0);
+        const against = (sideInMatch==='B') ? (m.score.us||0) : (m.score.them||0);
         if(forPlayer>against) W++; else if(forPlayer===against) D++; else L++;
       }
       if(m.worstVotes && m.worstVotes[name]){ const n = Object.values(m.worstVotes[name]).filter(Boolean).length; worstVotesTotal += n; wWorstVotesTotal += n*w; }
@@ -4073,7 +4082,10 @@ const App = {
       isMVP = best===name;
     }
     const wasGK = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && t.assignments.GK===name);
-    const concededAsGK = wasGK && m.score ? ((player && player.team==='B') ? (m.score.us||0) : (m.score.them||0)) : null;
+    // Même principe que dans computePlayerStats : le côté où le joueur a joué CE match précis (pas sa
+    // fiche permanente, qui peut avoir changé depuis via un transfert).
+    const sideInMatch = (m.teamA||[]).includes(name) ? 'A' : ((m.teamB||[]).includes(name) ? 'B' : (player && player.team));
+    const concededAsGK = wasGK && m.score ? ((sideInMatch==='B') ? (m.score.us||0) : (m.score.them||0)) : null;
     const wasInvolved = (m.convoked||[]).length ? (m.convoked||[]).includes(name) : ((m.teamA||[]).includes(name) || (m.teamB||[]).includes(name));
     return {goals, freekick, assists, yellow, red, tacklesWon, rating, isMVP, wasGK, concededAsGK, wasInvolved};
   },
