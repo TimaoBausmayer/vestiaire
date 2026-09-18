@@ -3492,14 +3492,18 @@ const App = {
     const names = new Set(players.map(p=>p.name));
     let goals=0, assists=0, yellow=0, red=0, cornersScored=0, cornersTaken=0, freekickScored=0, freekickTaken=0, penaltiesScored=0, penaltiesMissed=0, penaltiesCaused=0,
         shotsOnTarget=0, tacklesWon=0, saves=0, penaltiesSaved=0, penaltiesConceded=0, minutesPlayed=0, ratingSum=0, ratingCount=0, mvp=0;
+    // Stats manuelles (import, sans match associé) : rattachées au club permanent du joueur (player.team),
+    // puisqu'elles ne sont liées à aucun match précis donc il n'y a pas d'équipe "de ce match" à utiliser.
     players.forEach(p=>{
-      const s = this.computePlayerStats(p.name);
-      goals+=s.goals; assists+=s.assists; yellow+=s.yellow; red+=s.red;
-      cornersScored+=s.cornersScored; cornersTaken+=s.cornersTaken; freekickScored+=s.freekickScored; freekickTaken+=s.freekickTaken;
-      penaltiesScored+=s.penaltiesScored; penaltiesMissed+=s.penaltiesMissed; penaltiesCaused+=s.penaltiesCaused;
-      shotsOnTarget+=s.shotsOnTarget; tacklesWon+=s.tacklesWon; saves+=s.saves; penaltiesSaved+=s.penaltiesSaved; penaltiesConceded+=s.penaltiesConceded;
-      minutesPlayed+=s.minutesPlayed; mvp+=s.mvp;
-      if(s.avgRating>0){ ratingSum+=s.avgRating; ratingCount++; }
+      const manual = p.manualStats || {};
+      goals += (manual.goals||0)+(manual.freekickScored||0)+(manual.cornersScored||0)+(manual.penaltiesScored||0);
+      assists += manual.assists||0; yellow += manual.yellow||0; red += manual.red||0;
+      cornersScored += manual.cornersScored||0; cornersTaken += manual.cornersTaken||0;
+      freekickScored += manual.freekickScored||0; freekickTaken += manual.freekickTaken||0;
+      penaltiesScored += manual.penaltiesScored||0; penaltiesMissed += manual.penaltiesMissed||0; penaltiesCaused += manual.penaltiesCaused||0;
+      shotsOnTarget += manual.shotsOnTarget||0; tacklesWon += manual.tacklesWon||0;
+      saves += manual.saves||0; penaltiesSaved += manual.penaltiesSaved||0; penaltiesConceded += manual.penaltiesConceded||0;
+      minutesPlayed += manual.minutesPlayed||0;
     });
     // Le nombre de "matchs joués" ET le bilan V-N-D de l'équipe doivent compter les MATCHS réellement
     // disputés (un match compte pour 1, même si plusieurs joueurs de l'équipe y ont participé) — PAS la
@@ -3520,6 +3524,52 @@ const App = {
       const forTeam = key==='B' ? (m.score.them||0) : (m.score.us||0);
       const against = key==='B' ? (m.score.us||0) : (m.score.them||0);
       if(forTeam>against) W++; else if(forTeam===against) D++; else L++;
+    });
+    // Un joueur peut être tagué en fiche sur un club (player.team, permanent) mais avoir été placé sur
+    // l'AUTRE équipe pour un match donné (erreur de saisie, joueur invité, équipes recomposées pour un match
+    // amical...). Pour que les stats DE CE MATCH (buts, passes, cartons, penaltys, coups francs...)
+    // reflètent vraiment ce qui s'est passé sur le terrain ce jour-là, on les additionne selon l'équipe où
+    // le joueur était RÉELLEMENT placé POUR CE MATCH (m.teamA/m.teamB) — jamais sa fiche permanente. Sinon
+    // un joueur mal placé/mal tagué fait gonfler le total de son club permanent au lieu de celui de
+    // l'équipe où il a vraiment joué ce jour-là (ex : un match 7-10 affichait 12-5 au lieu de 7-10, un but
+    // marqué contre nous comptant quand même pour notre propre total).
+    this.state.matches.forEach(m=>{
+      if(!m.played) return;
+      const matchRoster = key==='B' ? (m.teamB||[]) : (m.teamA||[]);
+      if(!matchRoster.length) return;
+      const inRoster = new Set(matchRoster);
+      const sumArr = (arr)=> (arr||[]).reduce((t,s)=> t + (inRoster.has(s.name) ? (s.count||0) : 0), 0);
+      goals += sumArr(m.scorers) + sumArr(m.freekickScored) + sumArr(m.cornersScored) + sumArr(m.penaltiesScored);
+      assists += sumArr(m.assists);
+      yellow += sumArr(m.cardsYellow);
+      red += sumArr(m.cardsRed);
+      cornersScored += sumArr(m.cornersScored);
+      cornersTaken += sumArr(m.cornersTaken);
+      freekickScored += sumArr(m.freekickScored);
+      freekickTaken += sumArr(m.freekickTaken);
+      penaltiesScored += sumArr(m.penaltiesScored);
+      penaltiesMissed += sumArr(m.penaltiesMissed);
+      penaltiesCaused += sumArr(m.penaltiesCaused);
+      shotsOnTarget += sumArr(m.shotsOnTarget);
+      tacklesWon += sumArr(m.tacklesWon);
+      saves += sumArr(m.saves);
+      penaltiesSaved += sumArr(m.penaltiesSaved);
+      penaltiesConceded += sumArr(m.penaltiesConceded);
+      minutesPlayed += sumArr(m.minutesPlayed);
+      if(m.ratings){
+        matchRoster.forEach(n=>{
+          const r = m.ratings[n];
+          if(r){ const vals = Object.values(r); if(vals.length){ ratingSum += avg(vals); ratingCount++; } }
+        });
+        let best=null, bestAvg=-1;
+        Object.keys(m.ratings).forEach(p=>{
+          const vals = Object.values(m.ratings[p]||{});
+          if(!vals.length) return;
+          const a = avg(vals);
+          if(a>bestAvg){ bestAvg=a; best=p; }
+        });
+        if(best && inRoster.has(best)) mvp++;
+      }
     });
     const avgRating = ratingCount? ratingSum/ratingCount : 0;
     return {count:players.length, goals, assists, yellow, red, cornersScored, cornersTaken, freekickScored, freekickTaken, penaltiesScored, penaltiesMissed, penaltiesCaused, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, avgRating, mvp, matchesPlayed, W, D, L};
