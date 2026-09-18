@@ -1448,6 +1448,7 @@ const App = {
         </div>
         ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️</button>` : ""}
       </div>
+      ${this.renderAuthorStatChip(p.author)}
       ${p.type==='text' ? `<p style="font-size:14px;margin:8px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
       ${p.type==='poll' ? `
         <p style="font-size:14px;font-weight:700;margin:8px 0 10px;">🗳️ ${esc(p.question)}</p>
@@ -1590,6 +1591,7 @@ const App = {
             </div>
             ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️ Supprimer</button>`:""}
           </div>
+          ${this.renderAuthorStatChip(p.author)}
           ${p.type==='text' ? `<p style="font-size:14.5px;margin:10px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
           ${p.type==='poll' ? `
             <p style="font-size:14.5px;font-weight:700;margin:10px 0;">🗳️ ${esc(p.question)}</p>
@@ -2011,6 +2013,7 @@ const App = {
               <button class="btn btn-ghost btn-sm" onclick="App.deleteItem('${kind}','${id}')">🗑️ Supprimer</button>
             </span>`:""}
           </div>
+          ${this.renderAuthorStatChip(item.author)}
           ${item.caption? `<p style="font-size:13.5px;margin:6px 0;">${esc(item.caption)}</p>`:""}
           ${!item.caption && this.admin? `<p class="muted" style="font-size:12px;margin:4px 0;">Aucune description. <a href="#" onclick="event.preventDefault();App.openEditMedia('${kind}','${id}')">En ajouter une</a>.</p>`:""}
           <button class="chip ${likedByMe?'active':''}" style="margin:6px 0 10px;" onclick="App.toggleLike('${kind}','${id}')">❤️ J'aime (${likeCount})</button>
@@ -2499,6 +2502,46 @@ const App = {
      que par un seul compte à la fois. */
   playerClaimedBy(playerName){
     return this.state.accounts.find(a=>a.linkedPlayer===playerName) || null;
+  },
+  // Historique des clubs d'un joueur : pour chaque match joué où il apparaît dans teamA/teamB, quel
+  // côté il a vraiment occupé CE match-là (indépendamment de sa fiche permanente player.team, qui peut
+  // changer avec le temps ou être temporairement différente pour un match précis — transfert, joueur
+  // invité, erreur de placement...). Permet de voir/expliquer "il a joué pour tel club à telle date",
+  // et de repérer un changement de club d'un match à l'autre.
+  playerClubHistory(playerName){
+    const tn = this.teamNames();
+    return this.state.matches
+      .filter(m=>m.played && ((m.teamA||[]).includes(playerName) || (m.teamB||[]).includes(playerName)))
+      .map(m=>{
+        const club = (m.teamA||[]).includes(playerName) ? 'A' : 'B';
+        return {matchId:m.id, date:m.date, opponent:m.opponent, club, clubLabel: club==='A'?tn.a:tn.b};
+      })
+      .sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  },
+  // Petit badge "c'est [joueur], voici ses stats" affiché sous le nom de l'auteur d'une story/publication,
+  // quand ce compte est identifié à une fiche joueur (via "C'est moi" dans Recrues). Vide si le compte
+  // n'est identifié à personne (compte supporter pur, ou pas encore identifié).
+  renderAuthorStatChip(authorUsername){
+    if(!authorUsername) return "";
+    const acc = this.state.accounts.find(a=>a.username===authorUsername);
+    const linkedName = acc && acc.linkedPlayer;
+    if(!linkedName) return "";
+    const player = this.state.players.find(p=>p.name===linkedName);
+    if(!player) return "";
+    const stats = this.computePlayerStats(linkedName);
+    return `<button class="chip" style="margin:4px 0 2px;" onclick="App.openPlayerQuickCard('${jsa(linkedName)}')">🃏 ${esc(linkedName)} · ⚽ ${stats.goals} · 🎯 ${stats.assists}</button>`;
+  },
+  openPlayerQuickCard(name){
+    const p = this.state.players.find(x=>x.name===name);
+    if(!p){ toast("Fiche joueur introuvable"); return; }
+    const stats = this.computePlayerStats(name);
+    this.modal(`
+      <h3>🃏 ${esc(name)}</h3>
+      <div style="display:flex;justify-content:center;margin:8px 0;">${this.renderFutCard(p)}</div>
+      <div class="kv" style="border:none;"><span>⚽ Buts</span><b>${stats.goals}</b></div>
+      <div class="kv" style="border:none;"><span>🎯 Passes déc.</span><b>${stats.assists}</b></div>
+      <div class="kv" style="border:none;"><span>Note moy.</span><b>${stats.avgRating?stats.avgRating.toFixed(1):'–'}</b></div>
+    `);
   },
   claimPlayer(playerName){
     this.ensureMe(async (me)=>{
@@ -3151,10 +3194,12 @@ const App = {
             : claimedBy
               ? `<span class="muted" style="font-size:11px;">👤 revendiqué par ${esc(claimedBy.username)}</span>`
               : `<button class="btn btn-ghost btn-sm" onclick="App.claimPlayer('${jsa(p.name)}')">🙋 C'est moi</button>`;
+          const history = this.playerClubHistory(p.name);
           return `
           <div class="kv" style="flex-wrap:wrap;gap:6px;">
             <span>${esc(p.name)}${p.jerseyNumber?` #${esc(p.jerseyNumber)}`:""} · ${esc(p.position||"?")}${playerAge(p)!=null?` · ${playerAge(p)} ans`:""}${teamLabel?` · ${teamLabel}`:""}</span>
             <span class="muted" style="text-align:right;">arrivé le ${fmtDateShort(p.arrivalDate)}</span>
+            ${history.length? `<span style="flex-basis:100%;" class="muted" title="Club sur lequel il a vraiment joué à chaque match, peut différer de sa fiche actuelle en cas de transfert ou de match où il a dépanné l'autre équipe.">🕓 Historique club : ${history.map(h=>`${h.club==='A'?this.teamLogoTag('A',12):this.teamLogoTag('B',12)} ${esc(h.clubLabel)} (${fmtDateShort(h.date)})`).join(" → ")}</span>`:""}
             <span style="flex-basis:100%;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;">
               ${claimCtrl}
               ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.openSanctionPlayer('${jsa(p.name)}')">⚠️ Sanctionner</button>`:""}
