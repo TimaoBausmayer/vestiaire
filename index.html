@@ -1449,6 +1449,11 @@ const App = {
         ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️</button>` : ""}
       </div>
       ${this.renderAuthorStatChip(p.author)}
+      ${p.type==='transfer' ? (()=>{
+        const tn = this.teamNames();
+        const lbl = (k)=> k==='A' ? `${this.teamLogoTag('A',14)} ${esc(tn.a)}` : k==='B' ? `${this.teamLogoTag('B',14)} ${esc(tn.b)}` : "aucune équipe";
+        return `<p style="font-size:14px;margin:8px 0;font-weight:700;">🔄 Transfert : ${esc(p.playerName)}<br><span style="font-weight:500;">${lbl(p.fromTeam)} ➜ ${lbl(p.toTeam)}</span></p>`;
+      })() : ""}
       ${p.type==='text' ? `<p style="font-size:14px;margin:8px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
       ${p.type==='poll' ? `
         <p style="font-size:14px;font-weight:700;margin:8px 0 10px;">🗳️ ${esc(p.question)}</p>
@@ -1592,6 +1597,11 @@ const App = {
             ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️ Supprimer</button>`:""}
           </div>
           ${this.renderAuthorStatChip(p.author)}
+          ${p.type==='transfer' ? (()=>{
+            const tn = this.teamNames();
+            const lbl = (k)=> k==='A' ? `${this.teamLogoTag('A',14)} ${esc(tn.a)}` : k==='B' ? `${this.teamLogoTag('B',14)} ${esc(tn.b)}` : "aucune équipe";
+            return `<p style="font-size:14.5px;margin:10px 0;font-weight:700;">🔄 Transfert : ${esc(p.playerName)}<br><span style="font-weight:500;">${lbl(p.fromTeam)} ➜ ${lbl(p.toTeam)}</span></p>`;
+          })() : ""}
           ${p.type==='text' ? `<p style="font-size:14.5px;margin:10px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
           ${p.type==='poll' ? `
             <p style="font-size:14.5px;font-weight:700;margin:10px 0;">🗳️ ${esc(p.question)}</p>
@@ -3150,7 +3160,7 @@ const App = {
         <div class="fut-pos">${esc(p.position||"?")}</div>
       </div>
       ${p.photo ? `<img class="fut-photo" src="${p.photo}">` : `<div class="fut-photo ph">${initials(p.name)}</div>`}
-      <div class="fut-name">${esc(p.name)}</div>
+      <div class="fut-name">${p.isCaptain?'👑 ':''}${esc(p.name)}</div>
       <div class="fut-stats">
         ${Object.keys(sub).map(k=>`<div><span>${k}</span><b>${sub[k].toFixed(1)}</b></div>`).join("")}
       </div>
@@ -3179,10 +3189,11 @@ const App = {
             return `
             <div style="text-align:center;">
               ${this.renderFutCard(p,{id:'card-'+p.id})}
-              ${teamLabel? `<div class="muted" style="font-size:11px;margin-top:4px;font-weight:700;">${teamLabel}</div>`:""}
+              ${teamLabel? `<div class="muted" style="font-size:11px;margin-top:4px;font-weight:700;">${teamLabel}${p.isCaptain?' · 👑 Capitaine':''}</div>`:""}
               <div class="row" style="margin-top:6px;justify-content:center;gap:6px;flex-wrap:wrap;">
                 <button class="btn btn-ghost btn-sm" onclick="App.downloadCard('${p.id}','${jsa(p.name)}')">⬇️ Télécharger</button>
                 ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.openEditPlayer('${p.id}')">✏️ Modifier</button>`:""}
+                ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.openTransferPlayer('${p.id}')">🔄 Transfert</button>`:""}
                 ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.removePlayer('${p.id}')">🗑️ Retirer</button>`:""}
               </div>
             </div>
@@ -3206,7 +3217,7 @@ const App = {
           const history = this.playerClubHistory(p.name);
           return `
           <div class="kv" style="flex-wrap:wrap;gap:6px;">
-            <span>${esc(p.name)}${p.jerseyNumber?` #${esc(p.jerseyNumber)}`:""} · ${esc(p.position||"?")}${playerAge(p)!=null?` · ${playerAge(p)} ans`:""}${teamLabel?` · ${teamLabel}`:""}</span>
+            <span>${p.isCaptain?'👑 ':''}${esc(p.name)}${p.jerseyNumber?` #${esc(p.jerseyNumber)}`:""} · ${esc(p.position||"?")}${playerAge(p)!=null?` · ${playerAge(p)} ans`:""}${teamLabel?` · ${teamLabel}`:""}${p.isCaptain?` · <b>Capitaine</b>`:""}</span>
             <span class="muted" style="text-align:right;">arrivé le ${fmtDateShort(p.arrivalDate)}</span>
             ${history.length? `<span style="flex-basis:100%;" class="muted" title="Club sur lequel il a vraiment joué à chaque match, peut différer de sa fiche actuelle en cas de transfert ou de match où il a dépanné l'autre équipe.">🕓 Historique club : ${history.map(h=>`${h.club==='A'?this.teamLogoTag('A',12):this.teamLogoTag('B',12)} ${esc(h.clubLabel)} (${fmtDateShort(h.date)})`).join(" → ")}</span>`:""}
             <span style="flex-basis:100%;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;">
@@ -3245,6 +3256,10 @@ const App = {
         </select>
       </label>
       <label class="field">Date d'arrivée <input type="date" id="pArrival" value="${p&&p.arrivalDate?p.arrivalDate:todayISO()}"></label>
+      <label class="field" style="display:flex;align-items:center;gap:8px;flex-direction:row;">
+        <input type="checkbox" id="pCaptain" style="width:auto;" ${p&&p.isCaptain?'checked':''}>
+        <span>👑 Capitaine de son équipe</span>
+      </label>
       <button class="btn btn-accent btn-block" onclick="App.savePlayerForm('${id||""}')">${p?"Enregistrer":"Ajouter à l'effectif"}</button>
     `);
   },
@@ -3262,17 +3277,23 @@ const App = {
     const birthDate = document.getElementById("pBirth").value || null;
     const jerseyNumber = document.getElementById("pNum").value ? parseInt(document.getElementById("pNum").value,10) : null;
     const arrivalDate = document.getElementById("pArrival").value || todayISO();
+    const isCaptain = document.getElementById("pCaptain").checked;
     const file = document.getElementById("pPhoto").files[0];
     const existing = id ? this.state.players.find(x=>x.id===id) : null;
     let photo = existing ? (existing.photo||"") : "";
     if(file) photo = await resizeImage(file, 300, 0.6);
+    // Un seul capitaine par équipe : si on coche cette case, on décoche les autres capitaines de la même équipe.
+    if(isCaptain && team){
+      const others = this.state.players.filter(x=>x.id!==id && x.team===team && x.isCaptain);
+      for(const o of others){ await this.db.collection("players").doc(o.id).update({isCaptain:false}); }
+    }
     if(existing){
-      await this.db.collection("players").doc(id).set({...existing, name, position, team, birthDate, jerseyNumber, arrivalDate, photo});
+      await this.db.collection("players").doc(id).set({...existing, name, position, team, birthDate, jerseyNumber, arrivalDate, photo, isCaptain});
       this.closeModal();
       toast("Fiche de "+name+" mise à jour");
     } else {
       const newId = slugify(name)+"-"+Date.now().toString(36).slice(-4);
-      await this.db.collection("players").doc(newId).set({name, position, team, birthDate, jerseyNumber, arrivalDate, photo, createdAt:new Date().toISOString()});
+      await this.db.collection("players").doc(newId).set({name, position, team, birthDate, jerseyNumber, arrivalDate, photo, isCaptain, createdAt:new Date().toISOString()});
       this.closeModal();
       toast(name+" a rejoint l'effectif !");
     }
@@ -3280,6 +3301,39 @@ const App = {
   async removePlayer(id){
     await this.db.collection("players").doc(id).delete();
     toast("Recrue retirée");
+  },
+  openTransferPlayer(id){
+    if(!this.admin){ toast("Réservé aux capitaines"); return; }
+    const p = this.state.players.find(x=>x.id===id);
+    if(!p){ toast("Joueur introuvable"); return; }
+    const tn = this.teamNames();
+    const currentLabel = p.team==='A' ? `${this.teamLogoTag('A',14)} ${esc(tn.a)}` : p.team==='B' ? `${this.teamLogoTag('B',14)} ${esc(tn.b)}` : "aucune équipe";
+    this.modal(`
+      <h3>🔄 Changement d'équipe — ${esc(p.name)}</h3>
+      <p class="muted" style="margin-top:-4px;font-size:13px;">Club actuel : ${currentLabel}. Son historique de matchs déjà joués ne change pas — seule sa fiche actuelle est mise à jour, et tout le monde sera prévenu dans les Actus.</p>
+      <label class="field">Nouvelle équipe
+        <select id="pTransferTeam">
+          <option value="" ${!p.team?'selected':''}>Aucune / pas encore assignée</option>
+          <option value="A" ${p.team==='A'?'selected':''}>🟠 ${esc(tn.a)}</option>
+          <option value="B" ${p.team==='B'?'selected':''}>🟢 ${esc(tn.b)}</option>
+        </select>
+      </label>
+      <button class="btn btn-accent btn-block" onclick="App.saveTransferPlayer('${id}')">Confirmer le transfert</button>
+    `);
+  },
+  async saveTransferPlayer(id){
+    const p = this.state.players.find(x=>x.id===id);
+    if(!p){ toast("Joueur introuvable"); return; }
+    const newTeam = document.getElementById("pTransferTeam").value;
+    const oldTeam = p.team||"";
+    if(newTeam===oldTeam){ toast("Cette recrue est déjà dans cette équipe"); return; }
+    await this.db.collection("players").doc(id).update({team:newTeam});
+    await this.db.collection("posts").add({
+      type:'transfer', playerName:p.name, fromTeam:oldTeam||null, toTeam:newTeam||null,
+      author: this.me || "Capitaine", likes:{}, comments:[], createdAt:new Date().toISOString()
+    });
+    this.closeModal();
+    toast(p.name+" a changé d'équipe !");
   },
   async downloadCard(playerId, name){
     const node = document.getElementById("card-"+playerId);
