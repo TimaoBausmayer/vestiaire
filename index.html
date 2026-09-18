@@ -755,16 +755,35 @@ const App = {
     const tn = this.teamNames();
     const acc = this.state.accounts.find(a=>a.username===this.me);
     const curTeam = acc ? (acc.team||"") : "";
+    const linkedName = acc && acc.linkedPlayer;
+    const linkedPlayer = linkedName ? this.state.players.find(p=>p.name===linkedName) : null;
+    const salaryInfo = this.pendingSalaryInfo(this.me);
     this.modal(`
       <h3>👤 ${esc(this.me)}${this.roleBadge(this.me)}</h3>
       <p class="muted" style="font-size:12.5px;margin-top:-4px;">Connecté sur cet appareil. ${this.isSupporter(this.me) ? "Compte supporter : tu peux voter, liker, commenter et poster des photos comme tout le monde." : "Compte joueur."}</p>
-      <label class="field">Ton équipe
+      <hr class="sep">
+      <h3 style="font-size:15px;">🙋 Identification joueur</h3>
+      ${linkedPlayer ? `
+        <p class="muted" style="font-size:12.5px;margin-top:-4px;">
+          Tu es identifié comme <b>${esc(linkedPlayer.name)}</b>. Ça veut dire : ses stats et sa fiche te représentent, tu touches son salaire automatiquement tous les mois dans 💰 Paris${salaryInfo? " ("+fmtEuro(salaryInfo.amount)+"/mois)":""}, et si tu prends un carton en match, c'est TON crédit qui baisse (les sanctions du capitaine aussi).
+        </p>
+        <div style="display:flex;justify-content:center;margin:8px 0;">${this.renderFutCard(linkedPlayer)}</div>
+        <button class="btn btn-ghost btn-block" onclick="App.unclaimPlayer(); App.closeModal();">Retirer mon identification</button>
+      ` : `
+        <p class="muted" style="font-size:12.5px;margin-top:-4px;">
+          Tu n'es identifié à aucune fiche joueur pour l'instant. Va dans 🃏 Recrues et clique sur "🙋 C'est moi" sur TA fiche : une fois fait, tu touches automatiquement son salaire chaque mois dans 💰 Paris, tu vois ses stats ici, et un seul compte peut revendiquer chaque joueur (personne d'autre ne pourra prendre ta place).
+        </p>
+        <button class="btn btn-accent btn-block" onclick="App.closeModal(); App.goTab(3);">Aller dans 🃏 Recrues</button>
+      `}
+      <hr class="sep">
+      <label class="field">Ton équipe (supporter)
         <select id="accTeam">
           <option value="" ${curTeam===""?"selected":""}>— Pas encore choisi —</option>
           <option value="A" ${curTeam==="A"?"selected":""}>${esc(tn.a)}</option>
           <option value="B" ${curTeam==="B"?"selected":""}>${esc(tn.b)}</option>
         </select>
       </label>
+      <p class="muted" style="font-size:11px;margin-top:-8px;">Ça, c'est juste le club que tu supportes — différent de l'identification joueur ci-dessus.</p>
       <button class="btn btn-outline btn-block" onclick="App.saveMyTeam()">Enregistrer mon équipe</button>
       <hr class="sep">
       <button class="btn btn-outline btn-block" onclick="App.logout()">Se déconnecter</button>
@@ -2486,7 +2505,7 @@ const App = {
       const already = this.state.accounts.find(a=>a.linkedPlayer===playerName);
       if(already && already.username!==me){ toast("Déjà revendiqué par "+already.username); return; }
       await this.db.collection("accounts").doc(slugify(me)).update({linkedPlayer: playerName});
-      toast("✅ C'est toi maintenant : "+playerName);
+      toast("✅ C'est toi maintenant : "+playerName+" — tu touches son salaire chaque mois dans 💰 Paris");
       this.render();
     });
   },
@@ -2497,7 +2516,7 @@ const App = {
       this.render();
     });
   },
-  /* ---------- Salaire (versé tous les 2 mois, indexé sur la valeur marchande) ---------- */
+  /* ---------- Salaire (versé tous les mois, indexé sur la valeur marchande) ---------- */
   playerSalary(name){
     const stats = this.computePlayerStats(name);
     const rating = this.cardRating(stats);
@@ -2520,7 +2539,7 @@ const App = {
     const player = this.state.players.find(p=>p.name===linkedName);
     if(!player) return null;
     const lastAt = acc && acc.lastSalaryAt ? new Date(acc.lastSalaryAt) : (acc && acc.createdAt ? new Date(acc.createdAt) : new Date());
-    const nextAt = new Date(lastAt); nextAt.setMonth(nextAt.getMonth()+2);
+    const nextAt = new Date(lastAt); nextAt.setMonth(nextAt.getMonth()+1);
     return {amount: this.effectiveSalary(linkedName, acc), nextAt: isNaN(nextAt) ? null : nextAt.toISOString(), linkedName};
   },
   checkAndPaySalaryIfNeeded(){
@@ -2536,12 +2555,11 @@ const App = {
     const lastAt = acc.lastSalaryAt ? new Date(acc.lastSalaryAt) : new Date(acc.createdAt||Date.now());
     if(isNaN(lastAt)) return;
     const now = new Date();
-    const monthsElapsed = (now.getFullYear()-lastAt.getFullYear())*12 + (now.getMonth()-lastAt.getMonth());
-    const periods = Math.floor(monthsElapsed/2);
+    const periods = (now.getFullYear()-lastAt.getFullYear())*12 + (now.getMonth()-lastAt.getMonth());
     if(periods<1) return;
     const salary = this.effectiveSalary(linkedName, acc);
     const total = salary*periods;
-    const newLastAt = new Date(lastAt); newLastAt.setMonth(newLastAt.getMonth()+periods*2);
+    const newLastAt = new Date(lastAt); newLastAt.setMonth(newLastAt.getMonth()+periods);
     const newWallet = (acc.wallet||0) + total;
     this.db.collection("accounts").doc(slugify(this.me)).update({wallet:newWallet, lastSalaryAt:newLastAt.toISOString(), lastSalaryAmount:salary}).then(()=>{
       toast("💼 Salaire versé : "+fmtEuro(total)+(periods>1? " ("+periods+" versements)":""));
@@ -2896,7 +2914,7 @@ const App = {
     <div class="card">
       <h2>💳 Ton crédit</h2>
       <p class="value-big">${fmtEuro(wallet)}</p>
-      ${salaryInfo ? `<p class="muted" style="font-size:11.5px;">💼 Salaire de ${esc(salaryInfo.linkedName)} (indexé sur sa valeur marchande) : ${fmtEuro(salaryInfo.amount)} tous les 2 mois${salaryInfo.nextAt? " · prochain versement le "+fmtDate(salaryInfo.nextAt):""}. Les gains de paris s'ajoutent à ce crédit, jamais à la valeur marchande.</p>` : `<p class="muted" style="font-size:11.5px;">Le salaire automatique est réservé aux comptes identifiés à une fiche joueur. Va dans 🃏 Recrues et clique sur "C'est moi" sur ta fiche.</p>`}
+      ${salaryInfo ? `<p class="muted" style="font-size:11.5px;">💼 Salaire de ${esc(salaryInfo.linkedName)} (indexé sur sa valeur marchande) : ${fmtEuro(salaryInfo.amount)} tous les mois${salaryInfo.nextAt? " · prochain versement le "+fmtDate(salaryInfo.nextAt):""}. Les gains de paris s'ajoutent à ce crédit, jamais à la valeur marchande.</p>` : `<p class="muted" style="font-size:11.5px;">Le salaire automatique est réservé aux comptes identifiés à une fiche joueur. Va dans 🃏 Recrues et clique sur "C'est moi" sur ta fiche.</p>`}
     </div>`;
   },
   renderBetLeaderboard(){
@@ -3122,7 +3140,7 @@ const App = {
 
       <div class="card">
         <h3>Fiches joueurs</h3>
-        <p class="muted" style="font-size:11.5px;margin-top:-4px;">Clique sur "C'est moi" sur TA fiche pour recevoir ton salaire automatiquement dans Paris. Un seul compte peut revendiquer chaque joueur.</p>
+        <p class="muted" style="font-size:11.5px;margin-top:-4px;">Clique sur "🙋 C'est moi" sur TA fiche pour t'identifier à ce joueur : tu touches son salaire chaque mois dans 💰 Paris, tu vois ses stats depuis ton profil (👤 en haut), et si tu prends un carton en match ton crédit baisse. Un seul compte peut revendiquer chaque joueur.</p>
         ${players.length===0 ? `<div class="empty">—</div>` : players.map(p=>{
           const tn = this.teamNames();
           const teamLabel = p.team==='A' ? `${this.teamLogoTag('A',13)} ${esc(tn.a)}` : p.team==='B' ? `${this.teamLogoTag('B',13)} ${esc(tn.b)}` : "";
