@@ -1039,7 +1039,7 @@ const App = {
       </div>`;
   },
   closeModal(){ document.getElementById("modalRoot").innerHTML=""; },
-  closeLightbox(){ document.getElementById("lightboxRoot").innerHTML=""; this._openPostDetailId=null; },
+  closeLightbox(){ document.getElementById("lightboxRoot").innerHTML=""; this._openPostDetailId=null; this.state.storyViewerAuthor=null; this.state.storyViewerIndex=null; },
 
   /* ============================= RENDER ============================= */
   render(){
@@ -1708,6 +1708,28 @@ const App = {
     if(this._openPostDetailId===id) setTimeout(()=>this.openPostDetail(id), 80);
   },
 
+  // Stories actives (< 1 semaine), regroupées par auteur — façon Instagram : un seul rond par personne
+  // dans le bandeau, même si elle a posté plusieurs stories, et on peut défiler d'une story à l'autre de
+  // la même personne sans ressortir (voir openStoryViewer). Chaque groupe est trié de la plus ancienne à
+  // la plus récente (ordre de lecture), et les groupes eux-mêmes du plus récemment actif au moins récent.
+  activeStoryGroups(){
+    const now = Date.now();
+    const STORY_LIFETIME_MS = 7*24*3600*1000;
+    const active = this.state.stories.filter(s=> s.approved!==false && (now - new Date(s.createdAt).getTime()) < STORY_LIFETIME_MS);
+    const byAuthor = {};
+    active.forEach(s=>{
+      const key = s.author||"?";
+      if(!byAuthor[key]) byAuthor[key] = [];
+      byAuthor[key].push(s);
+    });
+    const groups = Object.entries(byAuthor).map(([author,stories])=>{
+      stories.sort((a,b)=> (a.createdAt||"").localeCompare(b.createdAt||""));
+      return {author, stories, latest: stories[stories.length-1].createdAt};
+    });
+    groups.sort((a,b)=> (b.latest||"").localeCompare(a.latest||""));
+    return groups;
+  },
+
   renderMedia(){
     const f = this.state.mediaFilter;
     let items = this.state.media.filter(m=>m.approved!==false);
@@ -1717,11 +1739,9 @@ const App = {
     if(f.favOnly) items = items.filter(m=>m.favorite);
     items.sort((a,b)=> f.sort==="desc" ? (b.date||"").localeCompare(a.date||"") : (a.date||"").localeCompare(b.date||""));
 
-    const now = Date.now();
     // Les stories restent visibles 1 semaine (contre 24h avant) — les Actus, elles, ne sont jamais
     // filtrées par date : une publication reste affichée tant qu'elle n'est pas supprimée.
-    const STORY_LIFETIME_MS = 7*24*3600*1000;
-    const activeStories = this.state.stories.filter(s=> s.approved!==false && (now - new Date(s.createdAt).getTime()) < STORY_LIFETIME_MS);
+    const storyGroups = this.activeStoryGroups();
     const pendingMedia = this.state.media.filter(m=>m.approved===false);
     const pendingStories = this.state.stories.filter(s=>s.approved===false);
 
@@ -1733,12 +1753,17 @@ const App = {
             <div class="story-ring add"><div class="ph">＋</div></div>
             <div class="story-name">Ajouter</div>
           </div>
-          ${activeStories.map(s=>`
-            <div class="story-item" onclick="App.openLightbox('story','${s.id}')">
-              <div class="story-ring">${s.type==='photo'?`<img src="${s.src}">`:`<div class="ph">▶️</div>`}</div>
-              <div class="story-name">${esc(s.author||"?")}</div>
+          ${storyGroups.map(g=>{
+            const last = g.stories[g.stories.length-1];
+            return `
+            <div class="story-item" onclick="App.openStoryViewer('${jsa(g.author)}',0)">
+              <div class="story-ring" style="position:relative;">
+                ${last.type==='photo'?`<img src="${last.src}">`:`<div class="ph">▶️</div>`}
+                ${g.stories.length>1? `<span style="position:absolute;bottom:-2px;right:-2px;background:var(--accent2);color:#fff;font-size:10px;font-weight:700;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);">${g.stories.length}</span>`:""}
+              </div>
+              <div class="story-name">${esc(g.author||"?")}</div>
             </div>
-          `).join("")}
+          `;}).join("")}
         </div>
       </div>
 
@@ -2047,7 +2072,7 @@ const App = {
     await this.db.collection(col).doc(id).set({...item, ...patch});
     this.closeModal();
     toast("Modifications enregistrées");
-    setTimeout(()=>this.openLightbox(kind,id), 80);
+    this.reopenViewerAfterAction(kind, id);
   },
 
   /* ---------- lightbox (view / like / comment) ---------- */
@@ -2105,6 +2130,102 @@ const App = {
     this.closeLightbox();
     toast("Supprimé");
   },
+  // Après un like/commentaire/modif sur une story pendant qu'on est dans le visualiseur façon Instagram :
+  // on rouvre CE visualiseur à la même position (avec la donnée fraîche), pas la fiche "lightbox" classique
+  // (qui n'a pas la navigation entre stories). Pour les médias (galerie), rien ne change.
+  reopenViewerAfterAction(kind, id){
+    if(kind==='story'){
+      const item = this.state.stories.find(x=>x.id===id);
+      const author = this.state.storyViewerAuthor!=null ? this.state.storyViewerAuthor : (item && item.author);
+      const idx = this.state.storyViewerIndex||0;
+      if(author!=null) setTimeout(()=>this.openStoryViewer(author, idx), 80);
+    } else {
+      setTimeout(()=>this.openLightbox(kind,id), 80);
+    }
+  },
+  // Visualiseur de stories façon Instagram : un rond par personne dans le bandeau, et ici on peut défiler
+  // d'une story à l'autre de la MÊME personne (barres de progression en haut, zones tactiles gauche/droite)
+  // sans jamais ressortir vers le bandeau. `author` identifie le groupe (activeStoryGroups()), `index` la
+  // position dans ses stories, triées de la plus ancienne à la plus récente. Dépasser la dernière story du
+  // groupe passe au groupe (à la personne) suivant, comme sur Instagram ; avant la première ne fait rien.
+  openStoryViewer(author, index){
+    const groups = this.activeStoryGroups();
+    let gi = groups.findIndex(g=>g.author===author);
+    if(gi<0){ this.closeLightbox(); return; }
+    let group = groups[gi];
+    if(index<0){
+      if(gi===0) return; // déjà tout au début : on ne fait rien, comme Instagram
+      group = groups[gi-1];
+      author = group.author;
+      index = group.stories.length-1;
+    } else if(index>=group.stories.length){
+      if(gi>=groups.length-1){ this.closeLightbox(); return; } // dernière story de la dernière personne : on ferme
+      group = groups[gi+1];
+      author = group.author;
+      index = 0;
+    }
+    const item = group.stories[index];
+    if(!item){ this.closeLightbox(); return; }
+    this.state.storyViewerAuthor = author;
+    this.state.storyViewerIndex = index;
+    const likeCount = Object.values(item.likes||{}).filter(Boolean).length;
+    const likedByMe = this.me && item.likes && item.likes[slugify(this.me)];
+    const comments = item.comments||[];
+    document.getElementById("lightboxRoot").innerHTML = `
+      <div class="lightbox-back">
+        <button class="lightbox-close" onclick="App.closeLightbox()">✕</button>
+        <div class="lightbox-media" style="position:relative;">
+          <div style="position:absolute;top:8px;left:8px;right:8px;display:flex;gap:4px;z-index:3;">
+            ${group.stories.map((_,i)=>`<div style="flex:1;height:3px;border-radius:2px;background:${i<=index?'rgba(255,255,255,0.9)':'rgba(255,255,255,0.35)'};"></div>`).join("")}
+          </div>
+          <div style="position:absolute;top:0;bottom:0;left:0;width:35%;z-index:2;cursor:pointer;" onclick="App.storyViewerPrev()" title="Précédent"></div>
+          <div style="position:absolute;top:0;bottom:0;right:0;width:65%;z-index:2;cursor:pointer;" onclick="App.storyViewerNext()" title="Suivant"></div>
+          ${item.type==='photo' ? `<img src="${item.src}" style="pointer-events:none;">` :
+            (item.src && item.src.startsWith('data:video') ?
+              `<video autoplay controls playsinline src="${item.src}" style="max-width:100%;max-height:100%;"></video>` :
+              `<a class="openvid" href="${esc(item.src)}" target="_blank" rel="noopener" style="pointer-events:none;">▶️<br>Ouvrir la vidéo</a>`)}
+        </div>
+        <div class="lightbox-panel">
+          <div class="row" style="justify-content:space-between;">
+            <div>
+              <b>${esc(item.author||"?")}</b>${this.roleBadge(item.author)}
+              <span class="muted" style="font-size:12px;"> · ${fmtDateTime(item.createdAt)}</span>
+              ${group.stories.length>1? `<div class="muted" style="font-size:11px;">Story ${index+1}/${group.stories.length}</div>`:""}
+            </div>
+            ${this.admin? `<span class="row" style="gap:6px;">
+              <button class="btn btn-ghost btn-sm" onclick="App.openEditMedia('story','${item.id}')">✏️ Modifier</button>
+              <button class="btn btn-ghost btn-sm" onclick="App.deleteItem('story','${item.id}')">🗑️ Supprimer</button>
+            </span>`:""}
+          </div>
+          ${this.renderAuthorStatChip(item.author)}
+          ${item.caption? `<p style="font-size:13.5px;margin:6px 0;white-space:pre-wrap;">${esc(item.caption)}</p>`:""}
+          <button class="chip ${likedByMe?'active':''}" style="margin:6px 0 10px;" onclick="App.toggleLike('story','${item.id}')">❤️ J'aime (${likeCount})</button>
+          <hr class="sep" style="margin:6px 0 10px;">
+          <div id="commentsList">
+            ${comments.length===0? `<p class="muted" style="font-size:12.5px;">Aucun commentaire.</p>` :
+              comments.map((c,i)=>`
+                <div class="comment-item">
+                  <div><b>${esc(c.author)}</b>${this.roleBadge(c.author)} ${esc(c.text)}</div>
+                  ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deleteComment('story','${item.id}',${i})">✕</button>`:""}
+                </div>
+              `).join("")}
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <input type="text" id="newComment" placeholder="Écrire un commentaire...">
+            <button class="btn btn-accent btn-sm" onclick="App.addComment('story','${item.id}')">Envoyer</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+  storyViewerNext(){
+    if(this.state.storyViewerAuthor==null) return;
+    this.openStoryViewer(this.state.storyViewerAuthor, (this.state.storyViewerIndex||0)+1);
+  },
+  storyViewerPrev(){
+    if(this.state.storyViewerAuthor==null) return;
+    this.openStoryViewer(this.state.storyViewerAuthor, (this.state.storyViewerIndex||0)-1);
+  },
   async toggleLike(kind, id){
     this.ensureMe(async (me)=>{
       const col = kind==='story'?'stories':'media';
@@ -2112,7 +2233,7 @@ const App = {
       if(!item) return;
       const already = item.likes && item.likes[slugify(me)];
       await this.db.collection(col).doc(id).update({likes:{[slugify(me)]: !already}});
-      setTimeout(()=>this.openLightbox(kind,id), 80);
+      this.reopenViewerAfterAction(kind, id);
     });
   },
   async addComment(kind, id){
@@ -2125,7 +2246,7 @@ const App = {
       if(!item) return;
       const comments = [...(item.comments||[]), {author:me, text, at:new Date().toISOString()}];
       await this.db.collection(col).doc(id).update({comments});
-      setTimeout(()=>this.openLightbox(kind,id), 80);
+      this.reopenViewerAfterAction(kind, id);
     });
   },
   async deleteComment(kind, id, idx){
@@ -2134,7 +2255,7 @@ const App = {
     if(!item) return;
     const comments = (item.comments||[]).filter((_,i)=>i!==idx);
     await this.db.collection(col).doc(id).update({comments});
-    setTimeout(()=>this.openLightbox(kind,id), 80);
+    this.reopenViewerAfterAction(kind, id);
   },
 
   /* ============================= TAB 3 : Recrues & Cartes FUT ============================= */
