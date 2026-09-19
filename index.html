@@ -1439,14 +1439,18 @@ const App = {
     const likeCount = Object.values(p.likes||{}).filter(Boolean).length;
     const likedByMe = this.me && p.likes && p.likes[slugify(this.me)];
     const commentCount = (p.comments||[]).length;
+    const canEdit = p.type!=='transfer' && (this.admin || (this.me && p.author===this.me));
     return `
     <div class="card tight" style="margin:6px 0 10px;">
       <div class="row" style="justify-content:space-between;align-items:flex-start;">
         <div>
           <b>${esc(p.author||"Capitaine")}</b>${this.roleBadge(p.author)}
-          <div class="muted" style="font-size:11.5px;">${fmtDateTime(p.createdAt)}</div>
+          <div class="muted" style="font-size:11.5px;">${fmtDateTime(p.createdAt)}${p.editedAt?' · modifié':''}</div>
         </div>
-        ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️</button>` : ""}
+        <div class="row" style="gap:2px;">
+          ${canEdit? `<button class="btn btn-ghost btn-sm" onclick="App.openEditPost('${p.id}')">✏️</button>` : ""}
+          ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️</button>` : ""}
+        </div>
       </div>
       ${this.renderAuthorStatChip(p.author)}
       ${p.type==='transfer' ? (()=>{
@@ -1454,18 +1458,18 @@ const App = {
         const lbl = (k)=> k==='A' ? `${this.teamLogoTag('A',14)} ${esc(tn.a)}` : k==='B' ? `${this.teamLogoTag('B',14)} ${esc(tn.b)}` : "aucune équipe";
         return `<p style="font-size:14px;margin:8px 0;font-weight:700;">🔄 Transfert : ${esc(p.playerName)}<br><span style="font-weight:500;">${lbl(p.fromTeam)} ➜ ${lbl(p.toTeam)}</span></p>`;
       })() : ""}
-      ${p.type==='text' ? `<p style="font-size:14px;margin:8px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
+      ${p.type==='text' ? `<p style="font-size:14px;line-height:1.6;margin:8px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
       ${p.type==='poll' ? `
         <p style="font-size:14px;font-weight:700;margin:8px 0 10px;">🗳️ ${esc(p.question)}</p>
         ${this.renderPollOptions(p)}
       ` : ""}
       ${p.type==='photo' ? `
         <img src="${p.src}" style="width:100%;border-radius:10px;margin:8px 0;cursor:pointer;" onclick="App.openPostDetail('${p.id}')">
-        ${p.caption? `<p style="font-size:13.5px;margin:4px 0;">${esc(p.caption)}</p>`:""}
+        ${p.caption? `<p style="font-size:13.5px;line-height:1.6;margin:4px 0;white-space:pre-wrap;">${esc(p.caption)}</p>`:""}
       ` : ""}
       ${p.type==='video' ? `
         <video controls playsinline src="${p.src}" style="width:100%;border-radius:10px;margin:8px 0;"></video>
-        ${p.caption? `<p style="font-size:13.5px;margin:4px 0;">${esc(p.caption)}</p>`:""}
+        ${p.caption? `<p style="font-size:13.5px;line-height:1.6;margin:4px 0;white-space:pre-wrap;">${esc(p.caption)}</p>`:""}
       ` : ""}
       <div class="row" style="gap:10px;margin-top:8px;">
         <span class="chip ${likedByMe?'active':''}" onclick="App.togglePostLike('${p.id}')">❤️ ${likeCount}</span>
@@ -1563,6 +1567,50 @@ const App = {
     this.closeLightbox();
     toast("Publication supprimée");
   },
+  // Seul l'auteur d'une publication (ou un capitaine) peut la corriger après coup — pratique en cas de
+  // faute de frappe ou d'erreur. Les publications automatiques (transferts) ne sont pas éditables, et
+  // pour un sondage on ne permet de corriger que la question : changer les options après coup fausserait
+  // les votes déjà enregistrés (qui pointent vers une position dans la liste des options).
+  openEditPost(id){
+    const p = this.state.posts.find(x=>x.id===id);
+    if(!p){ toast("Publication introuvable"); return; }
+    if(p.type==='transfer'){ toast("Cette publication automatique ne peut pas être modifiée"); return; }
+    if(!(this.admin || (this.me && p.author===this.me))){ toast("Tu ne peux modifier que tes propres publications"); return; }
+    let fields = "";
+    if(p.type==='text'){
+      fields = `<label class="field">Message <textarea id="editPostText" rows="4">${esc(p.text||"")}</textarea></label>`;
+    } else if(p.type==='poll'){
+      fields = `<label class="field">Question <input type="text" id="editPostQuestion" value="${esc(p.question||"")}"></label>
+        <p class="muted" style="font-size:11.5px;margin-top:-6px;">Les options ne peuvent pas être changées une fois publiées, pour ne pas fausser les votes déjà enregistrés.</p>`;
+    } else if(p.type==='photo' || p.type==='video'){
+      fields = `<label class="field">Légende <textarea id="editPostCaption" rows="3">${esc(p.caption||"")}</textarea></label>`;
+    }
+    this.modal(`
+      <h3>✏️ Modifier la publication</h3>
+      ${fields}
+      <button class="btn btn-accent btn-block" onclick="App.saveEditPost('${id}')">Enregistrer</button>
+    `);
+  },
+  async saveEditPost(id){
+    const p = this.state.posts.find(x=>x.id===id);
+    if(!p) return;
+    const updates = {editedAt:new Date().toISOString()};
+    if(p.type==='text'){
+      const text = document.getElementById("editPostText").value.trim();
+      if(!text){ toast("Écris un message"); return; }
+      updates.text = text;
+    } else if(p.type==='poll'){
+      const question = document.getElementById("editPostQuestion").value.trim();
+      if(!question){ toast("Écris une question"); return; }
+      updates.question = question;
+    } else if(p.type==='photo' || p.type==='video'){
+      updates.caption = document.getElementById("editPostCaption").value.trim();
+    }
+    await this.db.collection("posts").doc(id).update(updates);
+    this.closeModal();
+    this.refreshPostDetailIfOpen(id);
+    toast("Publication modifiée");
+  },
   async votePoll(postId, idx){
     this.ensureMe(async (me)=>{
       await this.db.collection("posts").doc(postId).update({votes:{[slugify(me)]: idx}});
@@ -1592,9 +1640,12 @@ const App = {
           <div class="row" style="justify-content:space-between;">
             <div>
               <b>${esc(p.author||"Capitaine")}</b>${this.roleBadge(p.author)}
-              <div class="muted" style="font-size:12px;">${fmtDateTime(p.createdAt)}</div>
+              <div class="muted" style="font-size:12px;">${fmtDateTime(p.createdAt)}${p.editedAt?' · modifié':''}</div>
             </div>
-            ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️ Supprimer</button>`:""}
+            <div class="row" style="gap:2px;">
+              ${p.type!=='transfer' && (this.admin || (this.me && p.author===this.me))? `<button class="btn btn-ghost btn-sm" onclick="App.openEditPost('${p.id}')">✏️ Modifier</button>`:""}
+              ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️ Supprimer</button>`:""}
+            </div>
           </div>
           ${this.renderAuthorStatChip(p.author)}
           ${p.type==='transfer' ? (()=>{
@@ -1602,18 +1653,18 @@ const App = {
             const lbl = (k)=> k==='A' ? `${this.teamLogoTag('A',14)} ${esc(tn.a)}` : k==='B' ? `${this.teamLogoTag('B',14)} ${esc(tn.b)}` : "aucune équipe";
             return `<p style="font-size:14.5px;margin:10px 0;font-weight:700;">🔄 Transfert : ${esc(p.playerName)}<br><span style="font-weight:500;">${lbl(p.fromTeam)} ➜ ${lbl(p.toTeam)}</span></p>`;
           })() : ""}
-          ${p.type==='text' ? `<p style="font-size:14.5px;margin:10px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
+          ${p.type==='text' ? `<p style="font-size:14.5px;line-height:1.6;margin:10px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
           ${p.type==='poll' ? `
             <p style="font-size:14.5px;font-weight:700;margin:10px 0;">🗳️ ${esc(p.question)}</p>
             ${this.renderPollOptions(p)}
           ` : ""}
           ${p.type==='photo' ? `
             <img src="${p.src}" style="width:100%;border-radius:10px;margin:10px 0;">
-            ${p.caption? `<p style="font-size:14px;margin:6px 0;">${esc(p.caption)}</p>`:""}
+            ${p.caption? `<p style="font-size:14px;line-height:1.6;margin:6px 0;white-space:pre-wrap;">${esc(p.caption)}</p>`:""}
           ` : ""}
           ${p.type==='video' ? `
             <video controls playsinline src="${p.src}" style="width:100%;border-radius:10px;margin:10px 0;"></video>
-            ${p.caption? `<p style="font-size:14px;margin:6px 0;">${esc(p.caption)}</p>`:""}
+            ${p.caption? `<p style="font-size:14px;line-height:1.6;margin:6px 0;white-space:pre-wrap;">${esc(p.caption)}</p>`:""}
           ` : ""}
           <button class="chip ${likedByMe?'active':''}" style="margin:8px 0 10px;" onclick="App.togglePostLike('${p.id}')">❤️ J'aime (${likeCount})</button>
           <hr class="sep" style="margin:6px 0 10px;">
@@ -1667,7 +1718,10 @@ const App = {
     items.sort((a,b)=> f.sort==="desc" ? (b.date||"").localeCompare(a.date||"") : (a.date||"").localeCompare(b.date||""));
 
     const now = Date.now();
-    const activeStories = this.state.stories.filter(s=> s.approved!==false && (now - new Date(s.createdAt).getTime()) < 24*3600*1000);
+    // Les stories restent visibles 1 semaine (contre 24h avant) — les Actus, elles, ne sont jamais
+    // filtrées par date : une publication reste affichée tant qu'elle n'est pas supprimée.
+    const STORY_LIFETIME_MS = 7*24*3600*1000;
+    const activeStories = this.state.stories.filter(s=> s.approved!==false && (now - new Date(s.createdAt).getTime()) < STORY_LIFETIME_MS);
     const pendingMedia = this.state.media.filter(m=>m.approved===false);
     const pendingStories = this.state.stories.filter(s=>s.approved===false);
 
@@ -1884,7 +1938,7 @@ const App = {
         <p class="muted" style="font-size:11px;margin-top:-6px;">Max ${VIDEO_MAX_DURATION_SEC}s et ${Math.round(VIDEO_MAX_BYTES/1024)} Ko.</p>
       </div>
       <label class="field">Description (optionnel) <textarea id="sCaption" rows="3" placeholder="Raconte le moment..."></textarea></label>
-      <p class="muted" style="font-size:11.5px;">Visible 24h par l'équipe.</p>
+      <p class="muted" style="font-size:11.5px;">Visible 1 semaine par l'équipe.</p>
       <button class="btn btn-accent btn-block" onclick="App.saveStory()">Publier la story</button>
     `);
   },
@@ -1908,8 +1962,9 @@ const App = {
     }
     this.ensureMe(async (me)=>{
       // Les stories se publient directement, sans validation du capitaine : c'est du contenu
-      // éphémère (visible 24h seulement), contrairement aux médias (galerie permanente) qui,
-      // eux, restent soumis à validation.
+      // éphémère (visible 1 semaine seulement, cf STORY_LIFETIME_MS dans renderMedia), contrairement
+      // aux médias (galerie permanente) et aux Actus (jamais filtrées par date), qui eux restent
+      // affichés indéfiniment (les médias restent soumis à validation, pas les Actus).
       await this.db.collection("stories").add({
         type, src, caption, author:me, approved:true, likes:{}, comments:[], createdAt:new Date().toISOString()
       });
