@@ -4489,6 +4489,7 @@ const App = {
     const past = this.pastMatches();
     return `
       ${this.renderNextMatchCard(nm)}
+      ${this.renderOtherUpcomingMatches()}
       ${nm ? this.renderConvocations(nm) : ""}
       ${nm ? this.renderTeamCompare(nm) : ""}
       ${nm ? this.renderTacticSection(nm) : ""}
@@ -4496,6 +4497,51 @@ const App = {
       ${this.renderHistory(past)}
       ${this.renderPaymentSummarySection()}
     `;
+  },
+  // Le tout prochain match a déjà sa grande carte de présence ci-dessus (renderNextMatchCard).
+  // Mais si le capitaine programme plusieurs matchs à l'avance, les suivants doivent AUSSI avoir
+  // leur propre zone où chacun peut cocher présent/en retard/pas sûr/absent, indépendamment du
+  // prochain match — sinon ces matchs-là restent invisibles pour répondre. C'est ce que fait cette
+  // section : une petite carte par match "à venir" (hors le tout prochain), chacune avec sa propre
+  // liste de présence.
+  renderOtherUpcomingMatches(){
+    const upcoming = this.state.matches.filter(m=>!m.played).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    const others = upcoming.slice(1);
+    if(!others.length) return "";
+    return `
+    <div class="card">
+      <h2>📅 Autres matchs à venir</h2>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">Indique ta présence pour chaque match programmé, pas seulement le tout prochain — ✅ présent(e), ⏰ en retard, 🤷 tu ne sais pas encore, ❌ absent(e).</p>
+      ${others.map(m=>this.renderUpcomingMatchPresence(m)).join("")}
+    </div>`;
+  },
+  renderUpcomingMatchPresence(m){
+    const players = this.state.players;
+    return `
+    <div class="card tight" style="margin:6px 0 10px;background:var(--surface-2);">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;">
+        <div>
+          <b>${esc(m.opponent||"Match")}</b>
+          <div class="muted" style="font-size:11.5px;">${fmtDate(m.date)}${m.time?' · '+esc(m.time):''}${m.location?' · '+esc(m.location):''}</div>
+        </div>
+        ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.openEditMatchInfo('${m.id}')">✏️</button>`:""}
+      </div>
+      ${this.renderPresenceSummary(m.presence, players)}
+      ${players.length===0 ? "" : players.map(p=>{
+        const entry = (m.presence||{})[p.name];
+        const st = presenceStatus(entry);
+        const note = presenceNote(entry);
+        return `<div class="presence-row">
+          <span class="nm">${esc(p.name)}</span>
+          <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setPresence('${m.id}','${jsa(p.name)}','present')" title="Présent(e)">✅</button>
+          <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setPresence('${m.id}','${jsa(p.name)}','late')" title="En retard">⏰</button>
+          <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setPresence('${m.id}','${jsa(p.name)}','unsure')" title="Je ne sais pas encore">🤷</button>
+          <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setPresence('${m.id}','${jsa(p.name)}','absent')" title="Absent(e)">❌</button>
+          <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('match','${m.id}','${jsa(p.name)}')" title="Ajouter une note">🗨️</button>
+        </div>
+        ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;
+      }).join("")}
+    </div>`;
   },
   renderNextMatchCard(nm){
     const players = this.state.players;
@@ -4529,11 +4575,11 @@ const App = {
           const note = presenceNote(entry);
           return `<div class="presence-row">
             <span class="nm">${esc(p.name)}</span>
-            <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','present')">✅</button>
-            <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','late')">⏰</button>
-            <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','unsure')">🤷</button>
-            <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','absent')">❌</button>
-            <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('match','${nm.id}','${jsa(p.name)}')">🗨️</button>
+            <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','present')" title="Présent(e)">✅</button>
+            <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','late')" title="En retard">⏰</button>
+            <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','unsure')" title="Je ne sais pas encore">🤷</button>
+            <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','absent')" title="Absent(e)">❌</button>
+            <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('match','${nm.id}','${jsa(p.name)}')" title="Ajouter une note">🗨️</button>
           </div>
           ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;
         }).join("")}
@@ -5933,11 +5979,11 @@ const App = {
         const note = presenceNote(entry);
         return `<div class="presence-row">
           <span class="nm">${esc(p.name)}</span>
-          <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','present')">✅</button>
-          <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','late')">⏰</button>
-          <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','unsure')">🤷</button>
-          <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','absent')">❌</button>
-          <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('event','${ev.id}','${jsa(p.name)}')">🗨️</button>
+          <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','present')" title="Présent(e)">✅</button>
+          <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','late')" title="En retard">⏰</button>
+          <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','unsure')" title="Je ne sais pas encore">🤷</button>
+          <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','absent')" title="Absent(e)">❌</button>
+          <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('event','${ev.id}','${jsa(p.name)}')" title="Ajouter une note">🗨️</button>
         </div>
         ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;
       }).join("")}
