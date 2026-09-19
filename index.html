@@ -5972,8 +5972,8 @@ const App = {
       ${ev.notes? `<p style="font-size:13px;margin:4px 0 8px;">${esc(ev.notes)}</p>`:""}
       <div class="kv" style="border:none;"><span>Réponses</span><b>✅ ${counts.present} · ⏰ ${counts.late} · 🤷 ${counts.unsure} · ❌ ${counts.absent} · ❔ ${noResponse}</b></div>
       <button class="btn btn-ghost btn-sm" onclick="App.viewMediaFor('event','${ev.id}')">📸 Photos / vidéos</button>
-      ${!isPast ? `
       <hr class="sep">
+      ${isPast ? `<p class="muted" style="font-size:11.5px;margin:0 0 6px;">Qui était présent ce jour-là ? Tu peux corriger même après coup.</p>` : ""}
       ${players.length===0 ? `<p class="muted">Ajoute des joueurs dans l'onglet Recrues.</p>` : players.map(p=>{
         const entry = responses[p.name];
         const st = presenceStatus(entry);
@@ -5988,7 +5988,6 @@ const App = {
         </div>
         ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;
       }).join("")}
-      ` : ""}
     </div>`;
   },
   openNewEvent(){
