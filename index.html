@@ -3638,7 +3638,7 @@ const App = {
       return this.assignDenseRanks(rows, true); // ascending : moins de points = mieux classé, comme au golf
     }
     const rows = [];
-    this.state.players.filter(p=> key==='B' ? p.team==='B' : p.team!=='B').forEach(p=>{
+    this.state.players.filter(p=> key==='ALL' ? true : key==='B' ? p.team==='B' : p.team!=='B').forEach(p=>{
       if(p.position==='Gardien' && !def.forGK) return;
       const stats = this.computePlayerStats(p.name, opts);
       if(!stats.matchesPlayed) return; // pas encore joué = pas classé, pour ne pas polluer avec des valeurs par défaut
@@ -3679,7 +3679,7 @@ const App = {
     const active = cats.find(c=>c.key===this.state.classementCat) ? this.state.classementCat : 'general';
     const cat = cats.find(c=>c.key===active);
     const tn = this.teamNames();
-    const key = this.currentStatsTeam();
+    const key = this.currentClassementsTeam();
     const rows = this.computeCategoryRankingWithTrend(active, key);
     const trendTag = (r)=>{
       if(r.trend==='new') return `<span class="muted" style="font-size:11px;">🆕 nouveau</span>`;
@@ -3687,13 +3687,23 @@ const App = {
       if(r.trend==='up') return `<span style="font-size:11px;color:#2e7d32;">▲ ${r.prevRank}e ➜ ${r.rank}e</span>`;
       return `<span style="font-size:11px;color:#c62828;">▼ ${r.prevRank}e ➜ ${r.rank}e</span>`;
     };
+    // En mode "Tout le monde mélangé", on accole le petit logo du club de chacun devant son nom pour
+    // repérer d'un coup d'œil qui joue pour qui dans ce classement commun aux deux équipes.
+    const clubTagFor = (name)=>{
+      if(key!=='ALL') return "";
+      const p = this.state.players.find(x=>x.name===name);
+      const team = p ? p.team : null;
+      return team ? `${this.teamLogoTag(team,13)} ` : "";
+    };
+    const headerLabel = key==='ALL' ? `🔀 Tout le monde mélangé` : `${this.teamLogoTag(key,15)} ${esc(key==='A'?tn.a:tn.b)}`;
     return `
     <div class="card">
-      <h2>🏆 Classements — ${this.teamLogoTag(key,15)} ${esc(key==='A'?tn.a:tn.b)}</h2>
-      <p class="muted" style="font-size:12px;margin-top:-6px;">${rows.length} joueur${rows.length>1?'s':''} classé${rows.length>1?'s':''} dans "${esc(cat.label.replace(/^\S+\s/,''))}". Choisis une catégorie ci-dessous — après chaque nouveau match, regarde si tu montes ▲ ou descends ▼ !${cat.golf?` <b>Comme au golf : moins de points = mieux classé</b> (tes points = la somme de tes places dans Buteur, Passeur, Tireur, Dribbleur et Défenseur).`:``}</p>
+      <h2>🏆 Classements — ${headerLabel}</h2>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">${rows.length} joueur${rows.length>1?'s':''} classé${rows.length>1?'s':''} dans "${esc(cat.label.replace(/^\S+\s/,''))}"${key==='ALL'?`, les deux équipes confondues`:``}. Choisis une catégorie ci-dessous — après chaque nouveau match, regarde si tu montes ▲ ou descends ▼ !${cat.golf?` <b>Comme au golf : moins de points = mieux classé</b> (tes points = la somme de tes places dans Buteur, Passeur, Tireur, Dribbleur et Défenseur).`:``}</p>
       <div class="wrap" style="margin-bottom:6px;">
-        <span class="chip ${key==='A'?'active':''}" onclick="App.setStatsTeamView('A')">${this.teamLogoTag('A',13)} ${esc(tn.a)}</span>
-        <span class="chip ${key==='B'?'active':''}" onclick="App.setStatsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
+        <span class="chip ${key==='A'?'active':''}" onclick="App.setClassementsTeamView('A')">${this.teamLogoTag('A',13)} ${esc(tn.a)}</span>
+        <span class="chip ${key==='B'?'active':''}" onclick="App.setClassementsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
+        <span class="chip ${key==='ALL'?'active':''}" onclick="App.setClassementsTeamView('ALL')">🔀 Tout le monde</span>
       </div>
       <div class="wrap" style="margin-bottom:10px;">
         ${cats.map(c=>`<span class="chip ${active===c.key?'active':''}" onclick="App.setClassementCat('${c.key}')">${c.label}</span>`).join("")}
@@ -3701,7 +3711,7 @@ const App = {
       ${rows.length===0 ? `<p class="muted" style="font-size:12.5px;">Personne n'a encore assez joué pour ce classement.</p>` :
         rows.map(r=>`
         <div class="presence-row" style="cursor:pointer;" onclick="App.selectStatsPlayer('${jsa(r.name)}')">
-          <span class="nm">${this.rankMedal(r.rank-1)} ${esc(r.name)}</span>
+          <span class="nm">${this.rankMedal(r.rank-1)} ${clubTagFor(r.name)}${esc(r.name)}</span>
           <span style="text-align:right;">
             <b>${cat.fmt(r.value)}</b><br>${trendTag(r)}
           </span>
@@ -4813,6 +4823,16 @@ const App = {
     return (t==='A' || t==='B') ? t : (this.myTeamKey() || 'A');
   },
   setStatsTeamView(key){ this.state.statsTeamView = key; this.render(); },
+  // Sélecteur d'équipe séparé, utilisé UNIQUEMENT par les Classements (renderClassementsSection), pour
+  // pouvoir proposer un 3e choix "Tout le monde mélangé" (les deux équipes ensemble) sans que ce choix ne
+  // "fuite" vers le Tableau de bord ou les Stats d'équipe — ces deux sections-là n'affichent que le bilan
+  // d'UNE équipe (V-N-D, buts marqués/encaissés) et "ALL" n'aurait pas de sens propre là-bas (une victoire
+  // de Mot'eau est une défaite de FC Nulos quand elles se rencontrent, donc pas de bilan "mélangé" cohérent).
+  currentClassementsTeam(){
+    const t = this.state.classementsTeamView;
+    return (t==='A' || t==='B' || t==='ALL') ? t : (this.myTeamKey() || 'A');
+  },
+  setClassementsTeamView(key){ this.state.classementsTeamView = key; this.render(); },
   teamLogo(key){
     const info = this.state.info || this.defaultInfo();
     return key==='B' ? (info.teamBLogo||null) : (info.teamALogo||null);
