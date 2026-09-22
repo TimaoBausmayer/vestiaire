@@ -193,6 +193,9 @@
   .pitch.drawmode .slot .dot{box-shadow:0 0 0 2px #FFD84A;}
   .pitch.drawmode .slot.pending .dot{box-shadow:0 0 0 3px #FF5A5A;}
   .pitch-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .chat-pitch{max-width:200px;margin:2px 0 4px;}
+  .chat-pitch .slot .dot{width:22px;height:22px;font-size:8px;border-width:1.5px;}
+  .chat-pitch .slot .lb{font-size:7px;padding:0 4px;}
   .variant-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
   .variant-chip{display:flex;align-items:center;gap:4px;}
   .variant-chip .mini-x{font-size:10px;opacity:.6;cursor:pointer;padding:0 2px;}
@@ -2538,12 +2541,13 @@ const App = {
     // Tant qu'aucune note individuelle n'a été saisie sur un match (ratingsCount===0), on ne pénalise ni ne
     // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
     // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
-    const avgRatingAdj = (w.ratingsCount>0) ? (w.avgRating-5)*4.5 : 0;
-    // Le classement du match (top 10 meilleurs / top 3 pires voté par toute l'équipe) pèse maintenant un peu
-    // plus que les notes individuelles, mais pas énormément : même échelle (-5..+5) que l'écart des notes à
-    // 5/10, avec un poids légèrement supérieur (5.2 contre 4.5) — un classement qui va dans un sens a donc un
-    // peu plus de poids qu'une note qui va dans le même sens, sans pour autant écraser les notes.
-    const matchRankAdj = (w.matchRankAvg||0) * 5.2;
+    const avgRatingAdj = (w.ratingsCount>0) ? (w.avgRating-5)*3.0 : 0;
+    // Le classement du match (top 10 meilleurs / top 3 pires voté par toute l'équipe) compte maintenant
+    // nettement PLUS que les notes individuelles dans le général — ce n'est plus un léger avantage (5.2 vs
+    // 4.5) mais un vrai écart voulu (8.0 vs 3.0, soit ~2,7x plus lourd) : le classement voté par l'équipe est
+    // ce qui pèse le plus, les notes individuelles continuant de compter mais avec une influence plus modeste.
+    // Même échelle (-5..+5) pour les deux, donc c'est bien le poids qui change, pas l'échelle.
+    const matchRankAdj = (w.matchRankAvg||0) * 8.0;
     // Le temps de jeu compte maintenant vraiment : un joueur qui joue tout le match (90 min) gagne plus qu'un
     // joueur qui n'en joue qu'une partie, proportionnellement aux minutes réellement jouées (accumulées sur
     // tous ses matchs). Si aucune minute n'a jamais été saisie pour ce joueur (équipe qui ne suit pas ça), on
@@ -5392,8 +5396,8 @@ const App = {
     this.modal(`
       <h3>📝 ${m.played? "Modifier le" : "Saisir le"} résultat</h3>
       <p class="muted" style="font-size:13px;margin-top:-6px;font-weight:700;">${this.teamLogoTag('A',16)} ${esc(tn.a)} &nbsp;vs&nbsp; ${this.teamLogoTag('B',16)} ${esc(tn.b)}</p>
-      <details ${m.played? "":"open"} style="margin-bottom:10px;">
-        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--text-muted);">🆚 Infos du match (adversaire, date, lieu…)</summary>
+      <details open style="margin-bottom:10px;">
+        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--text-muted);">🆚 Infos du match (adversaire, date, lieu, difficulté…)</summary>
         <div style="margin-top:8px;">
           <label class="field">Adversaire <input type="text" id="rOpp" value="${esc(m.opponent||"")}" placeholder="FC Rivals"></label>
           <div class="grid2">
@@ -5847,7 +5851,7 @@ const App = {
               ${!mine? `<div class="msg-avatar" style="background:${avatarColor};">${initials(m.author)}</div>`:""}
               <div class="msg-bubble">
                 ${!mine? `<span class="msg-author" style="color:${avatarColor};">${esc(m.author||"?")}${this.roleBadge(m.author)}</span>`:""}
-                <div style="white-space:pre-wrap;">${esc(m.text)}</div>
+                ${m.type==='lineup' ? this.renderChatLineupCard(m) : `<div style="white-space:pre-wrap;">${esc(m.text)}</div>`}
                 <div class="msg-meta"><span>${fmtTimeOnly(m.createdAt)}${mine?' ✓✓':''}</span>${this.admin?`<button class="msg-del" onclick="App.deleteMessage('${m.id}')">supprimer</button>`:""}</div>
               </div>
             </div>`;
@@ -5855,6 +5859,7 @@ const App = {
       </div>
       <div class="chat-input-row row">
         <input type="text" id="chatInput" placeholder="Écrire un message..." onkeydown="if(event.key==='Enter'){App.sendMessage();}">
+        <button class="btn btn-ghost btn-sm" onclick="App.openChatLineupComposer()" title="Envoyer une composition d'équipe">🧠</button>
         <button class="btn btn-accent btn-sm" onclick="App.sendMessage()">Envoyer</button>
       </div>
     </div>`;
@@ -5871,6 +5876,91 @@ const App = {
   },
   async deleteMessage(id){
     await this.db.collection("messages").doc(id).delete();
+  },
+  // Compo d'équipe envoyée directement dans le chat, sans passer par le "Meilleur 11" ni la composition
+  // d'un match précis — une compo entièrement libre/personnalisée, composée sur place puis postée comme un
+  // message spécial (type:'lineup') qui s'affiche comme un petit terrain plutôt qu'un simple texte.
+  renderChatLineupCard(m){
+    const slots = this.FORMATIONS[m.formation] || this.FORMATIONS["4-3-3"];
+    const assignments = m.assignments || {};
+    const filled = slots.filter(s=>assignments[s.k]);
+    return `
+      <div style="font-weight:700;font-size:12.5px;margin-bottom:2px;">🧠 Composition — ${esc(m.formation||"4-3-3")}</div>
+      <div class="pitch chat-pitch">
+        ${slots.map(s=>{
+          const assigned = assignments[s.k];
+          return `<div class="slot ${assigned?'':'empty'}" style="top:${s.t}%;left:${s.l}%;">
+            <div class="dot">${assigned? initials(assigned) : s.k.replace(/[0-9]/g,'')}</div>
+            ${assigned? `<div class="lb">${esc(assigned).split(' ')[0]}</div>` : ""}
+          </div>`;
+        }).join("")}
+      </div>
+      ${filled.length===0 ? `<p class="muted" style="font-size:11px;margin-top:2px;">Composition vide</p>` : ""}
+    `;
+  },
+  openChatLineupComposer(){
+    const formation = this.state.chatLineupFormation || "4-3-3";
+    const assignments = this.state.chatLineupAssignments || {};
+    const slots = this.FORMATIONS[formation];
+    const roster = this.state.players.map(p=>p.name);
+    const tn = this.teamNames();
+    const ch = this.state.chatChannel;
+    const chLabel = ch==='general' ? 'Général' : (ch==='A' ? tn.a : tn.b);
+    this.modal(`
+      <h3>🧠 Composition d'équipe</h3>
+      <p class="muted" style="font-size:12px;margin-top:-4px;">Choisis une formation, place qui tu veux à chaque poste, puis envoie — elle sera postée dans le chat (canal "${esc(chLabel)}").</p>
+      <label class="field">Formation
+        <select onchange="App.setChatLineupFormation(this.value)">
+          ${Object.keys(this.FORMATIONS).map(f=>`<option value="${f}" ${f===formation?'selected':''}>${f}</option>`).join("")}
+        </select>
+      </label>
+      <div class="pitch">
+        ${slots.map(s=>{
+          const assigned = assignments[s.k];
+          return `<div class="slot ${assigned?'':'empty'}" style="top:${s.t}%;left:${s.l}%;" onclick="App.openChatLineupSlotPicker('${s.k}')">
+            <div class="dot">${assigned? initials(assigned) : s.k.replace(/[0-9]/g,'')}</div>
+            <div class="lb">${assigned? esc(assigned).split(' ')[0] : s.k}</div>
+          </div>`;
+        }).join("")}
+      </div>
+      ${roster.length===0 ? `<p class="muted" style="font-size:12px;">Ajoute des joueurs dans l'onglet Recrues d'abord.</p>` : ""}
+      <button class="btn btn-accent btn-block" style="margin-top:10px;" onclick="App.sendChatLineup()">📤 Envoyer dans le chat</button>
+    `);
+  },
+  setChatLineupFormation(formation){
+    this.state.chatLineupFormation = formation;
+    this.state.chatLineupAssignments = {};
+    this.openChatLineupComposer();
+  },
+  openChatLineupSlotPicker(slotKey){
+    const roster = this.state.players.map(p=>p.name);
+    this.modal(`
+      <h3>Poste : ${esc(slotKey)}</h3>
+      <div class="wrap">
+        <span class="chip" onclick="App.assignChatLineupSlot('${slotKey}','')">Vider</span>
+        ${roster.map(n=>`<span class="chip" onclick="App.assignChatLineupSlot('${slotKey}','${jsa(n)}')">${esc(n)}</span>`).join("") || "<p class='muted'>Ajoute des joueurs dans l'onglet Recrues.</p>"}
+      </div>
+    `);
+  },
+  assignChatLineupSlot(slotKey, name){
+    this.state.chatLineupAssignments = this.state.chatLineupAssignments || {};
+    if(name) this.state.chatLineupAssignments[slotKey] = name; else delete this.state.chatLineupAssignments[slotKey];
+    this.openChatLineupComposer();
+  },
+  async sendChatLineup(){
+    const formation = this.state.chatLineupFormation || "4-3-3";
+    const assignments = this.state.chatLineupAssignments || {};
+    const hasAny = Object.values(assignments).some(Boolean);
+    if(!hasAny){ toast("Place au moins un joueur avant d'envoyer"); return; }
+    this.ensureMe(async (me)=>{
+      await this.db.collection("messages").add({
+        channel:this.state.chatChannel, author:me, type:'lineup', formation, assignments,
+        createdAt:new Date().toISOString()
+      });
+      this.state.chatLineupAssignments = {};
+      this.closeModal();
+      toast("Composition envoyée dans le chat");
+    });
   },
 
   /* ============================= TAB 7 : Planning (entraînements & compétitions) ============================= */
