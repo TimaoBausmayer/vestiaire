@@ -2413,16 +2413,8 @@ const App = {
           });
         });
       }
-      if(m.ratings){
-        let best=null, bestAvg=-1;
-        Object.keys(m.ratings).forEach(p=>{
-          const vals = Object.values(m.ratings[p]||{});
-          if(!vals.length) return;
-          const a = avg(vals);
-          if(a>bestAvg){ bestAvg=a; best=p; }
-        });
-        if(best===name){ mvp++; wMvp += w; }
-      }
+      const mvpInfo = this.matchMVP(m);
+      if(mvpInfo && mvpInfo.name===name){ mvp++; wMvp += w; }
     });
     const avgRating = ratingsCount ? (ratingsSum/ratingsCount) : 0;
     const matchRankAvg = matchRankCount ? (matchRankSum/matchRankCount) : 0;
@@ -2588,8 +2580,10 @@ const App = {
     // Un joueur avec un mauvais match (carton, penalty raté/provoqué, mauvais votes) doit vraiment perdre du
     // général, pas juste moins en gagner : les cartons (auparavant ignorés par la note) comptent maintenant
     // aussi, un rouge punissant nettement plus qu'un jaune.
-    // Être élu MVP d'un match (meilleure note du match) doit faire monter le général de façon très nette —
-    // ce poids a été nettement augmenté (plus du double) pour que chaque titre de MVP se voie vraiment.
+    // Être élu MVP d'un match doit faire monter le général de façon très nette — ce poids a été nettement
+    // augmenté (plus du double) pour que chaque titre de MVP se voie vraiment. Le MVP n'est PLUS celui qui a
+    // la meilleure note individuelle : c'est celui qui est 1er du classement du match voté par l'équipe
+    // (voir matchMVP()) — sa note perso peut être plus basse que celle d'un autre joueur, ça ne change rien.
     let r = 52 + scoringImpact + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0 + w.tacklesWon*0.9 + (w.shotsOnTarget||0)*0.4
       + playtimeBonus
       - w.penaltiesMissed*2.8 - w.worstVotesTotal*1.4 - w.penaltiesCaused*2.6
@@ -3874,15 +3868,9 @@ const App = {
           const r = m.ratings[n];
           if(r){ const vals = Object.values(r); if(vals.length){ ratingSum += avg(vals); ratingCount++; } }
         });
-        let best=null, bestAvg=-1;
-        Object.keys(m.ratings).forEach(p=>{
-          const vals = Object.values(m.ratings[p]||{});
-          if(!vals.length) return;
-          const a = avg(vals);
-          if(a>bestAvg){ bestAvg=a; best=p; }
-        });
-        if(best && inRoster.has(best)) mvp++;
       }
+      const mvpInfo = this.matchMVP(m);
+      if(mvpInfo && inRoster.has(mvpInfo.name)) mvp++;
     });
     const avgRating = ratingCount? ratingSum/ratingCount : 0;
     return {count:players.length, goals, assists, yellow, red, cornersScored, cornersTaken, freekickScored, freekickTaken, penaltiesScored, penaltiesMissed, penaltiesCaused, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, avgRating, mvp, matchesPlayed, W, D, L};
@@ -4342,17 +4330,8 @@ const App = {
     const r = m.ratings && m.ratings[name];
     const ratingVals = r ? Object.values(r) : [];
     const rating = ratingVals.length ? avg(ratingVals) : null;
-    let isMVP = false;
-    if(m.ratings){
-      let best=null, bestAvg=-1;
-      Object.keys(m.ratings).forEach(p=>{
-        const vals = Object.values(m.ratings[p]||{});
-        if(!vals.length) return;
-        const a = avg(vals);
-        if(a>bestAvg){ bestAvg=a; best=p; }
-      });
-      isMVP = best===name;
-    }
+    const mvpInfo = this.matchMVP(m);
+    const isMVP = !!(mvpInfo && mvpInfo.name===name);
     const wasGK = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && t.assignments.GK===name);
     // Même principe que dans computePlayerStats : le côté où le joueur a joué CE match précis (pas sa
     // fiche permanente, qui peut avoir changé depuis via un transfert).
@@ -5507,11 +5486,7 @@ const App = {
   renderMatchRatingBlock(m){
     const tn = this.teamNames();
     const convoked = m.convoked && m.convoked.length ? m.convoked : this.state.players.map(p=>p.name);
-    let mvpName=null, mvpAvg=-1;
-    convoked.forEach(n=>{
-      const vals = Object.values((m.ratings&&m.ratings[n])||{});
-      if(vals.length){ const a=avg(vals); if(a>mvpAvg){mvpAvg=a; mvpName=n;} }
-    });
+    const mvpInfo = this.matchMVP(m);
     const worst = Object.entries(m.worstVotes||{}).map(([name,votes])=>({name, count:Object.keys(votes||{}).filter(k=>votes[k]).length}))
       .filter(w=>w.count>0).sort((a,b)=>b.count-a.count).slice(0,3);
     const beautifulGoal = Object.entries(m.goalVotes||{}).map(([name,votes])=>({name, count:Object.keys(votes||{}).filter(k=>votes[k]).length}))
@@ -5534,7 +5509,7 @@ const App = {
       ${(m.penaltiesConceded&&m.penaltiesConceded.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">🥅 Pen. pris ${m.penaltiesConceded.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
       ${(m.cardsYellow&&m.cardsYellow.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">🟨 ${m.cardsYellow.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
       ${(m.cardsRed&&m.cardsRed.length)?`<p style="font-size:13px;margin-top:-8px;" class="muted">🟥 ${m.cardsRed.map(s=>s.name+' ('+s.count+')').join(', ')}</p>`:""}
-      ${mvpName ? `<div class="badge gold" style="margin:6px 0 10px;">🏆 MVP du match : ${esc(mvpName)} (${mvpAvg.toFixed(1)}/10)</div>` : ""}
+      ${mvpInfo ? `<div class="badge gold" style="margin:6px 0 10px;">🏆 MVP du match : ${esc(mvpInfo.name)}${mvpInfo.source==='vote' ? ` (1er du classement du match, ${mvpInfo.points} pts)` : ` (${mvpInfo.avg.toFixed(1)}/10 — pas encore de classement voté pour ce match)`}</div>` : ""}
       <hr class="sep">
       <h3 style="font-size:15px;">Note les joueurs (détaillée, sur 10)</h3>
       <p class="muted" style="font-size:12px;margin-top:-4px;">Passes, contrôle, défense, utilité + note globale (un tableau différent pour les gardiens).</p>
@@ -5602,6 +5577,32 @@ const App = {
       });
     });
     return {tally, raterCount};
+  },
+  // Le MVP d'un match n'est PLUS simplement celui qui a la meilleure note moyenne individuelle : c'est
+  // celui qui est 1er du "classement du match" (le vote de toute l'équipe, top 10 meilleurs — voir
+  // renderMatchRankVote/openMatchRankBallot). Typiquement, quelqu'un peut avoir une bonne note perso mais
+  // ne pas être le mieux classé par ses coéquipiers, et inversement — c'est ce classement voté qui décide
+  // du MVP maintenant, pas la note brute. S'il n'y a encore aucun vote pour ce match (aucun classement),
+  // on retombe sur l'ancien comportement (meilleure note moyenne) pour ne pas perdre le MVP des matchs
+  // déjà notés avant l'existence du classement du match.
+  matchMVP(m){
+    if(!m) return null;
+    const bestInfo = this.matchVotePoints(m.matchVotes, 'best', this.MATCH_VOTE_BEST_SIZE);
+    if(bestInfo.raterCount>0){
+      const ranked = Object.entries(bestInfo.tally).sort((a,b)=>b[1]-a[1]);
+      if(ranked.length) return {name:ranked[0][0], source:'vote', points:ranked[0][1]};
+    }
+    if(m.ratings){
+      let best=null, bestAvg=-1;
+      Object.keys(m.ratings).forEach(p=>{
+        const vals = Object.values(m.ratings[p]||{});
+        if(!vals.length) return;
+        const a = avg(vals);
+        if(a>bestAvg){ bestAvg=a; best=p; }
+      });
+      if(best) return {name:best, source:'rating', avg:bestAvg};
+    }
+    return null;
   },
   renderMatchRankVote(m){
     const bestInfo = this.matchVotePoints(m.matchVotes, 'best', this.MATCH_VOTE_BEST_SIZE);
