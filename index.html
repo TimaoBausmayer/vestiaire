@@ -539,8 +539,8 @@ function resizeImage(file, maxW, quality){
 // plus), pour être sûr que la vidéo tienne largement dans un document. Pas de compression vidéo ici
 // (ça demanderait une librairie lourde) : si le fichier est trop gros/long, on refuse avec un message
 // clair plutôt que de risquer un échec silencieux d'enregistrement.
-const VIDEO_MAX_DURATION_SEC = 20;
-const VIDEO_MAX_BYTES = 700 * 1024; // 700 Ko bruts ≈ 930 Ko une fois encodés en base64
+const VIDEO_MAX_DURATION_SEC = 30;
+const VIDEO_MAX_BYTES = 750 * 1024; // 750 Ko bruts ≈ 1000 Ko une fois encodés en base64 (proche du max Firestore ~1 Mo, marge de sécurité gardée pour le reste du document)
 
 function readVideoFile(file, maxDurationSec, maxBytes){
   maxDurationSec = maxDurationSec || VIDEO_MAX_DURATION_SEC;
@@ -6191,7 +6191,9 @@ const App = {
               ${!mine? `<div class="msg-avatar" style="background:${avatarColor};">${initials(m.author)}</div>`:""}
               <div class="msg-bubble">
                 ${!mine? `<span class="msg-author" style="color:${avatarColor};">${esc(m.author||"?")}${this.roleBadge(m.author)}</span>`:""}
-                ${m.type==='lineup' ? this.renderChatLineupCard(m) : `<div style="white-space:pre-wrap;">${esc(m.text)}</div>`}
+                ${m.type==='lineup' ? this.renderChatLineupCard(m) :
+                  m.type==='photo' ? `<img src="${m.src}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;object-fit:cover;" onclick="App.openChatPhoto('${m.id}')">` :
+                  `<div style="white-space:pre-wrap;">${esc(m.text)}</div>`}
                 <div class="msg-meta"><span>${fmtTimeOnly(m.createdAt)}${mine?' ✓✓':''}</span>${this.admin?`<button class="msg-del" onclick="App.deleteMessage('${m.id}')">supprimer</button>`:""}</div>
               </div>
             </div>`;
@@ -6199,6 +6201,8 @@ const App = {
       </div>
       <div class="chat-input-row row">
         <input type="text" id="chatInput" placeholder="Écrire un message..." onkeydown="if(event.key==='Enter'){App.sendMessage();}">
+        <input type="file" id="chatPhotoFile" accept="image/*" style="display:none;" onchange="App.sendChatPhoto(this.files[0])">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('chatPhotoFile').click()" title="Envoyer une photo">📷</button>
         <button class="btn btn-ghost btn-sm" onclick="App.openChatLineupComposer()" title="Envoyer une composition d'équipe">🧠</button>
         <button class="btn btn-accent btn-sm" onclick="App.sendMessage()">Envoyer</button>
       </div>
@@ -6216,6 +6220,33 @@ const App = {
   },
   async deleteMessage(id){
     await this.db.collection("messages").doc(id).delete();
+  },
+  // Envoi d'une photo dans le chat : on la redimensionne/compresse (comme les autres photos de l'appli)
+  // pour rester largement sous la limite de 1 Mo par document Firestore, puis on la poste comme un
+  // message à part entière (type:'photo'), affichée en miniature dans la bulle et en grand au clic.
+  async sendChatPhoto(file){
+    if(!file) return;
+    this.ensureMe(async (me)=>{
+      try{
+        const src = await resizeImage(file, 900, 0.65);
+        await this.db.collection("messages").add({channel:this.state.chatChannel, author:me, type:'photo', src, createdAt:new Date().toISOString()});
+      }catch(e){
+        toast("Impossible d'envoyer cette photo.");
+      }
+      const inp = document.getElementById('chatPhotoFile');
+      if(inp) inp.value = '';
+    });
+  },
+  openChatPhoto(id){
+    const item = this.state.messages.find(x=>x.id===id);
+    if(!item || !item.src) return;
+    document.getElementById("lightboxRoot").innerHTML = `
+      <div class="lightbox-back">
+        <button class="lightbox-close" onclick="App.closeLightbox()">✕</button>
+        <div class="lightbox-media"><img src="${item.src}" style="max-width:100%;max-height:100%;"></div>
+        ${this.admin ? `<div class="lightbox-panel"><button class="btn btn-ghost btn-sm" onclick="App.deleteMessage('${id}');App.closeLightbox();">🗑️ Supprimer</button></div>` : ""}
+      </div>
+    `;
   },
   // Compo d'équipe envoyée directement dans le chat, sans passer par le "Meilleur 11" ni la composition
   // d'un match précis — une compo entièrement libre/personnalisée, composée sur place puis postée comme un
