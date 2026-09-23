@@ -1,7 +1,7 @@
 {
-  "name": "Mot'eau",
-  "short_name": "Mot'eau",
-  "description": "Vestiaire — gestion de l'équipe Mot'eau",
+  "name": "FC Nulos / Mot'eau",
+  "short_name": "FCN/Mot'eau",
+  "description": "Vestiaire — gestion des équipes FC Nulos et Mot'eau",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

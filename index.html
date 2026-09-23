@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vestiaire</title>
+<title>FC Nulos / Mot'eau</title>
 <!-- PWA : rend l'appli installable ("Ajouter à l'écran d'accueil") sur iPhone et Android. -->
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0e0e10">
@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Mot'eau">
+<meta name="apple-mobile-web-app-title" content="FC Nulos / Mot'eau">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap">
 <style>
@@ -722,7 +722,7 @@ const App = {
 
   defaultInfo(){
     return {
-      teamName:"Mon Équipe",
+      teamName:"FC Nulos / Mot'eau",
       logoEmoji:"⚽",
       reglement:"1. Chaque match commence à l'heure annoncée, merci d'arriver 15 minutes avant pour l'échauffement.\n2. Les équipes sont composées par le capitaine en fonction des présences.\n3. Le respect entre coéquipiers et adversaires est non négociable.\n4. Chacun ramène ses affaires (crampons, protège-tibias, gourde).\n5. En cas d'absence, prévenir au moins 24h à l'avance.\n\nModifiez ce texte à tout moment avec le bouton « Modifier » ci-dessous.",
       decharge:"La participation aux entraînements et matchs organisés par l'équipe se fait sous l'entière responsabilité de chaque participant. Chacun déclare être en bonne condition physique pour la pratique du football amateur et reconnaît que ce sport comporte des risques de blessure.\n\nEn cochant la case ci-dessous, vous reconnaissez avoir pris connaissance du règlement et acceptez de participer sous votre propre responsabilité en cas de blessure ou d'accident survenant lors d'un match ou d'un entraînement.",
@@ -1054,7 +1054,9 @@ const App = {
     const brandName = myBrandTeam==='A' ? tn.a
       : myBrandTeam==='B' ? tn.b
       : (info.teamName||"Mon Équipe");
-    const brandLogo = myBrandTeam==='A' ? info.teamALogo : myBrandTeam==='B' ? info.teamBLogo : null;
+    // Hors identification à une équipe précise (supporter, capitaine non lié...), on affiche le logo
+    // combiné de l'appli (les deux clubs ensemble) plutôt qu'un simple emoji ballon.
+    const brandLogo = myBrandTeam==='A' ? info.teamALogo : myBrandTeam==='B' ? info.teamBLogo : './app-logo.png';
     const tabs = [
       {n:1, ic:"📜", lb:"Règles"},
       {n:2, ic:"📸", lb:"Médias"},
@@ -1069,7 +1071,7 @@ const App = {
     app.innerHTML = `
       <div class="topbar">
         <div class="topbar-brand">
-          <div class="logo">${brandLogo? `<img src="${brandLogo}" alt="" style="width:30px;height:30px;border-radius:50%;object-fit:cover;vertical-align:middle;">` : esc(info.logoEmoji||"⚽")}</div>
+          <div class="logo">${brandLogo? `<img src="${brandLogo}" alt="" style="width:32px;height:32px;border-radius:${myBrandTeam?'50%':'6px'};object-fit:cover;vertical-align:middle;">` : esc(info.logoEmoji||"⚽")}</div>
           <div class="name">${esc(brandName)}</div>
           ${(()=>{
             if(!this.me) return "";
@@ -1410,15 +1412,31 @@ const App = {
   },
   /* ---------- Actus : posts texte & sondages (façon fil d'actu) ---------- */
   renderPostsFeed(){
-    const posts = this.state.posts.slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+    const posts = this.state.posts.filter(p=>!p.draft).slice().sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+    // Les résumés de match auto-générés restent en brouillon (invisibles de tout le monde) tant qu'aucune
+    // photo n'a été ajoutée — seuls les capitaines les voient ici, pour compléter et publier.
+    const drafts = this.admin ? this.state.posts.filter(p=>p.draft) : [];
     return `
     <div class="card">
       <div class="section-title">
         <h2 style="margin:0;">📰 Actus</h2>
         ${this.admin? `<button class="btn btn-accent btn-sm" onclick="App.openNewPost()">+ Publier</button>` : ""}
       </div>
+      ${drafts.length? `
+        <div style="background:var(--surface-2);border-radius:10px;padding:10px;margin-bottom:12px;">
+          <p style="font-size:12.5px;font-weight:700;margin:0 0 6px;">🕒 En attente d'une photo pour publier (${drafts.length})</p>
+          ${drafts.map(d=>this.renderDraftMatchRecapRow(d)).join("")}
+        </div>
+      `:""}
       ${posts.length===0 ? `<div class="empty"><span class="e-ic">📰</span>Aucune publication pour l'instant.</div>` :
         posts.map(p=>this.renderPostCard(p)).join("")}
+    </div>`;
+  },
+  renderDraftMatchRecapRow(d){
+    return `<div class="presence-row">
+      <span class="nm">⚽ ${this.teamLogoTag('A',13)}${this.teamLogoTag('B',13)} ${d.score?d.score.us:'–'} - ${d.score?d.score.them:'–'}${d.opponent?" vs "+esc(d.opponent):""}</span>
+      <button class="pbtn" onclick="App.openPublishMatchRecap('${d.id}')">📸 Ajouter la photo & publier</button>
+      <button class="pbtn" onclick="App.deletePost('${d.id}')">🗑️</button>
     </div>`;
   },
   renderPollOptions(p){
@@ -1443,12 +1461,12 @@ const App = {
     const likeCount = Object.values(p.likes||{}).filter(Boolean).length;
     const likedByMe = this.me && p.likes && p.likes[slugify(this.me)];
     const commentCount = (p.comments||[]).length;
-    const canEdit = p.type!=='transfer' && (this.admin || (this.me && p.author===this.me));
+    const canEdit = p.type!=='transfer' && (this.admin || (this.me && (p.postedBy||p.author)===this.me));
     return `
     <div class="card tight" style="margin:6px 0 10px;">
       <div class="row" style="justify-content:space-between;align-items:flex-start;">
         <div>
-          <b>${esc(p.author||"Capitaine")}</b>${this.roleBadge(p.author)}
+          ${this.postAuthorLine(p)}
           <div class="muted" style="font-size:11.5px;">${fmtDateTime(p.createdAt)}${p.editedAt?' · modifié':''}</div>
         </div>
         <div class="row" style="gap:2px;">
@@ -1456,12 +1474,14 @@ const App = {
           ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️</button>` : ""}
         </div>
       </div>
-      ${this.renderAuthorStatChip(p.author)}
+      ${p.authorKind==='personal' || !p.authorKind ? this.renderAuthorStatChip(p.author) : ""}
       ${p.type==='transfer' ? (()=>{
         const tn = this.teamNames();
         const lbl = (k)=> k==='A' ? `${this.teamLogoTag('A',14)} ${esc(tn.a)}` : k==='B' ? `${this.teamLogoTag('B',14)} ${esc(tn.b)}` : "aucune équipe";
         return `<p style="font-size:14px;margin:8px 0;font-weight:700;">🔄 Transfert : ${esc(p.playerName)}<br><span style="font-weight:500;">${lbl(p.fromTeam)} ➜ ${lbl(p.toTeam)}</span></p>`;
       })() : ""}
+      ${p.type==='matchrecap' ? this.renderMatchRecapBody(p) : ""}
+      ${p.type==='recruit' ? this.renderRecruitPostBody(p) : ""}
       ${p.type==='text' ? `<p style="font-size:14px;line-height:1.6;margin:8px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
       ${p.type==='poll' ? `
         <p style="font-size:14px;font-weight:700;margin:8px 0 10px;">🗳️ ${esc(p.question)}</p>
@@ -1481,6 +1501,26 @@ const App = {
       </div>
     </div>`;
   },
+  // Corps commun (carte + détail) du résumé de match auto-généré : score, logos, buteurs, passeurs, et la
+  // photo une fois ajoutée par le capitaine.
+  renderMatchRecapBody(p){
+    const scorersLine = (p.scorers||[]).map(s=>`⚽ ${esc(s.name)}${s.count>1?` (${s.count})`:''}`).join(" · ") || "—";
+    const assistsLine = (p.assists||[]).map(s=>`🎯 ${esc(s.name)}${s.count>1?` (${s.count})`:''}`).join(" · ") || "—";
+    return `
+      <p style="font-size:14px;margin:8px 0;font-weight:700;">⚽ ${this.teamLogoTag('A',14)} ${this.teamLogoTag('B',14)} ${p.score?p.score.us:'–'} - ${p.score?p.score.them:'–'}${p.opponent?" vs "+esc(p.opponent):""}</p>
+      ${p.photo? `<img src="${p.photo}" style="width:100%;border-radius:10px;margin:6px 0;cursor:pointer;" onclick="App.openPostDetail('${p.id}')">`:""}
+      <p style="font-size:13px;line-height:1.6;margin:4px 0;"><b>Buteurs :</b> ${scorersLine}<br><b>Passeurs :</b> ${assistsLine}</p>
+      ${p.caption? `<p style="font-size:13.5px;line-height:1.6;margin:4px 0;white-space:pre-wrap;">${esc(p.caption)}</p>`:""}
+    `;
+  },
+  renderRecruitPostBody(p){
+    const tn = this.teamNames();
+    const teamLbl = p.team==='A' ? `${this.teamLogoTag('A',14)} ${esc(tn.a)}` : p.team==='B' ? `${this.teamLogoTag('B',14)} ${esc(tn.b)}` : "";
+    return `
+      ${p.photo? `<img src="${p.photo}" style="width:100%;border-radius:10px;margin:6px 0;cursor:pointer;" onclick="App.openPostDetail('${p.id}')">`:""}
+      <p style="font-size:14px;margin:8px 0;font-weight:700;">🆕 Nouvelle recrue : ${esc(p.playerName)}${teamLbl? `<br><span style="font-weight:500;">${teamLbl}</span>`:""}</p>
+    `;
+  },
   togglePostTypeWraps(type){
     const wraps = {text:'postTextWrap', poll:'postPollWrap', photo:'postPhotoWrap', video:'postVideoWrap'};
     Object.entries(wraps).forEach(([t,id])=>{
@@ -1492,6 +1532,7 @@ const App = {
     if(!this.admin){ toast("Réservé aux capitaines"); return; }
     this.modal(`
       <h3>📰 Nouvelle publication</h3>
+      ${this.renderPostIdentitySelect('postIdentity', 'personal')}
       <label class="field">Type
         <select id="postType" onchange="App.togglePostTypeWraps(this.value)">
           <option value="text">📝 Texte</option>
@@ -1559,8 +1600,10 @@ const App = {
       payload = {type:'video', src, caption};
     }
     this.ensureMe(async (me)=>{
+      const identityValue = document.getElementById("postIdentity")?.value;
+      const identity = this.resolvePostIdentity(identityValue, me);
       await this.db.collection("posts").add({
-        ...payload, author: me, likes:{}, comments:[], createdAt:new Date().toISOString()
+        ...payload, ...identity, postedBy: me, likes:{}, comments:[], createdAt:new Date().toISOString()
       });
       this.closeModal();
       toast("Publié !");
@@ -1579,7 +1622,8 @@ const App = {
     const p = this.state.posts.find(x=>x.id===id);
     if(!p){ toast("Publication introuvable"); return; }
     if(p.type==='transfer'){ toast("Cette publication automatique ne peut pas être modifiée"); return; }
-    if(!(this.admin || (this.me && p.author===this.me))){ toast("Tu ne peux modifier que tes propres publications"); return; }
+    if(!(this.admin || (this.me && (p.postedBy||p.author)===this.me))){ toast("Tu ne peux modifier que tes propres publications"); return; }
+    const currentIdentity = p.authorKind==='club-A' ? 'club-A' : p.authorKind==='club-B' ? 'club-B' : p.authorKind==='media' ? 'media' : 'personal';
     let fields = "";
     if(p.type==='text'){
       fields = `<label class="field">Message <textarea id="editPostText" rows="4">${esc(p.text||"")}</textarea></label>`;
@@ -1587,7 +1631,15 @@ const App = {
       fields = `<label class="field">Question <input type="text" id="editPostQuestion" value="${esc(p.question||"")}"></label>
         <p class="muted" style="font-size:11.5px;margin-top:-6px;">Les options ne peuvent pas être changées une fois publiées, pour ne pas fausser les votes déjà enregistrés.</p>`;
     } else if(p.type==='photo' || p.type==='video'){
-      fields = `<label class="field">Légende <textarea id="editPostCaption" rows="3">${esc(p.caption||"")}</textarea></label>`;
+      fields = `<label class="field">Légende <textarea id="editPostCaption" rows="3">${esc(p.caption||"")}</textarea></label>
+        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}`;
+    } else if(p.type==='matchrecap'){
+      fields = `<label class="field">Photo ${p.photo?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="editPostPhoto" accept="image/*"></label>
+        <label class="field">Légende (optionnel) <textarea id="editPostCaption" rows="2">${esc(p.caption||"")}</textarea></label>
+        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}`;
+    } else if(p.type==='recruit'){
+      fields = `<label class="field">Photo ${p.photo?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="editPostPhoto" accept="image/*"></label>
+        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}`;
     }
     this.modal(`
       <h3>✏️ Modifier la publication</h3>
@@ -1609,11 +1661,53 @@ const App = {
       updates.question = question;
     } else if(p.type==='photo' || p.type==='video'){
       updates.caption = document.getElementById("editPostCaption").value.trim();
+    } else if(p.type==='matchrecap' || p.type==='recruit'){
+      const file = document.getElementById("editPostPhoto")?.files[0];
+      if(file) updates.photo = await resizeImage(file, 900, 0.65);
+      const capEl = document.getElementById("editPostCaption");
+      if(capEl) updates.caption = capEl.value.trim();
     }
+    const identityEl = document.getElementById("editPostIdentity");
+    if(identityEl) Object.assign(updates, this.resolvePostIdentity(identityEl.value, p.postedBy||this.me));
     await this.db.collection("posts").doc(id).update(updates);
     this.closeModal();
     this.refreshPostDetailIfOpen(id);
     toast("Publication modifiée");
+  },
+  // Complète et publie un résumé de match auto-généré (brouillon créé par saveResult dès que le score est
+  // enregistré) : le capitaine ajoute la photo (façon celle postée après le match), une légende
+  // optionnelle, et choisit qui publie (lui, le club, ou le compte média). Tant que ce n'est pas fait, le
+  // résumé reste invisible de tout le monde sauf des capitaines (cf. renderPostsFeed).
+  openPublishMatchRecap(id){
+    const p = this.state.posts.find(x=>x.id===id);
+    if(!p){ toast("Publication introuvable"); return; }
+    const scorersLine = (p.scorers||[]).map(s=>`⚽ ${esc(s.name)}${s.count>1?` (${s.count})`:''}`).join(" · ") || "—";
+    const assistsLine = (p.assists||[]).map(s=>`🎯 ${esc(s.name)}${s.count>1?` (${s.count})`:''}`).join(" · ") || "—";
+    this.modal(`
+      <h3>⚽ Résumé du match</h3>
+      <p class="muted" style="font-size:13px;margin-top:-6px;">${this.teamLogoTag('A',14)} ${this.teamLogoTag('B',14)} <b>${p.score?p.score.us:'–'} - ${p.score?p.score.them:'–'}</b>${p.opponent?" vs "+esc(p.opponent):""}${p.date?" · "+fmtDate(p.date):""}</p>
+      <p style="font-size:13px;margin:8px 0;"><b>Buteurs :</b> ${scorersLine}<br><b>Passeurs :</b> ${assistsLine}</p>
+      <label class="field">Photo (recommandé) <input type="file" id="recapPhotoFile" accept="image/*"></label>
+      <label class="field">Légende (optionnel) <textarea id="recapCaption" rows="2" placeholder="Une petite phrase sur le match..."></textarea></label>
+      ${this.renderPostIdentitySelect('recapIdentity', 'media')}
+      <button class="btn btn-accent btn-block" onclick="App.savePublishMatchRecap('${id}')">Publier</button>
+      <p class="muted" style="font-size:11px;margin-top:6px;">Tant que ce résumé n'est pas publié, il reste caché pour tout le monde sauf les capitaines.</p>
+    `);
+  },
+  async savePublishMatchRecap(id){
+    const p = this.state.posts.find(x=>x.id===id);
+    if(!p) return;
+    const file = document.getElementById("recapPhotoFile").files[0];
+    const caption = document.getElementById("recapCaption").value.trim();
+    const identityValue = document.getElementById("recapIdentity").value;
+    this.ensureMe(async (me)=>{
+      const identity = this.resolvePostIdentity(identityValue, me);
+      const updates = {...identity, postedBy: me, draft:false, caption, publishedAt:new Date().toISOString()};
+      if(file) updates.photo = await resizeImage(file, 900, 0.7);
+      await this.db.collection("posts").doc(id).update(updates);
+      this.closeModal();
+      toast("Résumé publié !");
+    });
   },
   async votePoll(postId, idx){
     this.ensureMe(async (me)=>{
@@ -1643,20 +1737,22 @@ const App = {
         <div class="lightbox-panel" style="max-width:480px;margin:40px auto;">
           <div class="row" style="justify-content:space-between;">
             <div>
-              <b>${esc(p.author||"Capitaine")}</b>${this.roleBadge(p.author)}
+              ${this.postAuthorLine(p)}
               <div class="muted" style="font-size:12px;">${fmtDateTime(p.createdAt)}${p.editedAt?' · modifié':''}</div>
             </div>
             <div class="row" style="gap:2px;">
-              ${p.type!=='transfer' && (this.admin || (this.me && p.author===this.me))? `<button class="btn btn-ghost btn-sm" onclick="App.openEditPost('${p.id}')">✏️ Modifier</button>`:""}
+              ${p.type!=='transfer' && (this.admin || (this.me && (p.postedBy||p.author)===this.me))? `<button class="btn btn-ghost btn-sm" onclick="App.openEditPost('${p.id}')">✏️ Modifier</button>`:""}
               ${this.admin? `<button class="btn btn-ghost btn-sm" onclick="App.deletePost('${p.id}')">🗑️ Supprimer</button>`:""}
             </div>
           </div>
-          ${this.renderAuthorStatChip(p.author)}
+          ${p.authorKind==='personal' || !p.authorKind ? this.renderAuthorStatChip(p.author) : ""}
           ${p.type==='transfer' ? (()=>{
             const tn = this.teamNames();
             const lbl = (k)=> k==='A' ? `${this.teamLogoTag('A',14)} ${esc(tn.a)}` : k==='B' ? `${this.teamLogoTag('B',14)} ${esc(tn.b)}` : "aucune équipe";
             return `<p style="font-size:14.5px;margin:10px 0;font-weight:700;">🔄 Transfert : ${esc(p.playerName)}<br><span style="font-weight:500;">${lbl(p.fromTeam)} ➜ ${lbl(p.toTeam)}</span></p>`;
           })() : ""}
+          ${p.type==='matchrecap' ? this.renderMatchRecapBody(p) : ""}
+          ${p.type==='recruit' ? this.renderRecruitPostBody(p) : ""}
           ${p.type==='text' ? `<p style="font-size:14.5px;line-height:1.6;margin:10px 0;white-space:pre-wrap;">${esc(p.text)}</p>` : ""}
           ${p.type==='poll' ? `
             <p style="font-size:14.5px;font-weight:700;margin:10px 0;">🗳️ ${esc(p.question)}</p>
@@ -2451,15 +2547,20 @@ const App = {
     };
     return {goals, openPlayGoals, freekickScored, freekickTaken, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted};
   },
-  // Poids d'un match dans le calcul du général, selon son "importance" (1 à 10, saisie sur la fiche du
-  // match). 5/10 = poids normal (1x, comportement identique à avant cette fonctionnalité — c'est aussi la
-  // valeur par défaut de tout match sans importance renseignée, donc les anciens matchs ne changent pas de
-  // poids). En dessous, le match compte de moins en moins (jusqu'à 0.2x à 1/10) ; au-dessus, il compte de
-  // plus en plus (jusqu'à 2x à 10/10). Seul l'impact sur le général (cardRating) est concerné : les vrais
-  // compteurs de buts/passes/etc. et les classements associés ne sont JAMAIS pondérés.
+  // Poids d'un match dans le calcul du général (moyenne pondérée), selon son "importance" (1 à 10, saisie
+  // sur la fiche du match). C'est un pur COEFFICIENT dans la moyenne — jamais un bonus ajouté à la note :
+  // un match à coefficient 10 compte comme si le joueur avait rejoué 10 fois ce même match "normal" dans la
+  // moyenne, pas comme si sa note avait été gonflée. 5/10 = poids normal (1x, comportement identique à avant
+  // cette fonctionnalité — c'est aussi la valeur par défaut de tout match sans importance renseignée, donc
+  // les anciens matchs ne changent pas de poids). En dessous de 5, le match compte de moins en moins
+  // (jusqu'à 0.2x à 1/10, inchangé). Au-dessus de 5, il compte de plus en plus, jusqu'à 10x (comme "10
+  // matchs normaux") à 10/10 — avant, le maximum plafonnait à seulement 2x, ce qui ne faisait presque pas
+  // bouger le général même sur un match décisif. Seul l'impact sur le général (cardRating) est concerné :
+  // les vrais compteurs de buts/passes/etc. et les classements associés ne sont JAMAIS pondérés.
   matchWeight(m){
     const imp = (m && m.importance!=null) ? m.importance : 5;
-    return imp/5;
+    if(imp<=5) return imp/5;
+    return 1 + (imp-5) * ((10-1)/(10-5));
   },
   IMPORTANCE_BAREME: [
     {min:1, max:2, emoji:'⚪', label:'Entraînement / amical', desc:'impact très faible'},
@@ -2471,7 +2572,7 @@ const App = {
   importanceInfo(imp){
     imp = (imp==null) ? 5 : imp;
     const tier = this.IMPORTANCE_BAREME.find(t=>imp>=t.min && imp<=t.max) || this.IMPORTANCE_BAREME[2];
-    return {emoji:tier.emoji, label:tier.label, desc:tier.desc, value:imp, weight: imp/5};
+    return {emoji:tier.emoji, label:tier.label, desc:tier.desc, value:imp, weight: this.matchWeight({importance:imp})};
   },
   renderImportanceLegend(){
     return `<div class="card tight" style="margin:8px 0;background:var(--surface-2);">
@@ -3469,6 +3570,16 @@ const App = {
     } else {
       const newId = slugify(name)+"-"+Date.now().toString(36).slice(-4);
       await this.db.collection("players").doc(newId).set({name, position, team, birthDate, jerseyNumber, arrivalDate, photo, isCaptain, createdAt:new Date().toISOString()});
+      // Post "Nouvelle recrue" automatique dans les Actus, façon compte d'actu transferts — seulement si la
+      // recrue est déjà rattachée à une équipe (sinon on attend qu'elle soit affectée). Publié tout de
+      // suite (pas en brouillon) avec sa photo si elle en a une ; éditable ensuite pour en ajouter une.
+      if(team){
+        await this.db.collection("posts").add({
+          type:'recruit', playerName:name, team, photo: photo||null,
+          authorKind:'media', author: this.mediaName(), postedBy: this.me||null,
+          likes:{}, comments:[], createdAt:new Date().toISOString()
+        });
+      }
       this.closeModal();
       toast(name+" a rejoint l'effectif !");
     }
@@ -4527,10 +4638,7 @@ const App = {
         const note = presenceNote(entry);
         return `<div class="presence-row">
           <span class="nm">${esc(p.name)}</span>
-          <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setPresence('${m.id}','${jsa(p.name)}','present')" title="Présent(e)">✅</button>
-          <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setPresence('${m.id}','${jsa(p.name)}','late')" title="En retard">⏰</button>
-          <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setPresence('${m.id}','${jsa(p.name)}','unsure')" title="Je ne sais pas encore">🤷</button>
-          <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setPresence('${m.id}','${jsa(p.name)}','absent')" title="Absent(e)">❌</button>
+          ${this.renderPresenceButtons('setPresence', m.id, p.name, st)}
           <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('match','${m.id}','${jsa(p.name)}')" title="Ajouter une note">🗨️</button>
         </div>
         ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;
@@ -4569,10 +4677,7 @@ const App = {
           const note = presenceNote(entry);
           return `<div class="presence-row">
             <span class="nm">${esc(p.name)}</span>
-            <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','present')" title="Présent(e)">✅</button>
-            <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','late')" title="En retard">⏰</button>
-            <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','unsure')" title="Je ne sais pas encore">🤷</button>
-            <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setPresence('${nm.id}','${jsa(p.name)}','absent')" title="Absent(e)">❌</button>
+            ${this.renderPresenceButtons('setPresence', nm.id, p.name, st)}
             <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('match','${nm.id}','${jsa(p.name)}')" title="Ajouter une note">🗨️</button>
           </div>
           ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;
@@ -4790,12 +4895,48 @@ const App = {
     const info = this.state.info || this.defaultInfo();
     return {a: info.teamAName||"Équipe A", b: info.teamBName||"Équipe B"};
   },
+  // Nom du compte "média" utilisé pour les publications automatiques (résumé de match, nouvelle recrue)
+  // et proposé comme identité de publication dans les Actus — façon compte de transferts/actu foot.
+  mediaName(){
+    const info = this.state.info || this.defaultInfo();
+    return info.mediaName || "Vestiaire Direct";
+  },
   myTeamKey(){
     if(!this.me) return null;
     const acc = this.state.accounts.find(a=>a.username===this.me);
     if(acc && (acc.team==='A' || acc.team==='B')) return acc.team;
     const p = this.state.players.find(p=>p.name===this.me);
     return (p && p.team) ? p.team : null;
+  },
+  // Nom du joueur "revendiqué" (claimPlayer) par le compte connecté, s'il y en a un — sinon le pseudo du
+  // compte lui-même, au cas où il correspond directement à un nom de joueur (anciens comptes créés avant
+  // l'ajout de la revendication).
+  myLinkedPlayerName(){
+    if(!this.me) return null;
+    const acc = this.state.accounts.find(a=>a.username===this.me);
+    return (acc && acc.linkedPlayer) || null;
+  },
+  // Un capitaine (mode admin) peut toujours cocher la présence de n'importe qui, pour organiser l'équipe.
+  // Un compte normal ne peut cocher QUE sa propre présence (celle du joueur qu'il a revendiqué, ou dont le
+  // pseudo correspond) — pas celle des autres, pour éviter qu'un joueur ne coche par erreur (ou exprès) la
+  // présence de quelqu'un d'autre.
+  canSetPresenceFor(playerName){
+    if(this.admin) return true;
+    const linkedName = this.myLinkedPlayerName() || this.me;
+    return !!linkedName && linkedName === playerName;
+  },
+  // Rendu commun des 4 boutons de statut de présence (✅⏰🤷❌), utilisé pour un match ou un événement. Pour
+  // quelqu'un qui n'a pas le droit de modifier CETTE ligne (cf. canSetPresenceFor), les boutons restent
+  // visibles (on voit toujours le statut actuel) mais sont désactivés, grisés, et sans clic.
+  renderPresenceButtons(setterFn, id, playerName, status){
+    const editable = this.canSetPresenceFor(playerName);
+    const btn = (val, onClass, title, icon)=> editable
+      ? `<button class="pbtn ${status===val?onClass:''}" onclick="App.${setterFn}('${id}','${jsa(playerName)}','${val}')" title="${title}">${icon}</button>`
+      : `<button class="pbtn ${status===val?onClass:''}" disabled title="Seul(e) ${esc(playerName)} (ou un capitaine) peut modifier ça" style="opacity:.4;cursor:default;">${icon}</button>`;
+    return btn('present','on-present','Présent(e)','✅')
+      + btn('late','on-late','En retard','⏰')
+      + btn('unsure','on-unsure','Je ne sais pas encore','🤷')
+      + btn('absent','on-absent','Absent(e)','❌');
   },
   // Équipe actuellement affichée dans le Tableau de bord / les Classements / les Stats de l'équipe (onglet
   // Stats) : celle choisie explicitement via les puces 🟠/🟢, sinon celle du compte connecté (myTeamKey()),
@@ -4834,6 +4975,52 @@ const App = {
   roleBadge(name){
     return this.isSupporter(name) ? `<span class="chip" style="padding:1px 7px;font-size:10.5px;margin-left:5px;cursor:default;">🎉 Supporter</span>` : "";
   },
+  // Options d'identité de publication proposées dans les Actus : en son nom perso, au nom d'un des deux
+  // clubs (logo + nom d'équipe), ou au nom du compte média (façon compte d'actu transferts). Réutilisé
+  // pour une nouvelle publication ET pour compléter/éditer une publication automatique (résumé de match,
+  // nouvelle recrue).
+  postIdentityOptions(){
+    const tn = this.teamNames();
+    return [
+      {value:'personal', label:`👤 Moi (${this.me||'toi'})`},
+      {value:'club-A', label:`🟠 Club ${tn.a}`},
+      {value:'club-B', label:`🟢 Club ${tn.b}`},
+      {value:'media', label:`📰 ${this.mediaName()} (compte média)`},
+    ];
+  },
+  renderPostIdentitySelect(id, selected){
+    selected = selected || 'personal';
+    return `<label class="field">Publier en tant que
+      <select id="${id}">
+        ${this.postIdentityOptions().map(o=>`<option value="${o.value}" ${o.value===selected?'selected':''}>${esc(o.label)}</option>`).join("")}
+      </select>
+    </label>`;
+  },
+  // Transforme la valeur du sélecteur d'identité en {authorKind, author} à enregistrer sur la publication.
+  // `me` est le compte réellement connecté (toujours conservé à part dans `postedBy`, pour les droits de
+  // modification), indépendamment du nom affiché choisi ici.
+  resolvePostIdentity(value, me){
+    const tn = this.teamNames();
+    if(value==='club-A') return {authorKind:'club-A', author: tn.a};
+    if(value==='club-B') return {authorKind:'club-B', author: tn.b};
+    if(value==='media') return {authorKind:'media', author: this.mediaName()};
+    return {authorKind:'personal', author: me||this.me||'Capitaine'};
+  },
+  // Ligne d'auteur affichée sur une publication (Actus) : nom perso + badge habituel (roleBadge), ou
+  // logo de club / bandeau "Média" pour les publications faites au nom du club ou du compte média — dans
+  // ce cas on n'appelle PAS roleBadge (il chercherait "Mot'eau" ou "Vestiaire Direct" parmi les joueurs et
+  // afficherait à tort "🎉 Supporter").
+  postAuthorLine(p){
+    const kind = p.authorKind || 'personal';
+    if(kind==='club-A' || kind==='club-B'){
+      const key = kind==='club-B' ? 'B' : 'A';
+      return `<b>${this.teamLogoTag(key,16)} ${esc(p.author||'Club')}</b> <span class="chip" style="padding:1px 7px;font-size:10.5px;margin-left:3px;cursor:default;">🏟️ Compte du club</span>`;
+    }
+    if(kind==='media'){
+      return `<b>📰 ${esc(p.author||this.mediaName())}</b> <span class="chip" style="padding:1px 7px;font-size:10.5px;margin-left:3px;cursor:default;">✅ Média</span>`;
+    }
+    return `<b>${esc(p.author||"Capitaine")}</b>${this.roleBadge(p.author)}`;
+  },
   renderConvocations(nm){
     const players = this.state.players;
     const convoked = nm.convoked||[];
@@ -4851,6 +5038,7 @@ const App = {
           <label class="field">${this.teamLogoTag('A',14)} Logo équipe 1 <input type="file" id="teamALogoFile" accept="image/*"></label>
           <label class="field">${this.teamLogoTag('B',14)} Logo équipe 2 <input type="file" id="teamBLogoFile" accept="image/*"></label>
         </div>
+        <label class="field">📰 Nom du compte média (Actus) <input type="text" id="mediaNameInput" value="${esc(this.mediaName())}" placeholder="Vestiaire Direct"></label>
         <button class="btn btn-ghost btn-sm" style="margin-bottom:10px;" onclick="App.saveTeamNames()">✏️ Renommer / changer les logos</button>
       `:""}
       ${!this.admin ? `
@@ -4883,6 +5071,8 @@ const App = {
     const fileB = document.getElementById("teamBLogoFile").files[0];
     if(fileA) patch.teamALogo = await resizeImage(fileA, 300, 0.85);
     if(fileB) patch.teamBLogo = await resizeImage(fileB, 300, 0.85);
+    const mediaNameEl = document.getElementById("mediaNameInput");
+    if(mediaNameEl) patch.mediaName = mediaNameEl.value.trim() || "Vestiaire Direct";
     await this.db.doc("team/info").set({...info, ...patch});
     toast("Équipes mises à jour");
   },
@@ -4956,6 +5146,14 @@ const App = {
       {k:"CM1",t:50,l:30},{k:"CM2",t:53,l:50},{k:"CM3",t:50,l:70},{k:"ST1",t:20,l:38},{k:"ST2",t:20,l:62}],
     "3-4-3":[{k:"GK",t:92,l:50},{k:"CB1",t:78,l:25},{k:"CB2",t:80,l:50},{k:"CB3",t:78,l:75},
       {k:"LM",t:52,l:12},{k:"CM1",t:55,l:38},{k:"CM2",t:55,l:62},{k:"RM",t:52,l:88},{k:"LW",t:20,l:20},{k:"ST",t:16,l:50},{k:"RW",t:20,l:80}],
+    // Formations à effectif réduit (matchs à moins de 11 joueurs par équipe, format le plus courant pour
+    // l'équipe) — même principe que les formations à 11, mais avec moins de postes. Le nombre entre
+    // parenthèses dans la clé est le nombre TOTAL de joueurs sur le terrain (gardien inclus).
+    "4 (1-2-1)":[{k:"GK",t:92,l:50},{k:"LB",t:65,l:30},{k:"RB",t:65,l:70},{k:"ST",t:25,l:50}],
+    "5 (2-1-1)":[{k:"GK",t:92,l:50},{k:"CB1",t:72,l:35},{k:"CB2",t:72,l:65},{k:"CM",t:48,l:50},{k:"ST",t:20,l:50}],
+    "6 (2-2-1)":[{k:"GK",t:92,l:50},{k:"LB",t:72,l:25},{k:"RB",t:72,l:75},{k:"LM",t:45,l:30},{k:"RM",t:45,l:70},{k:"ST",t:18,l:50}],
+    "7 (3-2-1)":[{k:"GK",t:92,l:50},{k:"LB",t:75,l:15},{k:"CB",t:78,l:50},{k:"RB",t:75,l:85},{k:"LM",t:45,l:30},{k:"RM",t:45,l:70},{k:"ST",t:18,l:50}],
+    "8 (3-3-1)":[{k:"GK",t:92,l:50},{k:"LB",t:75,l:15},{k:"CB",t:78,l:50},{k:"RB",t:75,l:85},{k:"LM",t:48,l:20},{k:"CM",t:50,l:50},{k:"RM",t:48,l:80},{k:"ST",t:18,l:50}],
   },
   renderTacticSection(nm, opts){
     opts = opts||{};
@@ -5100,6 +5298,7 @@ const App = {
     const formation = (tactic&&tactic.formation) || "4-3-3";
     const assignments = (tactic&&tactic.assignments) || {};
     const moves = (tactic&&tactic.moves) || [];
+    const bench = (tactic&&tactic.bench) || [];
     const slots = this.FORMATIONS[formation];
     const target = `match|${nm.id}|${tacticKey}`;
     const drawing = this.draw.target === target;
@@ -5125,9 +5324,38 @@ const App = {
         }).join("")}
       </div>
       ${!this.admin && pool.length===0 ? `<p class="muted" style="margin-top:8px;">Composition à venir.</p>` : ""}
+      ${this.renderBenchSection(nm.id, tacticKey, pool, assignments, bench)}
       ${this.renderDrawTools(target, moves)}
       <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="App.shareMatchTacticToChat('${nm.id}','${tacticKey}')">📤 Partager dans le chat</button>
     </div>`;
+  },
+  // Liste des remplaçants pour une composition : indépendante des postes du terrain (une formation à 5
+  // joueurs peut très bien avoir 3 remplaçants sur le banc). Un capitaine touche un nom pour le
+  // basculer sur le banc ou l'en retirer ; seuls les joueurs du groupe PAS déjà titulaires sont proposés.
+  renderBenchSection(matchId, tacticKey, pool, assignments, bench){
+    const starters = new Set(Object.values(assignments));
+    const available = pool.filter(n=>!starters.has(n));
+    return `
+    <div style="margin-top:10px;">
+      <p class="muted" style="font-size:12px;font-weight:700;margin:0 0 4px;">🔁 Remplaçants${bench.length? ` (${bench.length})`:""}</p>
+      ${this.admin ? `
+        ${available.length===0 ? `<p class="muted" style="font-size:12px;">Personne de disponible (convoque des joueurs, ou vide un poste).</p>` : `
+          <div class="row" style="flex-wrap:wrap;gap:4px;">
+            ${available.map(n=>{
+              const onBench = bench.includes(n);
+              return `<button class="pbtn ${onBench?'on-present':''}" onclick="App.toggleBench('${matchId}','${tacticKey}','${jsa(n)}')">${esc(n)}</button>`;
+            }).join("")}
+          </div>`}
+      ` : (bench.length? `<div class="row" style="flex-wrap:wrap;gap:4px;">${bench.map(n=>`<span class="chip">${esc(n)}</span>`).join("")}</div>` : `<p class="muted" style="font-size:12px;">Aucun remplaçant précisé.</p>`)}
+    </div>`;
+  },
+  async toggleBench(matchId, tacticKey, name){
+    const m = this.state.matches.find(x=>x.id===matchId);
+    if(!m) return;
+    const tactic = m[tacticKey] || {formation:"4-3-3", assignments:{}, moves:[], bench:[]};
+    let bench = (tactic.bench||[]).slice();
+    if(bench.includes(name)) bench = bench.filter(n=>n!==name); else bench.push(name);
+    await this.db.collection("matches").doc(matchId).update({[tacticKey]:{formation:tactic.formation, bench}});
   },
   async shareMatchTacticToChat(matchId, tacticKey){
     const m = this.state.matches.find(x=>x.id===matchId);
@@ -5139,16 +5367,22 @@ const App = {
     const tn = this.teamNames();
     const label = tacticKey==='tacticA' ? tn.a : tacticKey==='tacticB' ? tn.b : "Général";
     const channel = tacticKey==='tacticA' ? 'A' : tacticKey==='tacticB' ? 'B' : 'general';
+    const bench = tactic.bench || [];
     const lines = slots.filter(s=>assignments[s.k]).map(s=>`${s.k} — ${assignments[s.k]}`);
     const header = `🧠 Composition${m.opponent? ' vs '+m.opponent:''} (${label}) — ${formation}`;
-    const text = header + "\n" + (lines.length? lines.join("\n") : "(pas encore remplie)");
+    const benchLine = bench.length? "\n🔁 Remplaçants : "+bench.join(", ") : "";
+    const text = header + "\n" + (lines.length? lines.join("\n") : "(pas encore remplie)") + benchLine;
     this.ensureMe(async (me)=>{
       await this.db.collection("messages").add({channel, author:me, text, createdAt:new Date().toISOString()});
       toast("Composition partagée dans le chat ("+(channel==='general'?'Général':label)+")");
     });
   },
   async setFormation(matchId, tacticKey, formation){
-    await this.db.collection("matches").doc(matchId).update({[tacticKey]:{formation, assignments:{}, moves:[]}});
+    const m = this.state.matches.find(x=>x.id===matchId);
+    const tactic = (m && m[tacticKey]) || {};
+    // On garde le banc de remplaçants tel quel en changeant de formation (il n'est pas lié aux postes du
+    // terrain) — seuls les postes/titulaires et les flèches sont remis à zéro, comme avant.
+    await this.db.collection("matches").doc(matchId).update({[tacticKey]:{formation, assignments:{}, moves:[], bench: tactic.bench||[]}});
   },
   tacticSlotClick(matchId, tacticKey, slotKey){
     const target = `match|${matchId}|${tacticKey}`;
@@ -5180,6 +5414,11 @@ const App = {
     const assignments = {...(tactic.assignments||{})};
     if(name) assignments[slotKey]=name; else delete assignments[slotKey];
     const patch = {[tacticKey]:{formation:tactic.formation, assignments}};
+    // Un joueur qu'on vient de titulariser ne peut plus être sur le banc en même temps — on l'en retire
+    // automatiquement s'il y était.
+    if(name && (tactic.bench||[]).includes(name)){
+      patch[tacticKey].bench = (tactic.bench||[]).filter(n=>n!==name);
+    }
     if(name && (tacticKey==='tacticA' || tacticKey==='tacticB')){
       const teamA = (m.teamA||[]).filter(n=>n!==name);
       const teamB = (m.teamB||[]).filter(n=>n!==name);
@@ -5471,6 +5710,16 @@ const App = {
     // resanctionner deux fois pour les mêmes cartons à chaque fois que le capitaine corrige une stat).
     if(!wasAlreadyPlayed){
       await this.applyCardFines(out.yellow, out.red);
+      // Résumé de match automatique (score, buteurs, passeurs) pour les Actus — seulement à la toute
+      // première saisie du résultat, pas à chaque correction. Il part en brouillon : invisible tant
+      // qu'un capitaine n'a pas ajouté la photo du match (cf. openPublishMatchRecap).
+      const allGoals = this.matchGoalScorers({scorers: out.goals, freekickScored: out.freekick, cornersScored: out.cornersScored, penaltiesScored: out.penScored});
+      await this.db.collection("posts").add({
+        type:'matchrecap', matchId, opponent, date, score:{us,them},
+        scorers: allGoals, assists: out.assists||[],
+        draft:true, photo:null, caption:"",
+        likes:{}, comments:[], createdAt:new Date().toISOString()
+      });
     }
     this.closeModal();
     toast("Match enregistré");
@@ -6091,10 +6340,7 @@ const App = {
         const note = presenceNote(entry);
         return `<div class="presence-row">
           <span class="nm">${esc(p.name)}</span>
-          <button class="pbtn ${st==='present'?'on-present':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','present')" title="Présent(e)">✅</button>
-          <button class="pbtn ${st==='late'?'on-late':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','late')" title="En retard">⏰</button>
-          <button class="pbtn ${st==='unsure'?'on-unsure':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','unsure')" title="Je ne sais pas encore">🤷</button>
-          <button class="pbtn ${st==='absent'?'on-absent':''}" onclick="App.setEventPresence('${ev.id}','${jsa(p.name)}','absent')" title="Absent(e)">❌</button>
+          ${this.renderPresenceButtons('setEventPresence', ev.id, p.name, st)}
           <button class="pbtn ${note?'has-note':''}" onclick="App.openPresenceNote('event','${ev.id}','${jsa(p.name)}')" title="Ajouter une note">🗨️</button>
         </div>
         ${note ? `<p class="presence-note-preview">🗨️ ${esc(p.name)} : « ${esc(note)} »</p>` : ""}`;

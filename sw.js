@@ -9,6 +9,7 @@ const SHELL_FILES = [
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
+  "./app-logo.png",
 ];
 
 self.addEventListener("install", (event) => {
