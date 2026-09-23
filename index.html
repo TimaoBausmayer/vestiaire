@@ -299,9 +299,18 @@
   .team-compare .tc-card b{font-family:"Teko";font-size:24px;display:block;}
 
   ::selection{background:var(--accent-soft);}
+
+  #splash{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+    background:var(--bg,#F7F4EC);transition:opacity .45s ease;}
+  #splash img{width:132px;height:132px;border-radius:26px;object-fit:cover;
+    box-shadow:0 10px 34px rgba(0,0,0,.18);animation:splashPulse 1.7s ease-in-out infinite;}
+  #splash .splashTxt{position:absolute;bottom:14%;left:0;right:0;text-align:center;font-size:13px;
+    font-weight:700;color:var(--muted,#8a8578);letter-spacing:.02em;}
+  @keyframes splashPulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.055);opacity:.86;}}
 </style>
 </head>
 <body>
+<div id="splash"><img src="./app-logo.png" alt=""><div class="splashTxt">Connexion…</div></div>
 <div id="app"></div>
 <div id="modalRoot"></div>
 <div id="lightboxRoot"></div>
@@ -616,6 +625,15 @@ const App = {
     compareB: null,
   },
 
+  hideSplash(){
+    const el = document.getElementById('splash');
+    if(!el || el.dataset.hidden) return;
+    el.dataset.hidden = '1';
+    el.style.opacity = '0';
+    el.style.pointerEvents = 'none';
+    setTimeout(()=>{ el.remove(); }, 500);
+  },
+
   async init(){
     this.render();
     // Base de données partagée en direct : tout le monde qui ouvre ce lien voit les mêmes
@@ -634,6 +652,7 @@ const App = {
     this.db = db;
     if(!db){
       this.dbReady = false;
+      this.hideSplash();
       setTimeout(()=>toast("⚠️ Connexion à la base de données impossible. Vérifie la configuration Firebase en haut du fichier, ou recharge la page."), 800);
       return;
     }
@@ -647,6 +666,9 @@ const App = {
       }
     };
     this.dbReady = true;
+    // Filet de sécurité : si jamais la toute première réponse de Firestore tarde
+    // (réseau capricieux...), on n'affiche pas le logo de connexion indéfiniment.
+    setTimeout(()=>this.hideSplash(), 6000);
     // On demande au navigateur de ne pas effacer le stockage de cet appareil (ta session de connexion,
     // le mode capitaine...) en cas de manque de place — best-effort, pas garanti partout.
     try{
@@ -658,11 +680,12 @@ const App = {
     db.doc("team/info").onSnapshot(snap=>{
       this.state.info = snap.exists ? snap.data() : this.defaultInfo();
       this.render();
+      this.hideSplash();
       if(snap.exists && this.state.info.teamALogo===undefined && !this._logoMigrated){
         this._logoMigrated = true;
         db.doc("team/info").update({teamALogo: LOGO_A_DEFAULT, teamBLogo: LOGO_B_DEFAULT}).catch(()=>{});
       }
-    }, ()=>{});
+    }, ()=>{this.hideSplash();});
 
     db.collection("players").onSnapshot(qs=>{
       this.state.players = qs.docs.map(d=>({id:d.id, ...d.data()}));
@@ -5154,6 +5177,10 @@ const App = {
     "6 (2-2-1)":[{k:"GK",t:92,l:50},{k:"LB",t:72,l:25},{k:"RB",t:72,l:75},{k:"LM",t:45,l:30},{k:"RM",t:45,l:70},{k:"ST",t:18,l:50}],
     "7 (3-2-1)":[{k:"GK",t:92,l:50},{k:"LB",t:75,l:15},{k:"CB",t:78,l:50},{k:"RB",t:75,l:85},{k:"LM",t:45,l:30},{k:"RM",t:45,l:70},{k:"ST",t:18,l:50}],
     "8 (3-3-1)":[{k:"GK",t:92,l:50},{k:"LB",t:75,l:15},{k:"CB",t:78,l:50},{k:"RB",t:75,l:85},{k:"LM",t:48,l:20},{k:"CM",t:50,l:50},{k:"RM",t:48,l:80},{k:"ST",t:18,l:50}],
+    "9 (3-4-1)":[{k:"GK",t:92,l:50},{k:"CB1",t:78,l:25},{k:"CB2",t:80,l:50},{k:"CB3",t:78,l:75},
+      {k:"LM",t:50,l:12},{k:"CM1",t:53,l:38},{k:"CM2",t:53,l:62},{k:"RM",t:50,l:88},{k:"ST",t:20,l:50}],
+    "10 (4-4-1)":[{k:"GK",t:92,l:50},{k:"LB",t:75,l:15},{k:"CB1",t:78,l:37},{k:"CB2",t:78,l:63},{k:"RB",t:75,l:85},
+      {k:"LM",t:50,l:15},{k:"CM1",t:53,l:37},{k:"CM2",t:53,l:63},{k:"RM",t:50,l:85},{k:"ST",t:18,l:50}],
   },
   renderTacticSection(nm, opts){
     opts = opts||{};
@@ -5299,10 +5326,16 @@ const App = {
     const assignments = (tactic&&tactic.assignments) || {};
     const moves = (tactic&&tactic.moves) || [];
     const bench = (tactic&&tactic.bench) || [];
-    const slots = this.FORMATIONS[formation];
+    // `positions` : positions custom d'un ou plusieurs postes, déplacés à la main sur le terrain (voir
+    // startSlotDrag) — remplace la position par défaut de la formation pour ce poste-là uniquement. Permet
+    // de "faire tac tac" (ajuster librement où se trouve chaque petit rond), sans devoir tout redéfinir.
+    const positions = (tactic&&tactic.positions) || {};
+    const baseSlots = this.FORMATIONS[formation];
+    const slots = baseSlots.map(s=> positions[s.k] ? {...s, t:positions[s.k].t, l:positions[s.k].l} : s);
     const target = `match|${nm.id}|${tacticKey}`;
     const drawing = this.draw.target === target;
     const pending = drawing ? this.draw.pending : null;
+    const hasCustomPositions = Object.keys(positions).length>0;
     return `
     <div>
       ${label? `<p class="muted" style="font-size:12.5px;font-weight:700;margin:0 0 6px;">${label}</p>`:""}
@@ -5311,23 +5344,80 @@ const App = {
           <select onchange="App.setFormation('${nm.id}','${tacticKey}', this.value)">
             ${Object.keys(this.FORMATIONS).map(f=>`<option value="${f}" ${f===formation?'selected':''}>${f}</option>`).join("")}
           </select>
-        </label>` : `<p class="muted" style="font-size:13px;">Formation : <b>${formation}</b></p>`}
+        </label>
+        <p class="muted" style="font-size:11px;margin-top:-6px;">💡 Fais glisser un petit rond sur le terrain pour le placer exactement où tu veux — touche-le sans le bouger pour changer le joueur.</p>` : `<p class="muted" style="font-size:13px;">Formation : <b>${formation}</b></p>`}
       <div class="pitch ${drawing?'drawmode':''}">
         ${this.renderMovesSvg(slots, moves, target)}
         ${slots.map(s=>{
           const assigned = assignments[s.k];
           const isPending = pending===s.k;
-          return `<div class="slot ${assigned?'':'empty'} ${isPending?'pending':''}" style="top:${s.t}%;left:${s.l}%;" ${this.admin?`onclick="App.tacticSlotClick('${nm.id}','${tacticKey}','${s.k}')"`:''}>
+          return `<div class="slot ${assigned?'':'empty'} ${isPending?'pending':''}" style="top:${s.t}%;left:${s.l}%;touch-action:none;" ${this.admin?`onpointerdown="App.startSlotDrag(event,'${nm.id}','${tacticKey}','${s.k}')"`:''}>
             <div class="dot">${assigned? initials(assigned) : s.k.replace(/[0-9]/g,'')}</div>
             <div class="lb">${assigned? esc(assigned).split(' ')[0] : s.k}</div>
           </div>`;
         }).join("")}
       </div>
+      ${this.admin && hasCustomPositions ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="App.resetSlotPositions('${nm.id}','${tacticKey}')">↩️ Remettre les postes par défaut</button>` : ""}
       ${!this.admin && pool.length===0 ? `<p class="muted" style="margin-top:8px;">Composition à venir.</p>` : ""}
       ${this.renderBenchSection(nm.id, tacticKey, pool, assignments, bench)}
       ${this.renderDrawTools(target, moves)}
       <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="App.shareMatchTacticToChat('${nm.id}','${tacticKey}')">📤 Partager dans le chat</button>
     </div>`;
+  },
+  // Fait glisser librement un poste sur le terrain ("tac tac", comme un vrai tableau tactique) : un simple
+  // appui sans mouvement garde l'ancien comportement (ouvrir le choix du joueur, ou pointer une flèche en
+  // mode dessin) ; un vrai glissement déplace le petit rond et enregistre sa nouvelle position (en % du
+  // terrain, donc ça reste correct quelle que soit la taille de l'écran). On manipule le DOM directement
+  // pendant le glissement (pas de re-render à chaque pixel, ce serait lent) et on n'enregistre qu'au lâcher.
+  startSlotDrag(evt, matchId, tacticKey, slotKey){
+    if(!this.admin) return;
+    const target = `match|${matchId}|${tacticKey}`;
+    const drawModeActive = this.draw.target === target;
+    evt.preventDefault();
+    const slotEl = evt.currentTarget;
+    const pitchEl = slotEl.closest('.pitch');
+    if(!pitchEl){ if(drawModeActive) this.tacticSlotClick(matchId, tacticKey, slotKey); return; }
+    const rect = pitchEl.getBoundingClientRect();
+    const startX = evt.clientX, startY = evt.clientY;
+    let moved = false, lastL = null, lastT = null;
+    const onMove = (e)=>{
+      if(drawModeActive) return; // en mode dessin, on garde le simple appui pour pointer les flèches
+      const dx = e.clientX-startX, dy = e.clientY-startY;
+      if(Math.abs(dx)>6 || Math.abs(dy)>6) moved = true;
+      if(!moved) return;
+      let l = ((e.clientX - rect.left)/rect.width)*100;
+      let t = ((e.clientY - rect.top)/rect.height)*100;
+      l = Math.max(3, Math.min(97, l));
+      t = Math.max(4, Math.min(97, t));
+      slotEl.style.left = l+'%';
+      slotEl.style.top = t+'%';
+      lastL = l; lastT = t;
+    };
+    const onUp = async ()=>{
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if(moved && !drawModeActive && lastL!=null){
+        await this.saveSlotPosition(matchId, tacticKey, slotKey, lastT, lastL);
+      } else {
+        this.tacticSlotClick(matchId, tacticKey, slotKey);
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, {once:true});
+  },
+  async saveSlotPosition(matchId, tacticKey, slotKey, t, l){
+    const m = this.state.matches.find(x=>x.id===matchId);
+    if(!m) return;
+    const tactic = m[tacticKey] || {formation:"4-3-3", assignments:{}};
+    const positions = {...(tactic.positions||{}), [slotKey]: {t: Math.round(t*10)/10, l: Math.round(l*10)/10}};
+    await this.db.collection("matches").doc(matchId).update({[tacticKey]:{formation:tactic.formation, positions}});
+  },
+  async resetSlotPositions(matchId, tacticKey){
+    const m = this.state.matches.find(x=>x.id===matchId);
+    if(!m) return;
+    const tactic = m[tacticKey] || {formation:"4-3-3", assignments:{}};
+    await this.db.collection("matches").doc(matchId).update({[tacticKey]:{formation:tactic.formation, positions:{}}});
+    toast("Postes remis par défaut");
   },
   // Liste des remplaçants pour une composition : indépendante des postes du terrain (une formation à 5
   // joueurs peut très bien avoir 3 remplaçants sur le banc). Un capitaine touche un nom pour le
@@ -5381,8 +5471,9 @@ const App = {
     const m = this.state.matches.find(x=>x.id===matchId);
     const tactic = (m && m[tacticKey]) || {};
     // On garde le banc de remplaçants tel quel en changeant de formation (il n'est pas lié aux postes du
-    // terrain) — seuls les postes/titulaires et les flèches sont remis à zéro, comme avant.
-    await this.db.collection("matches").doc(matchId).update({[tacticKey]:{formation, assignments:{}, moves:[], bench: tactic.bench||[]}});
+    // terrain) — seuls les postes/titulaires, les flèches et les positions déplacées à la main sont remis à
+    // zéro (les clés de postes d'une formation ne correspondent pas forcément à celles d'une autre).
+    await this.db.collection("matches").doc(matchId).update({[tacticKey]:{formation, assignments:{}, moves:[], positions:{}, bench: tactic.bench||[]}});
   },
   tacticSlotClick(matchId, tacticKey, slotKey){
     const target = `match|${matchId}|${tacticKey}`;
