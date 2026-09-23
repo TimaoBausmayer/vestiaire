@@ -1557,7 +1557,7 @@ const App = {
     this.modal(`
       <h3>📰 Nouvelle publication</h3>
       ${this.renderPostIdentitySelect('postIdentity', 'personal')}
-      ${this.renderPostTagPlayerSelect('postTagPlayer', '')}
+      ${this.renderPostTagPlayerSelect('postTagPlayer', [])}
       <label class="field">Type
         <select id="postType" onchange="App.togglePostTypeWraps(this.value)">
           <option value="text">📝 Texte</option>
@@ -1627,9 +1627,9 @@ const App = {
     this.ensureMe(async (me)=>{
       const identityValue = document.getElementById("postIdentity")?.value;
       const identity = this.resolvePostIdentity(identityValue, me);
-      const taggedPlayer = document.getElementById("postTagPlayer")?.value || "";
+      const taggedPlayers = this.readTaggedPlayers("postTagPlayer");
       await this.db.collection("posts").add({
-        ...payload, ...identity, taggedPlayer, postedBy: me, likes:{}, comments:[], createdAt:new Date().toISOString()
+        ...payload, ...identity, taggedPlayers, postedBy: me, likes:{}, comments:[], createdAt:new Date().toISOString()
       });
       this.closeModal();
       toast("Publié !");
@@ -1651,7 +1651,7 @@ const App = {
     if(!(this.admin || (this.me && (p.postedBy||p.author)===this.me))){ toast("Tu ne peux modifier que tes propres publications"); return; }
     const knownIdentityKinds = ['club-A','club-B','media', ...Object.keys(this.AWARD_IDENTITIES)];
     const currentIdentity = knownIdentityKinds.includes(p.authorKind) ? p.authorKind : 'personal';
-    const currentTagPlayer = p.taggedPlayer || '';
+    const currentTagPlayers = this.postTaggedPlayersList(p);
     let fields = "";
     if(p.type==='text'){
       fields = `<label class="field">Message <textarea id="editPostText" rows="4">${esc(p.text||"")}</textarea></label>`;
@@ -1661,16 +1661,16 @@ const App = {
     } else if(p.type==='photo' || p.type==='video'){
       fields = `<label class="field">Légende <textarea id="editPostCaption" rows="3">${esc(p.caption||"")}</textarea></label>
         ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}
-        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayer)}`;
+        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayers)}`;
     } else if(p.type==='matchrecap'){
       fields = `<label class="field">Photo ${p.photo?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="editPostPhoto" accept="image/*"></label>
         <label class="field">Légende (optionnel) <textarea id="editPostCaption" rows="2">${esc(p.caption||"")}</textarea></label>
         ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}
-        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayer)}`;
+        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayers)}`;
     } else if(p.type==='recruit'){
       fields = `<label class="field">Photo ${p.photo?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="editPostPhoto" accept="image/*"></label>
         ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}
-        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayer)}`;
+        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayers)}`;
     }
     this.modal(`
       <h3>✏️ Modifier la publication</h3>
@@ -1700,8 +1700,7 @@ const App = {
     }
     const identityEl = document.getElementById("editPostIdentity");
     if(identityEl) Object.assign(updates, this.resolvePostIdentity(identityEl.value, p.postedBy||this.me));
-    const tagEl = document.getElementById("editPostTagPlayer");
-    if(tagEl) updates.taggedPlayer = tagEl.value || "";
+    if(document.getElementById("editPostTagPlayer")) updates.taggedPlayers = this.readTaggedPlayers("editPostTagPlayer");
     await this.db.collection("posts").doc(id).update(updates);
     this.closeModal();
     this.refreshPostDetailIfOpen(id);
@@ -1723,7 +1722,7 @@ const App = {
       <label class="field">Photo (recommandé) <input type="file" id="recapPhotoFile" accept="image/*"></label>
       <label class="field">Légende (optionnel) <textarea id="recapCaption" rows="2" placeholder="Une petite phrase sur le match..."></textarea></label>
       ${this.renderPostIdentitySelect('recapIdentity', 'media')}
-      ${this.renderPostTagPlayerSelect('recapTagPlayer', '')}
+      ${this.renderPostTagPlayerSelect('recapTagPlayer', [])}
       <button class="btn btn-accent btn-block" onclick="App.savePublishMatchRecap('${id}')">Publier</button>
       <p class="muted" style="font-size:11px;margin-top:6px;">Tant que ce résumé n'est pas publié, il reste caché pour tout le monde sauf les capitaines.</p>
     `);
@@ -1736,8 +1735,8 @@ const App = {
     const identityValue = document.getElementById("recapIdentity").value;
     this.ensureMe(async (me)=>{
       const identity = this.resolvePostIdentity(identityValue, me);
-      const taggedPlayer = document.getElementById("recapTagPlayer")?.value || "";
-      const updates = {...identity, taggedPlayer, postedBy: me, draft:false, caption, publishedAt:new Date().toISOString()};
+      const taggedPlayers = this.readTaggedPlayers("recapTagPlayer");
+      const updates = {...identity, taggedPlayers, postedBy: me, draft:false, caption, publishedAt:new Date().toISOString()};
       if(file) updates.photo = await resizeImage(file, 900, 0.7);
       await this.db.collection("posts").doc(id).update(updates);
       this.closeModal();
@@ -5046,15 +5045,32 @@ const App = {
   // ci-dessus) : sert par exemple pour "Ballon d'Or" décerné à quelqu'un, ou un petit mot "pour" un joueur
   // en particulier — sans jamais faire dire quoi que ce soit à sa place (l'auteur affiché reste
   // l'identité choisie plus haut, pas le joueur).
-  renderPostTagPlayerSelect(id, selected){
-    selected = selected || '';
+  // Cases à cocher (pas un menu déroulant) pour pouvoir en dédier une publication à PLUSIEURS joueurs à
+  // la fois, ex. "Ballon d'Or" partagé, ou un petit mot pour toute une ligne d'attaque.
+  renderPostTagPlayerSelect(id, selectedList){
+    selectedList = selectedList || [];
     const roster = this.state.players.map(p=>p.name);
-    return `<label class="field">Dédier à un joueur (optionnel)
-      <select id="${id}">
-        <option value="">— Personne en particulier —</option>
-        ${roster.map(n=>`<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(n)}</option>`).join("")}
-      </select>
-    </label>`;
+    return `<div class="field">
+      <label style="display:block;margin-bottom:4px;">Dédier à un ou plusieurs joueurs (optionnel)</label>
+      <div class="wrap" id="${id}">
+        ${roster.length===0 ? `<p class="muted" style="font-size:12px;">Ajoute des joueurs dans l'onglet Recrues d'abord.</p>` :
+          roster.map(n=>`<label class="chip" style="cursor:pointer;">
+            <input type="checkbox" value="${esc(n)}" ${selectedList.includes(n)?'checked':''} style="margin-right:4px;vertical-align:middle;">${esc(n)}
+          </label>`).join("")}
+      </div>
+    </div>`;
+  },
+  readTaggedPlayers(containerId){
+    const container = document.getElementById(containerId);
+    if(!container) return [];
+    return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(el=>el.value);
+  },
+  // Compatible avec les anciennes publications (avant le passage au multi-choix) qui n'avaient qu'un seul
+  // `taggedPlayer` (texte) au lieu d'un tableau `taggedPlayers`.
+  postTaggedPlayersList(p){
+    if(p.taggedPlayers && p.taggedPlayers.length) return p.taggedPlayers;
+    if(p.taggedPlayer) return [p.taggedPlayer];
+    return [];
   },
   // Transforme la valeur du sélecteur d'identité en {authorKind, author} à enregistrer sur la publication.
   // `me` est le compte réellement connecté (toujours conservé à part dans `postedBy`, pour les droits de
@@ -5086,10 +5102,12 @@ const App = {
     }
     return `<b>${esc(p.author||"Capitaine")}</b>${this.roleBadge(p.author)}`;
   },
-  // Petit bandeau "dédié à" sous la ligne d'auteur, si la publication a été rattachée à un joueur précis.
+  // Petit bandeau "dédié à" sous la ligne d'auteur, si la publication a été rattachée à un ou plusieurs
+  // joueurs précis.
   renderPostTaggedPlayerLine(p){
-    if(!p.taggedPlayer) return "";
-    return `<div class="chip" style="margin-top:4px;padding:2px 8px;font-size:11px;cursor:default;">🎯 Pour ${esc(p.taggedPlayer)}</div>`;
+    const list = this.postTaggedPlayersList(p);
+    if(!list.length) return "";
+    return `<div class="chip" style="margin-top:4px;padding:2px 8px;font-size:11px;cursor:default;">🎯 Pour ${list.map(esc).join(', ')}</div>`;
   },
   renderConvocations(nm){
     const players = this.state.players;
