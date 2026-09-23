@@ -1490,6 +1490,7 @@ const App = {
       <div class="row" style="justify-content:space-between;align-items:flex-start;">
         <div>
           ${this.postAuthorLine(p)}
+          ${this.renderPostTaggedPlayerLine(p)}
           <div class="muted" style="font-size:11.5px;">${fmtDateTime(p.createdAt)}${p.editedAt?' · modifié':''}</div>
         </div>
         <div class="row" style="gap:2px;">
@@ -1556,6 +1557,7 @@ const App = {
     this.modal(`
       <h3>📰 Nouvelle publication</h3>
       ${this.renderPostIdentitySelect('postIdentity', 'personal')}
+      ${this.renderPostTagPlayerSelect('postTagPlayer', '')}
       <label class="field">Type
         <select id="postType" onchange="App.togglePostTypeWraps(this.value)">
           <option value="text">📝 Texte</option>
@@ -1625,8 +1627,9 @@ const App = {
     this.ensureMe(async (me)=>{
       const identityValue = document.getElementById("postIdentity")?.value;
       const identity = this.resolvePostIdentity(identityValue, me);
+      const taggedPlayer = document.getElementById("postTagPlayer")?.value || "";
       await this.db.collection("posts").add({
-        ...payload, ...identity, postedBy: me, likes:{}, comments:[], createdAt:new Date().toISOString()
+        ...payload, ...identity, taggedPlayer, postedBy: me, likes:{}, comments:[], createdAt:new Date().toISOString()
       });
       this.closeModal();
       toast("Publié !");
@@ -1646,7 +1649,9 @@ const App = {
     if(!p){ toast("Publication introuvable"); return; }
     if(p.type==='transfer'){ toast("Cette publication automatique ne peut pas être modifiée"); return; }
     if(!(this.admin || (this.me && (p.postedBy||p.author)===this.me))){ toast("Tu ne peux modifier que tes propres publications"); return; }
-    const currentIdentity = p.authorKind==='club-A' ? 'club-A' : p.authorKind==='club-B' ? 'club-B' : p.authorKind==='media' ? 'media' : 'personal';
+    const knownIdentityKinds = ['club-A','club-B','media', ...Object.keys(this.AWARD_IDENTITIES)];
+    const currentIdentity = knownIdentityKinds.includes(p.authorKind) ? p.authorKind : 'personal';
+    const currentTagPlayer = p.taggedPlayer || '';
     let fields = "";
     if(p.type==='text'){
       fields = `<label class="field">Message <textarea id="editPostText" rows="4">${esc(p.text||"")}</textarea></label>`;
@@ -1655,14 +1660,17 @@ const App = {
         <p class="muted" style="font-size:11.5px;margin-top:-6px;">Les options ne peuvent pas être changées une fois publiées, pour ne pas fausser les votes déjà enregistrés.</p>`;
     } else if(p.type==='photo' || p.type==='video'){
       fields = `<label class="field">Légende <textarea id="editPostCaption" rows="3">${esc(p.caption||"")}</textarea></label>
-        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}`;
+        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}
+        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayer)}`;
     } else if(p.type==='matchrecap'){
       fields = `<label class="field">Photo ${p.photo?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="editPostPhoto" accept="image/*"></label>
         <label class="field">Légende (optionnel) <textarea id="editPostCaption" rows="2">${esc(p.caption||"")}</textarea></label>
-        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}`;
+        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}
+        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayer)}`;
     } else if(p.type==='recruit'){
       fields = `<label class="field">Photo ${p.photo?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="editPostPhoto" accept="image/*"></label>
-        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}`;
+        ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}
+        ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayer)}`;
     }
     this.modal(`
       <h3>✏️ Modifier la publication</h3>
@@ -1692,6 +1700,8 @@ const App = {
     }
     const identityEl = document.getElementById("editPostIdentity");
     if(identityEl) Object.assign(updates, this.resolvePostIdentity(identityEl.value, p.postedBy||this.me));
+    const tagEl = document.getElementById("editPostTagPlayer");
+    if(tagEl) updates.taggedPlayer = tagEl.value || "";
     await this.db.collection("posts").doc(id).update(updates);
     this.closeModal();
     this.refreshPostDetailIfOpen(id);
@@ -1713,6 +1723,7 @@ const App = {
       <label class="field">Photo (recommandé) <input type="file" id="recapPhotoFile" accept="image/*"></label>
       <label class="field">Légende (optionnel) <textarea id="recapCaption" rows="2" placeholder="Une petite phrase sur le match..."></textarea></label>
       ${this.renderPostIdentitySelect('recapIdentity', 'media')}
+      ${this.renderPostTagPlayerSelect('recapTagPlayer', '')}
       <button class="btn btn-accent btn-block" onclick="App.savePublishMatchRecap('${id}')">Publier</button>
       <p class="muted" style="font-size:11px;margin-top:6px;">Tant que ce résumé n'est pas publié, il reste caché pour tout le monde sauf les capitaines.</p>
     `);
@@ -1725,7 +1736,8 @@ const App = {
     const identityValue = document.getElementById("recapIdentity").value;
     this.ensureMe(async (me)=>{
       const identity = this.resolvePostIdentity(identityValue, me);
-      const updates = {...identity, postedBy: me, draft:false, caption, publishedAt:new Date().toISOString()};
+      const taggedPlayer = document.getElementById("recapTagPlayer")?.value || "";
+      const updates = {...identity, taggedPlayer, postedBy: me, draft:false, caption, publishedAt:new Date().toISOString()};
       if(file) updates.photo = await resizeImage(file, 900, 0.7);
       await this.db.collection("posts").doc(id).update(updates);
       this.closeModal();
@@ -1761,6 +1773,7 @@ const App = {
           <div class="row" style="justify-content:space-between;">
             <div>
               ${this.postAuthorLine(p)}
+              ${this.renderPostTaggedPlayerLine(p)}
               <div class="muted" style="font-size:12px;">${fmtDateTime(p.createdAt)}${p.editedAt?' · modifié':''}</div>
             </div>
             <div class="row" style="gap:2px;">
@@ -5002,13 +5015,23 @@ const App = {
   // clubs (logo + nom d'équipe), ou au nom du compte média (façon compte d'actu transferts). Réutilisé
   // pour une nouvelle publication ET pour compléter/éditer une publication automatique (résumé de match,
   // nouvelle recrue).
+  // Comptes "événement" : des identités fictives et amusantes (pas de vraie personne) pour annoncer des
+  // récompenses/compétitions façon grand média sportif — distinctes du compte club et du compte média
+  // général (Vestiaire Direct).
+  AWARD_IDENTITIES:{
+    'award-ballonDor':{icon:'🏆', name:"Ballon d'Or"},
+    'award-ucl':{icon:'🏆', name:"Ligue des Champions"},
+    'award-wc':{icon:'🌍', name:"Coupe du Monde"},
+  },
   postIdentityOptions(){
     const tn = this.teamNames();
+    const awards = Object.entries(this.AWARD_IDENTITIES).map(([value,a])=>({value, label:`${a.icon} ${a.name}`}));
     return [
       {value:'personal', label:`👤 Moi (${this.me||'toi'})`},
       {value:'club-A', label:`🟠 Club ${tn.a}`},
       {value:'club-B', label:`🟢 Club ${tn.b}`},
       {value:'media', label:`📰 ${this.mediaName()} (compte média)`},
+      ...awards,
     ];
   },
   renderPostIdentitySelect(id, selected){
@@ -5016,6 +5039,20 @@ const App = {
     return `<label class="field">Publier en tant que
       <select id="${id}">
         ${this.postIdentityOptions().map(o=>`<option value="${o.value}" ${o.value===selected?'selected':''}>${esc(o.label)}</option>`).join("")}
+      </select>
+    </label>`;
+  },
+  // Dédier une publication à un joueur précis (optionnel, cumulable avec n'importe quelle identité
+  // ci-dessus) : sert par exemple pour "Ballon d'Or" décerné à quelqu'un, ou un petit mot "pour" un joueur
+  // en particulier — sans jamais faire dire quoi que ce soit à sa place (l'auteur affiché reste
+  // l'identité choisie plus haut, pas le joueur).
+  renderPostTagPlayerSelect(id, selected){
+    selected = selected || '';
+    const roster = this.state.players.map(p=>p.name);
+    return `<label class="field">Dédier à un joueur (optionnel)
+      <select id="${id}">
+        <option value="">— Personne en particulier —</option>
+        ${roster.map(n=>`<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(n)}</option>`).join("")}
       </select>
     </label>`;
   },
@@ -5027,6 +5064,7 @@ const App = {
     if(value==='club-A') return {authorKind:'club-A', author: tn.a};
     if(value==='club-B') return {authorKind:'club-B', author: tn.b};
     if(value==='media') return {authorKind:'media', author: this.mediaName()};
+    if(this.AWARD_IDENTITIES[value]) return {authorKind:value, author: this.AWARD_IDENTITIES[value].name};
     return {authorKind:'personal', author: me||this.me||'Capitaine'};
   },
   // Ligne d'auteur affichée sur une publication (Actus) : nom perso + badge habituel (roleBadge), ou
@@ -5042,7 +5080,16 @@ const App = {
     if(kind==='media'){
       return `<b>📰 ${esc(p.author||this.mediaName())}</b> <span class="chip" style="padding:1px 7px;font-size:10.5px;margin-left:3px;cursor:default;">✅ Média</span>`;
     }
+    if(this.AWARD_IDENTITIES[kind]){
+      const a = this.AWARD_IDENTITIES[kind];
+      return `<b>${a.icon} ${esc(p.author||a.name)}</b> <span class="chip" style="padding:1px 7px;font-size:10.5px;margin-left:3px;cursor:default;">🎖️ Compte événement</span>`;
+    }
     return `<b>${esc(p.author||"Capitaine")}</b>${this.roleBadge(p.author)}`;
+  },
+  // Petit bandeau "dédié à" sous la ligne d'auteur, si la publication a été rattachée à un joueur précis.
+  renderPostTaggedPlayerLine(p){
+    if(!p.taggedPlayer) return "";
+    return `<div class="chip" style="margin-top:4px;padding:2px 8px;font-size:11px;cursor:default;">🎯 Pour ${esc(p.taggedPlayer)}</div>`;
   },
   renderConvocations(nm){
     const players = this.state.players;
@@ -6252,7 +6299,9 @@ const App = {
   // d'un match précis — une compo entièrement libre/personnalisée, composée sur place puis postée comme un
   // message spécial (type:'lineup') qui s'affiche comme un petit terrain plutôt qu'un simple texte.
   renderChatLineupCard(m){
-    const slots = this.FORMATIONS[m.formation] || this.FORMATIONS["4-3-3"];
+    const baseSlots = this.FORMATIONS[m.formation] || this.FORMATIONS["4-3-3"];
+    const positions = m.positions || {};
+    const slots = baseSlots.map(s=> positions[s.k] ? {...s, t:positions[s.k].t, l:positions[s.k].l} : s);
     const assignments = m.assignments || {};
     const filled = slots.filter(s=>assignments[s.k]);
     return `
@@ -6272,14 +6321,17 @@ const App = {
   openChatLineupComposer(){
     const formation = this.state.chatLineupFormation || "4-3-3";
     const assignments = this.state.chatLineupAssignments || {};
-    const slots = this.FORMATIONS[formation];
+    const positions = this.state.chatLineupPositions || {};
+    const baseSlots = this.FORMATIONS[formation];
+    const slots = baseSlots.map(s=> positions[s.k] ? {...s, t:positions[s.k].t, l:positions[s.k].l} : s);
     const roster = this.state.players.map(p=>p.name);
     const tn = this.teamNames();
     const ch = this.state.chatChannel;
     const chLabel = ch==='general' ? 'Général' : (ch==='A' ? tn.a : tn.b);
+    const hasCustomPositions = Object.keys(positions).length>0;
     this.modal(`
       <h3>🧠 Composition d'équipe</h3>
-      <p class="muted" style="font-size:12px;margin-top:-4px;">Choisis une formation, place qui tu veux à chaque poste, puis envoie — elle sera postée dans le chat (canal "${esc(chLabel)}").</p>
+      <p class="muted" style="font-size:12px;margin-top:-4px;">Choisis une formation, place qui tu veux à chaque poste, puis envoie — elle sera postée dans le chat (canal "${esc(chLabel)}"). Fais glisser un petit rond pour le placer où tu veux — touche-le sans le bouger pour changer le joueur.</p>
       <label class="field">Formation
         <select onchange="App.setChatLineupFormation(this.value)">
           ${Object.keys(this.FORMATIONS).map(f=>`<option value="${f}" ${f===formation?'selected':''}>${f}</option>`).join("")}
@@ -6288,12 +6340,13 @@ const App = {
       <div class="pitch">
         ${slots.map(s=>{
           const assigned = assignments[s.k];
-          return `<div class="slot ${assigned?'':'empty'}" style="top:${s.t}%;left:${s.l}%;" onclick="App.openChatLineupSlotPicker('${s.k}')">
+          return `<div class="slot ${assigned?'':'empty'}" style="top:${s.t}%;left:${s.l}%;touch-action:none;" onpointerdown="App.startChatLineupSlotDrag(event,'${s.k}')">
             <div class="dot">${assigned? initials(assigned) : s.k.replace(/[0-9]/g,'')}</div>
             <div class="lb">${assigned? esc(assigned).split(' ')[0] : s.k}</div>
           </div>`;
         }).join("")}
       </div>
+      ${hasCustomPositions ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="App.resetChatLineupPositions()">↩️ Remettre les postes par défaut</button>` : ""}
       ${roster.length===0 ? `<p class="muted" style="font-size:12px;">Ajoute des joueurs dans l'onglet Recrues d'abord.</p>` : ""}
       <button class="btn btn-accent btn-block" style="margin-top:10px;" onclick="App.sendChatLineup()">📤 Envoyer dans le chat</button>
     `);
@@ -6301,6 +6354,48 @@ const App = {
   setChatLineupFormation(formation){
     this.state.chatLineupFormation = formation;
     this.state.chatLineupAssignments = {};
+    this.state.chatLineupPositions = {};
+    this.openChatLineupComposer();
+  },
+  // Glisser-déposer un poste dans le composeur de compo du chat — même mécanique que sur le terrain
+  // tactique d'un match (seuil de 6px pour distinguer un tap d'un glissé), mais tout reste en mémoire
+  // locale (pas de sauvegarde Firestore ici : cette compo n'existe que le temps de la composer, jusqu'à
+  // l'envoi dans le chat).
+  startChatLineupSlotDrag(evt, slotKey){
+    evt.preventDefault();
+    const slotEl = evt.currentTarget;
+    const pitchEl = slotEl.closest('.pitch');
+    if(!pitchEl){ this.openChatLineupSlotPicker(slotKey); return; }
+    const rect = pitchEl.getBoundingClientRect();
+    const startX = evt.clientX, startY = evt.clientY;
+    let moved = false, lastL = null, lastT = null;
+    const onMove = (e)=>{
+      const dx = e.clientX-startX, dy = e.clientY-startY;
+      if(Math.abs(dx)>6 || Math.abs(dy)>6) moved = true;
+      if(!moved) return;
+      let l = ((e.clientX - rect.left)/rect.width)*100;
+      let t = ((e.clientY - rect.top)/rect.height)*100;
+      l = Math.max(3, Math.min(97, l));
+      t = Math.max(4, Math.min(97, t));
+      slotEl.style.left = l+'%';
+      slotEl.style.top = t+'%';
+      lastL = l; lastT = t;
+    };
+    const onUp = ()=>{
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if(moved && lastL!=null){
+        this.state.chatLineupPositions = {...(this.state.chatLineupPositions||{}), [slotKey]: {t: Math.round(lastT*10)/10, l: Math.round(lastL*10)/10}};
+        this.openChatLineupComposer();
+      } else {
+        this.openChatLineupSlotPicker(slotKey);
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, {once:true});
+  },
+  resetChatLineupPositions(){
+    this.state.chatLineupPositions = {};
     this.openChatLineupComposer();
   },
   openChatLineupSlotPicker(slotKey){
@@ -6321,14 +6416,16 @@ const App = {
   async sendChatLineup(){
     const formation = this.state.chatLineupFormation || "4-3-3";
     const assignments = this.state.chatLineupAssignments || {};
+    const positions = this.state.chatLineupPositions || {};
     const hasAny = Object.values(assignments).some(Boolean);
     if(!hasAny){ toast("Place au moins un joueur avant d'envoyer"); return; }
     this.ensureMe(async (me)=>{
       await this.db.collection("messages").add({
-        channel:this.state.chatChannel, author:me, type:'lineup', formation, assignments,
+        channel:this.state.chatChannel, author:me, type:'lineup', formation, assignments, positions,
         createdAt:new Date().toISOString()
       });
       this.state.chatLineupAssignments = {};
+      this.state.chatLineupPositions = {};
       this.closeModal();
       toast("Composition envoyée dans le chat");
     });
