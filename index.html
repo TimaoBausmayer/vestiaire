@@ -341,13 +341,23 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
   import {
     initializeFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
-    collection, addDoc, getDocs, query, orderBy
+    collection, addDoc, getDocs, query, orderBy, deleteField
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   // Petit adaptateur qui donne à Firestore la même forme (doc/collection, get/set/update/
   // delete/onSnapshot, orderBy) que celle utilisée partout dans le code de l'appli plus bas
   // — comme ça, aucune autre ligne de l'appli n'a besoin de changer.
   function wrapDocSnap(snap){ return { exists: snap.exists(), data: ()=>snap.data(), id: snap.id }; }
+
+  // Sentinelle utilisée dans un patch imbriqué envoyé à VDoc.update() pour dire "supprime VRAIMENT
+  // cette clé précise" (ex: App.db.collection("matches").doc(id).update({tactic:{assignments:{LAM:
+  // App.db.FieldDelete}}}) pour vider un poste). Indispensable car, avec des chemins à points,
+  // Firestore ne touche QUE les chemins explicitement présents dans le patch : omettre une clé (ex.
+  // en faisant `delete assignments[slotKey]` sur une copie locale avant l'envoi) ne la supprime pas
+  // côté serveur, elle reste pour toujours — c'était le bug qui empêchait "Vider" de fonctionner sur
+  // la compo. flattenForUpdate traduit cette sentinelle en deleteField() (la vraie sentinelle
+  // Firestore) au bon endroit dans le patch.
+  const VFieldDelete = Symbol("vestiaire-field-delete");
 
   // Transforme un patch imbriqué (ex: {worstVotes:{Julien:{timao:true}}}) en chemins "à points"
   // (ex: {"worstVotes.Julien.timao": true}) avant d'appeler updateDoc(). C'est indispensable :
@@ -360,7 +370,9 @@
     Object.keys(obj).forEach(k=>{
       const v = obj[k];
       const path = prefix ? prefix + "." + k : k;
-      if(v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length > 0){
+      if(v === VFieldDelete){
+        out[path] = deleteField();
+      } else if(v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length > 0){
         flattenForUpdate(v, path, out);
       } else {
         out[path] = v;
@@ -392,6 +404,7 @@
     doc(path){ return new VDoc(this._fs, path); }
     collection(path){ return new VCollection(this._fs, path); }
   }
+  VDB.prototype.FieldDelete = VFieldDelete;
 
   try{
     const fbApp = initializeApp(firebaseConfig);
@@ -2678,12 +2691,17 @@ const App = {
     // bonifie le général avec la moyenne des notes : avant, une moyenne par défaut à 0 faisait perdre ~27 points
     // à tout le monde même sans aucune note saisie, ce qui écrasait complètement les autres progrès.
     const avgRatingAdj = (w.ratingsCount>0) ? (w.avgRating-5)*3.0 : 0;
-    // Le classement du match (top 10 meilleurs / top 3 pires voté par toute l'équipe) compte maintenant
-    // nettement PLUS que les notes individuelles dans le général — ce n'est plus un léger avantage (5.2 vs
-    // 4.5) mais un vrai écart voulu (8.0 vs 3.0, soit ~2,7x plus lourd) : le classement voté par l'équipe est
-    // ce qui pèse le plus, les notes individuelles continuant de compter mais avec une influence plus modeste.
-    // Même échelle (-5..+5) pour les deux, donc c'est bien le poids qui change, pas l'échelle.
-    const matchRankAdj = (w.matchRankAvg||0) * 8.0;
+    // Le classement du match (top 10 meilleurs / top 3 pires voté par toute l'équipe) compte plus que les
+    // notes individuelles dans le général : le classement voté par l'équipe reste ce qui pèse le plus, les
+    // notes individuelles continuant de compter mais avec une influence plus modeste. Même échelle (-5..+5)
+    // pour les deux, donc c'est bien le poids qui change, pas l'échelle.
+    // NB : ce poids était à 8.0 (~2,7x celui des notes) — avec une petite équipe, presque tout le monde
+    // apparaît dans le "top 10" de la plupart des votants ne serait-ce qu'en étant cité une fois, ce qui
+    // suffisait à faire grimper quasiment tout le roster près du plafond (99) dès qu'un classement était
+    // voté sur un match ou deux, sans qu'aucune note individuelle n'ait changé. Ramené à 4.5 (~1,5x celui
+    // des notes) : le classement continue de compter davantage que les notes, mais un seul vote d'équipe ne
+    // fait plus bondir tout le monde d'un coup.
+    const matchRankAdj = (w.matchRankAvg||0) * 4.5;
     // Le temps de jeu compte maintenant vraiment : un joueur qui joue tout le match (90 min) gagne plus qu'un
     // joueur qui n'en joue qu'une partie, proportionnellement aux minutes réellement jouées (accumulées sur
     // tous ses matchs). Si aucune minute n'a jamais été saisie pour ce joueur (équipe qui ne suit pas ça), on
@@ -4923,7 +4941,8 @@ const App = {
       const ref = this.db.collection("matches").doc(matchId);
       // Écrit uniquement la feuille "status" (jamais l'objet entier) pour ne pas effacer une éventuelle
       // note déjà enregistrée pour ce joueur sur ce match (voir flattenForUpdate plus haut dans le fichier).
-      await ref.update({presence:{[name]:{status}}});
+      // status==='' (recliquer sur le statut déjà actif) remet explicitement null, ce qui désélectionne.
+      await ref.update({presence:{[name]:{status: status || null}}});
     });
   },
   teamNames(){
@@ -4962,12 +4981,19 @@ const App = {
   },
   // Rendu commun des 4 boutons de statut de présence (✅⏰🤷❌), utilisé pour un match ou un événement. Pour
   // quelqu'un qui n'a pas le droit de modifier CETTE ligne (cf. canSetPresenceFor), les boutons restent
-  // visibles (on voit toujours le statut actuel) mais sont désactivés, grisés, et sans clic.
+  // visibles (on voit toujours le statut actuel) mais sont désactivés, grisés, et sans clic. Recliquer sur
+  // le statut déjà actif le désélectionne (remet "pas encore répondu") — avant, un statut ne pouvait plus
+  // jamais être effacé une fois choisi.
   renderPresenceButtons(setterFn, id, playerName, status){
     const editable = this.canSetPresenceFor(playerName);
-    const btn = (val, onClass, title, icon)=> editable
-      ? `<button class="pbtn ${status===val?onClass:''}" onclick="App.${setterFn}('${id}','${jsa(playerName)}','${val}')" title="${title}">${icon}</button>`
-      : `<button class="pbtn ${status===val?onClass:''}" disabled title="Seul(e) ${esc(playerName)} (ou un capitaine) peut modifier ça" style="opacity:.4;cursor:default;">${icon}</button>`;
+    const btn = (val, onClass, title, icon)=>{
+      const isOn = status===val;
+      const nextVal = isOn ? '' : val;
+      const clickTitle = isOn ? `${title} (recliquer pour désélectionner)` : title;
+      return editable
+        ? `<button class="pbtn ${isOn?onClass:''}" onclick="App.${setterFn}('${id}','${jsa(playerName)}','${nextVal}')" title="${clickTitle}">${icon}</button>`
+        : `<button class="pbtn ${isOn?onClass:''}" disabled title="Seul(e) ${esc(playerName)} (ou un capitaine) peut modifier ça" style="opacity:.4;cursor:default;">${icon}</button>`;
+    };
     return btn('present','on-present','Présent(e)','✅')
       + btn('late','on-late','En retard','⏰')
       + btn('unsure','on-unsure','Je ne sais pas encore','🤷')
@@ -5041,22 +5067,28 @@ const App = {
       </select>
     </label>`;
   },
-  // Dédier une publication à un joueur précis (optionnel, cumulable avec n'importe quelle identité
-  // ci-dessus) : sert par exemple pour "Ballon d'Or" décerné à quelqu'un, ou un petit mot "pour" un joueur
-  // en particulier — sans jamais faire dire quoi que ce soit à sa place (l'auteur affiché reste
-  // l'identité choisie plus haut, pas le joueur).
-  // Cases à cocher (pas un menu déroulant) pour pouvoir en dédier une publication à PLUSIEURS joueurs à
-  // la fois, ex. "Ballon d'Or" partagé, ou un petit mot pour toute une ligne d'attaque.
+  // Dédier une publication à un ou plusieurs joueurs ET/OU aux clubs (optionnel, cumulable avec
+  // n'importe quelle identité ci-dessus) : sert par exemple pour "Ballon d'Or" décerné à quelqu'un, une
+  // victoire dédiée aux deux clubs, ou un petit mot "pour" un joueur en particulier — sans jamais faire
+  // dire quoi que ce soit à sa place (l'auteur affiché reste l'identité choisie plus haut, jamais le nom
+  // coché ici). Cases à cocher (pas un menu déroulant) pour pouvoir en cocher plusieurs à la fois.
   renderPostTagPlayerSelect(id, selectedList){
     selectedList = selectedList || [];
+    const tn = this.teamNames();
+    const clubOptions = [
+      {value: tn.a, label: `${this.teamLogoTag('A',14)} ${esc(tn.a)}`},
+      {value: tn.b, label: `${this.teamLogoTag('B',14)} ${esc(tn.b)}`},
+    ];
     const roster = this.state.players.map(p=>p.name);
     return `<div class="field">
-      <label style="display:block;margin-bottom:4px;">Dédier à un ou plusieurs joueurs (optionnel)</label>
+      <label style="display:block;margin-bottom:4px;">Dédier à un ou plusieurs joueurs ou clubs (optionnel)</label>
       <div class="wrap" id="${id}">
-        ${roster.length===0 ? `<p class="muted" style="font-size:12px;">Ajoute des joueurs dans l'onglet Recrues d'abord.</p>` :
-          roster.map(n=>`<label class="chip" style="cursor:pointer;">
-            <input type="checkbox" value="${esc(n)}" ${selectedList.includes(n)?'checked':''} style="margin-right:4px;vertical-align:middle;">${esc(n)}
-          </label>`).join("")}
+        ${clubOptions.map(o=>`<label class="chip" style="cursor:pointer;">
+          <input type="checkbox" value="${esc(o.value)}" ${selectedList.includes(o.value)?'checked':''} style="margin-right:4px;vertical-align:middle;">${o.label}
+        </label>`).join("")}
+        ${roster.map(n=>`<label class="chip" style="cursor:pointer;">
+          <input type="checkbox" value="${esc(n)}" ${selectedList.includes(n)?'checked':''} style="margin-right:4px;vertical-align:middle;">${esc(n)}
+        </label>`).join("")}
       </div>
     </div>`;
   },
@@ -5167,9 +5199,18 @@ const App = {
   async toggleConvoked(matchId, name){
     const m = this.state.matches.find(x=>x.id===matchId);
     let convoked = (m.convoked||[]).slice();
-    if(convoked.includes(name)) convoked = convoked.filter(n=>n!==name);
+    const wasConvoked = convoked.includes(name);
+    if(wasConvoked) convoked = convoked.filter(n=>n!==name);
     else convoked.push(name);
-    await this.db.collection("matches").doc(matchId).update({convoked});
+    const patch = {convoked};
+    // Si on décoche quelqu'un des convoqués (ex: il avait dit présent puis finalement absent), on le
+    // retire aussi de l'équipe où il avait été placé — sinon il restait coincé dans la compo d'une
+    // équipe pour un match auquel il n'est même plus convoqué.
+    if(wasConvoked){
+      patch.teamA = (m.teamA||[]).filter(n=>n!==name);
+      patch.teamB = (m.teamB||[]).filter(n=>n!==name);
+    }
+    await this.db.collection("matches").doc(matchId).update(patch);
   },
   renderTeamCompare(nm){
     const teamA = nm.teamA||[], teamB = nm.teamB||[];
@@ -5213,8 +5254,15 @@ const App = {
     const m = this.state.matches.find(x=>x.id===matchId);
     let teamA = (m.teamA||[]).filter(n=>n!==name);
     let teamB = (m.teamB||[]).filter(n=>n!==name);
-    if(team==='A') teamA.push(name); else teamB.push(name);
-    let convoked = uniq([...(m.convoked||[]), name]);
+    // Recliquer sur l'équipe où le joueur est DÉJÀ retire de cette équipe (bascule), au lieu de ne rien
+    // faire — ça permet de "retirer les équipes si on a envie" sans devoir décocher tout le monde.
+    const alreadyInTeam = (team==='A' ? (m.teamA||[]) : (m.teamB||[])).includes(name);
+    if(!alreadyInTeam){
+      if(team==='A') teamA.push(name); else teamB.push(name);
+    }
+    // On ne force la convocation automatique que quand on AJOUTE quelqu'un à une équipe, pas quand on
+    // l'en retire (dans ce cas on touche juste teamA/teamB, sa convocation ne change pas).
+    let convoked = alreadyInTeam ? (m.convoked||[]) : uniq([...(m.convoked||[]), name]);
     // .update() (pas .set()) : ne touche que teamA/teamB/convoked. Un .set() aurait réécrit TOUT le
     // document avec la copie locale de "m", donc si un autre champ (ex: des notes) avait été modifié par
     // quelqu'un d'autre entre-temps et pas encore reçu sur cet appareil, ce .set() l'aurait effacé.
@@ -5568,7 +5616,10 @@ const App = {
     const m = this.state.matches.find(x=>x.id===matchId);
     const tactic = m[tacticKey] || {formation:"4-3-3", assignments:{}};
     const assignments = {...(tactic.assignments||{})};
-    if(name) assignments[slotKey]=name; else delete assignments[slotKey];
+    // "Vider" (name==='') doit vraiment supprimer ce poste précis côté serveur, pas juste l'omettre du
+    // patch : avec les chemins à points, Firestore ne touche que ce qui est explicitement présent dans
+    // l'update, donc une clé simplement absente resterait pour toujours (voir VFieldDelete plus haut).
+    if(name) assignments[slotKey]=name; else assignments[slotKey] = this.db.FieldDelete;
     const patch = {[tacticKey]:{formation:tactic.formation, assignments}};
     // Un joueur qu'on vient de titulariser ne peut plus être sur le banc en même temps — on l'en retire
     // automatiquement s'il y était.
@@ -6658,7 +6709,8 @@ const App = {
     this.ensureMe(async ()=>{
       // Écrit uniquement la feuille "status" pour ne pas effacer une éventuelle note déjà enregistrée
       // (voir flattenForUpdate plus haut dans le fichier, et le même choix dans setPresence()).
-      await this.db.collection("events").doc(eventId).update({responses:{[name]:{status}}});
+      // status==='' (recliquer sur le statut déjà actif) remet explicitement null, ce qui désélectionne.
+      await this.db.collection("events").doc(eventId).update({responses:{[name]:{status: status || null}}});
     });
   },
 };
