@@ -2732,15 +2732,22 @@ const App = {
     // pondéré par l'importance — voir pourquoi ci-dessous) : avec très peu de matchs, tout ce qui vient des
     // stats/votes/notes ci-dessus (mais PAS le Ballon d'Or / Pire Joueur / Pire Action, qui restent des
     // votes de fin de saison à part entière) est amorti, pour qu'UN SEUL match (même exceptionnel —
-    // plusieurs buts, MVP, très bien noté) ne puisse plus, à lui seul, faire grimper quelqu'un de 50 à 90,
-    // ni faire monter quasiment tout le monde d'un coup après un seul match. Ça n'empêche personne de
-    // monter haut — mais il faut plusieurs matchs pour vraiment le mériter, pas la performance d'un seul
-    // jour. Pleine confiance (1x) atteinte à partir de 4 matchs déjà joués ; en dessous, la confiance
-    // grandit linéairement. IMPORTANT : basé sur le nombre RÉEL de matchs (stats.matchesPlayed), jamais sur
-    // le poids d'importance cumulé — sinon un seul match classé "décisif" (poids ×10) donnait à lui tout
-    // seul une pleine confiance (10/4 ≥ 1), ce qui annulait complètement cet amortissement.
+    // plusieurs buts, MVP, très bien noté) ne puisse pas, à lui seul, faire de quelqu'un LA référence de
+    // l'équipe (99, tout en haut) — il faut plusieurs bons matchs de suite pour vraiment le mériter, pas la
+    // performance d'un seul jour. Ça n'empêche pas non plus une très bonne première performance d'être
+    // récompensée nettement plus qu'une performance moyenne : la courbe est en racine carrée (pas linéaire)
+    // — dès le 1er match, la confiance est déjà à moitié pleine (0.5), pas à seulement un quart (0.25) —
+    // pour qu'un carton plein (plusieurs buts, passe décisive, homme du match) fasse vraiment décoller le
+    // général dès le premier match plutôt que de le plafonner artificiellement bas, tout en laissant encore
+    // de la marge de progression pour les matchs suivants avant d'atteindre la pleine confiance. Pleine
+    // confiance (1x) atteinte à partir de 4 matchs déjà joués. IMPORTANT : basé sur le nombre RÉEL de
+    // matchs (stats.matchesPlayed), jamais sur le poids d'importance cumulé — sinon un seul match classé
+    // "décisif" (poids ×10) donnait à lui tout seul une pleine confiance (10/4 ≥ 1), ce qui annulait
+    // complètement cet amortissement, ET créerait une injustice entre deux joueurs ayant joué le même
+    // nombre de matchs mais pas les mêmes coefficients d'importance (ex: un nouveau qui n'a joué que le
+    // match "normal" ne doit pas partir avec moins de confiance que celui qui a joué le match "décisif").
     const CONFIDENCE_SPAN = 4;
-    const confidence = Math.min(1, (stats.matchesPlayed||0) / CONFIDENCE_SPAN);
+    const confidence = Math.sqrt(Math.min(1, (stats.matchesPlayed||0) / CONFIDENCE_SPAN));
     // Un gardien a un barème à part : il ne marque presque jamais et serait donc condamné à rester scotché
     // au plancher avec le barème des joueurs de champ (pensé pour valoriser les buts/tirs/tacles). Son général
     // valorise plutôt les arrêts, les penaltys stoppés, et le nombre de buts encaissés PAR MATCH (une moyenne,
