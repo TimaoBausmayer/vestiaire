@@ -2586,13 +2586,30 @@ const App = {
     // Sous-objet dédié au calcul du général : mêmes clés que les stats brutes correspondantes, mais
     // pondérées par l'importance de chaque match (voir commentaire plus haut). cardRating() lit ces
     // valeurs-là, jamais les valeurs brutes ci-dessus.
+    // IMPORTANT (corrigé) : pour tout ce qui est un COMPTEUR (buts, passes, minutes, MVP, cartons...), la
+    // valeur "pondérée" doit rester une MOYENNE par match équivalent (voir le commentaire au-dessus de
+    // matchWeight : un match à coefficient 10 doit compter "comme si le joueur avait rejoué 10 fois ce
+    // match dans la moyenne", pas comme si ses buts avaient été multipliés par 10). Avant ce correctif, ces
+    // compteurs étaient de simples SOMMES multipliées par le poids du match, jamais redivisées par le poids
+    // total — un seul match classé "10/10 décisif" (poids ×10) suffisait donc à multiplier par 10 les buts,
+    // les minutes jouées, etc. de tout le monde qui y avait joué, ce qui envoyait des général entiers près
+    // de 99 après un seul match. wNorm() redivise la partie "matchs" par le poids total cumulé
+    // (wTotalWeight) pour obtenir une vraie moyenne ; la part "stats manuelles" (import, sans match
+    // associé) garde un poids normal (1x), comme avant.
+    const wNorm = (total, manualBase) => manualBase + (wTotalWeight ? (total-manualBase)/wTotalWeight : 0);
     const weighted = {
-      openPlayGoals: wOpenPlayGoals, freekickScored: wFreekickScored, cornersScored: wCornersScored, penaltiesScored: wPenaltiesScored,
-      assists: wAssists, avgRating: wAvgRating, ratingsCount: wRatingsWeight, mvp: wMvp,
-      tacklesWon: wTacklesWon, shotsOnTarget: wShotsOnTarget, minutesPlayed: wMinutesPlayed, timesStarter: wTimesStarter,
-      penaltiesMissed: wPenaltiesMissed, penaltiesCaused: wPenaltiesCaused, worstVotesTotal: wWorstVotesTotal, beautifulGoalVotesTotal: wBeautifulGoalVotesTotal,
-      yellow: wYellow, red: wRed, matchRankAvg: wMatchRankAvg,
-      goalsConceded: wGoalsConceded, gkWeight: wGkWeight, saves: wSaves, penaltiesSaved: wPenaltiesSaved,
+      openPlayGoals: wNorm(wOpenPlayGoals, manual.goals||0), freekickScored: wNorm(wFreekickScored, manual.freekickScored||0),
+      cornersScored: wNorm(wCornersScored, manual.cornersScored||0), penaltiesScored: wNorm(wPenaltiesScored, manual.penaltiesScored||0),
+      assists: wNorm(wAssists, manual.assists||0), avgRating: wAvgRating, ratingsCount: wRatingsWeight, mvp: wNorm(wMvp, 0),
+      tacklesWon: wNorm(wTacklesWon, manual.tacklesWon||0), shotsOnTarget: wNorm(wShotsOnTarget, manual.shotsOnTarget||0),
+      minutesPlayed: wNorm(wMinutesPlayed, manual.minutesPlayed||0), timesStarter: wNorm(wTimesStarter, manual.timesStarter||0),
+      penaltiesMissed: wNorm(wPenaltiesMissed, manual.penaltiesMissed||0), penaltiesCaused: wNorm(wPenaltiesCaused, manual.penaltiesCaused||0),
+      worstVotesTotal: wNorm(wWorstVotesTotal, 0), beautifulGoalVotesTotal: wNorm(wBeautifulGoalVotesTotal, 0),
+      yellow: wNorm(wYellow, manual.yellow||0), red: wNorm(wRed, manual.red||0), matchRankAvg: wMatchRankAvg,
+      // goalsConceded/gkWeight restent une paire somme/poids (déjà utilisée comme un ratio dans cardRating,
+      // via concededPerMatch = goalsConceded/gkWeight) — c'est déjà une moyenne, pas besoin de re-diviser.
+      goalsConceded: wGoalsConceded, gkWeight: wGkWeight,
+      saves: wNorm(wSaves, manual.saves||0), penaltiesSaved: wNorm(wPenaltiesSaved, manual.penaltiesSaved||0),
       totalWeight: wTotalWeight,
     };
     return {goals, openPlayGoals, freekickScored, freekickTaken, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted};
@@ -2711,16 +2728,19 @@ const App = {
     const playtimeBonus = (w.minutesPlayed>0)
       ? (w.minutesPlayed/90) * 3.0
       : (w.timesStarter||0)*0.8;
-    // "Confiance" du général selon le nombre de matchs déjà joués (pondéré importance, voir totalWeight) :
-    // avec très peu de matchs, tout ce qui vient des stats/votes/notes ci-dessus (mais PAS le Ballon d'Or /
-    // Pire Joueur / Pire Action, qui restent des votes de fin de saison à part entière) est amorti, pour
-    // qu'UN SEUL match (même exceptionnel — plusieurs buts, MVP, très bien noté) ne puisse plus, à lui seul,
-    // faire grimper quelqu'un de 50 à 90, ni faire monter quasiment tout le monde d'un coup après un seul
-    // match. Ça n'empêche personne de monter haut — mais il faut plusieurs matchs pour vraiment le mériter,
-    // pas la performance d'un seul jour. Pleine confiance (1x) atteinte à partir de l'équivalent de 4 matchs
-    // "normaux" (poids 1x) déjà joués ; en dessous, la confiance grandit linéairement avec le nombre de matchs.
+    // "Confiance" du général selon le nombre de VRAIS matchs déjà joués (stats.matchesPlayed, jamais
+    // pondéré par l'importance — voir pourquoi ci-dessous) : avec très peu de matchs, tout ce qui vient des
+    // stats/votes/notes ci-dessus (mais PAS le Ballon d'Or / Pire Joueur / Pire Action, qui restent des
+    // votes de fin de saison à part entière) est amorti, pour qu'UN SEUL match (même exceptionnel —
+    // plusieurs buts, MVP, très bien noté) ne puisse plus, à lui seul, faire grimper quelqu'un de 50 à 90,
+    // ni faire monter quasiment tout le monde d'un coup après un seul match. Ça n'empêche personne de
+    // monter haut — mais il faut plusieurs matchs pour vraiment le mériter, pas la performance d'un seul
+    // jour. Pleine confiance (1x) atteinte à partir de 4 matchs déjà joués ; en dessous, la confiance
+    // grandit linéairement. IMPORTANT : basé sur le nombre RÉEL de matchs (stats.matchesPlayed), jamais sur
+    // le poids d'importance cumulé — sinon un seul match classé "décisif" (poids ×10) donnait à lui tout
+    // seul une pleine confiance (10/4 ≥ 1), ce qui annulait complètement cet amortissement.
     const CONFIDENCE_SPAN = 4;
-    const confidence = Math.min(1, (w.totalWeight||0) / CONFIDENCE_SPAN);
+    const confidence = Math.min(1, (stats.matchesPlayed||0) / CONFIDENCE_SPAN);
     // Un gardien a un barème à part : il ne marque presque jamais et serait donc condamné à rester scotché
     // au plancher avec le barème des joueurs de champ (pensé pour valoriser les buts/tirs/tacles). Son général
     // valorise plutôt les arrêts, les penaltys stoppés, et le nombre de buts encaissés PAR MATCH (une moyenne,
