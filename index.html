@@ -2466,7 +2466,7 @@ const App = {
         wPenaltiesMissed=manual.penaltiesMissed||0, wPenaltiesCaused=manual.penaltiesCaused||0,
         wShotsOnTarget=manual.shotsOnTarget||0, wTacklesWon=manual.tacklesWon||0,
         wSaves=manual.saves||0, wPenaltiesSaved=manual.penaltiesSaved||0,
-        wMatchRankSum=0, wMatchRankWeight=0;
+        wMatchRankSum=0, wMatchRankWeight=0, wTotalWeight=0;
     matches.forEach(m=>{
       const w = this.matchWeight(m);
       // Équipe sur laquelle CE joueur a vraiment joué CE match précis : basé sur m.teamA/m.teamB (la
@@ -2515,6 +2515,7 @@ const App = {
         : ((m.teamA||[]).includes(name) || (m.teamB||[]).includes(name));
       if(wasInvolved){
         matchesPlayed++;
+        wTotalWeight += w;
         const wasStarter = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && Object.values(t.assignments).includes(name));
         if(wasStarter){ timesStarter++; wTimesStarter += w; } else timesSub++;
       }
@@ -2592,6 +2593,7 @@ const App = {
       penaltiesMissed: wPenaltiesMissed, penaltiesCaused: wPenaltiesCaused, worstVotesTotal: wWorstVotesTotal, beautifulGoalVotesTotal: wBeautifulGoalVotesTotal,
       yellow: wYellow, red: wRed, matchRankAvg: wMatchRankAvg,
       goalsConceded: wGoalsConceded, gkWeight: wGkWeight, saves: wSaves, penaltiesSaved: wPenaltiesSaved,
+      totalWeight: wTotalWeight,
     };
     return {goals, openPlayGoals, freekickScored, freekickTaken, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted};
   },
@@ -2709,6 +2711,16 @@ const App = {
     const playtimeBonus = (w.minutesPlayed>0)
       ? (w.minutesPlayed/90) * 3.0
       : (w.timesStarter||0)*0.8;
+    // "Confiance" du général selon le nombre de matchs déjà joués (pondéré importance, voir totalWeight) :
+    // avec très peu de matchs, tout ce qui vient des stats/votes/notes ci-dessus (mais PAS le Ballon d'Or /
+    // Pire Joueur / Pire Action, qui restent des votes de fin de saison à part entière) est amorti, pour
+    // qu'UN SEUL match (même exceptionnel — plusieurs buts, MVP, très bien noté) ne puisse plus, à lui seul,
+    // faire grimper quelqu'un de 50 à 90, ni faire monter quasiment tout le monde d'un coup après un seul
+    // match. Ça n'empêche personne de monter haut — mais il faut plusieurs matchs pour vraiment le mériter,
+    // pas la performance d'un seul jour. Pleine confiance (1x) atteinte à partir de l'équivalent de 4 matchs
+    // "normaux" (poids 1x) déjà joués ; en dessous, la confiance grandit linéairement avec le nombre de matchs.
+    const CONFIDENCE_SPAN = 4;
+    const confidence = Math.min(1, (w.totalWeight||0) / CONFIDENCE_SPAN);
     // Un gardien a un barème à part : il ne marque presque jamais et serait donc condamné à rester scotché
     // au plancher avec le barème des joueurs de champ (pensé pour valoriser les buts/tirs/tacles). Son général
     // valorise plutôt les arrêts, les penaltys stoppés, et le nombre de buts encaissés PAR MATCH (une moyenne,
@@ -2722,12 +2734,12 @@ const App = {
       // exceptionnellement à sens unique (ex : 10 buts encaissés dans un match très ouvert) ne doit pas à lui
       // seul écraser le général au plancher — un match difficile pèse, mais pas de façon disproportionnée.
       const concededPenalty = Math.sqrt(Math.max(0, concededPerMatch)) * 3.2;
-      let rg = 52 + gkImpact + cleanSheetBonus - concededPenalty + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0
+      let rg = 52 + confidence*(gkImpact + cleanSheetBonus - concededPenalty + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0
         + playtimeBonus
         - w.worstVotesTotal*1.4
         - (w.yellow||0)*0.8 - (w.red||0)*3.2
-        + (w.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0)
-        + (stats.pireJoueurAdj||0) + (stats.pireActionAdj||0);
+        + (w.beautifulGoalVotesTotal||0)*1.15)
+        + (stats.ballonDorAdj||0) + (stats.pireJoueurAdj||0) + (stats.pireActionAdj||0);
       return this.compressRating(rg);
     }
     // Chaque façon de marquer pèse différemment sur le général, du plus dur au plus facile :
@@ -2742,12 +2754,12 @@ const App = {
     // augmenté (plus du double) pour que chaque titre de MVP se voie vraiment. Le MVP n'est PLUS celui qui a
     // la meilleure note individuelle : c'est celui qui est 1er du classement du match voté par l'équipe
     // (voir matchMVP()) — sa note perso peut être plus basse que celle d'un autre joueur, ça ne change rien.
-    let r = 52 + scoringImpact + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0 + w.tacklesWon*0.9 + (w.shotsOnTarget||0)*0.4
+    let r = 52 + confidence*(scoringImpact + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0 + w.tacklesWon*0.9 + (w.shotsOnTarget||0)*0.4
       + playtimeBonus
       - w.penaltiesMissed*2.8 - w.worstVotesTotal*1.4 - w.penaltiesCaused*2.6
       - (w.yellow||0)*0.8 - (w.red||0)*3.2
-      + (w.beautifulGoalVotesTotal||0)*1.15 + (stats.ballonDorAdj||0)
-      + (stats.pireJoueurAdj||0) + (stats.pireActionAdj||0);
+      + (w.beautifulGoalVotesTotal||0)*1.15)
+      + (stats.ballonDorAdj||0) + (stats.pireJoueurAdj||0) + (stats.pireActionAdj||0);
     return this.compressRating(r);
   },
   // Comme sur une vraie carte : en dessous du seuil "élite", la note suit la formule brute normalement.
