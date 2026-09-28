@@ -4977,11 +4977,32 @@ const App = {
   },
   async setPresence(matchId, name, status){
     this.ensureMe(async ()=>{
-      const ref = this.db.collection("matches").doc(matchId);
-      // Écrit uniquement la feuille "status" (jamais l'objet entier) pour ne pas effacer une éventuelle
-      // note déjà enregistrée pour ce joueur sur ce match (voir flattenForUpdate plus haut dans le fichier).
-      // status==='' (recliquer sur le statut déjà actif) remet explicitement null, ce qui désélectionne.
-      await ref.update({presence:{[name]:{status: status || null}}});
+      const newStatus = status || null;
+      // Mise à jour "optimiste" : on modifie l'état local et on réaffiche TOUT DE SUITE, avant même que le
+      // serveur ait confirmé — sinon, sur une connexion lente (typiquement en 4G au stade), le bouton reste
+      // visuellement inchangé pendant 1 à plusieurs secondes après le clic, ce qui donnait l'impression
+      // qu'on ne pouvait plus décocher (le clic avait pourtant bien été envoyé, juste pas encore affiché).
+      // On garde l'ancienne valeur de côté pour pouvoir l'annuler proprement si l'écriture échoue vraiment.
+      const m = this.state.matches.find(x=>x.id===matchId);
+      const prevEntry = m && m.presence && m.presence[name];
+      if(m){
+        m.presence = m.presence || {};
+        const prevNote = (prevEntry && typeof prevEntry==='object') ? prevEntry.note : undefined;
+        m.presence[name] = prevNote!==undefined ? {status:newStatus, note:prevNote} : {status:newStatus};
+        this.render();
+      }
+      try{
+        const ref = this.db.collection("matches").doc(matchId);
+        // Écrit uniquement la feuille "status" (jamais l'objet entier) pour ne pas effacer une éventuelle
+        // note déjà enregistrée pour ce joueur sur ce match (voir flattenForUpdate plus haut dans le fichier).
+        // status==='' (recliquer sur le statut déjà actif) remet explicitement null, ce qui désélectionne.
+        await ref.update({presence:{[name]:{status: newStatus}}});
+      }catch(e){
+        // L'écriture a vraiment échoué (réseau coupé, pas juste lent) : on annule le changement local pour
+        // ne pas laisser croire que c'est enregistré alors que ça ne l'est pas, et on prévient clairement.
+        if(m){ m.presence[name] = prevEntry; this.render(); }
+        toast("❌ Échec de l'enregistrement (réseau ?) — réessaie");
+      }
     });
   },
   teamNames(){
@@ -6746,10 +6767,27 @@ const App = {
   },
   async setEventPresence(eventId, name, status){
     this.ensureMe(async ()=>{
-      // Écrit uniquement la feuille "status" pour ne pas effacer une éventuelle note déjà enregistrée
-      // (voir flattenForUpdate plus haut dans le fichier, et le même choix dans setPresence()).
-      // status==='' (recliquer sur le statut déjà actif) remet explicitement null, ce qui désélectionne.
-      await this.db.collection("events").doc(eventId).update({responses:{[name]:{status: status || null}}});
+      const newStatus = status || null;
+      // Même mise à jour "optimiste" que setPresence() (voir son commentaire) : on affiche tout de suite le
+      // nouveau statut, sans attendre la confirmation du serveur, pour que décocher se voie immédiatement
+      // même sur une connexion lente.
+      const ev = this.state.events.find(x=>x.id===eventId);
+      const prevEntry = ev && ev.responses && ev.responses[name];
+      if(ev){
+        ev.responses = ev.responses || {};
+        const prevNote = (prevEntry && typeof prevEntry==='object') ? prevEntry.note : undefined;
+        ev.responses[name] = prevNote!==undefined ? {status:newStatus, note:prevNote} : {status:newStatus};
+        this.render();
+      }
+      try{
+        // Écrit uniquement la feuille "status" pour ne pas effacer une éventuelle note déjà enregistrée
+        // (voir flattenForUpdate plus haut dans le fichier, et le même choix dans setPresence()).
+        // status==='' (recliquer sur le statut déjà actif) remet explicitement null, ce qui désélectionne.
+        await this.db.collection("events").doc(eventId).update({responses:{[name]:{status: newStatus}}});
+      }catch(e){
+        if(ev){ ev.responses[name] = prevEntry; this.render(); }
+        toast("❌ Échec de l'enregistrement (réseau ?) — réessaie");
+      }
     });
   },
 };
