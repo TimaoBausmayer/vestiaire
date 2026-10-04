@@ -2430,6 +2430,22 @@ const App = {
     ],
   },
   ratingCriteriaFor(position){ return position==='Gardien' ? this.RATING_CRITERIA.gk : this.RATING_CRITERIA.outfield; },
+  // Le poste qui compte pour NOTER quelqu'un est celui qu'il a vraiment tenu dans la composition de CE match
+  // (gardien dans la tactique = tableau gardien), pas celui de sa fiche Recrue. On ne retombe sur la fiche
+  // que si le match n'a aucune composition avec un gardien (vieux matchs).
+  wasGKInMatch(m, name){
+    return [m && m.tactic, m && m.tacticA, m && m.tacticB].some(t=>t && t.assignments && t.assignments.GK===name);
+  },
+  matchHasGKInfo(m){
+    return [m && m.tactic, m && m.tacticA, m && m.tacticB].some(t=>t && t.assignments && t.assignments.GK);
+  },
+  isRatedAsGK(m, name){
+    if(this.wasGKInMatch(m, name)) return true;
+    if(this.matchHasGKInfo(m)) return false;
+    const p = this.state.players.find(x=>x.name===name);
+    return !!(p && p.position==='Gardien');
+  },
+  ratingCriteriaForMatch(m, name){ return this.isRatedAsGK(m, name) ? this.RATING_CRITERIA.gk : this.RATING_CRITERIA.outfield; },
   computePlayerStats(name, opts){
     let matches;
     if(opts && typeof opts==='object' && opts.includeIds){
@@ -2443,7 +2459,8 @@ const App = {
     const manual = (player && player.manualStats) || {};
     const critList = this.ratingCriteriaFor(player && player.position);
     const critSums = {}, critCounts = {};
-    critList.forEach(c=>{ critSums[c.key]=0; critCounts[c.key]=0; });
+    const allCrit = [...this.RATING_CRITERIA.outfield, ...this.RATING_CRITERIA.gk.filter(c=>!this.RATING_CRITERIA.outfield.some(o=>o.key===c.key))];
+    allCrit.forEach(c=>{ critSums[c.key]=0; critCounts[c.key]=0; });
     let openPlayGoals=manual.goals||0, freekickScored=manual.freekickScored||0, assists=manual.assists||0, ratingsSum=0, ratingsCount=0, mvp=0, matchesPlayed=0, goalsConceded=0,
         timesStarter=manual.timesStarter||0, timesSub=manual.timesSub||0,
         yellow=manual.yellow||0, red=manual.red||0, worstVotesTotal=0, beautifulGoalVotesTotal=0, W=0, D=0, L=0,
@@ -2556,7 +2573,7 @@ const App = {
       const dr = m.detailedRatings && m.detailedRatings[name];
       if(dr){
         Object.values(dr).forEach(entry=>{
-          critList.forEach(c=>{
+          allCrit.forEach(c=>{
             if(entry && typeof entry[c.key]==="number"){ critSums[c.key]+=entry[c.key]; critCounts[c.key]++; }
           });
         });
@@ -2569,7 +2586,7 @@ const App = {
     const wAvgRating = wRatingsWeight ? (wRatingsSum/wRatingsWeight) : 0;
     const wMatchRankAvg = wMatchRankWeight ? (wMatchRankSum/wMatchRankWeight) : 0;
     const criteria = {};
-    critList.forEach(c=>{ criteria[c.key] = critCounts[c.key] ? (critSums[c.key]/critCounts[c.key]) : 0; });
+    allCrit.forEach(c=>{ criteria[c.key] = critCounts[c.key] ? (critSums[c.key]/critCounts[c.key]) : 0; });
     const ballonDorAdj = this.ballonDorAdj(name);
     // Symétrique du Ballon d'Or, mais dans l'autre sens : être désigné "Pire Joueur" (ou cumuler des votes
     // "Pire Action") de la saison doit vraiment faire baisser le général, pas juste ne pas le faire monter —
@@ -6244,7 +6261,7 @@ const App = {
         const teamAvg = allVals.length ? avg(allVals) : null;
         return `
         <div class="presence-row">
-          <span class="nm">${esc(n)}${p&&p.position==='Gardien'?' 🧤':''}</span>
+          <span class="nm">${esc(n)}${this.isRatedAsGK(m,n)?' 🧤':''}</span>
           <span class="muted" style="font-size:12px;margin-right:8px;">${myAvg!=null?"Ta note : "+myAvg+"/10":""}${allVals.length>1?" · Moyenne équipe : "+teamAvg.toFixed(1)+"/10 ("+allVals.length+" votes)":""}</span>
           <button class="pbtn ${mine?'on-present':''}" onclick="App.openRatePlayer('${m.id}','${jsa(n)}')">${mine?'✏️ Modifier':'📝 Noter'}</button>
         </div>`;
@@ -6387,11 +6404,11 @@ const App = {
     const m = this.state.matches.find(x=>x.id===matchId);
     if(!m) return;
     const p = this.state.players.find(x=>x.name===name);
-    const critList = this.ratingCriteriaFor(p && p.position);
+    const critList = this.ratingCriteriaForMatch(m, name);
     const raterKey = this.me ? slugify(this.me) : null;
     const mine = (raterKey && m.detailedRatings && m.detailedRatings[name] && m.detailedRatings[name][raterKey]) || {};
     this.modal(`
-      <h3>📝 Noter ${esc(name)}${p&&p.position==='Gardien'?' 🧤 (gardien)':''}</h3>
+      <h3>📝 Noter ${esc(name)}${this.isRatedAsGK(m,name)?' 🧤 (gardien sur ce match)':''}</h3>
       <p class="muted" style="font-size:12px;margin-top:-4px;">${fmtDate(m.date)}${m.opponent?" · vs "+esc(m.opponent):""}</p>
       <p class="muted" style="font-size:11.5px;margin-bottom:8px;">La note retenue pour la moyenne du joueur est la moyenne de toutes les notes remplies ci-dessous.</p>
       ${critList.map(c=>`<label class="field">${c.label} <input type="number" min="0" max="10" step="0.5" id="rc-${c.key}" value="${mine[c.key]!=null?mine[c.key]:''}" placeholder="–"></label>`).join("")}
@@ -6402,7 +6419,7 @@ const App = {
     const m = this.state.matches.find(x=>x.id===matchId);
     if(!m) return;
     const p = this.state.players.find(x=>x.name===name);
-    const critList = this.ratingCriteriaFor(p && p.position);
+    const critList = this.ratingCriteriaForMatch(m, name);
     const entry = {};
     let sum=0, count=0;
     critList.forEach(c=>{
