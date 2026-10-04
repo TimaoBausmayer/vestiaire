@@ -2471,7 +2471,7 @@ const App = {
         minutesPlayed=manual.minutesPlayed||0, matchVoteBest=0, matchVoteWorst=0, matchRankSum=0, matchRankCount=0;
     // Version "pondérée" de ces mêmes totaux, utilisée UNIQUEMENT pour calculer le général (cardRating) :
     // chaque match n'y contribue plus pour 1x, mais pour son poids d'importance (voir matchWeight / le
-    // barème IMPORTANCE_BAREME) — un match noté 1/10 pèse 5x moins qu'un match "normal" (5/10, poids 1x),
+    // barème IMPORTANCE_BAREME) — un match noté 1/10 pèse 0,8x un match "normal" (5/10, poids 1x),
     // un match noté 10/10 pèse 2x plus. Les stats manuelles (import, sans match associé) gardent un poids
     // normal (1x). Les totaux BRUTS ci-dessus restent inchangés et continuent d'alimenter les classements
     // (Buteur, Passeur, etc.) et les fiches joueur, qui doivent rester de vrais compteurs, pas des valeurs
@@ -2643,8 +2643,12 @@ const App = {
   // les vrais compteurs de buts/passes/etc. et les classements associés ne sont JAMAIS pondérés.
   matchWeight(m){
     const imp = (m && m.importance!=null) ? m.importance : 5;
-    if(imp<=5) return imp/5;
-    return 1 + (imp-5) * ((10-1)/(10-5));
+    // Écart volontairement modéré entre un petit match et un match décisif : avant, un match à 1/10 ne
+    // pesait que 0,2x (quasi invisible : 8 buts + homme du match comptaient pour presque rien) et un 10/10
+    // pesait 10x. Maintenant 1/10 = 0,8x, 5/10 = 1x (référence), 10/10 = 2x : un gros match, même peu
+    // important, fait toujours vraiment monter le général, et un match décisif compte plus sans tout écraser.
+    if(imp<=5) return 0.8 + 0.05*(Math.max(1,imp)-1);
+    return 1 + (imp-5) * 0.2;
   },
   IMPORTANCE_BAREME: [
     {min:1, max:2, emoji:'⚪', label:'Entraînement / amical', desc:'impact très faible'},
