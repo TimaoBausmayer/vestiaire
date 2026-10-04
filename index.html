@@ -6162,10 +6162,9 @@ const App = {
         }).join("")}
       </div>
       ${(()=>{
-        const used = new Set(Object.values(assignments).filter(Boolean));
-        const bench = roster.filter(n=>!used.has(n));
+        const bench = this.bestXIBench(view, tactic);
         return `<p class="muted" style="font-size:11.5px;margin:10px 0 4px;">🔁 Remplaçants (${bench.length})</p>
-        <div class="variant-row">${bench.length ? bench.map(n=>`<span class="chip" style="cursor:default;">${esc(n)}</span>`).join("") : `<span class="muted" style="font-size:12px;">Tout le monde est titulaire.</span>`}</div>`;
+        <div class="variant-row">${bench.map(n=>`<span class="chip" style="cursor:default;">${esc(n)}</span>`).join("")}${bench.length?'':`<span class="muted" style="font-size:12px;">Aucun remplaçant choisi.</span>`}${this.admin?`<span class="chip" onclick="App.openBestXISubsPicker('${view}')">➕ Choisir les remplaçants</span>`:''}</div>`;
       })()}
       ${this.renderDrawTools(target, moves)}
       <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="App.shareBestXIToChat('${view}')">📤 Partager dans le chat</button>
@@ -6181,8 +6180,7 @@ const App = {
     const channel = view==='A' ? 'A' : view==='B' ? 'B' : 'general';
     const lines = slots.filter(s=>assignments[s.k]).map(s=>`${s.k} — ${assignments[s.k]}`);
     const header = `🌟 Meilleur 11 (${tactic.name||'Variante'}) — ${label} — ${formation}`;
-    const usedN = new Set(Object.values(assignments).filter(Boolean));
-    const benchN = this.bestXIRoster(view).filter(n=>!usedN.has(n));
+    const benchN = this.bestXIBench(view, tactic);
     const text = header + "\n" + (lines.length? lines.join("\n") : "(pas encore composé)") + (lines.length && benchN.length ? "\n🔁 Remplaçants : "+benchN.join(", ") : "");
     this.ensureMe(async (me)=>{
       await this.db.collection("messages").add({channel, author:me, text, createdAt:new Date().toISOString()});
@@ -6204,6 +6202,35 @@ const App = {
         ${roster.map(n=>`<span class="chip" onclick="App.assignBestXISlot('${view}','${slotKey}','${jsa(n)}')">${esc(n)}</span>`).join("") || "<p class='muted'>Aucun joueur disponible pour ce groupe.</p>"}
       </div>
     `);
+  },
+  bestXIBench(view, v){
+    const used = new Set(Object.values(v.assignments||{}).filter(Boolean));
+    const roster = this.bestXIRoster(view);
+    if(Array.isArray(v.subs)) return v.subs.filter(n=>roster.includes(n) && !used.has(n));
+    return roster.filter(n=>!used.has(n));
+  },
+  openBestXISubsPicker(view){
+    const v = this.activeBestXIVariant(view);
+    const used = new Set(Object.values(v.assignments||{}).filter(Boolean));
+    const bench = new Set(this.bestXIBench(view, v));
+    const cand = this.bestXIRoster(view).filter(n=>!used.has(n));
+    this.modal(`
+      <h3>🔁 Remplaçants</h3>
+      <p class="muted" style="font-size:12px;">Clique pour ajouter / retirer.</p>
+      <div class="wrap">
+        ${cand.map(n=>`<span class="chip ${bench.has(n)?'active':''}" onclick="App.toggleBestXISub('${view}','${jsa(n)}')">${bench.has(n)?'✅ ':''}${esc(n)}</span>`).join("") || "<p class='muted'>Tout le monde est titulaire.</p>"}
+      </div>
+      <button class="btn btn-sm" style="margin-top:10px;" onclick="App.closeModal()">OK</button>
+    `);
+  },
+  async toggleBestXISub(view, name){
+    const data = this.getBestXIData(view);
+    const v = data.variants.find(x=>x.id===data.activeId);
+    const cur = new Set(this.bestXIBench(view, v));
+    if(cur.has(name)) cur.delete(name); else cur.add(name);
+    v.subs = [...cur];
+    await this.saveBestXIData(view, data);
+    this.openBestXISubsPicker(view);
   },
   async assignBestXISlot(view, slotKey, name){
     const data = this.getBestXIData(view);
