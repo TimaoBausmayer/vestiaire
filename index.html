@@ -2489,7 +2489,25 @@ const App = {
     const p = this.state.players.find(x=>x.name===name);
     return !!(p && p.position==='Gardien');
   },
-  ratingCriteriaForMatch(m, name){ return this.isRatedAsGK(m, name) ? this.RATING_CRITERIA.gk : this.RATING_CRITERIA.outfield; },
+  // A tenu le but ET joué dans le champ sur ce match (ex. 45 min gardien, le reste défenseur) : on le note
+  // dans les deux rôles. Si les minutes ne sont pas saisies, on propose les deux tableaux (les champs vides
+  // sont simplement ignorés).
+  playedBothRoles(m, name){
+    if(!this.wasGKInMatch(m, name)) return false;
+    const gkMin = this.gkMinutesFor(m, name);
+    if(gkMin<=0) return false; // gardien de la composition seulement : noté comme gardien
+    const played = ((m.minutesPlayed||[]).find(x=>x.name===name)||{}).count||0;
+    return played===0 || played>gkMin;
+  },
+  ratingCriteriaForMatch(m, name){
+    if(this.playedBothRoles(m, name)){
+      return [
+        ...this.RATING_CRITERIA.outfield.map(c=>({...c, section:'⚽ En tant que joueur'})),
+        ...this.RATING_CRITERIA.gk.map(c=>({...c, key: c.key==='global' ? 'globalGk' : c.key, label: c.key==='global' ? '⭐ Note globale gardien' : c.label, section:'🧤 En tant que gardien'})),
+      ];
+    }
+    return this.isRatedAsGK(m, name) ? this.RATING_CRITERIA.gk : this.RATING_CRITERIA.outfield;
+  },
   computePlayerStats(name, opts){
     let matches;
     if(opts && typeof opts==='object' && opts.includeIds){
@@ -6380,7 +6398,7 @@ const App = {
         const teamAvg = allVals.length ? avg(allVals) : null;
         return `
         <div class="presence-row">
-          <span class="nm">${esc(n)}${this.isRatedAsGK(m,n)?' 🧤':''}</span>
+          <span class="nm">${esc(n)}${this.playedBothRoles(m,n)?' ⚽🧤':this.isRatedAsGK(m,n)?' 🧤':''}</span>
           <span class="muted" style="font-size:12px;margin-right:8px;">${myAvg!=null?"Ta note : "+myAvg+"/10":""}${allVals.length>1?" · Moyenne équipe : "+teamAvg.toFixed(1)+"/10 ("+allVals.length+" votes)":""}</span>
           <button class="pbtn ${mine?'on-present':''}" onclick="App.openRatePlayer('${m.id}','${jsa(n)}')">${mine?'✏️ Modifier':'📝 Noter'}</button>
         </div>`;
@@ -6527,10 +6545,10 @@ const App = {
     const raterKey = this.me ? slugify(this.me) : null;
     const mine = (raterKey && m.detailedRatings && m.detailedRatings[name] && m.detailedRatings[name][raterKey]) || {};
     this.modal(`
-      <h3>📝 Noter ${esc(name)}${this.isRatedAsGK(m,name)?' 🧤 (gardien sur ce match)':''}</h3>
+      <h3>📝 Noter ${esc(name)}${this.playedBothRoles(m,name)?' ⚽🧤 (joueur et gardien)':this.isRatedAsGK(m,name)?' 🧤 (gardien sur ce match)':''}</h3>
       <p class="muted" style="font-size:12px;margin-top:-4px;">${fmtDate(m.date)}${m.opponent?" · vs "+esc(m.opponent):""}</p>
       <p class="muted" style="font-size:11.5px;margin-bottom:8px;">La note retenue pour la moyenne du joueur est la moyenne de toutes les notes remplies ci-dessous.</p>
-      ${critList.map(c=>`<label class="field">${c.label} <input type="number" min="0" max="10" step="0.5" id="rc-${c.key}" value="${mine[c.key]!=null?mine[c.key]:''}" placeholder="–"></label>`).join("")}
+      ${critList.map((c,i)=>`${c.section && (i===0 || critList[i-1].section!==c.section) ? `<p style="font-weight:700;font-size:13px;margin:12px 0 4px;">${c.section}</p>` : ""}<label class="field">${c.label} <input type="number" min="0" max="10" step="0.5" id="rc-${c.key}" value="${mine[c.key]!=null?mine[c.key]:''}" placeholder="–"></label>`).join("")}
       <button class="btn btn-accent btn-block" onclick="App.submitPlayerRating('${matchId}','${jsa(name)}')">Enregistrer ma note</button>
     `);
   },
