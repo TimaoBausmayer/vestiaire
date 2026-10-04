@@ -6119,7 +6119,8 @@ const App = {
     const formation = tactic.formation || "4-3-3";
     const assignments = tactic.assignments || {};
     const moves = tactic.moves || [];
-    const slots = this.FORMATIONS[formation];
+    const positions = tactic.positions || {};
+    const slots = this.FORMATIONS[formation].map(s=> positions[s.k] ? {...s, t:positions[s.k].t, l:positions[s.k].l} : s);
     const roster = this.bestXIRoster(view);
     const target = `bestxi|${view}`;
     const drawing = this.draw.target === target;
@@ -6155,7 +6156,7 @@ const App = {
         ${slots.map(s=>{
           const assigned = assignments[s.k];
           const isPending = pending===s.k;
-          return `<div class="slot ${assigned?'':'empty'} ${isPending?'pending':''}" style="top:${s.t}%;left:${s.l}%;" ${this.admin?`onclick="App.bestXISlotClick('${view}','${s.k}')"`:''}>
+          return `<div class="slot ${assigned?'':'empty'} ${isPending?'pending':''}" style="top:${s.t}%;left:${s.l}%;touch-action:none;" ${this.admin?`onpointerdown="App.startBestXISlotDrag(event,'${view}','${s.k}')"`:''}>
             <div class="dot">${assigned? initials(assigned) : s.k.replace(/[0-9]/g,'')}</div>
             <div class="lb">${assigned? esc(assigned).split(' ')[0] : s.k}</div>
           </div>`;
@@ -6166,6 +6167,8 @@ const App = {
         return `<p class="muted" style="font-size:11.5px;margin:10px 0 4px;">🔁 Remplaçants (${bench.length})</p>
         <div class="variant-row">${bench.map(n=>`<span class="chip" style="cursor:default;">${esc(n)}</span>`).join("")}${bench.length?'':`<span class="muted" style="font-size:12px;">Aucun remplaçant choisi.</span>`}${this.admin?`<span class="chip" onclick="App.openBestXISubsPicker('${view}')">➕ Choisir les remplaçants</span>`:''}</div>`;
       })()}
+      ${this.admin ? `<p class="muted" style="font-size:11px;margin:6px 0 0;">💡 Fais glisser un rond pour le placer où tu veux — touche-le sans bouger pour changer le joueur.</p>`:''}
+      ${this.admin && Object.keys(positions).length ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="App.resetBestXIPositions('${view}')">↩️ Remettre les postes par défaut</button>`:''}
       ${this.renderDrawTools(target, moves)}
       <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="App.shareBestXIToChat('${view}')">📤 Partager dans le chat</button>
     </div>`;
@@ -6232,6 +6235,46 @@ const App = {
     await this.saveBestXIData(view, data);
     this.openBestXISubsPicker(view);
   },
+  startBestXISlotDrag(evt, view, slotKey){
+    if(!this.admin) return;
+    const target = `bestxi|${view}`;
+    const drawModeActive = this.draw.target === target;
+    evt.preventDefault();
+    const slotEl = evt.currentTarget;
+    const pitchEl = slotEl.closest('.pitch');
+    if(!pitchEl){ this.bestXISlotClick(view, slotKey); return; }
+    const rect = pitchEl.getBoundingClientRect();
+    const startX = evt.clientX, startY = evt.clientY;
+    let moved = false, lastL = null, lastT = null;
+    const onMove = (e)=>{
+      if(drawModeActive) return;
+      if(Math.abs(e.clientX-startX)>6 || Math.abs(e.clientY-startY)>6) moved = true;
+      if(!moved) return;
+      const l = Math.max(3, Math.min(97, ((e.clientX-rect.left)/rect.width)*100));
+      const t = Math.max(4, Math.min(97, ((e.clientY-rect.top)/rect.height)*100));
+      slotEl.style.left = l+'%'; slotEl.style.top = t+'%';
+      lastL = l; lastT = t;
+    };
+    const onUp = async ()=>{
+      window.removeEventListener('pointermove', onMove);
+      if(moved && !drawModeActive && lastL!=null){
+        const data = this.getBestXIData(view);
+        const v = data.variants.find(x=>x.id===data.activeId);
+        v.positions = {...(v.positions||{}), [slotKey]:{t:Math.round(lastT*10)/10, l:Math.round(lastL*10)/10}};
+        await this.saveBestXIData(view, data);
+      } else {
+        this.bestXISlotClick(view, slotKey);
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, {once:true});
+  },
+  async resetBestXIPositions(view){
+    const data = this.getBestXIData(view);
+    const v = data.variants.find(x=>x.id===data.activeId);
+    v.positions = {};
+    await this.saveBestXIData(view, data);
+  },
   async assignBestXISlot(view, slotKey, name){
     const data = this.getBestXIData(view);
     const v = data.variants.find(x=>x.id===data.activeId);
@@ -6244,7 +6287,7 @@ const App = {
   async setBestXIFormation(view, formation){
     const data = this.getBestXIData(view);
     const v = data.variants.find(x=>x.id===data.activeId);
-    v.formation = formation; v.assignments = {}; v.moves = [];
+    v.formation = formation; v.assignments = {}; v.moves = []; v.positions = {};
     await this.saveBestXIData(view, data);
   },
 
