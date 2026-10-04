@@ -4856,22 +4856,33 @@ const App = {
   _v3Photos:{},
   async v3FetchPhoto(q){
     if(this._v3Photos[q]!==undefined) return this._v3Photos[q];
-    const norm=t=>t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-    const toks=norm(q).split(/[^a-z0-9]+/).filter(w=>w.length>2);
-    let res=[];
-    try{
-      const url='https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=8&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=900&exintro=1&explaintext=1&exsentences=3&exlimit=max&gsrsearch='+encodeURIComponent(q);
-      const r=await fetch(url); const j=await r.json();
-      const pages=Object.values((j.query&&j.query.pages)||{}).sort((a,b)=>a.index-b.index);
-      for(const p of pages){
-        if(!p.thumbnail||!p.thumbnail.source) continue;
-        const tt=norm(p.title);
-        if(toks.length && !toks.some(w=>tt.includes(w))) continue;
-        if(/\.(svg)(\/|$)/i.test(p.thumbnail.source) && /logo|flag|coat/i.test(p.title)) continue;
-        res.push({src:p.thumbnail.source,title:p.title,text:(p.extract||'').slice(0,420)}); if(res.length>=5) break;
+    const norm=t=>t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const variants=[...new Set([q, q.replace(/\b\d+([.,]\d+)?\s?(m²|m|pieds|hz|go|to|l)?\b/gi,'').replace(/\s+/g,' ').trim(), q.split(' ').slice(0,3).join(' '), q.split(' ').slice(0,2).join(' ')])].filter(v=>v&&v.length>2);
+    let res=null;
+    for(const host of ['en','fr']){
+      for(const v of variants){
+        const toks=norm(v).split(/[^a-z0-9]+/).filter(w=>w.length>2);
+        let out=[];
+        for(let attempt=0;attempt<2 && !out.length;attempt++){
+          try{
+            const url='https://'+host+'.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=8&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=900&exintro=1&explaintext=1&exsentences=3&exlimit=max&gsrsearch='+encodeURIComponent(v);
+            const r=await fetch(url); if(!r.ok){ await new Promise(z=>setTimeout(z,400)); continue; }
+            const j=await r.json();
+            const pages=Object.values((j.query&&j.query.pages)||{}).sort((a,b)=>a.index-b.index);
+            for(const p of pages){
+              if(!p.thumbnail||!p.thumbnail.source) continue;
+              const tt=norm(p.title);
+              if(toks.length && !toks.some(w=>tt.includes(w))) continue;
+              if(/logo|flag|coat of arms|drapeau|armoiries/i.test(p.title)) continue;
+              out.push({src:p.thumbnail.source,title:p.title,text:(p.extract||'').slice(0,420),host}); if(out.length>=5) break;
+            }
+            break;
+          }catch(e){ await new Promise(z=>setTimeout(z,400)); }
+        }
+        if(out.length){ res=out; break; }
       }
-    }catch(e){ res=[]; }
-    if(!res.length) res=null;
+      if(res) break;
+    }
     this._v3Photos[q]=res; return res;
   },
   async v3ShowPhoto(){
@@ -4882,7 +4893,7 @@ const App = {
     const list=q?await this.v3FetchPhoto(q):null; const ph=list?list[(s.pi||0)%list.length]:null;
     if(!this._v3||this._v3!==s||s.tok!==tok||!document.getElementById('v3box')) return;
     if(!ph){ s.hasPhoto=false; this.v3SetMode('3d',true); return; }
-    box.innerHTML=`<div class="v3photo"><img alt="" src="${ph.src}" onerror="App.v3PhotoFail()"><div class="cr">📷 Photo : Wikipédia — ${esc(ph.title)} (image indicative, peut montrer un autre modèle)</div>${list.length>1?`<button class="btn btn-ghost btn-sm" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;" onclick="App._v3.pi=(App._v3.pi||0)+1;App.v3ShowPhoto()">➡️ Autre photo (${((s.pi||0)%list.length)+1}/${list.length})</button>`:''}</div>${ph.text?`<div style="margin-top:8px;font-size:12.5px;line-height:1.45;"><b>📖 ${esc(ph.title)}</b><br><span class="muted">${esc(ph.text)}</span><br><a href="https://en.wikipedia.org/wiki/${encodeURIComponent(ph.title.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="font-size:12px;">Lire l'article complet sur Wikipédia ↗</a></div>`:''}`;
+    box.innerHTML=`<div class="v3photo"><img alt="" src="${ph.src}" onerror="App.v3PhotoFail()"><div class="cr">📷 Photo : Wikipédia — ${esc(ph.title)} (image indicative, peut montrer un autre modèle)</div>${list.length>1?`<button class="btn btn-ghost btn-sm" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;" onclick="App._v3.pi=(App._v3.pi||0)+1;App.v3ShowPhoto()">➡️ Autre photo (${((s.pi||0)%list.length)+1}/${list.length})</button>`:''}</div>${ph.text?`<div style="margin-top:8px;font-size:12.5px;line-height:1.45;"><b>📖 ${esc(ph.title)}</b><br><span class="muted">${esc(ph.text)}</span><br><a href="https://${ph.host||'en'}.wikipedia.org/wiki/${encodeURIComponent(ph.title.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="font-size:12px;">Lire l'article complet sur Wikipédia ↗</a></div>`:''}`;
   },
   v3PhotoFail(){ if(this._v3){ this._v3.hasPhoto=false; this.v3SetMode('3d',true); } },
   v3SetMode(m,auto){
