@@ -805,13 +805,13 @@ const App = {
       <h3 style="font-size:15px;">🙋 Identification joueur</h3>
       ${linkedPlayer ? `
         <p class="muted" style="font-size:12.5px;margin-top:-4px;">
-          Tu es identifié comme <b>${esc(linkedPlayer.name)}</b>. Ça veut dire : ses stats et sa fiche te représentent, tu touches son salaire automatiquement tous les mois dans 💰 Paris${salaryInfo? " ("+fmtEuro(salaryInfo.amount)+"/mois)":""}, et si tu prends un carton en match, c'est TON crédit qui baisse (les sanctions du capitaine aussi).
+          Tu es identifié comme <b>${esc(linkedPlayer.name)}</b>. Ça veut dire : ses stats et sa fiche te représentent, tu touches son salaire automatiquement chaque semaine dans 💰 Paris${salaryInfo? " ("+fmtEuro(salaryInfo.amount)+"/semaine)":""}, et si tu prends un carton en match, c'est TON crédit qui baisse (les sanctions du capitaine aussi).
         </p>
         <div style="display:flex;justify-content:center;margin:8px 0;">${this.renderFutCard(linkedPlayer)}</div>
         <button class="btn btn-ghost btn-block" onclick="App.unclaimPlayer(); App.closeModal();">Retirer mon identification</button>
       ` : `
         <p class="muted" style="font-size:12.5px;margin-top:-4px;">
-          Tu n'es identifié à aucune fiche joueur pour l'instant. Va dans 🃏 Recrues et clique sur "🙋 C'est moi" sur TA fiche : une fois fait, tu touches automatiquement son salaire chaque mois dans 💰 Paris, tu vois ses stats ici, et un seul compte peut revendiquer chaque joueur (personne d'autre ne pourra prendre ta place).
+          Tu n'es identifié à aucune fiche joueur pour l'instant. Va dans 🃏 Recrues et clique sur "🙋 C'est moi" sur TA fiche : une fois fait, tu touches automatiquement son salaire chaque semaine dans 💰 Paris, tu vois ses stats ici, et un seul compte peut revendiquer chaque joueur (personne d'autre ne pourra prendre ta place).
         </p>
         <button class="btn btn-accent btn-block" onclick="App.closeModal(); App.goTab(3);">Aller dans 🃏 Recrues</button>
       `}
@@ -2935,7 +2935,7 @@ const App = {
       const already = this.state.accounts.find(a=>a.linkedPlayer===playerName);
       if(already && already.username!==me){ toast("Déjà revendiqué par "+already.username); return; }
       await this.db.collection("accounts").doc(slugify(me)).update({linkedPlayer: playerName});
-      toast("✅ C'est toi maintenant : "+playerName+" — tu touches son salaire chaque mois dans 💰 Paris");
+      toast("✅ C'est toi maintenant : "+playerName+" — tu touches son salaire chaque semaine dans 💰 Paris");
       this.render();
     });
   },
@@ -2946,7 +2946,8 @@ const App = {
       this.render();
     });
   },
-  /* ---------- Salaire (versé tous les mois, indexé sur la valeur marchande) ---------- */
+  /* ---------- Salaire (versé toutes les semaines, indexé sur la valeur marchande) ---------- */
+  SALARY_PERIOD_MS: 7*24*3600*1000,
   playerSalary(name){
     const stats = this.computePlayerStats(name);
     const rating = this.cardRating(stats);
@@ -2969,7 +2970,7 @@ const App = {
     const player = this.state.players.find(p=>p.name===linkedName);
     if(!player) return null;
     const lastAt = acc && acc.lastSalaryAt ? new Date(acc.lastSalaryAt) : (acc && acc.createdAt ? new Date(acc.createdAt) : new Date());
-    const nextAt = new Date(lastAt); nextAt.setMonth(nextAt.getMonth()+1);
+    const nextAt = new Date(lastAt.getTime()+this.SALARY_PERIOD_MS);
     return {amount: this.effectiveSalary(linkedName, acc), nextAt: isNaN(nextAt) ? null : nextAt.toISOString(), linkedName};
   },
   checkAndPaySalaryIfNeeded(){
@@ -2985,13 +2986,13 @@ const App = {
     const lastAt = acc.lastSalaryAt ? new Date(acc.lastSalaryAt) : new Date(acc.createdAt||Date.now());
     if(isNaN(lastAt)) return;
     const now = new Date();
-    const periods = (now.getFullYear()-lastAt.getFullYear())*12 + (now.getMonth()-lastAt.getMonth());
+    const periods = Math.floor((now.getTime()-lastAt.getTime())/this.SALARY_PERIOD_MS);
     if(periods<1) return;
     const salary = this.effectiveSalary(linkedName, acc);
     const total = salary*periods;
-    const newLastAt = new Date(lastAt); newLastAt.setMonth(newLastAt.getMonth()+periods);
+    const newLastAt = new Date(lastAt.getTime()+periods*this.SALARY_PERIOD_MS);
     const newWallet = (acc.wallet||0) + total;
-    this.db.collection("accounts").doc(slugify(this.me)).update({wallet:newWallet, lastSalaryAt:newLastAt.toISOString(), lastSalaryAmount:salary}).then(()=>{
+    this.db.collection("accounts").doc(slugify(this.me)).update({wallet:newWallet, lastSalaryAt:newLastAt.toISOString(), lastSalaryAmount:salary, history:this.pushHistory(acc.history, {amount:total, label:"💼 Salaire"+(periods>1?" ("+periods+" semaines)":"")})}).then(()=>{
       toast("💼 Salaire versé : "+fmtEuro(total)+(periods>1? " ("+periods+" versements)":""));
     });
   },
@@ -3014,7 +3015,8 @@ const App = {
     const fresh = await this.db.collection("accounts").doc(id).get();
     const currentWallet = fresh.exists ? (fresh.data().wallet||0) : (linked.wallet||0);
     const newWallet = Math.max(0, currentWallet - amount);
-    await this.db.collection("accounts").doc(id).update({wallet:newWallet});
+    const prevHist = fresh.exists ? fresh.data().history : linked.history;
+    await this.db.collection("accounts").doc(id).update({wallet:newWallet, history:this.pushHistory(prevHist, {amount:-(currentWallet-newWallet), label:"⚠️ Amende : "+(reason||"sanction")})});
     return {account:linked.username, amount, newWallet, reason};
   },
   // Appelé juste après l'enregistrement d'un résultat de match (voir saveResult) : applique l'amende
@@ -3056,6 +3058,108 @@ const App = {
     if(!r){ toast("Aucun compte lié à ce joueur"); return; }
     this.closeModal();
     toast("⚠️ "+r.account+" a perdu "+fmtEuro(amount)+(reason? " ("+reason+")":""));
+  },
+  /* ---------- Virements (entre joueurs) & ajustements du capitaine ----------
+     L'historique est rangé dans le compte lui-même (champ "history", 30 derniers mouvements) : pas de
+     nouvelle collection Firestore à autoriser. Les écritures relisent le compte en direct avant de
+     modifier le crédit (même principe que les amendes). */
+  pushHistory(prev, entry){
+    const list = Array.isArray(prev) ? prev.slice() : [];
+    list.unshift({at:new Date().toISOString(), amount:entry.amount, label:entry.label});
+    return list.slice(0,30);
+  },
+  async adjustWallet(username, delta, label){
+    const id = slugify(username);
+    const ref = this.db.collection("accounts").doc(id);
+    const fresh = await ref.get();
+    if(!fresh.exists) throw new Error("no-account");
+    const d = fresh.data();
+    const current = d.wallet||0;
+    const newWallet = Math.max(0, current+delta);
+    await ref.update({wallet:newWallet, history:this.pushHistory(d.history, {amount:newWallet-current, label})});
+    return newWallet;
+  },
+  openTransferModal(){
+    this.ensureMe(()=>{
+      const acc = this.state.accounts.find(a=>a.username===this.me);
+      const wallet = acc ? (acc.wallet||0) : 0;
+      const others = (this.state.accounts||[]).filter(a=>a.username!==this.me).sort((a,b)=>a.username.localeCompare(b.username));
+      this.modal(`
+        <h3>💸 Faire un virement</h3>
+        <p class="muted" style="font-size:12.5px;margin-top:-4px;">Tu envoies de ton propre crédit (${fmtEuro(wallet)}) à un autre joueur.</p>
+        ${others.length? `
+        <label class="field">Destinataire <select id="trTo">${others.map(a=>`<option value="${esc(a.username)}">${esc(a.username)}${a.linkedPlayer? " ("+esc(a.linkedPlayer)+")":""}</option>`).join("")}</select></label>
+        <label class="field">Montant (€) <input type="number" id="trAmount" min="1" max="${wallet}" value="${Math.min(1000,wallet)}"></label>
+        <label class="field">Message (optionnel) <input type="text" id="trReason" placeholder="Merci pour la passe..."></label>
+        <button class="btn btn-accent btn-block" onclick="App.confirmTransfer()">Envoyer</button>` : `<p class="muted">Aucun autre compte pour l'instant.</p>`}
+      `);
+    });
+  },
+  async confirmTransfer(){
+    if(!this.me) return;
+    if(this._transferBusy) return; this._transferBusy = true;
+    try{
+      const to = document.getElementById("trTo").value;
+      const amount = parseInt(document.getElementById("trAmount").value,10)||0;
+      const reason = document.getElementById("trReason").value.trim();
+      if(!to || to===this.me){ toast("Choisis un autre joueur"); return; }
+      if(amount<=0){ toast("Montant invalide"); return; }
+      const mine = await this.db.collection("accounts").doc(slugify(this.me)).get();
+      const wallet = mine.exists ? (mine.data().wallet||0) : 0;
+      if(amount>wallet){ toast("Pas assez de crédit ("+fmtEuro(wallet)+")"); return; }
+      const suffix = reason? " — "+reason : "";
+      await this.adjustWallet(this.me, -amount, "💸 Virement envoyé à "+to+suffix);
+      try{ await this.adjustWallet(to, amount, "💸 Virement reçu de "+this.me+suffix); }
+      catch(e){ await this.adjustWallet(this.me, amount, "↩️ Virement vers "+to+" annulé"); toast("❌ Virement échoué, tu es remboursé"); return; }
+      this.closeModal();
+      toast("✅ "+fmtEuro(amount)+" envoyés à "+to);
+    }catch(e){ toast("❌ Virement impossible (réseau ?)"); }
+    finally{ this._transferBusy = false; }
+  },
+  openCaptainMoneyModal(){
+    if(!this.admin){ toast("Réservé aux capitaines"); return; }
+    const accounts = (this.state.accounts||[]).slice().sort((a,b)=>a.username.localeCompare(b.username));
+    this.modal(`
+      <h3>🛡️ Virement du capitaine</h3>
+      <p class="muted" style="font-size:12.5px;margin-top:-4px;">Ce n'est pas ton argent : tu peux donner de l'argent (compensation) ou en retirer (amende) à n'importe quel compte. Le motif est écrit dans son historique.</p>
+      <label class="field">Compte <select id="cmTo">${accounts.map(a=>`<option value="${esc(a.username)}">${esc(a.username)} — ${fmtEuro(a.wallet||0)}</option>`).join("")}</select></label>
+      <label class="field">Montant (€) <input type="number" id="cmAmount" min="1" value="1000"></label>
+      <label class="field">Raison <input type="text" id="cmReason" placeholder="Compensation, retard, amende..."></label>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-accent" style="flex:1;" onclick="App.captainMoney(1)">➕ Donner</button>
+        <button class="btn btn-danger" style="flex:1;" onclick="App.captainMoney(-1)">➖ Retirer</button>
+      </div>
+    `);
+  },
+  async captainMoney(sign){
+    if(!this.admin) return;
+    if(this._cmBusy) return; this._cmBusy = true;
+    try{
+      const to = document.getElementById("cmTo").value;
+      const amount = parseInt(document.getElementById("cmAmount").value,10)||0;
+      const reason = document.getElementById("cmReason").value.trim();
+      if(!to || amount<=0){ toast("Montant invalide"); return; }
+      const label = sign>0 ? "🛡️ Compensation du capitaine"+(reason? " : "+reason:"") : "⚠️ Amende du capitaine"+(reason? " : "+reason:"");
+      await this.adjustWallet(to, sign*amount, label);
+      this.closeModal();
+      toast((sign>0? "➕ ":"➖ ")+to+" "+(sign>0? "reçoit ":"perd ")+fmtEuro(amount)+(reason? " ("+reason+")":""));
+    }catch(e){ toast("❌ Échec (réseau ?)"); }
+    finally{ this._cmBusy = false; }
+  },
+  renderTransfersCard(){
+    if(!this.me) return "";
+    const acc = this.state.accounts.find(a=>a.username===this.me);
+    const hist = (acc && Array.isArray(acc.history)) ? acc.history.slice(0,8) : [];
+    return `
+    <div class="card">
+      <h2>💸 Virements</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-accent" style="flex:1;" onclick="App.openTransferModal()">💸 Envoyer de l'argent</button>
+        ${this.admin? `<button class="btn btn-ghost" style="flex:1;" onclick="App.openCaptainMoneyModal()">🛡️ Capitaine : donner / amende</button>`:""}
+      </div>
+      ${hist.length? `<p class="muted" style="font-size:12px;margin:10px 0 4px;">Derniers mouvements :</p>
+      <table class="stats"><tbody>${hist.map(h=>`<tr><td style="font-size:12px;">${esc(h.label||"")}<br><span class="muted" style="font-size:10.5px;">${fmtDate(h.at)}</span></td><td class="num" style="color:${h.amount>=0?'var(--accent2)':'var(--danger)'};">${h.amount>=0?'+':''}${fmtEuro(h.amount)}</td></tr>`).join("")}</tbody></table>` : `<p class="muted" style="font-size:12px;margin-top:8px;">Aucun mouvement pour l'instant.</p>`}
+    </div>`;
   },
   /* ---------- Paris sportifs ---------- */
   factorial(n){ let r=1; for(let i=2;i<=n;i++) r*=i; return r; },
@@ -3419,7 +3523,7 @@ const App = {
     <div class="card">
       <h2>💳 Ton crédit</h2>
       <p class="value-big">${fmtEuro(wallet)}</p>
-      ${salaryInfo ? `<p class="muted" style="font-size:11.5px;">💼 Salaire de ${esc(salaryInfo.linkedName)} (indexé sur sa valeur marchande) : ${fmtEuro(salaryInfo.amount)} tous les mois${salaryInfo.nextAt? " · prochain versement le "+fmtDate(salaryInfo.nextAt):""}. Les gains de paris s'ajoutent à ce crédit, jamais à la valeur marchande.</p>` : `<p class="muted" style="font-size:11.5px;">Le salaire automatique est réservé aux comptes identifiés à une fiche joueur. Va dans 🃏 Recrues et clique sur "C'est moi" sur ta fiche.</p>`}
+      ${salaryInfo ? `<p class="muted" style="font-size:11.5px;">💼 Salaire de ${esc(salaryInfo.linkedName)} (indexé sur sa valeur marchande) : ${fmtEuro(salaryInfo.amount)} chaque semaine${salaryInfo.nextAt? " · prochain versement le "+fmtDate(salaryInfo.nextAt):""}. Les gains de paris s'ajoutent à ce crédit, jamais à la valeur marchande.</p>` : `<p class="muted" style="font-size:11.5px;">Le salaire automatique est réservé aux comptes identifiés à une fiche joueur. Va dans 🃏 Recrues et clique sur "C'est moi" sur ta fiche.</p>`}
     </div>`;
   },
   renderBetLeaderboard(){
@@ -3545,6 +3649,7 @@ const App = {
     const upcoming = this.state.matches.filter(m=>!m.played).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
     return `
       ${this.renderWalletCard()}
+      ${this.renderTransfersCard()}
       <div class="card">
         <h2>💰 Valeur totale de l'équipe</h2>
         <p class="value-big">${this.formatMarketValue(this.teamValueTotal())}</p>
@@ -3664,7 +3769,7 @@ const App = {
 
       <div class="card">
         <h3>Fiches joueurs</h3>
-        <p class="muted" style="font-size:11.5px;margin-top:-4px;">Clique sur "🙋 C'est moi" sur TA fiche pour t'identifier à ce joueur : tu touches son salaire chaque mois dans 💰 Paris, tu vois ses stats depuis ton profil (👤 en haut), et si tu prends un carton en match ton crédit baisse. Un seul compte peut revendiquer chaque joueur.</p>
+        <p class="muted" style="font-size:11.5px;margin-top:-4px;">Clique sur "🙋 C'est moi" sur TA fiche pour t'identifier à ce joueur : tu touches son salaire chaque semaine dans 💰 Paris, tu vois ses stats depuis ton profil (👤 en haut), et si tu prends un carton en match ton crédit baisse. Un seul compte peut revendiquer chaque joueur.</p>
         ${players.length===0 ? `<div class="empty">—</div>` : players.map(p=>{
           const tn = this.teamNames();
           const teamLabel = p.team==='A' ? `${this.teamLogoTag('A',13)} ${esc(tn.a)}` : p.team==='B' ? `${this.teamLogoTag('B',13)} ${esc(tn.b)}` : "";
