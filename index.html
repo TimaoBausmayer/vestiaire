@@ -3813,8 +3813,9 @@ const App = {
   },
   /* ============================= TAB 9 : Vie (achats de luxe, prix réalistes arrondis) ============================= */
   VIE_CATS:[
-    {k:'voitures', lb:'🚗 Voitures'},{k:'motos', lb:'🏍️ Motos'},{k:'maisons', lb:'🏠 Maisons'},
-    {k:'montres', lb:'⌚ Montres'},{k:'tech', lb:'💻 High-tech'},{k:'luxe', lb:'✈️ Jets & bateaux'},
+    {k:'voitures', lb:'🚗 Voitures'},{k:'maisons', lb:'🏠 Maisons'},{k:'montres', lb:'⌚ Montres'},
+    {k:'tech', lb:'💻 High-tech'},{k:'nautique', lb:'🏄 Nautique'},{k:'luxe', lb:'✈️ Jets & yachts'},
+    {k:'mode', lb:'👜 Mode & sneakers'},{k:'foot', lb:'⚽ Football'},{k:'voyages', lb:'🌍 Voyages'},
   ],
   VIE_OPTIONS:[
     {k:'piscine', lb:'🏊 Piscine', price:150000},{k:'spa', lb:'♨️ Jacuzzi / Spa', price:40000},
@@ -3856,10 +3857,16 @@ const App = {
       ['🚗','Ford Mustang GT',65000],['🚗','Dodge Challenger Hellcat',85000],['🚗','Chevrolet Corvette Z06',130000],
       ['🚗','Range Rover Sport SV',220000],['🚗','Lexus LFA (collection)',900000],['🚗','Ford GT',500000],
     ],
-    motos:[
-      ['🏍️','Yamaha MT-07',9000],['🏍️','BMW S 1000 RR',25000],['🏍️','Ducati Panigale V4 S',35000],['🏍️','Ducati Panigale V4 R',45000],
-      ['🏍️','Kawasaki Ninja H2',35000],['🏍️','Kawasaki Ninja H2R',60000],['🏍️','Honda Fireblade SP',30000],['🏍️','Harley-Davidson Fat Boy',25000],
-      ['🏍️','MV Agusta Superveloce',30000],['🏍️','Aprilia RSV4 Factory',28000],['🛵','Vespa Primavera',4500],['🛵','Trottinette électrique',900],
+    nautique:[
+      ['🏄','Wing foil — Planche débutant (110 L)',1100],['🏄','Wing foil — Planche freeride (80 L)',1500],['🏄','Wing foil — Planche carbone race',2400],
+      ['🪁','Wing foil — Aile 4 m²',750],['🪁','Wing foil — Aile 5 m²',800],['🪁','Wing foil — Aile 6 m² carbone',1000],
+      ['🛩️','Wing foil — Foil alu (débutant)',1300],['🛩️','Wing foil — Foil carbone freeride',2200],['🛩️','Wing foil — Foil carbone race',3200],
+      ['🏄','Wing foil — Pack complet débutant (planche + aile + foil)',3200],['🏄','Wing foil — Pack complet pro (carbone)',6800],
+      ['⛵','ILCA 4 (dériveur complet)',6000],['⛵','ILCA 6 (dériveur complet)',6800],['⛵','ILCA 7 (dériveur complet)',7000],
+      ['⛵','Laser Bahia / Pico',4500],['⛵','Optimist (Opti)',2500],['⛵','Catamaran Hobie Cat 16',9000],['⛵','Catamaran de sport Nacra 17',23000],
+      ['⛵','Voilier Figaro Bénéteau 3',150000],['🚤','Jet-ski Yamaha WaveRunner',12000],['🚤','Jet-ski Sea-Doo RXP-X',17000],
+      ['🏄','Kitesurf — Aile + barre',1400],['🏄','Surf — Planche shortboard',700],['🏄','Surf — Longboard',900],['🏄','Stand-up paddle gonflable',700],
+      ['🤿','Combinaison + palmes + masque',500],['🛶','Kayak de mer',1500],
     ],
     maisons:[
       ['🏢','Studio — Paris 11e (20 m²)',250000],['🏢','Appartement — Paris 8e (80 m², Champs-Élysées)',1600000],
@@ -3904,11 +3911,34 @@ const App = {
       ['🖨️','Imprimante 3D Bambu Lab X1',1300],['📡','Starlink Roam',600],
     ],
     luxe:[
-      ['⛵','Voilier de croisière 12 m',250000],['🚤','Hors-bord Riva Aquariva',800000],['🛥️','Yacht 25 m',4000000],
+      ['⛵','Voilier de croisière 12 m',250000],['⛵','Voilier de course IMOCA 60',6000000],['🚤','Bateau Zodiac Pro 7 m',35000],['🚤','Chris-Craft Launch 28',300000],['⛴️','Catamaran de luxe 50 pieds',1200000],['🚤','Hors-bord Riva Aquariva',800000],['🛥️','Yacht 25 m',4000000],
       ['🛥️','Yacht 50 m (Azimut Grande)',15000000],['🛥️','Superyacht 80 m',120000000],['🛥️','Mégayacht 140 m',500000000],
       ['🚁','Hélicoptère Airbus H125',3000000],['🚁','Hélicoptère H160',17000000],['🛩️','Cessna Citation CJ4',10000000],
       ['✈️','Dassault Falcon 8X',60000000],['✈️','Gulfstream G700',75000000],['✈️','Boeing 787 VIP',250000000],
       ['🚀','Billet voyage dans l\'espace (Blue Origin)',500000],['🚀','Billet ISS (Axiom)',55000000],
+    ],
+    mode:[
+      ['👟','Nike Air Force 1',120],['👟','Air Jordan 1 Retro High',200],['👟','Nike Dunk Low',130],['👟','Adidas Samba',110],['👟','New Balance 550',140],
+      ['👟','Air Jordan 4 Travis Scott',1500],['👟','Nike Mag (Retour vers le futur)',50000],['👟','Yeezy 350',250],
+      ['🧥','Veste Moncler',1500],['🧥','Doudoune Canada Goose',1300],['🧥','Manteau Balenciaga',2500],['🕶️','Lunettes Ray-Ban',160],['🕶️','Lunettes Gucci',450],
+      ['👜','Sac Louis Vuitton Speedy',1800],['👜','Sac Hermès Birkin 30',12000],['👜','Sac Hermès Birkin Himalaya',250000],['👜','Sac Chanel Classic Flap',9000],
+      ['💍','Bague Cartier Love',2000],['💍','Chaîne en or Cuban 18 carats',6000],['💎','Diamant 5 carats',250000],['🧢','Casquette New Era',40],
+      ['👔','Costume sur mesure — Savile Row',5000],['👔','Costume Dior',4500],['🧣','Écharpe Burberry',500],['🎒','Sac à dos Off-White',900],
+    ],
+    foot:[
+      ['⚽','Ballon Adidas Champions League (officiel)',150],['⚽','Ballon de la Coupe du monde (officiel)',170],['👟','Crampons Nike Mercurial Superfly',300],
+      ['👟','Crampons Adidas Predator Elite',280],['👟','Crampons Puma Future',260],['🎽','Maillot Real Madrid',100],['🎽','Maillot PSG',100],
+      ['🎽','Maillot Barça floqué',120],['🎽','Maillot dédicacé (authentifié)',2500],['🥅','But de foot pliable',250],['🥅','Mini-but pro (jardin)',1500],
+      ['🧤','Gants de gardien Reusch Pro',150],['🧤','Gants de gardien Adidas Predator',130],['🎽','Kit club complet (11 maillots floqués)',900],
+      ['🏟️','Loge à vie au Parc des Princes (10 ans)',500000],['🏆','Réplique du Ballon d\'Or',20000],['🏟️','Terrain synthétique privé',250000],
+      ['🚌','Bus du club (50 places)',350000],['📺','Abonnement tous les matchs (1 an)',700],
+    ],
+    voyages:[
+      ['✈️','Week-end à Paris',800],['✈️','Week-end à Barcelone',600],['✈️','Semaine à Marrakech',1500],['🏝️','Semaine aux Maldives',9000],
+      ['🏔️','Semaine de ski à Courchevel',8000],['🗼','Voyage au Japon (2 semaines)',6500],['🗽','New York — 1 semaine',4500],
+      ['🌴','Bali — 2 semaines',3500],['🦁','Safari en Tanzanie',7000],['🚢','Croisière autour du monde (3 mois)',60000],
+      ['🏎️','Grand Prix de F1 — pass VIP Monaco',20000],['⚽','Finale de Ligue des Champions — place VIP',9000],['🏆','Finale de Coupe du monde — loge VIP',30000],
+      ['🛫','Tour du monde en jet privé',500000],['🌌','Aurores boréales en Islande',3000],['🎤','Concert VIP — Première loge',2500],
     ],
   },
   vieItem(cat, i){
@@ -3939,13 +3969,16 @@ const App = {
     if(brand) list = list.filter(x=>x.name.split(' ')[0]===brand);
     list.sort((a,b)=> sort==='asc' ? a.price-b.price : b.price-a.price);
     const ownedIds = new Set(owned.map(a=>a.id));
+    const cartIds = new Set(this.vieCart().map(c=>c.id));
+    const inCart = id => cartIds.has(id);
     const rows = list.map(x=>{
       const has = ownedIds.has(x.id);
       const can = wallet>=x.price;
       return `<div class="kv" style="align-items:center;gap:8px;">
         <span style="flex:1;min-width:0;">${x.emoji} <b>${esc(x.name)}</b><br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(x.price)}</span></span>
         ${has ? `<span class="chip active" style="cursor:default;">✅ Possédé</span>`
-              : `<button class="btn btn-sm ${can?'btn-accent':'btn-ghost'}" onclick="App.openVieBuy('${cat}',${x.i})">${can?'Acheter':'🔒 Trop cher'}</button>`}
+              : inCart(x.id) ? `<button class="btn btn-ghost btn-sm" onclick="App.openVieCart()">🛒 Dans le panier</button>`
+              : `<button class="btn btn-sm ${can?'btn-accent':'btn-ghost'}" onclick="App.openVieBuy('${cat}',${x.i})">🛒 Ajouter</button>`}
       </div>`;
     }).join("");
     const mine = owned.slice().sort((a,b)=>(b.price||0)-(a.price||0));
@@ -3954,6 +3987,10 @@ const App = {
       <h2>🏠 Vie</h2>
       <p class="value-big">${fmtEuro(wallet)}</p>
       <p class="muted" style="font-size:12px;margin-top:-4px;">Ton crédit disponible. Patrimoine : <b>${this.fmtPrice(this.vieNetWorth(acc))}</b> (${owned.length} objet${owned.length>1?'s':''}). Prix réalistes arrondis.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-accent" style="flex:1;" onclick="App.openVieCart()">🛒 Mon panier (${this.vieCart().length}) · ${this.fmtPrice(this.vieCartTotal())}</button>
+        ${(Array.isArray(acc.orders)&&acc.orders.length) ? `<button class="btn btn-ghost" style="flex:1;" onclick="App.openVieOrders()">🧾 Mes factures (${acc.orders.length})</button>`:''}
+      </div>
     </div>
     ${mine.length ? `<div class="card"><h2>🧳 Mon patrimoine</h2>
       ${mine.map(a=>`<div class="kv" style="align-items:center;gap:8px;"><span style="flex:1;min-width:0;">${esc(a.emoji||'🎁')} <b>${esc(a.name)}</b>${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}<br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(a.price)}</span></span>
@@ -3976,46 +4013,153 @@ const App = {
     return `<div class="card"><h2>👑 Les plus riches en patrimoine</h2>
       <table class="stats"><tbody>${rows.map((r,i)=>`<tr><td>${medal(i)} <b>${esc(r.u)}</b><br><span class="muted" style="font-size:11px;">${r.n} objet${r.n>1?'s':''}</span></td><td class="num">${this.fmtPrice(r.v)}</td></tr>`).join("")}</tbody></table></div>`;
   },
+  /* ---- Panier ---- */
+  vieCart(){
+    if(this._vieCartFor!==this.me){
+      this._vieCartFor = this.me;
+      try{ const raw = localStorage.getItem("vieCart:"+(this.me||"")); this.state.vieCartItems = raw ? JSON.parse(raw) : []; }catch(e){ this.state.vieCartItems = []; }
+    }
+    return Array.isArray(this.state.vieCartItems) ? this.state.vieCartItems : [];
+  },
+  saveVieCart(list){
+    this.state.vieCartItems = list;
+    try{ localStorage.setItem("vieCart:"+(this.me||""), JSON.stringify(list)); }catch(e){}
+  },
+  vieCartLine(c){
+    const x = this.vieItem(c.cat, c.i); if(!x) return null;
+    const opts = (c.opts||[]).map(k=>this.VIE_OPTIONS[k]).filter(Boolean);
+    return {...x, opts, total: x.price + opts.reduce((a,o)=>a+o.price,0)};
+  },
+  vieCartTotal(){ return this.vieCart().reduce((s,c)=>{ const l=this.vieCartLine(c); return s+(l?l.total:0); },0); },
   openVieBuy(cat, i){
     this.ensureMe(()=>{
       const x = this.vieItem(cat,i); if(!x) return;
-      const acc = this.state.accounts.find(a=>a.username===this.me) || {};
-      const isHouse = cat==='maisons';
+      if(cat!=='maisons'){ this.addVieToCart(cat,i,[]); return; }
       this._vieSel = {cat, i};
       this.modal(`
         <h3>${x.emoji} ${esc(x.name)}</h3>
-        <p class="muted" style="font-size:12.5px;margin-top:-4px;">Prix : <b>${this.fmtPrice(x.price)}</b> · Ton crédit : ${fmtEuro(acc.wallet||0)}</p>
-        ${isHouse ? `<p style="font-size:12.5px;margin:8px 0 4px;font-weight:700;">Options</p>
-          ${this.VIE_OPTIONS.map((o,k)=>`<label style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;"><input type="checkbox" class="vieOpt" data-k="${k}" onchange="App.updateViePrice()"> ${o.lb} <span class="muted">+${this.fmtPrice(o.price)}</span></label>`).join("")}` : ""}
+        <p class="muted" style="font-size:12.5px;margin-top:-4px;">Prix : <b>${this.fmtPrice(x.price)}</b></p>
+        <p style="font-size:12.5px;margin:8px 0 4px;font-weight:700;">Options</p>
+        ${this.VIE_OPTIONS.map((o,k)=>`<label style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;"><input type="checkbox" class="vieOpt" data-k="${k}" onchange="App.updateViePrice()"> ${o.lb} <span class="muted">+${this.fmtPrice(o.price)}</span></label>`).join("")}
         <p style="font-size:16px;font-weight:800;margin:10px 0;">Total : <span id="viePriceTotal">${this.fmtPrice(x.price)}</span></p>
-        <button class="btn btn-accent btn-block" onclick="App.confirmVieBuy()">🛒 Acheter</button>`);
+        <button class="btn btn-accent btn-block" onclick="App.addSelectedToCart()">🛒 Ajouter au panier</button>`);
     });
   },
   vieSelectedOpts(){
-    return [...document.querySelectorAll('.vieOpt')].filter(c=>c.checked).map(c=>this.VIE_OPTIONS[+c.dataset.k]);
+    return [...document.querySelectorAll('.vieOpt')].filter(c=>c.checked).map(c=>+c.dataset.k);
   },
   updateViePrice(){
     const s=this._vieSel; if(!s) return; const x=this.vieItem(s.cat,s.i);
-    const tot = x.price + this.vieSelectedOpts().reduce((a,o)=>a+o.price,0);
+    const tot = x.price + this.vieSelectedOpts().reduce((a,k)=>a+this.VIE_OPTIONS[k].price,0);
     const el=document.getElementById('viePriceTotal'); if(el) el.textContent=this.fmtPrice(tot);
   },
-  async confirmVieBuy(){
+  addSelectedToCart(){ const s=this._vieSel; if(!s) return; this.addVieToCart(s.cat,s.i,this.vieSelectedOpts()); },
+  addVieToCart(cat,i,opts){
+    const x=this.vieItem(cat,i); if(!x) return;
+    const cart=this.vieCart().slice();
+    if(cart.some(c=>c.id===x.id)){ toast("Déjà dans le panier"); return; }
+    const acc=this.state.accounts.find(a=>a.username===this.me)||{};
+    if(this.vieAssets(acc).some(a=>a.id===x.id)){ toast("Tu possèdes déjà ça"); return; }
+    cart.push({id:x.id, cat, i, opts});
+    this.saveVieCart(cart);
+    this.closeModal();
+    toast("🛒 Ajouté : "+x.name);
+    this.render();
+  },
+  removeFromVieCart(id){
+    this.saveVieCart(this.vieCart().filter(c=>c.id!==id));
+    this.openVieCart(); this.render();
+  },
+  clearVieCart(){ this.saveVieCart([]); this.closeModal(); this.render(); },
+  openVieCart(){
+    this.ensureMe(()=>{
+      const acc=this.state.accounts.find(a=>a.username===this.me)||{};
+      const wallet=acc.wallet||0;
+      const lines=this.vieCart().map(c=>this.vieCartLine(c)).filter(Boolean);
+      const total=lines.reduce((s,l)=>s+l.total,0);
+      const after=wallet-total;
+      this.modal(`
+        <h3>🛒 Mon panier</h3>
+        ${lines.length? `
+          <div style="max-height:46vh;overflow:auto;">
+          ${lines.map(l=>`<div class="kv" style="align-items:center;gap:8px;"><span style="flex:1;min-width:0;">${l.emoji} <b>${esc(l.name)}</b>${l.opts.length?`<br><span class="muted" style="font-size:11px;">${l.opts.map(o=>esc(o.lb)).join(' · ')}</span>`:''}<br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(l.total)}</span></span><button class="btn btn-ghost btn-sm" onclick="App.removeFromVieCart('${jsa(l.id)}')">✕</button></div>`).join("")}
+          </div>
+          <hr class="sep">
+          <div class="kv"><span>Total</span><b style="font-size:16px;">${this.fmtPrice(total)}</b></div>
+          <div class="kv"><span>Ton crédit</span><b>${this.fmtPrice(wallet)}</b></div>
+          <div class="kv"><span>Après achat</span><b style="color:${after>=0?'var(--accent2)':'var(--danger)'};">${after>=0? this.fmtPrice(after) : '− '+this.fmtPrice(-after)+' (manque)'}</b></div>
+          <button class="btn ${after>=0?'btn-accent':'btn-ghost'} btn-block" style="margin-top:10px;" onclick="App.checkoutVie()">${after>=0?'💳 Valider la commande':'🔒 Crédit insuffisant'}</button>
+          <button class="btn btn-ghost btn-block" style="margin-top:6px;" onclick="App.clearVieCart()">Vider le panier</button>`
+        : `<p class="muted">Ton panier est vide. Ajoute des objets avec « 🛒 Ajouter ».</p>`}
+      `);
+    });
+  },
+  async checkoutVie(){
     if(!this.me || this._vieBusy) return; this._vieBusy = true;
     try{
-      const s=this._vieSel; const x=this.vieItem(s.cat,s.i); if(!x) return;
-      const opts=this.vieSelectedOpts();
-      const total = x.price + opts.reduce((a,o)=>a+o.price,0);
-      const ref = this.db.collection("accounts").doc(slugify(this.me));
-      const fresh = await ref.get(); if(!fresh.exists) return;
-      const d = fresh.data(); const wallet = d.wallet||0;
-      const assets = Array.isArray(d.assets)? d.assets.slice() : [];
-      if(assets.some(a=>a.id===x.id)){ toast("Tu possèdes déjà ça"); return; }
+      const lines=this.vieCart().map(c=>this.vieCartLine(c)).filter(Boolean);
+      if(!lines.length) return;
+      const total=lines.reduce((s,l)=>s+l.total,0);
+      const ref=this.db.collection("accounts").doc(slugify(this.me));
+      const fresh=await ref.get(); if(!fresh.exists) return;
+      const d=fresh.data(); const wallet=d.wallet||0;
+      const assets=Array.isArray(d.assets)?d.assets.slice():[];
+      const dup=lines.filter(l=>assets.some(a=>a.id===l.id));
+      if(dup.length){ toast("Déjà possédé : "+dup[0].name); this.saveVieCart(this.vieCart().filter(c=>!dup.some(l=>l.id===c.id))); return; }
       if(total>wallet){ toast("Pas assez de crédit ("+fmtEuro(wallet)+")"); return; }
-      assets.push({id:x.id, cat:x.cat, emoji:x.emoji, name:x.name, price:total, opts:opts.map(o=>o.lb), at:new Date().toISOString()});
-      await ref.update({wallet:wallet-total, assets, history:this.pushHistory(d.history, {amount:-total, label:"🛒 Achat : "+x.name})});
-      this.bigMoneyModal("Achat effectué", -total, x.emoji+" "+x.name, opts.map(o=>o.lb).join(", "), false);
-    }catch(e){ toast("❌ Achat impossible (réseau ?)"); }
+      const now=new Date().toISOString();
+      lines.forEach(l=>assets.push({id:l.id, cat:l.cat, emoji:l.emoji, name:l.name, price:l.total, opts:l.opts.map(o=>o.lb), at:now}));
+      const no="F-"+now.slice(0,10).replace(/-/g,"")+"-"+String(Math.floor(1000+Math.random()*9000));
+      const order={no, at:now, buyer:this.me, lines:lines.map(l=>({emoji:l.emoji,name:l.name,price:l.total,opts:l.opts.map(o=>o.lb)})), total, before:wallet, after:wallet-total};
+      const orders=[order].concat(Array.isArray(d.orders)?d.orders:[]).slice(0,10);
+      await ref.update({wallet:wallet-total, assets, orders, history:this.pushHistory(d.history,{amount:-total, label:"🛒 Commande "+no+" ("+lines.length+" article"+(lines.length>1?"s":"")+")"})});
+      this.saveVieCart([]);
+      this.showInvoice(order, true);
+    }catch(e){ toast("❌ Commande impossible (réseau ?)"); }
     finally{ this._vieBusy = false; }
+  },
+  showInvoice(o, celebrate){
+    if(!document.getElementById("vieInvStyle")){
+      const st=document.createElement("style"); st.id="vieInvStyle";
+      st.textContent="@keyframes vieFall{0%{transform:translateY(-30px) rotate(0);opacity:1}100%{transform:translateY(520px) rotate(360deg);opacity:0}}@keyframes vieStamp{0%{transform:scale(3) rotate(-18deg);opacity:0}60%{transform:scale(.92) rotate(-14deg);opacity:1}100%{transform:scale(1) rotate(-14deg);opacity:1}}.vieConf{position:absolute;top:0;font-size:22px;animation:vieFall 2.6s ease-in forwards;pointer-events:none}";
+      document.head.appendChild(st);
+    }
+    const conf = celebrate ? ['🎉','✨','💸','🎊','🏎️','💎','⭐','🥂'].map((e,k)=>`<span class="vieConf" style="left:${6+k*12}%;animation-delay:${(k%4)*0.25}s;">${e}</span>`).join("") : "";
+    const d=new Date(o.at);
+    this.modal(`
+      <div style="position:relative;overflow:hidden;">
+        ${conf}
+        <div style="background:#fffdf6;color:#1d1d1d;border-radius:10px;padding:16px 14px;font-family:'Courier New',monospace;box-shadow:0 4px 18px rgba(0,0,0,.25);position:relative;">
+          <div style="text-align:center;">
+            <div style="font-size:22px;font-weight:800;letter-spacing:2px;">🧾 FACTURE</div>
+            <div style="font-size:11px;opacity:.7;">Boutique Vie — FC Nulos / Mot'eau</div>
+            <div style="font-size:11px;margin-top:4px;">N° ${esc(o.no)}</div>
+            <div style="font-size:11px;">${isNaN(d)?'':d.toLocaleDateString('fr-FR')+' à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>
+            <div style="font-size:12px;margin-top:2px;">Client : <b>${esc(o.buyer)}</b></div>
+          </div>
+          <div style="border-top:2px dashed #999;margin:10px 0;"></div>
+          ${o.lines.map(l=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin:5px 0;"><span style="flex:1;min-width:0;">${esc(l.emoji||'')} ${esc(l.name)}${(l.opts&&l.opts.length)?`<br><span style="font-size:10.5px;opacity:.65;">+ ${l.opts.map(esc).join(', ')}</span>`:''}</span><b style="white-space:nowrap;">${this.fmtPrice(l.price)}</b></div>`).join("")}
+          <div style="border-top:2px dashed #999;margin:10px 0;"></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><span>Sous-total</span><span>${this.fmtPrice(o.total)}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><span>TVA (monnaie fictive)</span><span>0 €</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:800;margin-top:6px;"><span>TOTAL</span><span>${this.fmtPrice(o.total)}</span></div>
+          <div style="border-top:2px dashed #999;margin:10px 0;"></div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span>Solde avant</span><span>${this.fmtPrice(o.before)}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;"><span>Solde après</span><span>${this.fmtPrice(o.after)}</span></div>
+          <div style="text-align:center;margin-top:12px;font-size:11px;opacity:.75;">Merci pour votre achat ! 🙏<br>Bonne route, grand patron.</div>
+          <div style="position:absolute;right:12px;top:56px;border:3px solid #1a9c4a;color:#1a9c4a;font-weight:800;font-size:20px;padding:2px 10px;border-radius:6px;letter-spacing:2px;transform:rotate(-14deg);${celebrate?'animation:vieStamp .6s .4s both;':''}opacity:.9;">PAYÉ ✓</div>
+        </div>
+        <button class="btn btn-accent btn-block" style="margin-top:12px;" onclick="App.closeModal()">Super 🔥</button>
+      </div>`);
+  },
+  openVieOrders(){
+    const acc=this.state.accounts.find(a=>a.username===this.me)||{};
+    const orders=Array.isArray(acc.orders)?acc.orders:[];
+    this.modal(`<h3>🧾 Mes factures</h3>${orders.map((o,k)=>`<div class="kv" style="align-items:center;"><span>${esc(o.no)}<br><span class="muted" style="font-size:11px;">${o.lines.length} article${o.lines.length>1?'s':''} · ${this.fmtPrice(o.total)}</span></span><button class="btn btn-ghost btn-sm" onclick="App.openVieOrder(${k})">Voir</button></div>`).join("") || '<p class="muted">Aucune facture.</p>'}`);
+  },
+  openVieOrder(k){
+    const acc=this.state.accounts.find(a=>a.username===this.me)||{};
+    const o=(acc.orders||[])[k]; if(o) this.showInvoice(o,false);
   },
   openVieSell(id){
     const acc = this.state.accounts.find(a=>a.username===this.me) || {};
