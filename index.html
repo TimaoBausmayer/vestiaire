@@ -3815,7 +3815,7 @@ const App = {
   VIE_CATS:[
     {k:'voitures', lb:'🚗 Voitures'},{k:'maisons', lb:'🏠 Maisons'},{k:'montres', lb:'⌚ Montres'},
     {k:'tech', lb:'💻 High-tech'},{k:'nautique', lb:'🏄 Nautique'},{k:'luxe', lb:'✈️ Jets & yachts'},
-    {k:'mode', lb:'👜 Mode & sneakers'},{k:'foot', lb:'⚽ Football'},{k:'voyages', lb:'🌍 Voyages'},
+    {k:'mode', lb:'👜 Mode & sneakers'},{k:'foot', lb:'⚽ Football'},{k:'voyages', lb:'🌍 Voyages'},{k:'entreprises', lb:'🏢 Entreprises'},
   ],
   VIE_OPTIONS:[
     {k:'piscine', lb:'🏊 Piscine', price:150000},{k:'spa', lb:'♨️ Jacuzzi / Spa', price:40000},
@@ -3901,7 +3901,13 @@ const App = {
       ['⌚','Vacheron Constantin Overseas',30000],['⌚','Jacob & Co Astronomia',350000],
     ],
     tech:[
-      ['📱','iPhone 17 Pro Max',1500],['📱','Samsung Galaxy S25 Ultra',1450],['📱','Google Pixel 10 Pro',1100],['📱','Samsung Galaxy Z Fold',2000],
+      ['🖱️','Souris Logitech G Pro X Superlight 2',160],['🖱️','Souris Razer Viper V3 Pro',170],['🖱️','Souris Razer DeathAdder V3 Pro',160],
+      ['🖱️','Souris Zowie EC2-CW',90],['🖱️','Souris Glorious Model O 2 Wireless',150],['🖱️','Souris Finalmouse UltralightX',190],
+      ['⌨️','Clavier Wooting 80HE',200],['⌨️','Clavier Logitech G Pro X TKL',200],['🖱️','Tapis de souris Artisan Hayate Otsu',70],
+      ['🎧','Casque HyperX Cloud III',100],['🎧','Casque SteelSeries Arctis Nova Pro',350],['🎮','Manette Xbox Elite Series 2',180],['🎮','Manette DualSense Edge',220],
+      ['🎯','Pack Rainbow Six Siege — Débutant (souris + tapis + casque)',280],['🎯','Pack Rainbow Six Siege — Pro (souris + clavier + tapis + casque)',650],
+      ['🎯','Pack Rainbow Six Siege — Ultime (PC RTX 5090 + écran 540 Hz + périphériques pro)',8500],['🎯','Pack Valorant / CS2 — Pro',700],
+      ['📱','iPhone 18 Pro Max (prix estimé)',1600],['📱','iPhone 18 Pro (prix estimé)',1300],['📱','iPhone 18 (prix estimé)',1000],['📱','iPhone 17 Pro Max',1500],['📱','iPhone 17 Pro',1250],['📱','iPhone 17',950],['📱','Samsung Galaxy S25 Ultra',1450],['📱','Google Pixel 10 Pro',1100],['📱','Samsung Galaxy Z Fold',2000],
       ['💻','MacBook Air M4',1300],['💻','MacBook Pro 16" M4 Max',4500],['💻','Mac Studio M3 Ultra',4800],['🖥️','iMac 24"',1600],
       ['💻','PC Gamer — RTX 5090 + i9',5500],['💻','Laptop Gamer — ROG Strix SCAR',3800],['🖥️','Écran gaming OLED 49"',1300],
       ['🖥️','Pro Display XDR 6K',5000],['🎮','PlayStation 5 Pro',800],['🎮','Xbox Series X',500],['🎮','Nintendo Switch 2',450],
@@ -3926,6 +3932,11 @@ const App = {
       ['👔','Costume sur mesure — Savile Row',5000],['👔','Costume Dior',4500],['🧣','Écharpe Burberry',500],['🎒','Sac à dos Off-White',900],
     ],
     foot:[
+      ['🎽','Maillot Mot\'eau — domicile',60],['🎽','Maillot Mot\'eau — extérieur',60],['🎽','Maillot Mot\'eau — gardien',70],['🎽','Maillot Mot\'eau floqué à ton nom',85],
+      ['🎽','Maillot FC Nulos — domicile',60],['🎽','Maillot FC Nulos — extérieur',60],['🎽','Maillot FC Nulos — gardien',70],['🎽','Maillot FC Nulos floqué à ton nom',85],
+      ['🧥','Survêtement Mot\'eau',90],['🧥','Survêtement FC Nulos',90],['🧣','Écharpe Mot\'eau',20],['🧣','Écharpe FC Nulos',20],
+      ['🎽','Kit complet Mot\'eau (15 maillots floqués)',1100],['🎽','Kit complet FC Nulos (15 maillots floqués)',1100],
+      ['🏆','Maillot collector Mot\'eau signé par tout l\'effectif',800],['🏆','Maillot collector FC Nulos signé par tout l\'effectif',800],
       ['⚽','Ballon Adidas Champions League (officiel)',150],['⚽','Ballon de la Coupe du monde (officiel)',170],['👟','Crampons Nike Mercurial Superfly',300],
       ['👟','Crampons Adidas Predator Elite',280],['👟','Crampons Puma Future',260],['🎽','Maillot Real Madrid',100],['🎽','Maillot PSG',100],
       ['🎽','Maillot Barça floqué',120],['🎽','Maillot dédicacé (authentifié)',2500],['🥅','But de foot pliable',250],['🥅','Mini-but pro (jardin)',1500],
@@ -3940,11 +3951,58 @@ const App = {
       ['🏎️','Grand Prix de F1 — pass VIP Monaco',20000],['⚽','Finale de Ligue des Champions — place VIP',9000],['🏆','Finale de Coupe du monde — loge VIP',30000],
       ['🛫','Tour du monde en jet privé',500000],['🌌','Aurores boréales en Islande',3000],['🎤','Concert VIP — Première loge',2500],
     ],
+    entreprises:[
+      ['🥖','Boulangerie de quartier',180000],['☕','Café-restaurant',350000],['🍔','Franchise fast-food',1500000],['💈','Salon de coiffure',90000],
+      ['🛒','Supermarché de quartier',2500000],['⛽','Station-service',1800000],['🏨','Hôtel 3 étoiles',6000000],['🎶','Boîte de nuit à Paris',3500000],
+      ['👟','Marque de streetwear',8000000],['🎮','Studio de jeux vidéo indé',5000000],['📺','Chaîne YouTube à 10 M d\'abonnés',15000000],
+      ['⚽','Club de foot amateur',500000],['⚽','Club de Ligue 2',60000000],['⚽','Club de Ligue 1 (milieu de tableau)',300000000],
+      ['⚽','Paris Saint-Germain',4000000000],['⚽','Chelsea FC',3000000000],['⚽','FC Barcelone',5000000000],['⚽','Real Madrid',6500000000],
+      ['🏀','Équipe NBA — Los Angeles Lakers',9000000000],['🏈','Équipe NFL — Dallas Cowboys',10000000000],
+      ['📸','Instagram (rachat 2012)',900000000],['▶️','YouTube (rachat 2006)',1500000000],['🎮','Twitch (rachat 2014)',900000000],
+      ['⛏️','Minecraft / Mojang (rachat 2014)',2300000000],['🧙','Lucasfilm — Star Wars (rachat 2012)',3700000000],['🦸','Marvel (rachat 2009)',3600000000],
+      ['💬','WhatsApp (rachat 2014)',17000000000],['💼','LinkedIn (rachat 2016)',23000000000],['🐙','GitHub (rachat 2018)',6800000000],
+      ['🐦','Twitter / X (rachat 2022)',40000000000],['📚','Netflix (valeur boursière)',350000000000],['🎵','TikTok / ByteDance (valorisation estimée)',250000000000],
+      ['🚗','Tesla (valeur boursière)',1000000000000],['🔎','Google / Alphabet (valeur boursière)',2500000000000],['🍎','Apple (valeur boursière)',3200000000000],
+    ],
   },
   vieItem(cat, i){
     const r = (this.VIE_CATALOG[cat]||[])[i];
     if(!r) return null;
     return {id:cat+"|"+r[1], cat, i, emoji:r[0], name:r[1], price:r[2]};
+  },
+  vieFortune(acc){ return ((acc&&acc.wallet)||0) + this.vieNetWorth(acc); },
+  VIE_TIERS:[
+    {min:0, em:'🪙', lb:'Fauché'},{min:10000, em:'🎒', lb:'Étudiant'},{min:100000, em:'🙂', lb:'Aisé'},
+    {min:1000000, em:'💵', lb:'Millionnaire'},{min:10000000, em:'🏖️', lb:'Multimillionnaire'},{min:100000000, em:'🛥️', lb:'Centimillionnaire'},
+    {min:1000000000, em:'💎', lb:'Milliardaire'},{min:10000000000, em:'👑', lb:'Magnat'},{min:100000000000, em:'🌌', lb:'Empereur du monde'},
+  ],
+  vieTier(f){
+    let k=0; this.VIE_TIERS.forEach((t,i)=>{ if(f>=t.min) k=i; });
+    const t=this.VIE_TIERS[k], nx=this.VIE_TIERS[k+1]||null;
+    const pct = nx ? Math.max(2, Math.min(100, Math.round((f-t.min)/(nx.min-t.min)*100))) : 100;
+    return {t, nx, pct, lvl:k+1, max:this.VIE_TIERS.length};
+  },
+  renderLifestyleBar(acc, title){
+    const f=this.vieFortune(acc), ti=this.vieTier(f), assets=this.vieAssets(acc);
+    const counts={}; assets.forEach(a=>{ counts[a.cat]=(counts[a.cat]||0)+1; });
+    const chips=this.VIE_CATS.filter(c=>counts[c.k]).map(c=>`<span class="chip" style="cursor:default;">${c.lb.split(' ')[0]} ${counts[c.k]}</span>`).join("");
+    return `<div style="margin:6px 0 4px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+        <b style="font-size:15px;">${ti.t.em} ${esc(title||'Mode de vie')} : ${ti.t.lb}</b><span class="muted" style="font-size:11px;">Niv. ${ti.lvl}/${ti.max}</span>
+      </div>
+      <div style="height:16px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin:6px 0;box-shadow:inset 0 1px 3px rgba(0,0,0,.2);">
+        <div style="height:100%;width:${ti.pct}%;border-radius:99px;background:linear-gradient(90deg,#ffb347,#ff5f6d,#a855f7,#38bdf8);transition:width .6s;"></div>
+      </div>
+      <div class="muted" style="font-size:11.5px;">Fortune : <b>${this.fmtPrice(f)}</b>${ti.nx? ` · encore ${this.fmtPrice(ti.nx.min-f)} pour devenir ${ti.nx.em} ${ti.nx.lb}` : ' · le plus haut niveau !'}</div>
+      ${chips? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${chips}</div>`:''}
+    </div>`;
+  },
+  openVieProfile(username){
+    const acc=this.state.accounts.find(a=>a.username===username); if(!acc) return;
+    const mine=this.vieAssets(acc).slice().sort((a,b)=>(b.price||0)-(a.price||0));
+    this.modal(`<h3>👤 ${esc(username)}</h3>${this.renderLifestyleBar(acc,'Mode de vie')}
+      <hr class="sep">
+      ${mine.length? mine.map(a=>`<div class="kv"><span>${esc(a.emoji||'🎁')} ${esc(a.name)}${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}</span><b>${this.fmtPrice(a.price)}</b></div>`).join("") : '<p class="muted">Rien pour l\'instant.</p>'}`);
   },
   vieAssets(acc){ return Array.isArray(acc && acc.assets) ? acc.assets : []; },
   vieNetWorth(acc){ return this.vieAssets(acc).reduce((s,a)=>s+(a.price||0),0); },
@@ -3987,7 +4045,8 @@ const App = {
       <h2>🏠 Vie</h2>
       <p class="value-big">${fmtEuro(wallet)}</p>
       <p class="muted" style="font-size:12px;margin-top:-4px;">Ton crédit disponible. Patrimoine : <b>${this.fmtPrice(this.vieNetWorth(acc))}</b> (${owned.length} objet${owned.length>1?'s':''}). Prix réalistes arrondis.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${this.renderLifestyleBar(acc,'Mon mode de vie')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
         <button class="btn btn-accent" style="flex:1;" onclick="App.openVieCart()">🛒 Mon panier (${this.vieCart().length}) · ${this.fmtPrice(this.vieCartTotal())}</button>
         ${(Array.isArray(acc.orders)&&acc.orders.length) ? `<button class="btn btn-ghost" style="flex:1;" onclick="App.openVieOrders()">🧾 Mes factures (${acc.orders.length})</button>`:''}
       </div>
@@ -4007,11 +4066,12 @@ const App = {
     ${this.renderVieLeaderboard()}`;
   },
   renderVieLeaderboard(){
-    const rows = this.realAccounts().map(a=>({u:a.username, v:this.vieNetWorth(a), n:this.vieAssets(a).length})).filter(r=>r.n>0).sort((a,b)=>b.v-a.v).slice(0,10);
+    const rows = this.realAccounts().map(a=>({u:a.username, f:this.vieFortune(a), n:this.vieAssets(a).length})).sort((a,b)=>b.f-a.f).slice(0,10);
     if(!rows.length) return "";
     const medal = i => ['🥇','🥈','🥉'][i] || (i+1)+".";
-    return `<div class="card"><h2>👑 Les plus riches en patrimoine</h2>
-      <table class="stats"><tbody>${rows.map((r,i)=>`<tr><td>${medal(i)} <b>${esc(r.u)}</b><br><span class="muted" style="font-size:11px;">${r.n} objet${r.n>1?'s':''}</span></td><td class="num">${this.fmtPrice(r.v)}</td></tr>`).join("")}</tbody></table></div>`;
+    return `<div class="card"><h2>👑 Les plus riches</h2>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">Fortune = crédit + patrimoine. Touche un nom pour voir son mode de vie.</p>
+      <table class="stats"><tbody>${rows.map((r,i)=>{ const ti=this.vieTier(r.f); return `<tr onclick="App.openVieProfile('${jsa(r.u)}')" style="cursor:pointer;"><td>${medal(i)} <b>${esc(r.u)}</b> <span class="chip" style="cursor:pointer;font-size:10.5px;">${ti.t.em} ${ti.t.lb}</span><br><span class="muted" style="font-size:11px;">${r.n} objet${r.n>1?'s':''}</span></td><td class="num">${this.fmtPrice(r.f)}</td></tr>`; }).join("")}</tbody></table></div>`;
   },
   /* ---- Panier ---- */
   vieCart(){
