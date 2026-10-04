@@ -3967,7 +3967,7 @@ const App = {
     const played = this.state.matches.filter(m=>m.played);
     // On garde par défaut tout joueur qui n'est pas explicitement dans l'AUTRE équipe, pour ne jamais
     // faire disparaître un joueur pas encore étiqueté (comportement conservé pour l'équipe A comme avant).
-    const ourNames = new Set(this.state.players.filter(p=> key==='B' ? p.team==='B' : p.team!=='B').map(p=>p.name));
+    const ourNames = new Set(this.state.players.filter(p=> key==='ALL' ? true : key==='B' ? p.team==='B' : p.team!=='B').map(p=>p.name));
     const byPlayer = {};
     this.state.players.filter(p=>ourNames.has(p.name)).forEach(p=> byPlayer[p.name] = {name:p.name, goals:0, assists:0, ratingSum:0, ratingCount:0});
     played.forEach(m=>{
@@ -3989,6 +3989,7 @@ const App = {
     let W=0,N=0,D=0, gf=0, ga=0;
     played.forEach(m=>{
       if(!m.score) return;
+      if(key==='ALL'){ gf += (m.score.us||0) + (m.score.them||0); return; } // vue "tout le monde" : buts des deux équipes, pas de bilan V-N-D
       const forTeam = key==='B' ? (m.score.them||0) : (m.score.us||0);
       const against = key==='B' ? (m.score.us||0) : (m.score.them||0);
       gf+=forTeam; ga+=against;
@@ -4549,7 +4550,7 @@ const App = {
     const key = teamKey || this.currentStatsTeam();
     let goals=0, assists=0, yellow=0, red=0, cornersScored=0, cornersTaken=0, freekickScored=0, freekickTaken=0, penaltiesScored=0, penaltiesMissed=0, penaltiesCaused=0,
         shotsOnTarget=0, tacklesWon=0, saves=0, penaltiesSaved=0, penaltiesConceded=0;
-    this.state.players.filter(p=> key==='B' ? p.team==='B' : p.team!=='B').forEach(p=>{
+    this.state.players.filter(p=> key==='ALL' ? true : key==='B' ? p.team==='B' : p.team!=='B').forEach(p=>{
       const s = this.computePlayerStats(p.name);
       goals+=s.goals; assists+=s.assists; yellow+=s.yellow; red+=s.red;
       cornersScored+=s.cornersScored; cornersTaken+=s.cornersTaken; freekickScored+=s.freekickScored; freekickTaken+=s.freekickTaken;
@@ -4567,6 +4568,7 @@ const App = {
   // l'équipe A : pour l'équipe B il faut inverser, sinon FC Nulos hérite de la série de Mot'eau.
   computeCurrentStreak(teamKey){
     const key = teamKey || this.currentStatsTeam();
+    if(key==='ALL') return {type:null, count:0}; // pas de série pour "tout le monde" (une victoire d'une équipe est une défaite de l'autre)
     const past = this.pastMatches(); // le plus récent en premier
     if(!past.length) return {type:null, count:0};
     const resultOf = m => {
@@ -4617,32 +4619,35 @@ const App = {
     return `
     <div class="card" style="background:linear-gradient(135deg,var(--surface-2),var(--surface));">
       <div class="section-title">
-        <h2 style="margin:0;">📊 Tableau de bord — ${this.teamLogoTag(key,16)} ${esc(key==='A'?tn.a:tn.b)}</h2>
+        <h2 style="margin:0;">📊 Tableau de bord — ${key==='ALL'?'👥 Tout le monde':this.teamLogoTag(key,16)+' '+esc(key==='A'?tn.a:tn.b)}</h2>
       </div>
       <div class="wrap" style="margin-bottom:8px;">
         <span class="chip ${key==='A'?'active':''}" onclick="App.setStatsTeamView('A')">${this.teamLogoTag('A',13)} ${esc(tn.a)}</span>
         <span class="chip ${key==='B'?'active':''}" onclick="App.setStatsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
+        <span class="chip ${key==='ALL'?'active':''}" onclick="App.setStatsTeamView('ALL')">👥 Tout le monde</span>
       </div>
       <div class="grid2" style="margin-bottom:10px;">
         <div class="card tight" style="margin:0;text-align:center;">
-          <div class="fut-rating" style="font-size:22px;color:var(--accent2);">${rk.W}-${rk.N}-${rk.D}</div>
-          <div class="muted" style="font-size:11px;">V-N-D (${rk.played} match${rk.played>1?'s':''})</div>
+          ${key==='ALL' ? `<div class="fut-rating" style="font-size:22px;color:var(--accent2);">${rk.played}</div>
+          <div class="muted" style="font-size:11px;">Match${rk.played>1?'s':''} joué${rk.played>1?'s':''} (les 2 équipes)</div>` : `<div class="fut-rating" style="font-size:22px;color:var(--accent2);">${rk.W}-${rk.N}-${rk.D}</div>
+          <div class="muted" style="font-size:11px;">V-N-D (${rk.played} match${rk.played>1?'s':''})</div>`}
         </div>
         <div class="card tight" style="margin:0;text-align:center;">
-          <div class="fut-rating" style="font-size:22px;color:var(--gold);">${rk.gf}-${rk.ga}</div>
-          <div class="muted" style="font-size:11px;">Buts marqués-encaissés</div>
+          ${key==='ALL' ? `<div class="fut-rating" style="font-size:22px;color:var(--gold);">${rk.gf}</div>
+          <div class="muted" style="font-size:11px;">Buts au total</div>` : `<div class="fut-rating" style="font-size:22px;color:var(--gold);">${rk.gf}-${rk.ga}</div>
+          <div class="muted" style="font-size:11px;">Buts marqués-encaissés</div>`}
         </div>
       </div>
-      <div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:6px;">
+      ${key==='ALL' ? "" : `<div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:6px;">
         <span>📈 Série en cours</span><b>${streakLabel}</b>
-      </div>
+      </div>`}
       <div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:6px;">
         <span>⏳ Prochain match</span>
         <b style="text-align:right;">${nm ? `${countdown}${nm.opponent?' vs '+esc(nm.opponent):''}` : "Aucun match prévu"}</b>
       </div>
       ${topScorer||topPasser ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px;">
-        ${topScorer && topScorer.goals>0 ? `<span class="trophy-chip">⚽ ${esc(topScorer.name)} (${topScorer.goals})</span>`:""}
-        ${topPasser && topPasser.assists>0 ? `<span class="trophy-chip">🎯 ${esc(topPasser.name)} (${topPasser.assists})</span>`:""}
+        ${topScorer && topScorer.goals>0 ? `<span class="trophy-chip">⚽ ${key==='ALL'?'Meilleur buteur : ':''}${esc(topScorer.name)} (${topScorer.goals})</span>`:""}
+        ${topPasser && topPasser.assists>0 ? `<span class="trophy-chip">🎯 ${key==='ALL'?'Meilleur passeur : ':''}${esc(topPasser.name)} (${topPasser.assists})</span>`:""}
       </div>` : ""}
     </div>`;
   },
@@ -4839,11 +4844,18 @@ const App = {
       <tbody>${rows.slice(0,10).map((p,i)=>`<tr><td class="rank-medal">${medal(i)}</td><td>${esc(p.name)}</td><td class="num">${fmt?fmt(p[valueKey]):p[valueKey]}</td></tr>`).join("")}</tbody></table>`;
     return `
     <div class="card">
-      <h2>📈 Stats de l'équipe — ${this.teamLogoTag(key,16)} ${esc(key==='A'?tn.a:tn.b)}</h2>
+      <h2>📈 Stats de l'équipe — ${key==='ALL'?'👥 Tout le monde':this.teamLogoTag(key,16)+' '+esc(key==='A'?tn.a:tn.b)}</h2>
       <div class="wrap" style="margin-bottom:8px;">
         <span class="chip ${key==='A'?'active':''}" onclick="App.setStatsTeamView('A')">${this.teamLogoTag('A',13)} ${esc(tn.a)}</span>
         <span class="chip ${key==='B'?'active':''}" onclick="App.setStatsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
+        <span class="chip ${key==='ALL'?'active':''}" onclick="App.setStatsTeamView('ALL')">👥 Tout le monde</span>
       </div>
+      ${key==='ALL' ? `
+      <div class="grid2" style="margin-bottom:14px;">
+        <div class="card tight" style="margin:0;text-align:center;"><div class="fut-rating" style="font-size:26px;color:var(--accent2);">${rk.played}</div><div class="muted" style="font-size:11px;">Matchs joués</div></div>
+        <div class="card tight" style="margin:0;text-align:center;"><div class="fut-rating" style="font-size:26px;color:var(--gold);">${rk.gf}</div><div class="muted" style="font-size:11px;">Buts au total</div></div>
+      </div>
+      <div class="kv"><span>⚽ Buts (les 2 équipes) / match (moy.)</span><b>${perMatchStr(rk.gf, rk.played)}</b></div>` : `
       <div class="grid2" style="margin-bottom:14px;">
         <div class="card tight" style="margin:0;text-align:center;"><div class="fut-rating" style="font-size:26px;color:var(--accent2);">${rk.W}</div><div class="muted" style="font-size:11px;">Victoires</div></div>
         <div class="card tight" style="margin:0;text-align:center;"><div class="fut-rating" style="font-size:26px;color:var(--gold);">${rk.N}</div><div class="muted" style="font-size:11px;">Nuls</div></div>
@@ -4852,7 +4864,7 @@ const App = {
       <div class="kv"><span>Matchs joués</span><b>${rk.played}</b></div>
       <div class="kv"><span>Buts marqués / encaissés</span><b>${rk.gf} / ${rk.ga}</b></div>
       <div class="kv"><span>⚽ Buts marqués / match (moy.)</span><b>${perMatchStr(rk.gf, rk.played)}</b></div>
-      <div class="kv"><span>🥅 Buts encaissés / match (moy.)</span><b>${perMatchStr(rk.ga, rk.played)}</b></div>
+      <div class="kv"><span>🥅 Buts encaissés / match (moy.)</span><b>${perMatchStr(rk.ga, rk.played)}</b></div>`}
       <div class="kv"><span>Passes décisives</span><b>${ct.assists}</b></div>
       <div class="kv"><span>Pen. marqués/ratés</span><b>${ct.penaltiesScored}/${ct.penaltiesMissed}</b></div>
       <div class="kv"><span>🎯 Taux de réussite penalty</span><b>${pctStr(ct.penaltiesScored, ct.penaltiesScored+ct.penaltiesMissed)}</b></div>
@@ -5284,7 +5296,7 @@ const App = {
   // l'équipe A (Mot'eau) — un supporter de FC Nulos y voyait le bilan et les classements de l'autre équipe.
   currentStatsTeam(){
     const t = this.state.statsTeamView;
-    return (t==='A' || t==='B') ? t : (this.myTeamKey() || 'A');
+    return (t==='A' || t==='B' || t==='ALL') ? t : (this.myTeamKey() || 'A');
   },
   setStatsTeamView(key){ this.state.statsTeamView = key; this.render(); },
   // Sélecteur d'équipe séparé, utilisé UNIQUEMENT par les Classements (renderClassementsSection), pour
