@@ -4059,7 +4059,7 @@ const App = {
     {key:'tireur', label:'🥅 Tireur', forGK:false, fmt:v=>v.toFixed(1)},
     {key:'dribbleur', label:'🌀 Dribbleur', forGK:false, fmt:v=>v.toFixed(1)},
     {key:'defenseur', label:'🛡️ Défenseur', forGK:false, fmt:v=>v.toFixed(1)},
-    {key:'gardien', label:'🧤 Gardien', forGK:true, gkOnly:true, fmt:v=>v.toFixed(1)},
+    {key:'gardien', label:'🧤 Gardien', forGK:true, gkOnly:true, fmt:v=>Math.round(v*100)+'% arrêts'},
     {key:'polyvalent', label:'🌟 Complet', forGK:false, fmt:v=>String(Math.round(v))+" pts", composite:true, golf:true},
   ],
   // Classement "dense" façon compétition sportive : deux joueurs à égalité parfaite (même valeur, ex : 0
@@ -4087,6 +4087,26 @@ const App = {
     if(opts && typeof opts==='object' && opts.includeIds){ const ids=new Set(opts.includeIds); matches=this.state.matches.filter(m=>m.played && ids.has(m.id)); }
     else matches=this.state.matches.filter(m=>m.played && m.id!==opts);
     return matches.some(m=>this.wasGKInMatch(m, name));
+  },
+  // Cumul d'un gardien sur tous les matchs où il a tenu le but : minutes dans le but (colonne dédiée, sinon
+  // ses minutes jouées saisies), arrêts et buts encaissés (par lui, voir gkConceded).
+  gkTotals(name, opts){
+    let matches;
+    if(opts && typeof opts==='object' && opts.includeIds){ const ids=new Set(opts.includeIds); matches=this.state.matches.filter(m=>m.played && ids.has(m.id)); }
+    else matches=this.state.matches.filter(m=>m.played && m.id!==opts);
+    let minutes=0, saves=0, conceded=0, games=0;
+    matches.forEach(m=>{
+      const share = this.gkShare(m, name);
+      if(share<=0) return;
+      games++;
+      const gm = this.gkMinutesFor(m, name);
+      const mp = ((m.minutesPlayed||[]).find(x=>x.name===name)||{}).count||0;
+      minutes += gm>0 ? gm : mp;
+      saves += this.pairCount(m.saves, name);
+      const side = this.matchSideOf(m, name) || (((this.state.players.find(p=>p.name===name)||{}).team)||null);
+      conceded += this.gkConceded(m, name, side) || 0;
+    });
+    return {minutes, saves, conceded, games};
   },
   computeCategoryRanking(category, opts, teamKey){
     const key = teamKey || this.currentStatsTeam();
@@ -4125,10 +4145,13 @@ const App = {
         // moins un match (peu importe le poste de leur fiche). Barème gardien (arrêts, buts encaissés par
         // match, notes...), pas celui des joueurs de champ.
         if(!this.playedAsGK(p.name, opts)) return;
-        value = this.cardRating({...stats, position:'Gardien'});
-        const gw = stats.weighted || {};
-        const conc = gw.gkWeight ? (gw.goalsConceded / gw.gkWeight) : 0;
-        extra = `🧤 ${stats.saves} arrêt${stats.saves>1?'s':''} · ${conc.toFixed(1)} but${conc>=2?'s':''} encaissé${conc>=2?'s':''}/match`;
+        // Classement basé sur le CUMUL : arrêts et buts encaissés sur les minutes passées dans le but.
+        // Valeur = % d'arrêts lissé ((arrêts+1)/(arrêts+buts+2), pour qu'un seul tir ne donne pas 100 %),
+        // départagé par les minutes dans le but (plus de temps dans le but = devant à égalité).
+        const t = this.gkTotals(p.name, opts);
+        value = (t.saves+1)/(t.saves+t.conceded+2) + t.minutes*1e-7;
+        const rounded = Math.round(t.conceded*10)/10;
+        extra = `⏱️ ${t.minutes} min dans le but · 🧤 ${t.saves} arrêt${t.saves>1?'s':''} · 🥅 ${rounded} but${rounded>=2?'s':''} encaissé${rounded>=2?'s':''} · ${t.games} match${t.games>1?'s':''}`;
       }
       else if(category==='general') value = this.cardRating(stats);
       else if(category==='buteur') value = stats.goals;
