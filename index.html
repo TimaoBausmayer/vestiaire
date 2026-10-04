@@ -6161,6 +6161,12 @@ const App = {
           </div>`;
         }).join("")}
       </div>
+      ${(()=>{
+        const used = new Set(Object.values(assignments).filter(Boolean));
+        const bench = roster.filter(n=>!used.has(n));
+        return `<p class="muted" style="font-size:11.5px;margin:10px 0 4px;">🔁 Remplaçants (${bench.length})</p>
+        <div class="variant-row">${bench.length ? bench.map(n=>`<span class="chip" style="cursor:default;">${esc(n)}</span>`).join("") : `<span class="muted" style="font-size:12px;">Tout le monde est titulaire.</span>`}</div>`;
+      })()}
       ${this.renderDrawTools(target, moves)}
       <button class="btn btn-ghost btn-sm" style="margin-top:10px;" onclick="App.shareBestXIToChat('${view}')">📤 Partager dans le chat</button>
     </div>`;
@@ -6175,7 +6181,9 @@ const App = {
     const channel = view==='A' ? 'A' : view==='B' ? 'B' : 'general';
     const lines = slots.filter(s=>assignments[s.k]).map(s=>`${s.k} — ${assignments[s.k]}`);
     const header = `🌟 Meilleur 11 (${tactic.name||'Variante'}) — ${label} — ${formation}`;
-    const text = header + "\n" + (lines.length? lines.join("\n") : "(pas encore composé)");
+    const usedN = new Set(Object.values(assignments).filter(Boolean));
+    const benchN = this.bestXIRoster(view).filter(n=>!usedN.has(n));
+    const text = header + "\n" + (lines.length? lines.join("\n") : "(pas encore composé)") + (lines.length && benchN.length ? "\n🔁 Remplaçants : "+benchN.join(", ") : "");
     this.ensureMe(async (me)=>{
       await this.db.collection("messages").add({channel, author:me, text, createdAt:new Date().toISOString()});
       toast("Meilleur 11 partagé dans le chat ("+(channel==='general'?'Général':label)+")");
