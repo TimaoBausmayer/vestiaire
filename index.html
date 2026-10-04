@@ -805,13 +805,13 @@ const App = {
       <h3 style="font-size:15px;">🙋 Identification joueur</h3>
       ${linkedPlayer ? `
         <p class="muted" style="font-size:12.5px;margin-top:-4px;">
-          Tu es identifié comme <b>${esc(linkedPlayer.name)}</b>. Ça veut dire : ses stats et sa fiche te représentent, tu touches son salaire automatiquement chaque semaine dans 💰 Paris${salaryInfo? " ("+fmtEuro(salaryInfo.amount)+"/semaine)":""}, et si tu prends un carton en match, c'est TON crédit qui baisse (les sanctions du capitaine aussi).
+          Tu es identifié comme <b>${esc(linkedPlayer.name)}</b>. Ça veut dire : ses stats et sa fiche te représentent, tu touches son salaire automatiquement après chaque match joué dans 💰 Paris${salaryInfo? " ("+fmtEuro(salaryInfo.amount)+"/match)":""}, et si tu prends un carton en match, c'est TON crédit qui baisse (les sanctions du capitaine aussi).
         </p>
         <div style="display:flex;justify-content:center;margin:8px 0;">${this.renderFutCard(linkedPlayer)}</div>
         <button class="btn btn-ghost btn-block" onclick="App.unclaimPlayer(); App.closeModal();">Retirer mon identification</button>
       ` : `
         <p class="muted" style="font-size:12.5px;margin-top:-4px;">
-          Tu n'es identifié à aucune fiche joueur pour l'instant. Va dans 🃏 Recrues et clique sur "🙋 C'est moi" sur TA fiche : une fois fait, tu touches automatiquement son salaire chaque semaine dans 💰 Paris, tu vois ses stats ici, et un seul compte peut revendiquer chaque joueur (personne d'autre ne pourra prendre ta place).
+          Tu n'es identifié à aucune fiche joueur pour l'instant. Va dans 🃏 Recrues et clique sur "🙋 C'est moi" sur TA fiche : une fois fait, tu touches automatiquement son salaire après chaque match dans 💰 Paris, tu vois ses stats ici, et un seul compte peut revendiquer chaque joueur (personne d'autre ne pourra prendre ta place).
         </p>
         <button class="btn btn-accent btn-block" onclick="App.closeModal(); App.goTab(3);">Aller dans 🃏 Recrues</button>
       `}
@@ -3030,7 +3030,7 @@ const App = {
       const already = this.state.accounts.find(a=>a.linkedPlayer===playerName);
       if(already && already.username!==me){ toast("Déjà revendiqué par "+already.username); return; }
       await this.db.collection("accounts").doc(slugify(me)).update({linkedPlayer: playerName});
-      toast("✅ C'est toi maintenant : "+playerName+" — tu touches son salaire chaque semaine dans 💰 Paris");
+      toast("✅ C'est toi maintenant : "+playerName+" — tu touches son salaire après chaque match dans 💰 Paris");
       this.render();
     });
   },
@@ -3041,7 +3041,7 @@ const App = {
       this.render();
     });
   },
-  /* ---------- Salaire (versé toutes les semaines, indexé sur la valeur marchande) ---------- */
+  /* ---------- Salaire (versé après chaque match, indexé sur la valeur marchande) ---------- */
   SALARY_PERIOD_MS: 7*24*3600*1000,
   playerSalary(name){
     const stats = this.computePlayerStats(name);
@@ -3058,38 +3058,43 @@ const App = {
   },
   // "username" est le pseudo du COMPTE connecté ; le joueur pris en compte est celui que ce compte a
   // revendiqué (acc.linkedPlayer), pas le pseudo lui-même.
+  // Matchs joués pas encore payés pour ce compte (le salaire tombe après CHAQUE match joué).
+  unpaidSalaryMatches(acc){
+    const paid = new Set(Array.isArray(acc && acc.salaryPaidIds) ? acc.salaryPaidIds : []);
+    return (this.state.matches||[]).filter(m=>m.played && !paid.has(m.id));
+  },
   pendingSalaryInfo(username){
     const acc = this.state.accounts.find(a=>a.username===username);
     const linkedName = acc && acc.linkedPlayer;
     if(!linkedName) return null;
     const player = this.state.players.find(p=>p.name===linkedName);
     if(!player) return null;
-    const lastAt = acc && acc.lastSalaryAt ? new Date(acc.lastSalaryAt) : (acc && acc.createdAt ? new Date(acc.createdAt) : new Date());
-    const nextAt = new Date(lastAt.getTime()+this.SALARY_PERIOD_MS);
-    return {amount: this.effectiveSalary(linkedName, acc), nextAt: isNaN(nextAt) ? null : nextAt.toISOString(), linkedName};
+    return {amount: this.playerSalary(linkedName), nextAt: null, linkedName, pending: this.unpaidSalaryMatches(acc).length};
   },
-  checkAndPaySalaryIfNeeded(){
+  async checkAndPaySalaryIfNeeded(){
     if(!this.me || !this.db) return;
-    if(this._salaryCheckedFor === this.me) return;
-    this._salaryCheckedFor = this.me;
-    const acc = this.state.accounts.find(a=>a.username===this.me);
-    if(!acc) return;
-    const linkedName = acc.linkedPlayer;
-    if(!linkedName) return;
-    const player = this.state.players.find(p=>p.name===linkedName);
-    if(!player) return;
-    const lastAt = acc.lastSalaryAt ? new Date(acc.lastSalaryAt) : new Date(acc.createdAt||Date.now());
-    if(isNaN(lastAt)) return;
-    const now = new Date();
-    const periods = Math.floor((now.getTime()-lastAt.getTime())/this.SALARY_PERIOD_MS);
-    if(periods<1) return;
-    const salary = this.effectiveSalary(linkedName, acc);
-    const total = salary*periods;
-    const newLastAt = new Date(lastAt.getTime()+periods*this.SALARY_PERIOD_MS);
-    const newWallet = (acc.wallet||0) + total;
-    this.db.collection("accounts").doc(slugify(this.me)).update({wallet:newWallet, lastSalaryAt:newLastAt.toISOString(), lastSalaryAmount:salary, history:this.pushHistory(acc.history, {amount:total, label:"💼 Salaire"+(periods>1?" ("+periods+" semaines)":"")})}).then(()=>{
-      toast("💼 Salaire versé : "+fmtEuro(total)+(periods>1? " ("+periods+" versements)":""));
-    });
+    if(this._salaryBusy) return;
+    const acc0 = this.state.accounts.find(a=>a.username===this.me);
+    if(!acc0 || !acc0.linkedPlayer) return;
+    if(!this.state.players.find(p=>p.name===acc0.linkedPlayer)) return;
+    if(!(this.state.matches||[]).length) return;
+    if(!this.unpaidSalaryMatches(acc0).length) return;
+    this._salaryBusy = true;
+    try{
+      const ref = this.db.collection("accounts").doc(slugify(this.me));
+      const fresh = await ref.get();           // relecture en direct : jamais de double versement
+      if(!fresh.exists) return;
+      const acc = {id:fresh.id, ...fresh.data()};
+      const todo = this.unpaidSalaryMatches(acc);
+      if(!todo.length) return;
+      const salary = this.playerSalary(acc.linkedPlayer);
+      const total = salary*todo.length;
+      const ids = (Array.isArray(acc.salaryPaidIds)? acc.salaryPaidIds : []).concat(todo.map(m=>m.id));
+      await ref.update({wallet:(acc.wallet||0)+total, salaryPaidIds:ids, lastSalaryAmount:salary,
+        history:this.pushHistory(acc.history, {amount:total, label:"💼 Salaire"+(todo.length>1?" ("+todo.length+" matchs)":" après match")})});
+      toast("💼 Salaire versé : "+fmtEuro(total)+(todo.length>1? " ("+todo.length+" matchs)":""));
+    }catch(e){}
+    finally{ this._salaryBusy = false; }
   },
   /* ---------- Sanctions & amendes (« quand tu fais un mauvais truc, tu perds de l'argent ») ----------
      Deux mécanismes : une amende AUTOMATIQUE à chaque carton jaune/rouge saisi sur un match (appliquée
@@ -3677,7 +3682,7 @@ const App = {
     <div class="card">
       <h2>💳 Ton crédit</h2>
       <p class="value-big">${fmtEuro(wallet)}</p>
-      ${salaryInfo ? `<p class="muted" style="font-size:11.5px;">💼 Salaire de ${esc(salaryInfo.linkedName)} (indexé sur sa valeur marchande) : ${fmtEuro(salaryInfo.amount)} chaque semaine${salaryInfo.nextAt? " · prochain versement le "+fmtDate(salaryInfo.nextAt):""}. Les gains de paris s'ajoutent à ce crédit, jamais à la valeur marchande.</p>` : `<p class="muted" style="font-size:11.5px;">Le salaire automatique est réservé aux comptes identifiés à une fiche joueur. Va dans 🃏 Recrues et clique sur "C'est moi" sur ta fiche.</p>`}
+      ${salaryInfo ? `<p class="muted" style="font-size:11.5px;">💼 Salaire de ${esc(salaryInfo.linkedName)} (indexé sur sa valeur marchande) : ${fmtEuro(salaryInfo.amount)} après chaque match joué. Les gains de paris s'ajoutent à ce crédit, jamais à la valeur marchande.</p>` : `<p class="muted" style="font-size:11.5px;">Le salaire automatique est réservé aux comptes identifiés à une fiche joueur. Va dans 🃏 Recrues et clique sur "C'est moi" sur ta fiche.</p>`}
     </div>`;
   },
   renderBetLeaderboard(){
@@ -3934,7 +3939,7 @@ const App = {
 
       <div class="card">
         <h3>Fiches joueurs</h3>
-        <p class="muted" style="font-size:11.5px;margin-top:-4px;">Clique sur "🙋 C'est moi" sur TA fiche pour t'identifier à ce joueur : tu touches son salaire chaque semaine dans 💰 Paris, tu vois ses stats depuis ton profil (👤 en haut), et si tu prends un carton en match ton crédit baisse. Un seul compte peut revendiquer chaque joueur.</p>
+        <p class="muted" style="font-size:11.5px;margin-top:-4px;">Clique sur "🙋 C'est moi" sur TA fiche pour t'identifier à ce joueur : tu touches son salaire après chaque match dans 💰 Paris, tu vois ses stats depuis ton profil (👤 en haut), et si tu prends un carton en match ton crédit baisse. Un seul compte peut revendiquer chaque joueur.</p>
         ${players.length===0 ? `<div class="empty">—</div>` : players.map(p=>{
           const tn = this.teamNames();
           const teamLabel = p.team==='A' ? `${this.teamLogoTag('A',13)} ${esc(tn.a)}` : p.team==='B' ? `${this.teamLogoTag('B',13)} ${esc(tn.b)}` : "";
