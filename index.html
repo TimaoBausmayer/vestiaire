@@ -2459,6 +2459,21 @@ const App = {
     return sameSideMins.length ? 0 : 1; // des minutes ont été saisies pour d'autres gardiens de son équipe : elles priment
   },
   wasGKInMatch(m, name){ return this.gkShare(m, name)>0; },
+  // Buts encaissés PAR ce gardien : si la colonne « Buts encaissés (gardien) » du résultat est remplie pour
+  // un gardien de son équipe, on prend exactement ces chiffres (0 pour ceux laissés vides) ; sinon on répartit
+  // les buts de l'équipe selon le temps passé dans le but.
+  gkConceded(m, name, sideInMatch){
+    const share = this.gkShare(m, name);
+    if(share<=0 || !m.score) return null;
+    const mySide = this.matchSideOf(m, name);
+    const entered = (m.gkConceded||[]).filter(x=>(x.count||0)>0 && this.matchSideOf(m, x.name)===mySide);
+    if(entered.length){
+      const f = (m.gkConceded||[]).find(x=>x.name===name);
+      return f ? (f.count||0) : 0;
+    }
+    const against = (sideInMatch==='B') ? (m.score.us||0) : (m.score.them||0);
+    return Math.round(against*share*10)/10;
+  },
   matchHasGKInfo(m){
     return (m && (m.gkMinutes||[]).some(x=>(x.count||0)>0)) || [m && m.tactic, m && m.tacticA, m && m.tacticB].some(t=>t && t.assignments && t.assignments.GK);
   },
@@ -2546,11 +2561,11 @@ const App = {
         // m.score.us / m.score.them sont toujours du point de vue de l'équipe A ("nous", Mot'eau). Un
         // gardien qui a joué côté équipe B (adverse) CE match encaisse donc nos buts à NOUS (m.score.us),
         // pas m.score.them — sinon son total de buts encaissés était en fait celui du gardien adverse.
-        const conceded = (sideInMatch==='B') ? (m.score.us||0) : (m.score.them||0);
-        // Plusieurs gardiens : buts encaissés répartis selon le temps passé dans le but (pas d'horodatage
-        // des buts) ; le taux « par match » reste celui de l'équipe, pondéré par la part de but tenue.
-        goalsConceded += Math.round(conceded*gkShare*10)/10;
-        wGoalsConceded += conceded*gkShare*w;
+        // Buts encaissés saisis par gardien (sinon répartis selon le temps dans le but). Le taux « par match »
+        // est ramené à un match complet dans le but : buts encaissés / part du but tenue.
+        const concededByMe = this.gkConceded(m, name, sideInMatch);
+        goalsConceded += concededByMe;
+        wGoalsConceded += concededByMe*w;
         wGkWeight += w*gkShare;
       }
       // "Convoqué" doit être la source de vérité de "a joué ce match" : décocher quelqu'un dans les
@@ -4820,7 +4835,7 @@ const App = {
     // Même principe que dans computePlayerStats : le côté où le joueur a joué CE match précis (pas sa
     // fiche permanente, qui peut avoir changé depuis via un transfert).
     const sideInMatch = (m.teamA||[]).includes(name) ? 'A' : ((m.teamB||[]).includes(name) ? 'B' : (player && player.team));
-    const concededAsGK = wasGK && m.score ? (((sideInMatch==='B') ? (m.score.us||0) : (m.score.them||0))*gkShareHere) : null;
+    const concededAsGK = wasGK && m.score ? this.gkConceded(m, name, sideInMatch) : null;
     const wasInvolved = (m.convoked||[]).length ? (m.convoked||[]).includes(name) : ((m.teamA||[]).includes(name) || (m.teamB||[]).includes(name));
     return {goals, freekick, assists, yellow, red, tacklesWon, rating, isMVP, wasGK, concededAsGK, wasInvolved};
   },
@@ -6164,6 +6179,7 @@ const App = {
     {key:"shots", id:"sh", label:"🎯 Tirs cadrés"},
     {key:"tackles", id:"tw", label:"🛡️ Tacles réussis"},
     {key:"gkMinutes", id:"gm", label:"🧤 Minutes dans le but"},
+    {key:"gkConceded", id:"gc", label:"🥅 Buts encaissés (gardien)"},
     {key:"saves", id:"sv", label:"🧤 Tirs arrêtés (gardien)"},
     {key:"penSaved", id:"pas", label:"🧤 Pen. attrapés (gardien)"},
     {key:"penConceded", id:"pac", label:"🥅 Pen. pris (gardien)"},
@@ -6180,7 +6196,7 @@ const App = {
       minutes:m.minutesPlayed, goals:m.scorers, freekick:m.freekickScored, freekickTaken:m.freekickTaken, assists:m.assists, penScored:m.penaltiesScored, penMissed:m.penaltiesMissed,
       penCaused:m.penaltiesCaused,
       cornersScored:m.cornersScored, cornersTaken:m.cornersTaken, shots:m.shotsOnTarget, tackles:m.tacklesWon,
-      saves:m.saves, penSaved:m.penaltiesSaved, penConceded:m.penaltiesConceded, gkMinutes:m.gkMinutes,
+      saves:m.saves, penSaved:m.penaltiesSaved, penConceded:m.penaltiesConceded, gkMinutes:m.gkMinutes, gkConceded:m.gkConceded,
       yellow:m.cardsYellow, red:m.cardsRed,
     };
     this.modal(`
@@ -6217,7 +6233,7 @@ const App = {
           </tbody>
         </table>
       </div>
-      <p class="stat-legend">🧤 Minutes dans le but : remplis-la pour CHAQUE gardien du match (ex. 45 et 45 si on a tourné) — les buts encaissés sont répartis selon le temps passé dans le but, et ils sont notés comme gardiens. ⏱️ Minutes jouées · ⚽ Buts · 🎯 Passes décisives · ✅❌ Penaltys marqués/ratés · 🚫 Penalty provoqué (faute qui donne un penalty à l'adversaire) · ⛳✅ Coufrans marqués (directement transformés en but) · ⛳ Coufrans tirés · 🎯 Tirs cadrés · 🛡️ Tacles réussis · 🧤 Arrêts et penaltys attrapés (pour le gardien) · 🥅 Penaltys pris (pour le gardien) · 🟨🟥 Cartons</p>
+      <p class="stat-legend">🧤 Minutes dans le but : remplis-la pour CHAQUE gardien du match (ex. 45 et 45 si on a tourné) — 🥅 Buts encaissés (gardien) : mets les buts pris par CHAQUE gardien (ex. 2 en 1re mi-temps, 5 en 2e) — si tu laisses vide, ils sont répartis selon les minutes dans le but. Ils sont notés comme gardiens. ⏱️ Minutes jouées · ⚽ Buts · 🎯 Passes décisives · ✅❌ Penaltys marqués/ratés · 🚫 Penalty provoqué (faute qui donne un penalty à l'adversaire) · ⛳✅ Coufrans marqués (directement transformés en but) · ⛳ Coufrans tirés · 🎯 Tirs cadrés · 🛡️ Tacles réussis · 🧤 Arrêts et penaltys attrapés (pour le gardien) · 🥅 Penaltys pris (pour le gardien) · 🟨🟥 Cartons</p>
       <button class="btn btn-accent btn-block" onclick="App.saveResult('${matchId}')">Enregistrer</button>
       ${this.admin? `<button class="btn btn-ghost btn-block" style="margin-top:8px;color:var(--danger);" onclick="App.deleteMatch('${matchId}')">🗑️ Supprimer ce match</button>`:""}
     `);
@@ -6252,7 +6268,7 @@ const App = {
       penaltiesScored: out.penScored, penaltiesMissed: out.penMissed, penaltiesCaused: out.penCaused,
       cornersScored: out.cornersScored, cornersTaken: out.cornersTaken, shotsOnTarget: out.shots, tacklesWon: out.tackles,
       saves: out.saves, penaltiesSaved: out.penSaved, penaltiesConceded: out.penConceded,
-      minutesPlayed: out.minutes, gkMinutes: out.gkMinutes,
+      minutesPlayed: out.minutes, gkMinutes: out.gkMinutes, gkConceded: out.gkConceded,
       cardsYellow: out.yellow, cardsRed: out.red,
     });
     await this.settleBetsForMatch(matchId, {us, them, scorers: out.goals, freekick: out.freekick, penScored: out.penScored, allGoals: this.matchGoalScorers({scorers: out.goals, freekickScored: out.freekick, cornersScored: out.cornersScored, penaltiesScored: out.penScored})});
