@@ -3165,11 +3165,47 @@ const App = {
     await ref.update({wallet:newWallet, history:this.pushHistory(d.history, {amount:newWallet-current, label})});
     return newWallet;
   },
+  // Comptes "fantômes" : un compte dont le nom est exactement le joueur lié d'un AUTRE compte (ex. "Timao"
+  // alors que "Timao Bausmayer" est lié au joueur "Timao") est un doublon : on ne le propose jamais.
+  realAccounts(){
+    const all = this.state.accounts||[];
+    const linked = new Set(all.filter(a=>a.linkedPlayer).map(a=>[a.linkedPlayer, a.username]).map(x=>x[0]));
+    return all.filter(a=>{
+      if(a.linkedPlayer) return true;
+      return !all.some(o=>o!==a && o.linkedPlayer && o.linkedPlayer.trim().toLowerCase()===a.username.trim().toLowerCase());
+    });
+  },
+  bigMoneyModal(title, amount, who, reason, positive){
+    this.modal(`
+      <div style="text-align:center;padding:6px 0;">
+        <div style="font-size:44px;">${positive?'💸':'⚠️'}</div>
+        <h2 style="margin:6px 0;font-size:26px;">${esc(title)}</h2>
+        <div style="font-size:34px;font-weight:800;color:${positive?'var(--accent2)':'var(--danger)'};">${positive?'+':'−'}${fmtEuro(Math.abs(amount))}</div>
+        <div style="font-size:20px;font-weight:700;margin-top:6px;">${esc(who)}</div>
+        ${reason? `<div class="muted" style="font-size:14px;margin-top:6px;">« ${esc(reason)} »</div>`:''}
+        <button class="btn btn-accent btn-block" style="margin-top:14px;" onclick="App.closeModal()">OK</button>
+      </div>`);
+  },
+  checkNewMoneyNotice(){
+    try{
+      const acc = (this.state.accounts||[]).find(a=>a.username===this.me);
+      const h = acc && Array.isArray(acc.history) ? acc.history[0] : null;
+      if(!h || !h.at || !/^(💸 Virement reçu|⚠️ Amende|🛡️ Compensation)/.test(h.label||"")) return;
+      const key = "moneyNoticeSeen:"+this.me;
+      let seen=""; try{ seen = localStorage.getItem(key)||""; }catch(e){}
+      if(!seen){ try{ localStorage.setItem(key,h.at); }catch(e){} return; } // premier lancement : pas de popup rétroactive
+      if(seen>=h.at) return;
+      try{ localStorage.setItem(key,h.at); }catch(e){}
+      const pos = h.amount>=0;
+      const m = (h.label||"").replace(/^[^A-Za-zÀ-ÿ]+/,"");
+      this.bigMoneyModal(m.split(" — ")[0].split(" : ")[0], h.amount, "", (m.split(" — ")[1]||m.split(" : ")[1]||""), pos);
+    }catch(e){}
+  },
   openTransferModal(){
     this.ensureMe(()=>{
       const acc = this.state.accounts.find(a=>a.username===this.me);
       const wallet = acc ? (acc.wallet||0) : 0;
-      const others = (this.state.accounts||[]).filter(a=>a.username!==this.me).sort((a,b)=>a.username.localeCompare(b.username));
+      const others = this.realAccounts().filter(a=>slugify(a.username)!==slugify(this.me||'') && !(acc && acc.linkedPlayer && a.linkedPlayer===acc.linkedPlayer)).sort((a,b)=>a.username.localeCompare(b.username));
       this.modal(`
         <h3>💸 Faire un virement</h3>
         <p class="muted" style="font-size:12.5px;margin-top:-4px;">Tu envoies de ton propre crédit (${fmtEuro(wallet)}) à un autre joueur.</p>
@@ -3188,7 +3224,7 @@ const App = {
       const to = document.getElementById("trTo").value;
       const amount = parseInt(document.getElementById("trAmount").value,10)||0;
       const reason = document.getElementById("trReason").value.trim();
-      if(!to || to===this.me){ toast("Choisis un autre joueur"); return; }
+      if(!to || slugify(to)===slugify(this.me)){ toast("Choisis un autre joueur"); return; }
       if(amount<=0){ toast("Montant invalide"); return; }
       const mine = await this.db.collection("accounts").doc(slugify(this.me)).get();
       const wallet = mine.exists ? (mine.data().wallet||0) : 0;
@@ -3197,14 +3233,14 @@ const App = {
       await this.adjustWallet(this.me, -amount, "💸 Virement envoyé à "+to+suffix);
       try{ await this.adjustWallet(to, amount, "💸 Virement reçu de "+this.me+suffix); }
       catch(e){ await this.adjustWallet(this.me, amount, "↩️ Virement vers "+to+" annulé"); toast("❌ Virement échoué, tu es remboursé"); return; }
-      this.closeModal();
+      this.bigMoneyModal("Virement envoyé", -amount, "à "+to, reason, false);
       toast("✅ "+fmtEuro(amount)+" envoyés à "+to);
     }catch(e){ toast("❌ Virement impossible (réseau ?)"); }
     finally{ this._transferBusy = false; }
   },
   openCaptainMoneyModal(){
     if(!this.admin){ toast("Réservé aux capitaines"); return; }
-    const accounts = (this.state.accounts||[]).slice().sort((a,b)=>a.username.localeCompare(b.username));
+    const accounts = this.realAccounts().slice().sort((a,b)=>a.username.localeCompare(b.username));
     this.modal(`
       <h3>🛡️ Virement du capitaine</h3>
       <p class="muted" style="font-size:12.5px;margin-top:-4px;">Ce n'est pas ton argent : tu peux donner de l'argent (compensation) ou en retirer (amende) à n'importe quel compte. Le motif est écrit dans son historique.</p>
@@ -3225,15 +3261,38 @@ const App = {
       const amount = parseInt(document.getElementById("cmAmount").value,10)||0;
       const reason = document.getElementById("cmReason").value.trim();
       if(!to || amount<=0){ toast("Montant invalide"); return; }
-      const label = sign>0 ? "🛡️ Compensation du capitaine"+(reason? " : "+reason:"") : "⚠️ Amende du capitaine"+(reason? " : "+reason:"");
+      const label = sign>0 ? "🛡️ Compensation de "+this.me+(reason? " : "+reason:"") : "⚠️ Amende de "+this.me+(reason? " : "+reason:"");
       await this.adjustWallet(to, sign*amount, label);
-      this.closeModal();
+      this.bigMoneyModal(sign>0?"Compensation":"Amende", sign*amount, (sign>0?"pour ":"pour ")+to, reason, sign>0);
       toast((sign>0? "➕ ":"➖ ")+to+" "+(sign>0? "reçoit ":"perd ")+fmtEuro(amount)+(reason? " ("+reason+")":""));
     }catch(e){ toast("❌ Échec (réseau ?)"); }
     finally{ this._cmBusy = false; }
   },
+  renderFinesCard(){
+    if(!this.admin) return "";
+    const rows = [];
+    (this.state.accounts||[]).forEach(acc=>{
+      (Array.isArray(acc.history)?acc.history:[]).forEach(h=>{
+        if(/^⚠️ Amende/.test(h.label||"") && h.amount<0) rows.push({who:acc.username, amount:-h.amount, label:h.label.replace(/^⚠️\s*/,""), at:h.at});
+      });
+    });
+    if(!rows.length) return `<div class="card"><h2>⚠️ Amendes (capitaines)</h2><p class="muted" style="font-size:12.5px;">Aucune amende pour l'instant.</p></div>`;
+    const tot = {};
+    rows.forEach(r=>tot[r.who]=(tot[r.who]||0)+r.amount);
+    const totals = Object.entries(tot).sort((a,b)=>b[1]-a[1]);
+    rows.sort((a,b)=>(b.at||"").localeCompare(a.at||""));
+    return `
+    <div class="card">
+      <h2>⚠️ Amendes (capitaines)</h2>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">Total par joueur (30 derniers mouvements de chaque compte).</p>
+      <table class="stats"><tbody>${totals.map(([w,t])=>`<tr><td style="font-weight:700;">${esc(w)}</td><td class="num" style="color:var(--danger);font-weight:800;">−${fmtEuro(t)}</td></tr>`).join("")}</tbody></table>
+      <p class="muted" style="font-size:12px;margin:10px 0 4px;">Détail :</p>
+      <table class="stats"><tbody>${rows.slice(0,25).map(r=>`<tr><td style="font-size:12.5px;"><b>${esc(r.who)}</b> — ${esc(r.label)}<br><span class="muted" style="font-size:10.5px;">${fmtDate(r.at)}</span></td><td class="num" style="color:var(--danger);">−${fmtEuro(r.amount)}</td></tr>`).join("")}</tbody></table>
+    </div>`;
+  },
   renderTransfersCard(){
     if(!this.me) return "";
+    setTimeout(()=>this.checkNewMoneyNotice(),400);
     const acc = this.state.accounts.find(a=>a.username===this.me);
     const hist = (acc && Array.isArray(acc.history)) ? acc.history.slice(0,8) : [];
     return `
@@ -3244,7 +3303,7 @@ const App = {
         ${this.admin? `<button class="btn btn-ghost" style="flex:1;" onclick="App.openCaptainMoneyModal()">🛡️ Capitaine : donner / amende</button>`:""}
       </div>
       ${hist.length? `<p class="muted" style="font-size:12px;margin:10px 0 4px;">Derniers mouvements :</p>
-      <table class="stats"><tbody>${hist.map(h=>`<tr><td style="font-size:12px;">${esc(h.label||"")}<br><span class="muted" style="font-size:10.5px;">${fmtDate(h.at)}</span></td><td class="num" style="color:${h.amount>=0?'var(--accent2)':'var(--danger)'};">${h.amount>=0?'+':''}${fmtEuro(h.amount)}</td></tr>`).join("")}</tbody></table>` : `<p class="muted" style="font-size:12px;margin-top:8px;">Aucun mouvement pour l'instant.</p>`}
+      <table class="stats"><tbody>${hist.map(h=>`<tr><td style="font-size:${/^(💸 Virement|⚠️ Amende|🛡️ Compensation)/.test(h.label||"")?'15px;font-weight:800':'12px'};">${esc(h.label||"")}<br><span class="muted" style="font-size:10.5px;">${fmtDate(h.at)}</span></td><td class="num" style="color:${h.amount>=0?'var(--accent2)':'var(--danger)'};">${h.amount>=0?'+':''}${fmtEuro(h.amount)}</td></tr>`).join("")}</tbody></table>` : `<p class="muted" style="font-size:12px;margin-top:8px;">Aucun mouvement pour l'instant.</p>`}
     </div>`;
   },
   /* ---------- Paris sportifs ---------- */
@@ -3613,7 +3672,7 @@ const App = {
     </div>`;
   },
   renderBetLeaderboard(){
-    const rows = (this.state.accounts||[]).slice().sort((a,b)=>(b.wallet||0)-(a.wallet||0)).slice(0,10);
+    const rows = this.realAccounts().slice().sort((a,b)=>(b.wallet||0)-(a.wallet||0)).slice(0,10);
     if(!rows.length) return "";
     const medal = i => ['🥇','🥈','🥉'][i] || (i+1)+".";
     return `
@@ -3735,7 +3794,7 @@ const App = {
     const upcoming = this.state.matches.filter(m=>!m.played).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
     return `
       ${this.renderWalletCard()}
-      ${this.renderTransfersCard()}
+      ${this.renderTransfersCard()}${this.renderFinesCard()}
       <div class="card">
         <h2>💰 Valeur totale de l'équipe</h2>
         <p class="value-big">${this.formatMarketValue(this.teamValueTotal())}</p>
