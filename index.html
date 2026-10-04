@@ -5167,7 +5167,8 @@ const App = {
       {key:'tacklesWon', label:'🛡️ Tacles'},
       {key:'yellow', label:'🟨'},
       {key:'red', label:'🟥'},
-      {key:'matchesPlayed', label:'MJ'},
+      {key:'matchesPlayed', label:'🏟️ Matchs'},
+      {key:'minutesPlayed', label:'⏱️ Min.'},
       {key:'avgRating', label:'⭐ Moy.', fmt:v=>v?v.toFixed(1):'–'},
     ];
     let rows = this.state.players.filter(p=> !search || norm(p.name).includes(norm(search))).map(p=>{
@@ -5183,9 +5184,9 @@ const App = {
     return `
     <div class="card">
       <h2>📋 Tableau général des stats</h2>
-      <p class="muted" style="font-size:12px;margin-top:-6px;">Clique sur une colonne pour trier (buts, coufrans, tacles...). Clique sur un joueur pour voir sa fiche.</p>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">🏟️ ${(this.state.matches||[]).filter(m=>m.played).length} match${(this.state.matches||[]).filter(m=>m.played).length>1?'s':''} joué${(this.state.matches||[]).filter(m=>m.played).length>1?'s':''} au total · « Matchs » = matchs joués par le joueur, « Min. » = minutes jouées. Clique sur une colonne pour trier, sur un joueur pour voir sa fiche.</p>
       <div style="overflow-x:auto;">
-        <table class="stats" style="min-width:560px;">
+        <table class="stats" style="min-width:640px;">
           <thead><tr>
             ${cols.map(c=>`<th style="cursor:pointer;white-space:nowrap;" onclick="App.setStatsSort('${c.key}')">${c.label}${key===c.key?(dir==='desc'?' ▼':' ▲'):''}</th>`).join("")}
           </tr></thead>
