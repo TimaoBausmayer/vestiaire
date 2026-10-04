@@ -3761,6 +3761,17 @@ const App = {
         VIT: blend(c.vitesseGk, fVitesse),
       };
     }
+    // Un joueur de champ qui a AUSSI été noté comme gardien sur un match (ex. Valentin) : ses notes gardien
+    // comptent dans sa carte, au lieu d'être ignorées. Vitesse ← vitesse gardien, Passe ← relances,
+    // Défense ← moyenne (plongeon, réflexes, placement, autorité), Physique ← autorité de surface.
+    // On fait la moyenne avec sa note de joueur de champ s'il en a une (tir et dribble n'ont pas d'équivalent).
+    const mean = arr => { const v = arr.filter(x=>x>0); return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0; };
+    const mixVote = (field, gk) => mean([field||0, gk||0]);
+    const gkDef = mean([c.plongeon, c.reflexes, c.placement, c.autorite]);
+    const cv = {
+      vitesse: mixVote(c.vitesse, c.vitesseGk), tir: c.tir, passe: mixVote(c.passe, c.relances),
+      dribble: c.dribble, defense: mixVote(c.defense, gkDef), physique: mixVote(c.physique, c.autorite),
+    };
     const gpm = stats.matchesPlayed>0 ? stats.goals/stats.matchesPlayed : 0;
     const fVit = 52 + gpm*12;
     const fTir = 45 + stats.goals*4 + stats.shotsOnTarget*1;
@@ -3769,12 +3780,12 @@ const App = {
     const fDef = 40 + stats.tacklesWon*2;
     const fPhy = 48 + Math.min(10, stats.matchesPlayed);
     return {
-      VIT: blend(c.vitesse, fVit),
-      TIR: blend(c.tir, fTir),
-      PAS: blend(c.passe, fPas),
-      DRI: blend(c.dribble, fDri),
-      "DÉF": blend(c.defense, fDef),
-      PHY: blend(c.physique, fPhy),
+      VIT: blend(cv.vitesse, fVit),
+      TIR: blend(cv.tir, fTir),
+      PAS: blend(cv.passe, fPas),
+      DRI: blend(cv.dribble, fDri),
+      "DÉF": blend(cv.defense, fDef),
+      PHY: blend(cv.physique, fPhy),
     };
   },
   renderFutCard(p, opts){
