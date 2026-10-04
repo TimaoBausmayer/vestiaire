@@ -3079,30 +3079,25 @@ const App = {
     if(!acc0 || !acc0.linkedPlayer) return;
     if(!this.state.players.find(p=>p.name===acc0.linkedPlayer)) return;
     if(!(this.state.matches||[]).length) return;
-    if(!this.unpaidSalaryMatches(acc0).length && acc0.salaryV2) return;
+    if(!this.unpaidSalaryMatches(acc0).length) return;
     this._salaryBusy = true;
     try{
       const ref = this.db.collection("accounts").doc(slugify(this.me));
       const fresh = await ref.get();           // relecture en direct : jamais de double versement
       if(!fresh.exists) return;
       const acc = {id:fresh.id, ...fresh.data()};
-      const todo = this.unpaidSalaryMatches(acc);
+      const unpaid = this.unpaidSalaryMatches(acc);
+      if(!unpaid.length) return;
       const salary = this.playerSalary(acc.linkedPlayer);
-      // Rattrapage unique : les matchs déjà payés avec l'ancien barème (5 % de la valeur) sont complétés
-      // jusqu'à la valeur complète de la carte.
-      const oldPaid = Array.isArray(acc.salaryPaidIds) ? acc.salaryPaidIds.length : 0;
-      const oldRate = acc.lastSalaryAmount || 0;
-      const topUp = (!acc.salaryV2 && oldPaid>0 && oldRate>0 && salary>oldRate) ? (salary-oldRate)*oldPaid : 0;
-      if(!todo.length && !topUp && acc.salaryV2) return;
-      const total = salary*todo.length + topUp;
-      const ids = (Array.isArray(acc.salaryPaidIds)? acc.salaryPaidIds : []).concat(todo.map(m=>m.id));
-      const upd = {salaryPaidIds:ids, lastSalaryAmount:salary, salaryV2:true};
-      if(total>0){
-        upd.wallet = (acc.wallet||0)+total;
-        upd.history = this.pushHistory(acc.history, {amount:total, label:"💼 Salaire"+(todo.length>1?" ("+todo.length+" matchs)":(todo.length?" après match":" (complément)"))});
-      }
-      await ref.update(upd);
-      if(total>0) toast("💼 Salaire versé : "+fmtEuro(total)+(todo.length>1? " ("+todo.length+" matchs)":""));
+      // Première fois (aucun match jamais payé sur ce compte) : on ne verse qu'UN salaire, celui du dernier
+      // match joué, au montant exact de la valeur de la carte ; les matchs plus anciens sont marqués payés.
+      const firstTime = !Array.isArray(acc.salaryPaidIds) || !acc.salaryPaidIds.length;
+      const count = firstTime ? 1 : unpaid.length;
+      const total = salary*count;
+      const ids = (Array.isArray(acc.salaryPaidIds)? acc.salaryPaidIds : []).concat(unpaid.map(m=>m.id));
+      await ref.update({wallet:(acc.wallet||0)+total, salaryPaidIds:ids, lastSalaryAmount:salary, salaryV2:true,
+        history:this.pushHistory(acc.history, {amount:total, label:"💼 Salaire"+(count>1?" ("+count+" matchs)":" après match")})});
+      toast("💼 Salaire versé : "+fmtEuro(total)+(count>1? " ("+count+" matchs)":""));
     }catch(e){}
     finally{ this._salaryBusy = false; }
   },
