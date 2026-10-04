@@ -1101,6 +1101,7 @@ const App = {
       {n:5, ic:"⚽", lb:"Matchs"},
       {n:7, ic:"📅", lb:"Planning"},
       {n:8, ic:"🎲", lb:"Paris"},
+      {n:9, ic:"🏠", lb:"Vie"},
       {n:6, ic:"💬", lb:"Messages"},
     ];
     const app = document.getElementById("app");
@@ -1151,6 +1152,7 @@ const App = {
     if(n===6) return this.renderMessages();
     if(n===7) return this.renderPlanningTab();
     if(n===8) return this.renderParisTab();
+    if(n===9) return this.renderVieTab();
     return "";
   },
 
@@ -3808,6 +3810,234 @@ const App = {
       ${withRate.length>6 ? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;" onclick="App.toggleBetScorers('${m.id}')">${showAllScorers? '▲ Voir moins de joueurs' : '▼ Voir tous les joueurs ('+withRate.length+')'}</button>` : ""}
       ` : ""}
     </div>`;
+  },
+  /* ============================= TAB 9 : Vie (achats de luxe, prix réalistes arrondis) ============================= */
+  VIE_CATS:[
+    {k:'voitures', lb:'🚗 Voitures'},{k:'motos', lb:'🏍️ Motos'},{k:'maisons', lb:'🏠 Maisons'},
+    {k:'montres', lb:'⌚ Montres'},{k:'tech', lb:'💻 High-tech'},{k:'luxe', lb:'✈️ Jets & bateaux'},
+  ],
+  VIE_OPTIONS:[
+    {k:'piscine', lb:'🏊 Piscine', price:150000},{k:'spa', lb:'♨️ Jacuzzi / Spa', price:40000},
+    {k:'cinema', lb:'🎬 Cinéma maison', price:80000},{k:'gym', lb:'🏋️ Salle de sport', price:50000},
+    {k:'garage', lb:'🅿️ Garage 5 places', price:100000},{k:'foot', lb:'⚽ Terrain de foot privé', price:300000},
+  ],
+  // [emoji, nom, prix en €]
+  VIE_CATALOG:{
+    voitures:[
+      ['🚗','Audi A3 Sportback 35 TFSI',38000],['🚗','Audi S3',58000],['🚗','Audi RS3',68000],['🚗','Audi TT RS',80000],
+      ['🚗','Audi RS4 Avant',95000],['🚗','Audi RS5 Coupé',100000],['🚗','Audi RS6 Avant',135000],['🚗','Audi RS7 Sportback',140000],
+      ['🚗','Audi RS Q8',150000],['🚗','Audi RS e-tron GT',150000],['🚗','Audi R8 V10 Performance',215000],
+      ['🚗','BMW M240i',65000],['🚗','BMW M2',85000],['🚗','BMW M3 Competition',115000],['🚗','BMW M3 Touring',120000],
+      ['🚗','BMW M4 CSL',160000],['🚗','BMW M5 CS',180000],['🚗','BMW M8 Competition',190000],['🚗','BMW XM',185000],
+      ['🚗','BMW i7 M70',200000],['🚗','BMW Z4 M40i',75000],['🚗','BMW i8 Roadster',160000],['🚗','BMW M1 Procar (collection)',650000],
+      ['🚗','Mercedes-AMG A45 S',75000],['🚗','Mercedes-AMG C63 S E-Performance',135000],['🚗','Mercedes-AMG E63 S',160000],
+      ['🚗','Mercedes Classe G 63 AMG',200000],['🚗','Mercedes-AMG GT 63 S',200000],['🚗','Mercedes-AMG GT Black Series',380000],
+      ['🚗','Mercedes SL 63 AMG',200000],['🚗','Mercedes-Maybach S 680',250000],['🚗','Mercedes-AMG ONE',2800000],
+      ['🏎️','Porsche 718 Cayman GT4 RS',150000],['🏎️','Porsche 911 Carrera S',150000],['🏎️','Porsche 911 GT3',200000],
+      ['🏎️','Porsche 911 GT3 RS',260000],['🏎️','Porsche 911 Turbo S',280000],['🏎️','Porsche Taycan Turbo GT',230000],
+      ['🏎️','Porsche Cayenne Turbo GT',200000],['🏎️','Porsche Macan Electric',90000],['🏎️','Porsche 918 Spyder',1800000],
+      ['🏎️','Porsche Carrera GT (collection)',1500000],
+      ['🏎️','Ferrari Roma',230000],['🏎️','Ferrari Portofino M',230000],['🏎️','Ferrari 296 GTB',320000],
+      ['🏎️','Ferrari F8 Tributo',300000],['🏎️','Ferrari Purosangue',430000],['🏎️','Ferrari SF90 Stradale',520000],
+      ['🏎️','Ferrari 812 Competizione',650000],['🏎️','Ferrari 12Cilindri',420000],['🏎️','Ferrari F40 (collection)',2500000],
+      ['🏎️','Ferrari Enzo',3500000],['🏎️','Ferrari LaFerrari',3500000],
+      ['🏎️','Lamborghini Urus Performante',260000],['🏎️','Lamborghini Huracán EVO',250000],['🏎️','Lamborghini Huracán Tecnica',280000],
+      ['🏎️','Lamborghini Huracán STO',330000],['🏎️','Lamborghini Aventador SVJ',500000],['🏎️','Lamborghini Revuelto',600000],
+      ['🏎️','Lamborghini Countach LPI 800-4',2600000],['🏎️','Lamborghini Sian FKP 37',3000000],
+      ['🏎️','McLaren Artura',250000],['🏎️','McLaren 720S',300000],['🏎️','McLaren 765LT',380000],['🏎️','McLaren Senna',1000000],['🏎️','McLaren P1',1600000],
+      ['🏎️','Bugatti Veyron',2000000],['🏎️','Bugatti Chiron Super Sport',3600000],['🏎️','Bugatti Divo',5000000],['🏎️','Bugatti Bolide',4700000],
+      ['🏎️','Pagani Huayra',3000000],['🏎️','Koenigsegg Jesko',3000000],['🏎️','Koenigsegg Regera',2000000],
+      ['🏎️','Aston Martin Vantage',160000],['🏎️','Aston Martin DB12',250000],['🏎️','Aston Martin Valkyrie',3500000],
+      ['🚘','Bentley Continental GT Speed',300000],['🚘','Bentley Bentayga',250000],['🚘','Rolls-Royce Ghost',350000],
+      ['🚘','Rolls-Royce Cullinan',420000],['🚘','Rolls-Royce Phantom',500000],['🚘','Rolls-Royce Spectre',420000],
+      ['🚗','Tesla Model 3 Performance',55000],['🚗','Tesla Model S Plaid',115000],['🚗','Tesla Cybertruck',100000],
+      ['🚗','Nissan GT-R Nismo',230000],['🚗','Toyota GR Yaris',45000],['🚗','Toyota GR Supra',75000],['🚗','Toyota Land Cruiser 300',95000],
+      ['🚗','Volkswagen Golf R',55000],['🚗','Renault Mégane RS Ultime',60000],['🚗','Alpine A110 R',80000],['🚗','Peugeot 208 GTi',30000],
+      ['🚗','Ford Mustang GT',65000],['🚗','Dodge Challenger Hellcat',85000],['🚗','Chevrolet Corvette Z06',130000],
+      ['🚗','Range Rover Sport SV',220000],['🚗','Lexus LFA (collection)',900000],['🚗','Ford GT',500000],
+    ],
+    motos:[
+      ['🏍️','Yamaha MT-07',9000],['🏍️','BMW S 1000 RR',25000],['🏍️','Ducati Panigale V4 S',35000],['🏍️','Ducati Panigale V4 R',45000],
+      ['🏍️','Kawasaki Ninja H2',35000],['🏍️','Kawasaki Ninja H2R',60000],['🏍️','Honda Fireblade SP',30000],['🏍️','Harley-Davidson Fat Boy',25000],
+      ['🏍️','MV Agusta Superveloce',30000],['🏍️','Aprilia RSV4 Factory',28000],['🛵','Vespa Primavera',4500],['🛵','Trottinette électrique',900],
+    ],
+    maisons:[
+      ['🏢','Studio — Paris 11e (20 m²)',250000],['🏢','Appartement — Paris 8e (80 m², Champs-Élysées)',1600000],
+      ['🏢','Appartement — Paris 16e (150 m²)',2700000],['🏛️','Hôtel particulier — Paris 7e',28000000],
+      ['🏢','Appartement — Marseille (vue mer, 90 m²)',550000],['🏠','Villa — Marseille, Corniche',2800000],
+      ['🏢','Appartement — Lyon (100 m²)',520000],['🏢','Appartement — Bordeaux (90 m²)',470000],['🏢','Appartement — Lille (80 m²)',300000],
+      ['🏠','Maison — Toulouse (jardin)',450000],['🏠','Maison — Nantes',500000],['🏠','Maison — Strasbourg',480000],
+      ['🏢','Appartement — Nice, Promenade des Anglais',1300000],['🏠','Villa — Cannes, vue mer',9000000],
+      ['🏠','Villa — Saint-Tropez',16000000],['🏠','Villa — Antibes, Cap d\'Antibes',20000000],['🏔️','Chalet — Courchevel',18000000],
+      ['🏔️','Chalet — Chamonix',4500000],['🏰','Château — Vallée de la Loire',3500000],['🏰','Château — Bordeaux (vignoble)',9000000],
+      ['🏖️','Maison — Biarritz',3000000],['🏖️','Villa — Corse, Porto-Vecchio',6000000],
+      ['🏢','Appartement — Monaco (100 m²)',9000000],['🏙️','Penthouse — Monaco',60000000],
+      ['🏢','Appartement — Londres, Kensington',3500000],['🏠','Maison — Londres, Chelsea',14000000],
+      ['🏢','Appartement — New York, Manhattan',2500000],['🏙️','Penthouse — New York, Central Park',60000000],
+      ['🏠','Villa — Los Angeles, Beverly Hills',18000000],['🏠','Villa — Miami, front de mer',12000000],
+      ['🏠','Villa — Dubaï, Palm Jumeirah',14000000],['🏙️','Penthouse — Dubaï, Burj Khalifa',22000000],
+      ['🏢','Appartement — Tokyo, Shibuya (Japon)',900000],['🏠','Maison — Tokyo, Setagaya (Japon)',1800000],
+      ['🏠','Maison traditionnelle — Kyoto (Japon)',800000],['🏢','Appartement — Osaka (Japon)',400000],
+      ['🏠','Villa — Bali (Indonésie)',900000],['🏠','Villa — Maldives, sur l\'eau',4500000],['🏠','Maison — Marrakech (Maroc)',700000],
+      ['🏢','Appartement — Barcelone (Espagne)',650000],['🏠','Villa — Ibiza (Espagne)',5000000],['🏢','Appartement — Rome (Italie)',900000],
+      ['🏠','Villa — Lac de Côme (Italie)',9000000],['🏢','Appartement — Genève (Suisse)',2200000],['🏔️','Chalet — Gstaad (Suisse)',22000000],
+      ['🏢','Appartement — Montréal (Canada)',450000],['🏝️','Île privée — Caraïbes',30000000],
+    ],
+    montres:[
+      ['⌚','Casio G-Shock',120],['⌚','Apple Watch Ultra 2',900],['⌚','Garmin Fenix 8',1000],['⌚','Tissot PRX',400],
+      ['⌚','Omega Speedmaster Moonwatch',7500],['⌚','Omega Seamaster 300M',6500],['⌚','TAG Heuer Carrera',6000],
+      ['⌚','Rolex Datejust 36',9500],['⌚','Rolex Submariner Date',11000],['⌚','Rolex GMT-Master II',12500],
+      ['⌚','Rolex Daytona (acier)',30000],['⌚','Rolex Daytona Rainbow',500000],['⌚','Rolex Day-Date 40 (or)',45000],
+      ['⌚','Audemars Piguet Royal Oak',45000],['⌚','Audemars Piguet Royal Oak Offshore',40000],['⌚','Patek Philippe Nautilus 5711',120000],
+      ['⌚','Patek Philippe Aquanaut',60000],['⌚','Patek Philippe Grandmaster Chime',2500000],['⌚','Richard Mille RM 011',200000],
+      ['⌚','Richard Mille RM 27-02 Nadal',900000],['⌚','Hublot Big Bang',20000],['⌚','Cartier Santos',8000],['⌚','Cartier Tank',4500],
+      ['⌚','Vacheron Constantin Overseas',30000],['⌚','Jacob & Co Astronomia',350000],
+    ],
+    tech:[
+      ['📱','iPhone 17 Pro Max',1500],['📱','Samsung Galaxy S25 Ultra',1450],['📱','Google Pixel 10 Pro',1100],['📱','Samsung Galaxy Z Fold',2000],
+      ['💻','MacBook Air M4',1300],['💻','MacBook Pro 16" M4 Max',4500],['💻','Mac Studio M3 Ultra',4800],['🖥️','iMac 24"',1600],
+      ['💻','PC Gamer — RTX 5090 + i9',5500],['💻','Laptop Gamer — ROG Strix SCAR',3800],['🖥️','Écran gaming OLED 49"',1300],
+      ['🖥️','Pro Display XDR 6K',5000],['🎮','PlayStation 5 Pro',800],['🎮','Xbox Series X',500],['🎮','Nintendo Switch 2',450],
+      ['🎮','Steam Deck OLED',600],['🥽','Apple Vision Pro',3600],['🥽','Meta Quest 3',550],['📺','TV OLED 83" LG G5',7000],
+      ['📺','TV Micro-LED 110"',100000],['🎧','AirPods Pro 3',270],['🎧','Sony WH-1000XM6',450],['📷','Sony A7R V',4000],
+      ['📷','Leica M11',9000],['🚁','Drone DJI Mavic 4 Pro',2500],['🎙️','Setup stream complet',3500],
+      ['🖨️','Imprimante 3D Bambu Lab X1',1300],['📡','Starlink Roam',600],
+    ],
+    luxe:[
+      ['⛵','Voilier de croisière 12 m',250000],['🚤','Hors-bord Riva Aquariva',800000],['🛥️','Yacht 25 m',4000000],
+      ['🛥️','Yacht 50 m (Azimut Grande)',15000000],['🛥️','Superyacht 80 m',120000000],['🛥️','Mégayacht 140 m',500000000],
+      ['🚁','Hélicoptère Airbus H125',3000000],['🚁','Hélicoptère H160',17000000],['🛩️','Cessna Citation CJ4',10000000],
+      ['✈️','Dassault Falcon 8X',60000000],['✈️','Gulfstream G700',75000000],['✈️','Boeing 787 VIP',250000000],
+      ['🚀','Billet voyage dans l\'espace (Blue Origin)',500000],['🚀','Billet ISS (Axiom)',55000000],
+    ],
+  },
+  vieItem(cat, i){
+    const r = (this.VIE_CATALOG[cat]||[])[i];
+    if(!r) return null;
+    return {id:cat+"|"+r[1], cat, i, emoji:r[0], name:r[1], price:r[2]};
+  },
+  vieAssets(acc){ return Array.isArray(acc && acc.assets) ? acc.assets : []; },
+  vieNetWorth(acc){ return this.vieAssets(acc).reduce((s,a)=>s+(a.price||0),0); },
+  fmtPrice(v){
+    if(v>=1e9) return (v/1e9).toFixed(2).replace(/\.?0+$/,'')+" Md €";
+    if(v>=1e6) return (v/1e6).toFixed(2).replace(/\.?0+$/,'')+" M €";
+    return fmtEuro(v);
+  },
+  setVieCat(k){ this.state.vieCat = k; this.state.vieBrand = ""; this.render(); },
+  setVieBrand(v){ this.state.vieBrand = v; this.render(); },
+  toggleVieSort(){ this.state.vieSort = this.state.vieSort==='asc' ? 'desc' : 'asc'; this.render(); },
+  renderVieTab(){
+    if(!this.me) return `<div class="card"><h2>🏠 Vie</h2><p class="muted" style="font-size:12.5px;">Connecte-toi pour acheter des voitures, des maisons, des montres…</p><button class="btn btn-accent btn-block" onclick="App.ensureMe(()=>App.render())">Se connecter</button></div>`;
+    const acc = this.state.accounts.find(a=>a.username===this.me) || {};
+    const wallet = acc.wallet||0;
+    const cat = this.state.vieCat || 'voitures';
+    const sort = this.state.vieSort || 'asc';
+    const owned = this.vieAssets(acc);
+    const brand = this.state.vieBrand || "";
+    let list = (this.VIE_CATALOG[cat]||[]).map((r,i)=>this.vieItem(cat,i));
+    const brands = cat==='voitures' ? [...new Set(list.map(x=>x.name.split(' ')[0]))] : [];
+    if(brand) list = list.filter(x=>x.name.split(' ')[0]===brand);
+    list.sort((a,b)=> sort==='asc' ? a.price-b.price : b.price-a.price);
+    const ownedIds = new Set(owned.map(a=>a.id));
+    const rows = list.map(x=>{
+      const has = ownedIds.has(x.id);
+      const can = wallet>=x.price;
+      return `<div class="kv" style="align-items:center;gap:8px;">
+        <span style="flex:1;min-width:0;">${x.emoji} <b>${esc(x.name)}</b><br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(x.price)}</span></span>
+        ${has ? `<span class="chip active" style="cursor:default;">✅ Possédé</span>`
+              : `<button class="btn btn-sm ${can?'btn-accent':'btn-ghost'}" onclick="App.openVieBuy('${cat}',${x.i})">${can?'Acheter':'🔒 Trop cher'}</button>`}
+      </div>`;
+    }).join("");
+    const mine = owned.slice().sort((a,b)=>(b.price||0)-(a.price||0));
+    return `
+    <div class="card">
+      <h2>🏠 Vie</h2>
+      <p class="value-big">${fmtEuro(wallet)}</p>
+      <p class="muted" style="font-size:12px;margin-top:-4px;">Ton crédit disponible. Patrimoine : <b>${this.fmtPrice(this.vieNetWorth(acc))}</b> (${owned.length} objet${owned.length>1?'s':''}). Prix réalistes arrondis.</p>
+    </div>
+    ${mine.length ? `<div class="card"><h2>🧳 Mon patrimoine</h2>
+      ${mine.map(a=>`<div class="kv" style="align-items:center;gap:8px;"><span style="flex:1;min-width:0;">${esc(a.emoji||'🎁')} <b>${esc(a.name)}</b>${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}<br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(a.price)}</span></span>
+        <button class="btn btn-ghost btn-sm" onclick="App.openVieSell('${jsa(a.id)}')">Revendre</button></div>`).join("")}
+    </div>`:''}
+    <div class="card">
+      <div class="channel-toggle" style="margin-bottom:8px;flex-wrap:wrap;">
+        ${this.VIE_CATS.map(c=>`<span class="chip ${cat===c.k?'active':''}" onclick="App.setVieCat('${c.k}')">${c.lb}</span>`).join("")}
+      </div>
+      ${brands.length ? `<label class="field">Marque <select onchange="App.setVieBrand(this.value)"><option value="">Toutes</option>${brands.map(b=>`<option ${b===brand?'selected':''}>${esc(b)}</option>`).join("")}</select></label>`:''}
+      <button class="btn btn-ghost btn-sm" onclick="App.toggleVieSort()">Trier : ${sort==='asc'?'prix croissant ↑':'prix décroissant ↓'}</button>
+      <div style="margin-top:8px;">${rows || '<p class="muted">Rien ici.</p>'}</div>
+    </div>
+    ${this.renderVieLeaderboard()}`;
+  },
+  renderVieLeaderboard(){
+    const rows = this.realAccounts().map(a=>({u:a.username, v:this.vieNetWorth(a), n:this.vieAssets(a).length})).filter(r=>r.n>0).sort((a,b)=>b.v-a.v).slice(0,10);
+    if(!rows.length) return "";
+    const medal = i => ['🥇','🥈','🥉'][i] || (i+1)+".";
+    return `<div class="card"><h2>👑 Les plus riches en patrimoine</h2>
+      <table class="stats"><tbody>${rows.map((r,i)=>`<tr><td>${medal(i)} <b>${esc(r.u)}</b><br><span class="muted" style="font-size:11px;">${r.n} objet${r.n>1?'s':''}</span></td><td class="num">${this.fmtPrice(r.v)}</td></tr>`).join("")}</tbody></table></div>`;
+  },
+  openVieBuy(cat, i){
+    this.ensureMe(()=>{
+      const x = this.vieItem(cat,i); if(!x) return;
+      const acc = this.state.accounts.find(a=>a.username===this.me) || {};
+      const isHouse = cat==='maisons';
+      this._vieSel = {cat, i};
+      this.modal(`
+        <h3>${x.emoji} ${esc(x.name)}</h3>
+        <p class="muted" style="font-size:12.5px;margin-top:-4px;">Prix : <b>${this.fmtPrice(x.price)}</b> · Ton crédit : ${fmtEuro(acc.wallet||0)}</p>
+        ${isHouse ? `<p style="font-size:12.5px;margin:8px 0 4px;font-weight:700;">Options</p>
+          ${this.VIE_OPTIONS.map((o,k)=>`<label style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;"><input type="checkbox" class="vieOpt" data-k="${k}" onchange="App.updateViePrice()"> ${o.lb} <span class="muted">+${this.fmtPrice(o.price)}</span></label>`).join("")}` : ""}
+        <p style="font-size:16px;font-weight:800;margin:10px 0;">Total : <span id="viePriceTotal">${this.fmtPrice(x.price)}</span></p>
+        <button class="btn btn-accent btn-block" onclick="App.confirmVieBuy()">🛒 Acheter</button>`);
+    });
+  },
+  vieSelectedOpts(){
+    return [...document.querySelectorAll('.vieOpt')].filter(c=>c.checked).map(c=>this.VIE_OPTIONS[+c.dataset.k]);
+  },
+  updateViePrice(){
+    const s=this._vieSel; if(!s) return; const x=this.vieItem(s.cat,s.i);
+    const tot = x.price + this.vieSelectedOpts().reduce((a,o)=>a+o.price,0);
+    const el=document.getElementById('viePriceTotal'); if(el) el.textContent=this.fmtPrice(tot);
+  },
+  async confirmVieBuy(){
+    if(!this.me || this._vieBusy) return; this._vieBusy = true;
+    try{
+      const s=this._vieSel; const x=this.vieItem(s.cat,s.i); if(!x) return;
+      const opts=this.vieSelectedOpts();
+      const total = x.price + opts.reduce((a,o)=>a+o.price,0);
+      const ref = this.db.collection("accounts").doc(slugify(this.me));
+      const fresh = await ref.get(); if(!fresh.exists) return;
+      const d = fresh.data(); const wallet = d.wallet||0;
+      const assets = Array.isArray(d.assets)? d.assets.slice() : [];
+      if(assets.some(a=>a.id===x.id)){ toast("Tu possèdes déjà ça"); return; }
+      if(total>wallet){ toast("Pas assez de crédit ("+fmtEuro(wallet)+")"); return; }
+      assets.push({id:x.id, cat:x.cat, emoji:x.emoji, name:x.name, price:total, opts:opts.map(o=>o.lb), at:new Date().toISOString()});
+      await ref.update({wallet:wallet-total, assets, history:this.pushHistory(d.history, {amount:-total, label:"🛒 Achat : "+x.name})});
+      this.bigMoneyModal("Achat effectué", -total, x.emoji+" "+x.name, opts.map(o=>o.lb).join(", "), false);
+    }catch(e){ toast("❌ Achat impossible (réseau ?)"); }
+    finally{ this._vieBusy = false; }
+  },
+  openVieSell(id){
+    const acc = this.state.accounts.find(a=>a.username===this.me) || {};
+    const a = this.vieAssets(acc).find(x=>x.id===id); if(!a) return;
+    const back = Math.round(a.price*0.7);
+    this.modal(`<h3>Revendre ${esc(a.emoji||'')} ${esc(a.name)} ?</h3>
+      <p class="muted" style="font-size:12.5px;">Tu récupères <b>${this.fmtPrice(back)}</b> (70 % du prix payé).</p>
+      <button class="btn btn-danger btn-block" onclick="App.confirmVieSell('${jsa(id)}')">Revendre</button>`);
+  },
+  async confirmVieSell(id){
+    if(!this.me || this._vieBusy) return; this._vieBusy = true;
+    try{
+      const ref = this.db.collection("accounts").doc(slugify(this.me));
+      const fresh = await ref.get(); if(!fresh.exists) return;
+      const d = fresh.data(); const assets = Array.isArray(d.assets)? d.assets.slice() : [];
+      const k = assets.findIndex(a=>a.id===id); if(k<0){ this.closeModal(); return; }
+      const back = Math.round(assets[k].price*0.7); const name = assets[k].name;
+      assets.splice(k,1);
+      await ref.update({wallet:(d.wallet||0)+back, assets, history:this.pushHistory(d.history, {amount:back, label:"💰 Revente : "+name})});
+      this.bigMoneyModal("Revente", back, name, "", true);
+    }catch(e){ toast("❌ Revente impossible (réseau ?)"); }
+    finally{ this._vieBusy = false; }
   },
   renderParisTab(){
     const upcoming = this.state.matches.filter(m=>!m.played).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
