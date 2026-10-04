@@ -2709,11 +2709,11 @@ const App = {
   // bouger le général même sur un match décisif. Seul l'impact sur le général (cardRating) est concerné :
   // les vrais compteurs de buts/passes/etc. et les classements associés ne sont JAMAIS pondérés.
   // Effet « Coupe du Monde » : l'importance moyenne des matchs d'un joueur amplifie (ou réduit) tout ce qu'il
-  // a fait au-dessus/en dessous de la base du général. 1/10 (amical) = 0,8x, 5/10 = 1x, 10/10 (finale) = 1,4x.
+  // a fait au-dessus/en dessous de la base du général. 1/10 (amical) = 0,6x, 5/10 = 1x, 10/10 (finale) = 2,4x.
   importanceMult(imp){
     imp = (imp==null||isNaN(imp)) ? 5 : Math.max(1, Math.min(10, imp));
-    if(imp<=5) return 0.8 + 0.05*(imp-1);
-    return 1 + (imp-5)*0.08;
+    if(imp<=5) return 0.6 + 0.1*(imp-1);
+    return 1 + (imp-5)*0.28;
   },
   matchWeight(m){
     const imp = (m && m.importance!=null) ? m.importance : 5;
