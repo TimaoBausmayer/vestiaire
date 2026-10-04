@@ -313,8 +313,17 @@
   .v3-world{position:relative;width:0;height:0;transform-style:preserve-3d;}
   .v3b{position:absolute;left:0;top:0;transform-style:preserve-3d;}
   .v3f{position:absolute;left:0;top:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
-  .v3win{position:absolute;border-radius:2px;background:linear-gradient(135deg,#bfe3ff,#6fa8d6);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);}
-  .v3win.lit{background:linear-gradient(135deg,#fff3b0,#ffcf5a);}
+  .v3win{position:absolute;border-radius:2px;background:linear-gradient(155deg,rgba(255,255,255,.75) 0 18%,transparent 19% 40%,rgba(255,255,255,.18) 41% 46%,transparent 47%),linear-gradient(180deg,#8fc4ee,#3f7db3);box-shadow:inset 0 0 0 2.5px #f4f4f1,inset 0 0 0 3.5px rgba(0,0,0,.28),0 2px 2px rgba(0,0,0,.28);}
+  .v3win::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:#f4f4f1;}
+  .v3win::after{content:"";position:absolute;top:50%;left:0;right:0;height:2px;margin-top:-1px;background:#f4f4f1;}
+  .v3win.lit{background:linear-gradient(180deg,#fff6c4,#ffb938);box-shadow:inset 0 0 0 2.5px #f4f4f1,inset 0 0 0 3.5px rgba(0,0,0,.28),0 0 8px rgba(255,200,80,.7);}
+  .v3tex-brick{background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 7px),repeating-linear-gradient(90deg,rgba(0,0,0,.10) 0 1px,transparent 1px 16px);}
+  .v3tex-plank{background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.2) 0 1px,transparent 1px 5px);}
+  .v3tex-tile{background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 2px,rgba(255,255,255,.12) 2px 4px,transparent 4px 7px),repeating-linear-gradient(90deg,rgba(0,0,0,.14) 0 1px,transparent 1px 9px);}
+  .v3tex-stone{background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 1px,transparent 1px 11px),repeating-linear-gradient(90deg,rgba(0,0,0,.1) 0 1px,transparent 1px 19px);}
+  .v3photo{width:100%;height:290px;border-radius:14px;overflow:hidden;position:relative;background:#111;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:13px;}
+  .v3photo img{width:100%;height:100%;object-fit:cover;display:block;}
+  .v3photo .cr{position:absolute;left:0;right:0;bottom:0;padding:4px 8px;font-size:10px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.65));}
   .v3-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
   .v3-hint{position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:10.5px;color:rgba(255,255,255,.85);text-shadow:0 1px 2px rgba(0,0,0,.6);pointer-events:none;}
   .v3-sky{background:linear-gradient(#7cc4ff,#d9f0ff);}
@@ -4335,11 +4344,13 @@ const App = {
   v3Hash(str){ let h=0; for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))|0; } return Math.abs(h); },
   v3Face(c,k,tf,fw,fh,inner){
     const shade={f:1,b:.78,l:.82,r:.9,t:1.12,bo:.5};
-    return `<div class="v3f" style="width:${fw}px;height:${fh}px;margin:${-fh/2}px 0 0 ${-fw/2}px;background:${c[k]};filter:brightness(${shade[k]});transform:${tf}">${inner||''}</div>`;
+    const lite = k==='t' ? 'radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.22),rgba(0,0,0,.10))' : 'linear-gradient(180deg,rgba(255,255,255,.14),rgba(0,0,0,.18))';
+    const tex = (k==='b'||k==='bo') ? '' : (c.tex||'');
+    return `<div class="v3f ${tex}" style="width:${fw}px;height:${fh}px;margin:${-fh/2}px 0 0 ${-fw/2}px;background-color:${c[k]};filter:brightness(${shade[k]});${(c.rad&&(k==='f'||k==='b'))?`border-radius:${c.rad};`:''}transform:${tf}"><div style="position:absolute;inset:0;${(c.rad&&(k==='f'||k==='b'))?`border-radius:${c.rad};`:''}background:${lite};pointer-events:none"></div>${inner||''}</div>`;
   },
   // Pavé 3D centré en (x,y,z). col = couleur ou {f,b,l,r,t,bo}. ex = HTML ajouté sur une face.
   v3Box(w,h,d,x,y,z,col,ex){
-    const c = typeof col==='string' ? {f:col,b:col,l:col,r:col,t:col,bo:col} : {f:col.f,b:col.b||col.f,l:col.l||col.f,r:col.r||col.f,t:col.t||col.f,bo:col.bo||'#222'};
+    const c = typeof col==='string' ? {f:col,b:col,l:col,r:col,t:col,bo:col} : {f:col.f,b:col.b||col.f,l:col.l||col.f,r:col.r||col.f,t:col.t||col.f,bo:col.bo||'#222',tex:col.tex||'',rad:col.rad||''};
     ex = ex||{};
     return `<div class="v3b" style="transform:translate3d(${x}px,${y}px,${z}px)">`
       + this.v3Face(c,'f',`translateZ(${d/2}px)`,w,h,ex.f)
@@ -4357,14 +4368,14 @@ const App = {
   // Toit à deux pans (faîtage le long de x)
   v3Gable(w,d,r,x,y,z,roofCol,wallCol){
     const b=Math.atan(r/(d/2)), s=Math.sqrt((d/2)*(d/2)+r*r), th=(90-b*180/Math.PI);
-    const slope=(rot)=>`<div class="v3f" style="width:${w+8}px;height:${s}px;margin:${-s/2}px 0 0 ${-(w+8)/2}px;background:${roofCol};filter:brightness(${rot?0.8:1.05});transform:${rot?'rotateY(180deg) ':''}translate3d(0,${-r/2}px,${d/4}px) rotateX(${th}deg);"></div>`;
+    const slope=(rot)=>`<div class="v3f" style="width:${w+8}px;height:${s}px;margin:${-s/2}px 0 0 ${-(w+8)/2}px;background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 2px,rgba(255,255,255,.08) 2px 3px,transparent 3px 8px),${roofCol};filter:brightness(${rot?0.8:1.05});transform:${rot?'rotateY(180deg) ':''}translate3d(0,${-r/2}px,${d/4}px) rotateX(${th}deg);"></div>`;
     const gable=(sx)=>`<div class="v3f" style="width:${d}px;height:${r}px;margin:${-r/2}px 0 0 ${-d/2}px;background:${wallCol};clip-path:polygon(50% 0,0 100%,100% 100%);filter:brightness(.88);transform:translate3d(${sx*w/2}px,${-r/2}px,0) rotateY(${sx*90}deg);"></div>`;
     return `<div class="v3b" style="transform:translate3d(${x}px,${y}px,${z}px)">${slope(0)}${slope(1)}${gable(1)}${gable(-1)}</div>`;
   },
   // Toit pyramidal
   v3Pyr(w,d,r,x,y,z,col){
     const mk=(k,fw,half)=>{ const b=Math.atan(r/half), s=Math.sqrt(half*half+r*r), th=(90-b*180/Math.PI);
-      return `<div class="v3f" style="width:${fw}px;height:${s}px;margin:${-s/2}px 0 0 ${-fw/2}px;background:${col};clip-path:polygon(50% 0,0 100%,100% 100%);filter:brightness(${[1.05,.85,.7,.9][k]});transform:rotateY(${k*90}deg) translate3d(0,${-r/2}px,${half/2}px) rotateX(${th}deg);"></div>`; };
+      return `<div class="v3f" style="width:${fw}px;height:${s}px;margin:${-s/2}px 0 0 ${-fw/2}px;background:${col};clip-path:polygon(50% 0,0 100%,100% 100%);background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 2px,transparent 2px 7px);filter:brightness(${[1.05,.85,.7,.9][k]});transform:rotateY(${k*90}deg) translate3d(0,${-r/2}px,${half/2}px) rotateX(${th}deg);"></div>`; };
     return `<div class="v3b" style="transform:translate3d(${x}px,${y}px,${z}px)">${mk(0,w,d/2)}${mk(1,d,w/2)}${mk(2,w,d/2)}${mk(3,d,w/2)}</div>`;
   },
   // Grille de fenêtres (HTML posé sur une face w×h)
@@ -4412,7 +4423,7 @@ const App = {
       const tall = emoji==='🏙️'; const floors = tall?13: (/Studio/.test(name)?4:6); W= tall?90:120; D= tall?80:96; const H=floors*17;
       const glass = tall || /new york|dubaï|tokyo|shibuya|monaco|osaka|montréal|londres|genève/i.test(name);
       const wallc = glass ? '#7d93a8' : wall;
-      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:wallc,b:wallc,l:wallc,r:wallc,t:'#5b6168'}, {f:this.v3Wins(W,H,glass?5:4,floors,seed,{mx:8,my:6,gap:5,bottom:30})+this.v3Door(W), r:this.v3Wins(D,H,3,floors,seed+3,{mx:8,my:6,gap:5}), l:this.v3Wins(D,H,3,floors,seed+5,{mx:8,my:6,gap:5})}));
+      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:wallc,b:wallc,l:wallc,r:wallc,t:'#5b6168',tex:glass?'':'v3tex-stone'}, {f:this.v3Wins(W,H,glass?5:4,floors,seed,{mx:8,my:6,gap:5,bottom:30})+this.v3Door(W), r:this.v3Wins(D,H,3,floors,seed+3,{mx:8,my:6,gap:5}), l:this.v3Wins(D,H,3,floors,seed+5,{mx:8,my:6,gap:5})}));
       parts.push(this.v3Box(W+8,5,D+8,0,-H-2,0,'#4b5057'));
       if(tall){ parts.push(this.v3Box(40,18,36,0,-H-14,0,'#9fb3c6')); parts.push(this.v3Box(2,26,2,0,-H-36,0,'#d33')); parts.push(this.v3Flat(48,38,0,-H-5,0,'#38bdf8'));}
       else { parts.push(this.v3Box(30,12,24,-30,-H-10,10,'#6b7076')); parts.push(this.v3Box(34,6,30,28,-H-8,-20,'#3a8f55')); }
@@ -4423,7 +4434,7 @@ const App = {
       reach = 150;
     } else if(emoji==='🏛️'){
       W=190; D=110; const H=84;
-      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:'#e8dcc0',b:'#e8dcc0',l:'#e8dcc0',r:'#e8dcc0',t:'#444'},{f:this.v3Wins(W,H,6,3,seed,{mx:12,my:10,gap:9,bottom:6})+this.v3Door(W,'#2b2b2b')}));
+      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:'#e8dcc0',b:'#e8dcc0',l:'#e8dcc0',r:'#e8dcc0',t:'#444',tex:'v3tex-stone'},{f:this.v3Wins(W,H,6,3,seed,{mx:12,my:10,gap:9,bottom:6})+this.v3Door(W,'#2b2b2b')}));
       parts.push(this.v3Gable(W+6,D+6,34,0,-H,0,'#3a3f4a','#e8dcc0'));
       parts.push(this.v3Box(14,26,14,-60,-H-30,-10,'#d6c9aa')); parts.push(this.v3Box(14,26,14,60,-H-30,10,'#d6c9aa'));
       parts.push(this.v3Flat(260,220,0,-.5,40,'#cfc6b2'));
@@ -4431,7 +4442,7 @@ const App = {
       W=190; D=110; scale=0.62;
     } else if(emoji==='🏰'){
       W=150; D=100; const H=86;
-      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:'#cfc8bb',b:'#cfc8bb',l:'#cfc8bb',r:'#cfc8bb',t:'#555'},{f:this.v3Wins(W,H,5,2,seed,{mx:12,my:12,gap:10,bottom:6})+this.v3Door(W,'#4a3320')}));
+      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:'#cfc8bb',b:'#cfc8bb',l:'#cfc8bb',r:'#cfc8bb',t:'#555',tex:'v3tex-stone'},{f:this.v3Wins(W,H,5,2,seed,{mx:12,my:12,gap:10,bottom:6})+this.v3Door(W,'#4a3320')}));
       parts.push(this.v3Gable(W,D,38,0,-H,0,'#46556b','#cfc8bb'));
       [[-W/2,D/2],[W/2,D/2],[-W/2,-D/2],[W/2,-D/2]].forEach((p,i)=>{
         parts.push(this.v3Box(34,H+36,34,p[0],-(H+36)/2,p[1],{f:'#c3bcae',t:'#555'},{f:this.v3Wins(34,H+36,1,4,seed+i,{mx:12,my:8,gap:8,bottom:6}), r:this.v3Wins(34,H+36,1,4,seed+i+2,{mx:12,my:8,gap:8,bottom:6})}));
@@ -4442,7 +4453,7 @@ const App = {
       scale=0.58; W=190; D=140;
     } else if(emoji==='🏔️'){
       W=120; D=100; const H=52;
-      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:'#8a5a34',b:'#7c4f2c',l:'#7c4f2c',r:'#8a5a34',t:'#fff'},{f:this.v3Wins(W,H,3,1,seed,{mx:12,my:12,gap:10,bottom:2})+this.v3Door(W,'#3a2412')}));
+      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:'#8a5a34',b:'#7c4f2c',l:'#7c4f2c',r:'#8a5a34',t:'#fff',tex:'v3tex-plank'},{f:this.v3Wins(W,H,3,1,seed,{mx:12,my:12,gap:10,bottom:2})+this.v3Door(W,'#3a2412')}));
       parts.push(this.v3Gable(W+10,D+8,56,0,-H,0,'#3b2d28','#8a5a34'));
       parts.push(this.v3Box(W+10,3,D+8,0,-H-58,0,'rgba(255,255,255,0)')); // espace
       parts.push(this.v3Box(12,22,12,32,-H-40,-18,'#6d6d6d'));
@@ -4474,7 +4485,7 @@ const App = {
     } else {
       // maison classique
       W=130; D=96; const H=54;
-      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:wall,b:wall,l:wall,r:wall,t:'#444'},{f:this.v3Wins(W,H,3,1,seed,{mx:14,my:12,gap:12,bottom:2})+this.v3Door(W), r:this.v3Wins(D,H,2,1,seed+2,{mx:14,my:12,gap:12})}));
+      parts.push(this.v3Box(W,H,D,0,-H/2,0,{f:wall,b:wall,l:wall,r:wall,t:'#444',tex:'v3tex-brick'},{f:this.v3Wins(W,H,3,1,seed,{mx:14,my:12,gap:12,bottom:2})+this.v3Door(W), r:this.v3Wins(D,H,2,1,seed+2,{mx:14,my:12,gap:12})}));
       parts.push(this.v3Gable(W+10,D+8,38,0,-H,0,'#a8443a',wall));
       parts.push(this.v3Box(12,24,12,34,-H-30,-10,'#8a4a3a'));
       parts.push(this.v3Tree(-W/2-40,50,1.1)); parts.push(this.v3Tree(W/2+45,-30,1)); 
@@ -4498,44 +4509,80 @@ const App = {
   v3Pick(name, list){ return list[this.v3Hash(name)%list.length]; },
   // ---------- VOITURE ----------
   v3Car(name, emoji){
-    const n=name.toLowerCase(), seed=this.v3Hash(name);
-    const cols=['#c62828','#1e3a8a','#111827','#e5e7eb','#0f766e','#f59e0b','#6b7280','#7c3aed','#15803d'];
-    let col = /rouge|ferrari|f40|enzo|laferrari/.test(n)?'#c62828': /black|noir/.test(n)?'#111827': this.v3Pick(name,cols);
+    const n=name.toLowerCase();
+    const cols=['#b3141b','#16306b','#14181f','#d9dde2','#0d5c52','#e8a010','#5f6670','#5b2ab8','#1f6b36','#c9ced6'];
+    let col = /ferrari|f40|enzo|laferrari/.test(n)?'#c4131c': /black|noir/.test(n)?'#101319': this.v3Pick(name,cols);
     const suv=/q8|xm|cayenne|macan|classe g|urus|cullinan|bentayga|\bx[0-9]\b|suv|range|defender|gle|gls/.test(n);
     const wag=/avant|touring|break|shooting/.test(n);
-    const sport=/r8|gt3|gt4|911|918|carrera gt|one|huracán|aventador|720|765|f8|sf90|vulcan|chiron|veyron|senna|p1|gt black|m1 procar|supra|nsx|gt-r|mclaren|lambo|ferrari|pagani|koenigsegg|bugatti/.test(n)||emoji==='🏎️';
-    const L=sport?118:suv?112:wag?120:112, Wd=sport?50:suv?50:46, H1=sport?13:suv?20:14, H2=sport?10:suv?15:13;
-    const cabL=sport?48:suv?66:wag?72:54, cabX=sport?-4:suv?-8:wag?-10:-6;
-    const glass={f:'#1f2d3d',b:'#1f2d3d',l:'#2b3f55',r:'#2b3f55',t:col};
+    const sport=/r8|gt3|gt4|911|918|carrera gt|amg one|huracán|aventador|720|765|f8|sf90|vulcan|chiron|veyron|senna|\bp1\b|gt black|m1 procar|supra|nsx|gt-r|mclaren|lambo|ferrari|pagani|koenigsegg|bugatti/.test(n)||emoji==='🏎️';
+    const L=sport?122:suv?114:wag?124:114, Wd=sport?52:suv?52:48, H1=sport?12:suv?19:14, H2=sport?10:suv?15:13;
+    const cabL=sport?50:suv?68:wag?76:56, cabX=sport?-6:suv?-8:wag?-12:-8;
+    const paint=`linear-gradient(180deg,rgba(255,255,255,.55) 0,rgba(255,255,255,.12) 22%,rgba(0,0,0,0) 45%,rgba(0,0,0,.38) 100%),${col}`;
+    const body={f:col,b:col,l:col,r:col,t:col};
+    const shine=`<div style="position:absolute;inset:0;background:${paint};opacity:.9"></div><div style="position:absolute;left:6px;right:6px;top:55%;height:1.5px;background:rgba(0,0,0,.35)"></div><div style="position:absolute;left:30%;top:6px;bottom:3px;width:1.5px;background:rgba(0,0,0,.28)"></div><div style="position:absolute;left:62%;top:6px;bottom:3px;width:1.5px;background:rgba(0,0,0,.28)"></div><div style="position:absolute;left:44%;top:40%;width:9px;height:2px;background:rgba(255,255,255,.7);border-radius:1px"></div>`;
+    const wnd=`<div style="position:absolute;inset:2px 3px 1px 3px;background:linear-gradient(160deg,rgba(255,255,255,.6) 0 14%,transparent 15% 30%,rgba(255,255,255,.2) 31% 38%,transparent 39%),linear-gradient(180deg,#27384a,#0d1620);border-radius:3px 6px 0 0;"></div><div style="position:absolute;left:46%;top:2px;bottom:1px;width:2px;background:#0a0f14"></div>`;
     let p='';
-    p+=this.v3Box(L,H1,Wd,0,-(H1/2+8),0,{f:col,b:col,l:col,r:col,t:col},{
-       r:`<div style="position:absolute;left:12px;right:12px;top:3px;height:2px;background:rgba(255,255,255,.35)"></div>`,
-       l:`<div style="position:absolute;left:12px;right:12px;top:3px;height:2px;background:rgba(255,255,255,.35)"></div>`});
-    p+=this.v3Box(cabL,H2,Wd-8,cabX,-(H1+8+H2/2),0,glass);
-    // pare-brise / vitres (parties claires sur les côtés)
-    p+=this.v3Box(cabL-6,H2-4,Wd-7,cabX,-(H1+8+H2/2)-0.5,0,{f:'#15202b',l:'#9ec8e8',r:'#9ec8e8',t:col});
-    // phares / feux
-    p+=this.v3Box(2,5,Wd-10,L/2+1,-(H1/2+8),0,'#fff7c2'); p+=this.v3Box(2,4,Wd-10,-L/2-1,-(H1/2+8),0,'#d11');
-    // roues
-    [[L/2-22,Wd/2],[L/2-22,-Wd/2],[-L/2+22,Wd/2],[-L/2+22,-Wd/2]].forEach(w=>{
-      p+=this.v3Box(20,20,7,w[0],-10,w[1],{f:'#111',b:'#111',l:'#111',r:'#111',t:'#111'},{f:`<div style="position:absolute;inset:4px;border-radius:50%;background:radial-gradient(#cfd4da 30%,#888 31% 60%,#222 61%)"></div>`,b:''});
+    p+=this.v3Box(L,H1,Wd,0,-(H1/2+9),0,body,{r:shine,l:shine,
+      f:`<div style="position:absolute;inset:0;background:${paint}"></div><div style="position:absolute;left:8px;right:8px;top:4px;height:5px;background:repeating-linear-gradient(90deg,#222 0 2px,#444 2px 4px);border-radius:2px"></div><div style="position:absolute;left:3px;top:3px;width:12px;height:5px;background:linear-gradient(90deg,#fff,#cfe9ff);border-radius:3px 1px 4px 1px;box-shadow:0 0 6px #fff"></div><div style="position:absolute;right:3px;top:3px;width:12px;height:5px;background:linear-gradient(90deg,#cfe9ff,#fff);border-radius:1px 3px 1px 4px;box-shadow:0 0 6px #fff"></div>`,
+      b:`<div style="position:absolute;inset:0;background:${paint}"></div><div style="position:absolute;left:3px;top:3px;width:16px;height:4px;background:linear-gradient(90deg,#ff2a2a,#a30000);border-radius:2px;box-shadow:0 0 5px #f00"></div><div style="position:absolute;right:3px;top:3px;width:16px;height:4px;background:linear-gradient(90deg,#a30000,#ff2a2a);border-radius:2px;box-shadow:0 0 5px #f00"></div><div style="position:absolute;left:50%;top:5px;margin-left:-9px;width:18px;height:6px;background:#f1f1ee;border-radius:1px;box-shadow:inset 0 0 0 1px #888"></div>`,
+      t:`<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 40% 30%,rgba(255,255,255,.5),rgba(0,0,0,.25))"></div><div style="position:absolute;left:14%;top:12%;width:22%;height:76%;background:rgba(0,0,0,.18);border-radius:8px/20px;filter:blur(1px)"></div>`});
+    // habitacle (verre teinté)
+    p+=this.v3Box(cabL,H2,Wd-9,cabX,-(H1+9+H2/2),0,{f:'#0e151d',b:'#0e151d',l:'#0e151d',r:'#0e151d',t:col},{l:wnd,r:wnd,f:`<div style="position:absolute;inset:2px;background:linear-gradient(180deg,#1f3043,#0c141c);border-radius:3px"></div>`,b:`<div style="position:absolute;inset:2px;background:linear-gradient(180deg,#1b2a3a,#0a1118);border-radius:3px"></div>`,t:`<div style="position:absolute;inset:0;background:${paint}"></div><div style="position:absolute;left:12%;top:14%;width:30%;height:70%;background:rgba(255,255,255,.28);transform:skewX(-20deg)"></div>`});
+    // rétros
+    p+=this.v3Box(5,3,6,cabX+cabL/2-6,-(H1+9)-2,Wd/2+3,col)+this.v3Box(5,3,6,cabX+cabL/2-6,-(H1+9)-2,-Wd/2-3,col);
+    if(sport||/rs|m3|m4|m5|m8|amg|gt|turbo|tt rs/.test(n)){ // aileron
+      p+=this.v3Box(6,4,Wd-4,-L/2+3,-(H1+9+H2)-1,0,'#111')+this.v3Box(3,8,3,-L/2+4,-(H1+9)-3,Wd/2-8,'#111')+this.v3Box(3,8,3,-L/2+4,-(H1+9)-3,-Wd/2+8,'#111');
+    }
+    // roues : pneu + jante multi-branches
+    const rim=`<div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,#0a0a0a 0 36%,transparent 37%),conic-gradient(#d7dce2 0 8%,#6b7280 8% 12.5%,#d7dce2 12.5% 20.5%,#6b7280 20.5% 25%,#d7dce2 25% 33%,#6b7280 33% 37.5%,#d7dce2 37.5% 45.5%,#6b7280 45.5% 50%,#d7dce2 50% 58%,#6b7280 58% 62.5%,#d7dce2 62.5% 70.5%,#6b7280 70.5% 75%,#d7dce2 75% 83%,#6b7280 83% 87.5%,#d7dce2 87.5% 95.5%,#6b7280 95.5% 100%);box-shadow:inset 0 0 0 3px #15171a,inset 0 0 0 4px #333"></div><div style="position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px;border-radius:50%;background:#aaa"></div>`;
+    const D=25;
+    const disc=(z,bg,extra)=>`<div class="v3f" style="width:${D}px;height:${D}px;margin:${-D/2}px 0 0 ${-D/2}px;border-radius:50%;background:${bg};transform:translateZ(${z}px);backface-visibility:visible;${extra||''}"></div>`;
+    const tyre='radial-gradient(circle,#1a1a1c 0 55%,#070708 56%)';
+    [[L/2-24,Wd/2],[L/2-24,-Wd/2],[-L/2+24,Wd/2],[-L/2+24,-Wd/2]].forEach(w=>{
+      const out=w[1]>0;
+      let g='';
+      for(let z=-4;z<=4;z+=1.3) g+=disc(z,'#0a0a0b');
+      g+=`<div class="v3f" style="width:${D}px;height:${D}px;margin:${-D/2}px 0 0 ${-D/2}px;border-radius:50%;background:#0b0b0c;transform:translateZ(4.4px);backface-visibility:visible;box-shadow:inset 0 0 0 1px #2a2a2c">${rim}</div>`;
+      g+=`<div class="v3f" style="width:${D}px;height:${D}px;margin:${-D/2}px 0 0 ${-D/2}px;border-radius:50%;background:#0b0b0c;transform:rotateY(180deg) translateZ(4.4px);backface-visibility:visible">${rim}</div>`;
+      p+=`<div class="v3b" style="transform:translate3d(${w[0]}px,${-D/2}px,${w[1]+(out?-1:1)}px)">${g}</div>`;
     });
-    p+=this.v3Flat(200,90,0,-.5,0,'rgba(0,0,0,.18)',null,true);
-    return {html:p+this.v3Flat(300,190,0,0,0,'#5d636b',null,true), scale:1.7, ty:30, sky:['#9db6cc','#e7eef5'], pitch:-16, ry:-35};
+    p+=this.v3Flat(200,95,0,-.5,0,'rgba(0,0,0,.28)',null,true);
+    const road=this.v3Flat(340,220,0,0,0,'#4a4f57',`<div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse,#6b7079,#3a3e45 70%)"></div>`,true);
+    return {html:p+road, scale:1.75, ty:30, sky:['#7f9db8','#e3ebf2'], pitch:-15, ry:-35};
   },
   // ---------- TÉLÉPHONE / APPAREILS ----------
   v3Phone(name){
-    const n=name.toLowerCase();
-    let body='#2b2d31', scr='#0b0d12', bump=true, kind='phone';
-    if(/pro max|ultra|pro\b/.test(n)) body = /iphone/.test(n)?'#c7794a':'#4b4f55';
-    if(/iphone 17\b(?! pro)|iphone 18\b(?! pro)/.test(n)) body='#9fb8d8';
-    if(/pixel/.test(n)) body='#39424e';
-    if(/fold/.test(n)) body='#202228';
-    const w=/fold/.test(n)?64:40, h=84, d=5;
-    const home=`<div style="position:absolute;inset:3px;border-radius:7px;background:radial-gradient(circle at 30% 20%,#3b6fd6,#7a3bd6 50%,#0b0d12 80%);overflow:hidden"><div style="position:absolute;top:5px;left:50%;margin-left:-8px;width:16px;height:5px;border-radius:3px;background:#000"></div><div style="color:#fff;font:700 10px system-ui;text-align:center;margin-top:20px">12:34</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:8px 4px">${Array.from({length:12},(_,i)=>`<div style="aspect-ratio:1;border-radius:3px;background:hsl(${i*30},70%,60%)"></div>`).join('')}</div></div>`;
-    const back=`<div style="position:absolute;left:4px;top:4px;width:${w*0.5}px;height:${w*0.5}px;border-radius:8px;background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)"><div style="position:absolute;left:4px;top:4px;width:9px;height:9px;border-radius:50%;background:#111;box-shadow:0 0 0 2px #888"></div><div style="position:absolute;right:4px;top:4px;width:9px;height:9px;border-radius:50%;background:#111;box-shadow:0 0 0 2px #888"></div><div style="position:absolute;left:4px;bottom:4px;width:9px;height:9px;border-radius:50%;background:#111;box-shadow:0 0 0 2px #888"></div></div>`;
-    const html=this.v3Box(w,h,d,0,-h/2-6,0,{f:scr,b:body,l:body,r:body,t:body},{f:home,b:back});
-    return {html, scale:1.8, ty:60, sky:['#3a2a6b','#9a8bd6'], pitch:-8, ry:-25, spin:true};
+    const n=name.toLowerCase(), fold=/fold/.test(n);
+    let body='#34363b', hi='#6b6e75', wall='radial-gradient(circle at 25% 15%,#4f8cff,transparent 45%),radial-gradient(circle at 80% 75%,#ff4fa3,transparent 50%),linear-gradient(160deg,#1b1f4a,#5a2d91 55%,#e0507a)';
+    if(/iphone/.test(n)){ if(/pro/.test(n)){ body='#b3673a'; hi='#e8a77c'; } else { body='#8fb0d8'; hi='#cfe0f3'; } }
+    if(/galaxy s25/.test(n)){ body='#3d4552'; hi='#8a93a1'; }
+    if(/pixel/.test(n)){ body='#2d3a48'; hi='#6c7f93'; }
+    if(fold){ body='#22252b'; hi='#5a5f68'; }
+    const w=fold?62:41, h=86, d=6.6, R=fold?6:10;
+    const icon=(i)=>`<div style="aspect-ratio:1;border-radius:22%;background:linear-gradient(145deg,hsl(${i*47%360},80%,66%),hsl(${(i*47+40)%360},75%,45%));box-shadow:0 1px 1px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.35)"></div>`;
+    const dyn = /iphone 1[5-9]/.test(n)||/pro|ultra/.test(n);
+    const front=`<div style="position:absolute;inset:0;border-radius:${R}px;overflow:hidden;background:${wall}">
+      <div style="position:absolute;inset:0;border-radius:${R}px;box-shadow:inset 0 0 0 2px #05060a"></div>
+      ${dyn?`<div style="position:absolute;top:4px;left:50%;width:${w*0.3}px;height:5px;margin-left:${-w*0.15}px;border-radius:5px;background:#000"></div>`:`<div style="position:absolute;top:4px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:#000"></div>`}
+      <div style="position:absolute;top:3px;left:6px;font:700 5px system-ui;color:#fff">9:41</div><div style="position:absolute;top:3px;right:6px;font:700 5px system-ui;color:#fff">▂▄▆ ▭</div>
+      <div style="position:absolute;top:13px;left:0;right:0;text-align:center;color:#fff;font:300 ${w*0.34}px system-ui;letter-spacing:-1px;text-shadow:0 1px 3px rgba(0,0,0,.4)">9:41</div>
+      <div style="position:absolute;top:${w*0.34+16}px;left:0;right:0;text-align:center;color:#fff;font:600 5px system-ui;opacity:.85">dimanche 4 octobre</div>
+      <div style="position:absolute;left:4px;right:4px;top:${w*0.34+30}px;display:grid;grid-template-columns:repeat(4,1fr);gap:4px">${Array.from({length:12},(_,i)=>icon(i)).join('')}</div>
+      <div style="position:absolute;left:4px;right:4px;bottom:4px;height:${w*0.26}px;border-radius:7px;background:rgba(255,255,255,.25);display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:3px">${[3,8,1,5].map(icon).join('')}</div>
+      <div style="position:absolute;left:50%;bottom:1px;width:${w*0.3}px;height:2px;margin-left:${-w*0.15}px;border-radius:2px;background:rgba(255,255,255,.8)"></div>
+      <div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.28) 0 24%,transparent 25%)"></div></div>`;
+    const lens=(x,y,r)=>`<div style="position:absolute;left:${x}px;top:${y}px;width:${r}px;height:${r}px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4a5a78 0,#10131a 38%,#000 62%);box-shadow:0 0 0 2px #1a1c20,0 0 0 3.2px ${hi},inset 0 0 0 2px rgba(255,255,255,.08)"></div>`;
+    const cam=/iphone/.test(n)&&/pro/.test(n)||/ultra/.test(n);
+    const back=`<div style="position:absolute;inset:0;border-radius:${R}px;background:linear-gradient(135deg,${hi},${body} 35%,${body} 70%,rgba(0,0,0,.4))">
+      <div style="position:absolute;left:4px;top:4px;width:${w*0.52}px;height:${w*0.52}px;border-radius:${R*0.8}px;background:linear-gradient(135deg,rgba(255,255,255,.35),rgba(0,0,0,.15));box-shadow:0 1px 2px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.3)">
+        ${lens(3,3,w*0.2)}${lens(w*0.27,3,w*0.2)}${cam?lens(w*0.15,w*0.27,w*0.2):''}
+        <div style="position:absolute;right:3px;bottom:3px;width:5px;height:5px;border-radius:50%;background:#fff6d0"></div></div></div>`;
+    const side={f:'#05060a',b:body,l:hi,r:hi,t:hi,bo:hi,rad:R+'px'};
+    let html=this.v3Box(w,h,d,0,-h/2-6,0,side,{f:front,b:back});
+    // boutons latéraux
+    html+=this.v3Box(1.6,10,2,w/2+.8,-h/2-20,0,hi)+this.v3Box(1.6,16,2,w/2+.8,-h/2+4,0,hi)+this.v3Box(1.6,8,2,-w/2-.8,-h/2-22,0,hi)+this.v3Box(1.6,12,2,-w/2-.8,-h/2-6,0,hi)+this.v3Box(1.6,12,2,-w/2-.8,-h/2+10,0,hi);
+    html+=this.v3Flat(70,40,0,0,0,'rgba(0,0,0,.28)',null,true);
+    return {html, scale:2.0, ty:62, sky:['#2a2160','#8e7fd1'], pitch:-8, ry:-25, spin:true};
   },
   v3Laptop(name){
     const w=110,d=76, col='#b9bec6';
@@ -4582,36 +4629,50 @@ const App = {
   // ---------- MONTRE ----------
   v3Watch(name){
     const n=name.toLowerCase();
-    let metal='#c9ced6', dial='#101820', accent='#d4af37', strap='#b8bdc6', bezel='#222', digital=false;
-    if(/g-shock/.test(n)){ metal='#222'; dial='#9cb5a0'; strap='#111'; bezel='#111'; digital=true; }
-    else if(/apple watch/.test(n)){ metal='#9a9ea5'; dial='#000'; strap='#ea580c'; digital=true; }
-    else if(/garmin/.test(n)){ metal='#3a3f45'; dial='#0b0f14'; strap='#1f2937'; digital=true; }
-    else if(/or\)|day-date|astronomia/.test(n)){ metal='#d4af37'; dial='#f8f1d6'; strap='#d4af37'; bezel='#d4af37'; }
-    else if(/rainbow/.test(n)){ metal='#e5c76b'; dial='#101820'; strap='#e5c76b'; bezel='conic-gradient(#f43f5e,#f59e0b,#fde047,#22c55e,#0ea5e9,#8b5cf6,#f43f5e)'; }
-    else if(/richard mille/.test(n)){ metal='#1f2937'; dial='#6b7280'; strap='#ef4444'; bezel='#111'; }
+    let metal='#c9ced6', dial='#101820', accent='#d4af37', strap='#b8bdc6', bezel='#222', digital=false, kind='metal', chrono=false, lume='#e9f5d0', datew=true, numerals=false;
+    if(/g-shock/.test(n)){ metal='#2a2a2c'; dial='#a9bfa8'; strap='#161616'; bezel='#161616'; digital=true; kind='rubber'; }
+    else if(/apple watch/.test(n)){ metal='#9a9ea5'; dial='#000'; strap='#ea580c'; digital=true; kind='rubber'; }
+    else if(/garmin/.test(n)){ metal='#3a3f45'; dial='#0b0f14'; strap='#1f2937'; digital=true; kind='rubber'; }
+    else if(/or\)|day-date|astronomia/.test(n)){ metal='#d9b64a'; dial='#f4ebc8'; strap='#d9b64a'; bezel='#d9b64a'; lume='#b8860b'; numerals=true; }
+    else if(/rainbow/.test(n)){ metal='#e5c76b'; dial='#101820'; strap='#e5c76b'; bezel='conic-gradient(#f43f5e,#f59e0b,#fde047,#22c55e,#0ea5e9,#8b5cf6,#f43f5e)'; chrono=true; }
+    else if(/richard mille/.test(n)){ metal='#2b3139'; dial='#707782'; strap='#ef4444'; bezel='#15181d'; kind='rubber'; datew=false; }
     else if(/submariner|seamaster|aquanaut|overseas|offshore/.test(n)){ dial='#0b2a4a'; bezel='#0b2a4a'; strap='#8e9399'; }
     else if(/gmt/.test(n)){ dial='#101820'; bezel='conic-gradient(#1d4ed8 0 50%,#b91c1c 50%)'; strap='#8e9399'; }
-    else if(/royal oak|nautilus/.test(n)){ dial=/nautilus/.test(n)?'#1e3a5f':'#26343f'; strap='#aeb3bb'; }
-    else if(/speedmaster|daytona|carrera/.test(n)){ dial='#15181d'; bezel='#111'; strap='#2b2b2b'; }
-    else if(/tank|santos/.test(n)){ dial='#faf6ea'; strap='#5b3a29'; }
+    else if(/royal oak|nautilus/.test(n)){ dial=/nautilus/.test(n)?'#1e3a5f':'#26343f'; strap='#aeb3bb'; bezel='#bfc4cc'; }
+    else if(/speedmaster|daytona|carrera/.test(n)){ dial='#15181d'; bezel='#111'; strap='#2b2b2b'; kind='leather'; chrono=true; }
+    else if(/tank|santos/.test(n)){ dial='#faf6ea'; strap='#5b3a29'; kind='leather'; numerals=true; lume='#222'; bezel='#c9ced6'; }
     else if(/datejust/.test(n)){ dial='#cfd9e3'; strap='#c2c7ce'; }
-    else if(/hublot/.test(n)){ dial='#111'; bezel='#111'; strap='#111'; }
-    const sz=84;
-    const tick=Array.from({length:12},(_,i)=>`<div style="position:absolute;left:50%;top:50%;width:2px;height:6px;margin:-${sz/2-10}px 0 0 -1px;background:${digital?'transparent':'#f1f1f1'};transform-origin:1px ${sz/2-10}px;transform:rotate(${i*30}deg)"></div>`).join('');
-    const face = digital ? `<div style="position:absolute;inset:14px;border-radius:50%;background:${dial};display:flex;align-items:center;justify-content:center;font:700 15px ui-monospace,monospace;color:${/apple|garmin/.test(n)?'#fff':'#243326'}">12:34</div>`
-      : `<div style="position:absolute;inset:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,${dial},${dial} 60%,rgba(0,0,0,.25))"></div>${tick}
-         <div style="position:absolute;left:50%;top:50%;width:3px;height:22px;margin:-22px 0 0 -1.5px;background:#eee;transform-origin:1.5px 22px;animation:v3spinz 43200s linear infinite;border-radius:2px"></div>
-         <div style="position:absolute;left:50%;top:50%;width:2px;height:31px;margin:-31px 0 0 -1px;background:#eee;transform-origin:1px 31px;animation:v3spinz 3600s linear infinite;border-radius:2px"></div>
-         <div style="position:absolute;left:50%;top:50%;width:1px;height:34px;margin:-34px 0 0 -.5px;background:${accent};transform-origin:.5px 34px;animation:v3spinz 60s linear infinite"></div>
-         <div style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:${accent}"></div>`;
-    const bz = bezel.startsWith('conic') ? bezel : bezel;
-    const layers=[-6,-3,0,3,6].map(z=>`<div class="v3f" style="width:${sz}px;height:${sz}px;margin:${-sz/2}px 0 0 ${-sz/2}px;border-radius:50%;background:${metal};transform:translateZ(${z}px);backface-visibility:visible"></div>`).join('');
-    const front=`<div class="v3f" style="width:${sz}px;height:${sz}px;margin:${-sz/2}px 0 0 ${-sz/2}px;border-radius:50%;background:${bz};box-shadow:inset 0 0 0 2px rgba(255,255,255,.35),inset 0 0 0 9px ${metal};transform:translateZ(7px)">${face}<div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.28),transparent 45%)"></div></div>`;
-    const back=`<div class="v3f" style="width:${sz}px;height:${sz}px;margin:${-sz/2}px 0 0 ${-sz/2}px;border-radius:50%;background:${metal};filter:brightness(.7);transform:rotateY(180deg) translateZ(7px)"></div>`;
-    const crown=`<div class="v3b" style="transform:translate3d(${sz/2+3}px,0,0)">${this.v3Box(6,10,10,0,0,0,metal)}</div>`;
-    const bands=[-1,1].map(s=>this.v3Box(34,40,5,0,s*(sz/2+16),0,{f:strap,b:strap,l:strap,r:strap,t:strap},{f:`<div style="position:absolute;inset:3px;border:1px dashed rgba(255,255,255,.35)"></div>`})).join('');
-    const html=`<div class="v3b" style="transform:translate3d(0,-60px,0)">${layers}${front}${back}${crown}${bands}</div>`;
-    return {html, scale:1.45, ty:50, sky:['#1f2937','#4b5563'], pitch:-6, ry:-25, spin:true};
+    else if(/hublot/.test(n)){ dial='#111'; bezel='#111'; strap='#111'; kind='rubber'; chrono=true; }
+    else if(/tissot|prx/.test(n)){ dial='#1f6fa3'; strap='#b8bdc6'; }
+    const sz=88, c=sz/2;
+    const sunburst=`conic-gradient(from 0deg,rgba(255,255,255,.18),rgba(0,0,0,.18),rgba(255,255,255,.18),rgba(0,0,0,.18),rgba(255,255,255,.18),rgba(0,0,0,.18),rgba(255,255,255,.18),rgba(0,0,0,.18),rgba(255,255,255,.18))`;
+    let marks='';
+    for(let i=0;i<60;i++){ const big=i%5===0; marks+=`<div style="position:absolute;left:50%;top:50%;width:${big?3:1}px;height:${big?7:3}px;margin:${-(c-14)}px 0 0 ${big?-1.5:-.5}px;background:${big?lume:'rgba(255,255,255,.7)'};transform-origin:${big?1.5:.5}px ${c-14}px;transform:rotate(${i*6}deg);${big?'box-shadow:0 0 2px rgba(255,255,255,.5)':''}"></div>`; }
+    if(numerals){ marks=''; for(let i=1;i<=12;i++){ const a=i*30*Math.PI/180, r=c-22; marks+=`<div style="position:absolute;left:${c+Math.sin(a)*r-6}px;top:${c-Math.cos(a)*r-6}px;width:12px;text-align:center;font:600 8px Georgia,serif;color:${lume}">${i}</div>`; } }
+    const sub=(x,y,r)=>`<div style="position:absolute;left:${x-r}px;top:${y-r}px;width:${r*2}px;height:${r*2}px;border-radius:50%;background:radial-gradient(circle,rgba(0,0,0,.25),rgba(255,255,255,.08));box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)"><div style="position:absolute;left:50%;top:50%;width:1px;height:${r-2}px;margin:${-(r-2)}px 0 0 -.5px;background:#ddd;transform-origin:.5px ${r-2}px;transform:rotate(${(x*7+y)%360}deg)"></div></div>`;
+    const bezelNums = (typeof bezel==='string'&&bezel.length<12&&!digital&&kind==='metal'&&/seamaster|submariner|gmt|aquanaut|overseas/.test(n))?Array.from({length:12},(_,i)=>`<div style="position:absolute;left:50%;top:50%;width:2px;height:5px;margin:${-(c-3)}px 0 0 -1px;background:#f4f4f4;transform-origin:1px ${c-3}px;transform:rotate(${i*30}deg)"></div>`).join(''):'';
+    const face = digital ? `<div style="position:absolute;inset:14px;border-radius:50%;background:${dial};box-shadow:inset 0 0 8px rgba(0,0,0,.4);display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 16px ui-monospace,monospace;color:${/apple|garmin/.test(n)?'#fff':'#243326'}">${/apple|garmin/.test(n)?'<span style="font-size:7px;opacity:.7;margin-bottom:2px">DIM. 4 OCT</span>':''}09:41<span style="font-size:7px;opacity:.7;margin-top:2px">${/g-shock/.test(n)?'SUN 04-10':'❤ 72'}</span></div>`
+      : `<div style="position:absolute;inset:11px;border-radius:50%;background:${sunburst},radial-gradient(circle at 35% 30%,${dial},${dial} 58%,rgba(0,0,0,.35));box-shadow:inset 0 0 6px rgba(0,0,0,.5)"></div>${marks}
+         ${chrono?sub(c,c-14,8)+sub(c-15,c+8,8)+sub(c+15,c+8,8):''}
+         ${datew?`<div style="position:absolute;right:${chrono?16:12}px;top:${c-5}px;width:12px;height:10px;background:#f6f6f2;border-radius:1px;font:700 7px system-ui;color:#111;text-align:center;line-height:10px;box-shadow:inset 0 0 0 1px #444">4</div>`:''}
+         <div style="position:absolute;left:50%;top:${c-17}px;width:20px;margin-left:-10px;text-align:center;font:600 4.5px system-ui;letter-spacing:.5px;color:${lume};opacity:.85">${/rolex|patek|audemars|omega|tag|tissot|cartier|hublot|vacheron|jacob|richard/.test(n)?'AUTOMATIC':''}</div>
+         <div style="position:absolute;left:50%;top:50%;width:4px;height:24px;margin:-24px 0 0 -2px;background:linear-gradient(90deg,#fff,#bbb);transform-origin:2px 24px;transform:rotate(${(new Date().getHours()%12)*30+new Date().getMinutes()/2}deg);border-radius:2px 2px 1px 1px;box-shadow:0 1px 2px rgba(0,0,0,.5)"></div>
+         <div style="position:absolute;left:50%;top:50%;width:3px;height:34px;margin:-34px 0 0 -1.5px;background:linear-gradient(90deg,#fff,#bbb);transform-origin:1.5px 34px;transform:rotate(${new Date().getMinutes()*6}deg);border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,.5)"></div>
+         <div style="position:absolute;left:50%;top:50%;width:1px;height:38px;margin:-34px 0 0 -.5px;background:${/or\)|day-date|astronomia|rainbow/.test(n)?'#c2185b':'#e53935'};transform-origin:.5px 34px;animation:v3spinz 60s linear infinite"></div>
+         <div style="position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,${metal})"></div>`;
+    const brushed=`conic-gradient(from 20deg,${metal},#fff 12%,${metal} 25%,rgba(0,0,0,.35) 40%,${metal} 55%,#fff 70%,${metal} 85%,${metal})`;
+    const layers=[-6,-4.5,-3,-1.5,0,1.5,3,4.5,6].map(z=>`<div class="v3f" style="width:${sz}px;height:${sz}px;margin:${-sz/2}px 0 0 ${-sz/2}px;border-radius:50%;background:${brushed};transform:translateZ(${z}px);backface-visibility:visible"></div>`).join('');
+    const bz = (typeof bezel==='string' && bezel.startsWith('conic')) ? bezel : `${brushed}`;
+    const front=`<div class="v3f" style="width:${sz}px;height:${sz}px;margin:${-sz/2}px 0 0 ${-sz/2}px;border-radius:50%;background:${bz};box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),inset 0 0 0 9px ${typeof bezel==='string'&&!bezel.startsWith('conic')?bezel:metal},inset 0 0 0 10px rgba(0,0,0,.4);transform:translateZ(7px)">${bezelNums}${face}<div style="position:absolute;inset:9px;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.38),transparent 38%,transparent 70%,rgba(255,255,255,.1))"></div></div>`;
+    const back=`<div class="v3f" style="width:${sz}px;height:${sz}px;margin:${-sz/2}px 0 0 ${-sz/2}px;border-radius:50%;background:${brushed};filter:brightness(.7);transform:rotateY(180deg) translateZ(7px)"></div>`;
+    const crown=`<div class="v3b" style="transform:translate3d(${c+3}px,0,0)">${this.v3Box(7,11,11,0,0,0,{f:metal,b:metal,l:metal,r:metal,t:metal,tex:'v3tex-plank'})}</div>`;
+    const lugs=[-1,1].flatMap(sy=>[-1,1].map(sx=>this.v3Box(7,14,6,sx*(15),sy*(c-4),0,metal))).join('');
+    const link=kind==='metal'?`background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.35) 0 1px,transparent 1px 7px),linear-gradient(90deg,rgba(0,0,0,.28) 0 14%,rgba(255,255,255,.35) 18% 30%,transparent 34% 66%,rgba(255,255,255,.35) 70% 82%,rgba(0,0,0,.28) 86%);`:'';
+    const stitch=kind==='leather'?`<div style="position:absolute;inset:3px;border:1px dashed rgba(255,230,180,.55);border-radius:2px"></div>`:'';
+    const holes=kind==='rubber'?`<div style="position:absolute;left:50%;top:6px;bottom:6px;width:3px;margin-left:-1.5px;background:repeating-linear-gradient(0deg,rgba(0,0,0,.55) 0 3px,transparent 3px 8px);border-radius:2px"></div>`:'';
+    const bands=[-1,1].map(s=>this.v3Box(32,44,5,0,s*(c+19),0,{f:strap,b:strap,l:strap,r:strap,t:strap},{f:`<div style="position:absolute;inset:0;${link}"></div>${stitch}${holes}`,b:''})).join('');
+    const html=`<div class="v3b" style="transform:translate3d(0,-62px,0)">${bands}${layers}${lugs}${front}${back}${crown}</div>${this.v3Flat(110,70,0,0,0,'rgba(0,0,0,.28)',null,true)}`;
+    return {html, scale:1.5, ty:55, sky:['#1c2431','#566273'], pitch:-6, ry:-25, spin:true};
   },
   // ---------- MAILLOT ----------
   v3Jersey(name){
@@ -4771,23 +4832,87 @@ const App = {
   },
   v3SetView(v){ const s=this._v3; s.view=v; s.keepView=false; document.querySelectorAll('.v3tab').forEach(b=>b.classList.toggle('active',b.dataset.v===v)); this.v3Remount(false); },
   v3Buy(){ const s=this._v3; this.closeModal(); if(s.cat==='maisons'){ const idx=s.opts.map(k=>this.VIE_OPTIONS.findIndex(o=>o.k===k)).filter(k=>k>=0); this.addVieToCart(s.cat,s.i,idx); } else this.addVieToCart(s.cat,s.i,[]); },
+  // ---------- PHOTOS RÉELLES (Wikipédia, chargées au moment d'ouvrir l'aperçu) ----------
+  v3PhotoQuery(cat,name,emoji){
+    const nm=name.replace(/\s*\(.*?\)\s*/g,' ').replace(/prix estim[ée]|rachat \d+|valeur boursi[eè]re|valorisation estim[ée]e/gi,'').replace(/\s+/g,' ').trim();
+    const low=name.toLowerCase();
+    if(/mot'eau|fc nulos|signé|floqué|dédicac|loge à vie|bus du club|abonnement|pack|setup|collection|cockpit|simulateur|borne|console rétro|ton nom|20 jeux|kit /.test(low)) return null;
+    if(cat==='maisons'){
+      let t=name.split('—').slice(1).join('—').trim()||name;
+      const paren=(name.match(/\(([^)]*)\)/)||[])[1]||'';
+      if(paren.includes(',') && !/m²|vue|jardin/i.test(paren.split(',').pop())) return paren.split(',').pop().trim();
+      t=t.replace(/\(.*?\)/g,'').trim();
+      const parts=t.split(',').map(x=>x.trim()).filter(Boolean);
+      const last=parts[parts.length-1]||t;
+      if(parts.length>1 && !/vue|jardin|vignoble|sur l'eau|front de mer|mer$/i.test(last)) return last;
+      return parts[0]||t;
+    }
+    if(cat==='voyages'){ return nm.replace(/^(week-end|semaine|voyage|safari|croisière|tour du monde|grand prix de f1|finale de|concert vip|aurores boréales)\s*(à|aux|au|en|dans|en|autour du monde|ligue des champions|coupe du monde)?\s*/i,'').replace(/\s*—.*$/,'').trim()||nm; }
+    if(cat==='nautique'){ return nm.split('—')[0].trim(); }
+    if(cat==='entreprises'){ return nm.replace(/^(équipe (nba|nfl)|club de)\s*(—)?\s*/i,'').replace(/^—\s*/,'').replace(/\s*—.*$/,'').trim()||nm; }
+    let q=nm.replace(/^(souris|clavier|casque|tapis de souris|manette|écran|sac|veste|doudoune|manteau|lunettes|bague|chaîne en or|costume|écharpe|maillot|ballon|crampons|gants de gardien|survêtement)\s+/i,'').replace(/\s*—.*$/,'').trim();
+    return q||nm;
+  },
+  _v3Photos:{},
+  async v3FetchPhoto(q){
+    if(this._v3Photos[q]!==undefined) return this._v3Photos[q];
+    const norm=t=>t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const toks=norm(q).split(/[^a-z0-9]+/).filter(w=>w.length>2);
+    let res=[];
+    try{
+      const url='https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=8&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=900&exintro=1&explaintext=1&exsentences=3&exlimit=max&gsrsearch='+encodeURIComponent(q);
+      const r=await fetch(url); const j=await r.json();
+      const pages=Object.values((j.query&&j.query.pages)||{}).sort((a,b)=>a.index-b.index);
+      for(const p of pages){
+        if(!p.thumbnail||!p.thumbnail.source) continue;
+        const tt=norm(p.title);
+        if(toks.length && !toks.some(w=>tt.includes(w))) continue;
+        if(/\.(svg)(\/|$)/i.test(p.thumbnail.source) && /logo|flag|coat/i.test(p.title)) continue;
+        res.push({src:p.thumbnail.source,title:p.title,text:(p.extract||'').slice(0,420)}); if(res.length>=5) break;
+      }
+    }catch(e){ res=[]; }
+    if(!res.length) res=null;
+    this._v3Photos[q]=res; return res;
+  },
+  async v3ShowPhoto(){
+    const s=this._v3; const box=document.getElementById('v3box'); if(!s||!box) return;
+    box.innerHTML=`<div class="v3photo">📷 Recherche d'une vraie photo…</div>`;
+    const tok=s.tok=(s.tok||0)+1;
+    const r=(this.VIE_CATALOG[s.cat]||[])[s.i]; const q=s.q;
+    const list=q?await this.v3FetchPhoto(q):null; const ph=list?list[(s.pi||0)%list.length]:null;
+    if(!this._v3||this._v3!==s||s.tok!==tok||!document.getElementById('v3box')) return;
+    if(!ph){ s.hasPhoto=false; this.v3SetMode('3d',true); return; }
+    box.innerHTML=`<div class="v3photo"><img alt="" src="${ph.src}" onerror="App.v3PhotoFail()"><div class="cr">📷 Photo : Wikipédia — ${esc(ph.title)} (image indicative, peut montrer un autre modèle)</div>${list.length>1?`<button class="btn btn-ghost btn-sm" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;" onclick="App._v3.pi=(App._v3.pi||0)+1;App.v3ShowPhoto()">➡️ Autre photo (${((s.pi||0)%list.length)+1}/${list.length})</button>`:''}</div>${ph.text?`<div style="margin-top:8px;font-size:12.5px;line-height:1.45;"><b>📖 ${esc(ph.title)}</b><br><span class="muted">${esc(ph.text)}</span><br><a href="https://en.wikipedia.org/wiki/${encodeURIComponent(ph.title.replace(/ /g,'_'))}" target="_blank" rel="noopener" style="font-size:12px;">Lire l'article complet sur Wikipédia ↗</a></div>`:''}`;
+  },
+  v3PhotoFail(){ if(this._v3){ this._v3.hasPhoto=false; this.v3SetMode('3d',true); } },
+  v3SetMode(m,auto){
+    const s=this._v3; if(!s) return; s.mode=m;
+    if(s.raf){ cancelAnimationFrame(s.raf); s.raf=0; }
+    document.querySelectorAll('.v3mode').forEach(b=>b.classList.toggle('active',b.dataset.m===m));
+    const ctl=document.getElementById('v3ctl'); if(ctl) ctl.style.display=(m==='3d')?'':'none';
+    const pb=document.querySelector('.v3mode[data-m="photo"]'); if(pb&&s.hasPhoto===false){ pb.style.display='none'; }
+    if(m==='photo') this.v3ShowPhoto(); else { s.keepView=false; this.v3Mount(); }
+  },
   openViePreview(cat,i){
     const x=this.vieItem(cat,i); if(!x) return;
     if(this._v3&&this._v3.raf) cancelAnimationFrame(this._v3.raf);
-    this._v3={cat,i,opts:[],view:'ext',raf:0};
+    const q=this.v3PhotoQuery(cat,x.name,x.emoji);
     const isH=cat==='maisons';
-    const tabs=isH?`<div class="v3-tabs"><span class="chip v3tab active" data-v="ext" onclick="App.v3SetView('ext')">🏠 Extérieur</span>${this.V3_ROOMS.map(r=>`<span class="chip v3tab" data-v="${r[0]}" onclick="App.v3SetView('${r[0]}')">${r[1]}</span>`).join('')}</div>
+    this._v3={cat,i,opts:[],view:'ext',raf:0,q,hasPhoto:q?undefined:false,mode:q?'photo':'3d'};
+    const s=this._v3;
+    const modeTabs=q?`<div class="v3-tabs" style="margin-top:0"><span class="chip v3mode ${s.mode==='photo'?'active':''}" data-m="photo" onclick="App.v3SetMode('photo')">📷 ${isH?'Le lieu (photo)':'Photo réelle'}</span><span class="chip v3mode ${s.mode==='3d'?'active':''}" data-m="3d" onclick="App.v3SetMode('3d')">🧊 Vue 3D</span></div>`:'';
+    const tabs=isH?`<div id="v3ctl" style="display:${s.mode==='3d'?'':'none'}"><div class="v3-tabs"><span class="chip v3tab active" data-v="ext" onclick="App.v3SetView('ext')">🏠 Extérieur</span>${this.V3_ROOMS.map(r=>`<span class="chip v3tab" data-v="${r[0]}" onclick="App.v3SetView('${r[0]}')">${r[1]}</span>`).join('')}</div>
       <p style="font-size:12.5px;margin:6px 0 2px;font-weight:700;">Options (tu les vois apparaître) :</p>
-      ${this.VIE_OPTIONS.map((o,k)=>`<label style="display:inline-flex;align-items:center;gap:6px;margin:3px 10px 3px 0;font-size:12.5px;"><input type="checkbox" onchange="App.v3ToggleOpt(${k})"> ${o.lb}</label>`).join('')}`:'';
+      ${this.VIE_OPTIONS.map((o,k)=>`<label style="display:inline-flex;align-items:center;gap:6px;margin:3px 10px 3px 0;font-size:12.5px;"><input type="checkbox" onchange="App.v3ToggleOpt(${k})"> ${o.lb}</label>`).join('')}</div>`:'<div id="v3ctl"></div>';
     this.modal(`
       <h3>${x.emoji} ${esc(x.name)}</h3>
-      <p class="muted" style="font-size:12.5px;margin:-4px 0 8px;">Aperçu 3D (dessiné, indicatif) · <b id="v3price">${this.fmtPrice(x.price)}</b></p>
+      <p class="muted" style="font-size:12.5px;margin:-4px 0 8px;">Aperçu · <b id="v3price">${this.fmtPrice(x.price)}</b></p>
+      ${modeTabs}
       <div id="v3box"></div>
       ${tabs}
       <div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-accent" style="flex:1;" onclick="App.v3Buy()">🛒 Ajouter au panier</button><button class="btn btn-ghost" onclick="App.closeModal()">Fermer</button></div>`);
-    this.v3Mount();
+    if(s.mode==='photo') this.v3ShowPhoto(); else this.v3Mount();
   },
-
   renderParisTab(){
     const upcoming = this.state.matches.filter(m=>!m.played).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
     return `
