@@ -2545,7 +2545,7 @@ const App = {
         wPenaltiesMissed=manual.penaltiesMissed||0, wPenaltiesCaused=manual.penaltiesCaused||0,
         wShotsOnTarget=manual.shotsOnTarget||0, wTacklesWon=manual.tacklesWon||0,
         wSaves=manual.saves||0, wPenaltiesSaved=manual.penaltiesSaved||0,
-        wMatchRankSum=0, wMatchRankWeight=0, wTotalWeight=0;
+        wMatchRankSum=0, wMatchRankWeight=0, wTotalWeight=0, wImpSum=0;
     matches.forEach(m=>{
       const w = this.matchWeight(m);
       // Équipe sur laquelle CE joueur a vraiment joué CE match précis : basé sur m.teamA/m.teamB (la
@@ -2598,6 +2598,7 @@ const App = {
       if(wasInvolved){
         matchesPlayed++;
         wTotalWeight += w;
+        wImpSum += w * ((m.importance!=null)? m.importance : 5);
         const wasStarter = [m.tactic, m.tacticA, m.tacticB].some(t=>t && t.assignments && Object.values(t.assignments).includes(name));
         if(wasStarter){ timesStarter++; wTimesStarter += w; } else timesSub++;
       }
@@ -2693,6 +2694,7 @@ const App = {
       goalsConceded: wGoalsConceded, gkWeight: wGkWeight,
       saves: wNorm(wSaves, manual.saves||0), penaltiesSaved: wNorm(wPenaltiesSaved, manual.penaltiesSaved||0),
       totalWeight: wTotalWeight,
+      impAvg: wTotalWeight ? wImpSum/wTotalWeight : 5,
     };
     return {goals, openPlayGoals, freekickScored, freekickTaken, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted};
   },
@@ -2706,6 +2708,13 @@ const App = {
   // matchs normaux") à 10/10 — avant, le maximum plafonnait à seulement 2x, ce qui ne faisait presque pas
   // bouger le général même sur un match décisif. Seul l'impact sur le général (cardRating) est concerné :
   // les vrais compteurs de buts/passes/etc. et les classements associés ne sont JAMAIS pondérés.
+  // Effet « Coupe du Monde » : l'importance moyenne des matchs d'un joueur amplifie (ou réduit) tout ce qu'il
+  // a fait au-dessus/en dessous de la base du général. 1/10 (amical) = 0,7x, 5/10 = 1x, 10/10 (finale) = 1,9x.
+  importanceMult(imp){
+    imp = (imp==null||isNaN(imp)) ? 5 : Math.max(1, Math.min(10, imp));
+    if(imp<=5) return 0.7 + 0.075*(imp-1);
+    return 1 + (imp-5)*0.18;
+  },
   matchWeight(m){
     const imp = (m && m.importance!=null) ? m.importance : 5;
     // Écart volontairement modéré entre un petit match et un match décisif : avant, un match à 1/10 ne
@@ -2847,7 +2856,7 @@ const App = {
       // exceptionnellement à sens unique (ex : 10 buts encaissés dans un match très ouvert) ne doit pas à lui
       // seul écraser le général au plancher — un match difficile pèse, mais pas de façon disproportionnée.
       const concededPenalty = Math.sqrt(Math.max(0, concededPerMatch)) * 3.2;
-      let rg = 52 + confidence*(gkImpact + cleanSheetBonus - concededPenalty + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0
+      let rg = 52 + this.importanceMult(w.impAvg)*confidence*(gkImpact + cleanSheetBonus - concededPenalty + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0
         + playtimeBonus
         - w.worstVotesTotal*1.4
         - (w.yellow||0)*0.8 - (w.red||0)*3.2
@@ -2867,7 +2876,7 @@ const App = {
     // augmenté (plus du double) pour que chaque titre de MVP se voie vraiment. Le MVP n'est PLUS celui qui a
     // la meilleure note individuelle : c'est celui qui est 1er du classement du match voté par l'équipe
     // (voir matchMVP()) — sa note perso peut être plus basse que celle d'un autre joueur, ça ne change rien.
-    let r = 52 + confidence*(scoringImpact + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0 + w.tacklesWon*0.9 + (w.shotsOnTarget||0)*0.4
+    let r = 52 + this.importanceMult(w.impAvg)*confidence*(scoringImpact + w.assists*2.3 + avgRatingAdj + matchRankAdj + w.mvp*6.0 + w.tacklesWon*0.9 + (w.shotsOnTarget||0)*0.4
       + playtimeBonus
       - w.penaltiesMissed*2.8 - w.worstVotesTotal*1.4 - w.penaltiesCaused*2.6
       - (w.yellow||0)*0.8 - (w.red||0)*3.2
