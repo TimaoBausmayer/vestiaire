@@ -3047,7 +3047,8 @@ const App = {
     const stats = this.computePlayerStats(name);
     const rating = this.cardRating(stats);
     const value = this.marketValueFromRating(rating);
-    return Math.max(500, Math.round(value*0.05/500)*500);
+    // Le salaire d'un match = la valeur marchande affichée sur la carte (ex. 9 M € pour une carte à 9 M €).
+    return Math.max(500, Math.round(value/500)*500);
   },
   // Le salaire ne baisse jamais d'un versement à l'autre : si la valeur marchande a reculé, on garde
   // le dernier montant connu (le "dernier prix") ; s'il a progressé, le salaire suit la nouvelle valeur.
@@ -3078,7 +3079,7 @@ const App = {
     if(!acc0 || !acc0.linkedPlayer) return;
     if(!this.state.players.find(p=>p.name===acc0.linkedPlayer)) return;
     if(!(this.state.matches||[]).length) return;
-    if(!this.unpaidSalaryMatches(acc0).length) return;
+    if(!this.unpaidSalaryMatches(acc0).length && acc0.salaryV2) return;
     this._salaryBusy = true;
     try{
       const ref = this.db.collection("accounts").doc(slugify(this.me));
@@ -3086,13 +3087,22 @@ const App = {
       if(!fresh.exists) return;
       const acc = {id:fresh.id, ...fresh.data()};
       const todo = this.unpaidSalaryMatches(acc);
-      if(!todo.length) return;
       const salary = this.playerSalary(acc.linkedPlayer);
-      const total = salary*todo.length;
+      // Rattrapage unique : les matchs déjà payés avec l'ancien barème (5 % de la valeur) sont complétés
+      // jusqu'à la valeur complète de la carte.
+      const oldPaid = Array.isArray(acc.salaryPaidIds) ? acc.salaryPaidIds.length : 0;
+      const oldRate = acc.lastSalaryAmount || 0;
+      const topUp = (!acc.salaryV2 && oldPaid>0 && oldRate>0 && salary>oldRate) ? (salary-oldRate)*oldPaid : 0;
+      if(!todo.length && !topUp && acc.salaryV2) return;
+      const total = salary*todo.length + topUp;
       const ids = (Array.isArray(acc.salaryPaidIds)? acc.salaryPaidIds : []).concat(todo.map(m=>m.id));
-      await ref.update({wallet:(acc.wallet||0)+total, salaryPaidIds:ids, lastSalaryAmount:salary,
-        history:this.pushHistory(acc.history, {amount:total, label:"💼 Salaire"+(todo.length>1?" ("+todo.length+" matchs)":" après match")})});
-      toast("💼 Salaire versé : "+fmtEuro(total)+(todo.length>1? " ("+todo.length+" matchs)":""));
+      const upd = {salaryPaidIds:ids, lastSalaryAmount:salary, salaryV2:true};
+      if(total>0){
+        upd.wallet = (acc.wallet||0)+total;
+        upd.history = this.pushHistory(acc.history, {amount:total, label:"💼 Salaire"+(todo.length>1?" ("+todo.length+" matchs)":(todo.length?" après match":" (complément)"))});
+      }
+      await ref.update(upd);
+      if(total>0) toast("💼 Salaire versé : "+fmtEuro(total)+(todo.length>1? " ("+todo.length+" matchs)":""));
     }catch(e){}
     finally{ this._salaryBusy = false; }
   },
