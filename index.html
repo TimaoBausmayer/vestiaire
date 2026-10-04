@@ -3074,20 +3074,55 @@ const App = {
     if(!player) return null;
     return {amount: this.playerSalary(linkedName), nextAt: null, linkedName, pending: this.unpaidSalaryMatches(acc).length};
   },
+  pendingYieldMatches(acc){
+    const paid = new Set(Array.isArray(acc && acc.yieldPaidIds) ? acc.yieldPaidIds : []);
+    return (this.state.matches||[]).filter(m=>m.played && !paid.has(m.id));
+  },
+  // Rendement de l'immobilier et des entreprises : versé après chaque match joué, seulement pour les biens
+  // achetés AVANT la date du match. Modifie `acc` (wallet, history, yieldPaidIds) en mémoire.
+  async payYieldFor(ref, acc){
+    if(!this.vieAssets(acc).length) return;
+    if(!Array.isArray(acc.yieldPaidIds)){
+      acc.yieldPaidIds = (this.state.matches||[]).filter(m=>m.played).map(m=>m.id);
+      await ref.update({yieldPaidIds:acc.yieldPaidIds});
+      return;
+    }
+    const todo = this.pendingYieldMatches(acc);
+    if(!todo.length) return;
+    let total = 0;
+    todo.forEach(m=>{
+      const md = (m.date||"").slice(0,10);
+      this.vieAssets(acc).forEach(a=>{ if(a.y && md && md > (a.at||"").slice(0,10)) total += Math.round((a.price||0)*a.y/100); });
+    });
+    const ids = acc.yieldPaidIds.concat(todo.map(m=>m.id));
+    const upd = {yieldPaidIds:ids};
+    if(total>0){
+      upd.wallet = (acc.wallet||0)+total;
+      upd.history = this.pushHistory(acc.history, {amount:total, label:"📈 Rendement de tes biens"+(todo.length>1?" ("+todo.length+" matchs)":"")});
+      acc.wallet = upd.wallet; acc.history = upd.history;
+    }
+    await ref.update(upd);
+    acc.yieldPaidIds = ids;
+    if(total>0) toast("📈 Rendement versé : "+fmtEuro(total));
+  },
   async checkAndPaySalaryIfNeeded(){
     if(!this.me || !this.db) return;
     if(this._salaryBusy) return;
     const acc0 = this.state.accounts.find(a=>a.username===this.me);
-    if(!acc0 || !acc0.linkedPlayer) return;
-    if(!this.state.players.find(p=>p.name===acc0.linkedPlayer)) return;
+    if(!acc0) return;
     if(!(this.state.matches||[]).length) return;
-    if(!this.unpaidSalaryMatches(acc0).length) return;
+    const hasPlayer = !!acc0.linkedPlayer && !!this.state.players.find(p=>p.name===acc0.linkedPlayer);
+    const needSalary = hasPlayer && this.unpaidSalaryMatches(acc0).length>0;
+    const needYield = this.vieAssets(acc0).length>0 && (!Array.isArray(acc0.yieldPaidIds) || this.pendingYieldMatches(acc0).length>0);
+    if(!needSalary && !needYield) return;
     this._salaryBusy = true;
     try{
       const ref = this.db.collection("accounts").doc(slugify(this.me));
       const fresh = await ref.get();           // relecture en direct : jamais de double versement
       if(!fresh.exists) return;
       const acc = {id:fresh.id, ...fresh.data()};
+      await this.payYieldFor(ref, acc);
+      if(!hasPlayer) return;
       const unpaid = this.unpaidSalaryMatches(acc);
       if(!unpaid.length) return;
       const salary = this.playerSalary(acc.linkedPlayer);
@@ -3926,7 +3961,7 @@ const App = {
       ['💻','PC Gamer — RTX 5090 + i9',5500],['💻','Laptop Gamer — ROG Strix SCAR',3800],['🖥️','Écran gaming OLED 49"',1300],
       ['🖥️','Pro Display XDR 6K',5000],['🎮','PlayStation 5 Pro',800],['🎮','Xbox Series X',500],['🎮','Nintendo Switch 2',450],
       ['🎮','Steam Deck OLED',600],['🥽','Apple Vision Pro',3600],['🥽','Meta Quest 3',550],['📺','TV OLED 83" LG G5',7000],
-      ['📺','TV Micro-LED 110"',100000],['🎧','AirPods Pro 3',270],['🎧','Sony WH-1000XM6',450],['📷','Sony A7R V',4000],
+      ['📺','TV Micro-LED 110"',100000],['🎧','AirPods 5 (prix estimé)',200],['🎧','AirPods 4',150],['🎧','AirPods 4 — réduction de bruit',200],['🎧','AirPods Pro 3',270],['🎧','AirPods Max',580],['🎧','Sony WH-1000XM6',450],['📷','Sony A7R V',4000],
       ['📷','Leica M11',9000],['🚁','Drone DJI Mavic 4 Pro',2500],['🎙️','Setup stream complet',3500],
       ['🖨️','Imprimante 3D Bambu Lab X1',1300],['📡','Starlink Roam',600],
     ],
@@ -3979,10 +4014,28 @@ const App = {
       ['🚗','Tesla (valeur boursière)',1000000000000],['🔎','Google / Alphabet (valeur boursière)',2500000000000],['🍎','Apple (valeur boursière)',3200000000000],
     ],
   },
+  // Rendement : % de la valeur d'achat versé APRÈS CHAQUE MATCH JOUÉ (comme le salaire) pour l'immobilier et les entreprises.
+  VIE_YIELD:{
+    'Boulangerie de quartier':2.2,'Café-restaurant':2.0,'Franchise fast-food':1.8,'Salon de coiffure':2.5,'Supermarché de quartier':1.5,
+    'Station-service':1.4,'Hôtel 3 étoiles':1.6,'Boîte de nuit à Paris':2.8,'Marque de streetwear':2.4,'Studio de jeux vidéo indé':3.0,
+    'Chaîne YouTube à 10 M d\'abonnés':2.6,'Club de foot amateur':1.0,'Club de Ligue 2':1.1,'Club de Ligue 1 (milieu de tableau)':1.2,
+    'Paris Saint-Germain':0.8,'Chelsea FC':0.7,'FC Barcelone':0.7,'Real Madrid':0.8,'Équipe NBA — Los Angeles Lakers':0.6,'Équipe NFL — Dallas Cowboys':0.6,
+    'Instagram (rachat 2012)':1.2,'YouTube (rachat 2006)':1.1,'Twitch (rachat 2014)':1.0,'Minecraft / Mojang (rachat 2014)':1.1,
+    'Lucasfilm — Star Wars (rachat 2012)':0.9,'Marvel (rachat 2009)':0.9,'WhatsApp (rachat 2014)':0.7,'LinkedIn (rachat 2016)':0.7,'GitHub (rachat 2018)':0.8,
+    'Twitter / X (rachat 2022)':0.5,'Netflix (valeur boursière)':0.5,'TikTok / ByteDance (valorisation estimée)':0.5,'Tesla (valeur boursière)':0.4,
+    'Google / Alphabet (valeur boursière)':0.4,'Apple (valeur boursière)':0.4,
+  },
+  vieYieldFor(cat, name, emoji){
+    if(this.VIE_YIELD[name]!=null) return this.VIE_YIELD[name];
+    if(cat!=='maisons') return 0;
+    const m = {'🏢':0.6,'🏠':0.5,'🏔️':0.8,'🏰':0.4,'🏛️':0.4,'🏙️':0.5,'🏖️':0.8,'🏝️':0.7}[emoji];
+    return m!=null ? m : 0.5;
+  },
+  fmtPct(v){ return (v||0).toFixed(1).replace('.',',')+' %'; },
   vieItem(cat, i){
     const r = (this.VIE_CATALOG[cat]||[])[i];
     if(!r) return null;
-    return {id:cat+"|"+r[1], cat, i, emoji:r[0], name:r[1], price:r[2]};
+    return {id:cat+"|"+r[1], cat, i, emoji:r[0], name:r[1], price:r[2], yld:this.vieYieldFor(cat,r[1],r[0])};
   },
   vieFortune(acc){ return ((acc&&acc.wallet)||0) + this.vieNetWorth(acc); },
   VIE_TIERS:[
@@ -4008,6 +4061,7 @@ const App = {
         <div style="height:100%;width:${ti.pct}%;border-radius:99px;background:linear-gradient(90deg,#ffb347,#ff5f6d,#a855f7,#38bdf8);transition:width .6s;"></div>
       </div>
       <div class="muted" style="font-size:11.5px;">Fortune : <b>${this.fmtPrice(f)}</b>${ti.nx? ` · encore ${this.fmtPrice(ti.nx.min-f)} pour devenir ${ti.nx.em} ${ti.nx.lb}` : ' · le plus haut niveau !'}</div>
+      ${(()=>{ const inc=this.vieIncomePerMatch(acc); return inc>0 ? `<div class="muted" style="font-size:11.5px;margin-top:4px;">📈 Revenus passifs : <b>${this.fmtPrice(inc)}</b> par match</div>`:''; })()}
       ${chips? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${chips}</div>`:''}
     </div>`;
   },
@@ -4018,6 +4072,7 @@ const App = {
       <hr class="sep">
       ${mine.length? mine.map(a=>`<div class="kv"><span>${esc(a.emoji||'🎁')} ${esc(a.name)}${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}</span><b>${this.fmtPrice(a.price)}</b></div>`).join("") : '<p class="muted">Rien pour l\'instant.</p>'}`);
   },
+  vieIncomePerMatch(acc){ return this.vieAssets(acc).reduce((s,a)=>s+Math.round((a.price||0)*(a.y||0)/100),0); },
   vieAssets(acc){ return Array.isArray(acc && acc.assets) ? acc.assets : []; },
   vieNetWorth(acc){ return this.vieAssets(acc).reduce((s,a)=>s+(a.price||0),0); },
   fmtPrice(v){
@@ -4047,7 +4102,7 @@ const App = {
       const has = ownedIds.has(x.id);
       const can = wallet>=x.price;
       return `<div class="kv" style="align-items:center;gap:8px;">
-        <span style="flex:1;min-width:0;">${x.emoji} <b>${esc(x.name)}</b><br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(x.price)}</span></span>
+        <span style="flex:1;min-width:0;">${x.emoji} <b>${esc(x.name)}</b><br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(x.price)}${x.yld? ` · <b style="color:var(--accent2);">📈 ${this.fmtPct(x.yld)} / match</b> (≈ ${this.fmtPrice(Math.round(x.price*x.yld/100))})`:''}</span></span>
         ${has ? `<span class="chip active" style="cursor:default;">✅ Possédé</span>`
               : inCart(x.id) ? `<button class="btn btn-ghost btn-sm" onclick="App.openVieCart()">🛒 Dans le panier</button>`
               : `<button class="btn btn-sm ${can?'btn-accent':'btn-ghost'}" onclick="App.openVieBuy('${cat}',${x.i})">🛒 Ajouter</button>`}
@@ -4066,7 +4121,7 @@ const App = {
       </div>
     </div>
     ${mine.length ? `<div class="card"><h2>🧳 Mon patrimoine</h2>
-      ${mine.map(a=>`<div class="kv" style="align-items:center;gap:8px;"><span style="flex:1;min-width:0;">${esc(a.emoji||'🎁')} <b>${esc(a.name)}</b>${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}<br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(a.price)}</span></span>
+      ${mine.map(a=>`<div class="kv" style="align-items:center;gap:8px;"><span style="flex:1;min-width:0;">${esc(a.emoji||'🎁')} <b>${esc(a.name)}</b>${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}<br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(a.price)}${a.y? ` · 📈 ${this.fmtPct(a.y)} / match (+${this.fmtPrice(Math.round(a.price*a.y/100))})`:''}</span></span>
         <button class="btn btn-ghost btn-sm" onclick="App.openVieSell('${jsa(a.id)}')">Revendre</button></div>`).join("")}
     </div>`:''}
     <div class="card">
@@ -4182,11 +4237,12 @@ const App = {
       if(dup.length){ toast("Déjà possédé : "+dup[0].name); this.saveVieCart(this.vieCart().filter(c=>!dup.some(l=>l.id===c.id))); return; }
       if(total>wallet){ toast("Pas assez de crédit ("+fmtEuro(wallet)+")"); return; }
       const now=new Date().toISOString();
-      lines.forEach(l=>assets.push({id:l.id, cat:l.cat, emoji:l.emoji, name:l.name, price:l.total, opts:l.opts.map(o=>o.lb), at:now}));
+      lines.forEach(l=>assets.push({id:l.id, cat:l.cat, emoji:l.emoji, name:l.name, price:l.total, opts:l.opts.map(o=>o.lb), at:now, y:l.yld||0}));
       const no="F-"+now.slice(0,10).replace(/-/g,"")+"-"+String(Math.floor(1000+Math.random()*9000));
       const order={no, at:now, buyer:this.me, lines:lines.map(l=>({emoji:l.emoji,name:l.name,price:l.total,opts:l.opts.map(o=>o.lb)})), total, before:wallet, after:wallet-total};
       const orders=[order].concat(Array.isArray(d.orders)?d.orders:[]).slice(0,10);
-      await ref.update({wallet:wallet-total, assets, orders, history:this.pushHistory(d.history,{amount:-total, label:"🛒 Commande "+no+" ("+lines.length+" article"+(lines.length>1?"s":"")+")"})});
+      const yieldInit = Array.isArray(d.yieldPaidIds) ? d.yieldPaidIds : (this.state.matches||[]).filter(m=>m.played).map(m=>m.id);
+      await ref.update({wallet:wallet-total, assets, orders, yieldPaidIds:yieldInit, history:this.pushHistory(d.history,{amount:-total, label:"🛒 Commande "+no+" ("+lines.length+" article"+(lines.length>1?"s":"")+")"})});
       this.saveVieCart([]);
       this.showInvoice(order, true);
     }catch(e){ toast("❌ Commande impossible (réseau ?)"); }
