@@ -3155,30 +3155,85 @@ const App = {
     const pUs = this.poissonP(Math.max(0.2,ga.avgUs), us);
     const pThem = this.poissonP(Math.max(0.2,ga.avgThem), them);
     const p = Math.max(0.004, pUs*pThem);
-    return this.fairOdds(p, 0.15, 3, 40);
+    // Plafond ramené de x40 à x20 : un score très improbable (ex. 10-3) restait une cote "loterie" démesurée
+    // par rapport au reste des paris, et par rapport au crédit des joueurs (quelques milliers d'€).
+    return this.fairOdds(p, 0.15, 3, 20);
   },
-  // Les cotes "buteur" s'appuient directement sur le rythme de buts du joueur (buts / match joué) :
-  // un buteur déjà très prolifique verra sa cote s'écraser vers le plancher (peu de gain), un joueur qui
-  // marque rarement garde une cote élevée — exactement comme sur un vrai book, adapté aux stats réelles.
+  // Les cotes "buteur" s'appuient sur le rythme de buts du joueur (buts / match joué), mais LISSÉ avec une
+  // moyenne de départ (comme si chaque joueur avait déjà 3 matchs "moyens" derrière lui) : sans ça, un joueur
+  // qui n'a encore jamais marqué (ou qui n'a joué qu'un match) tombait à un rythme quasi nul et affichait des
+  // cotes absurdes (x12 pour UN but, x25 pour deux), et à l'inverse un joueur qui marque 4 buts dans son seul
+  // match devenait "garanti". Le lissage garde des cotes cohérentes : un buteur prolifique voit sa cote baisser
+  // (peu de gain), un joueur qui ne marque jamais voit la sienne monter, mais jamais au-delà d'un plafond
+  // raisonnable (x5 pour 1 but, x12 pour 2 buts, x8 penalty, x10 coup franc).
   scorerOdds(name){
     const s = this.computePlayerStats(name);
-    const lambda = Math.max(0.08, s.matchesPlayed>0 ? s.goals/s.matchesPlayed : 0.2);
+    const PRIOR_MATCHES = 3;
+    const mp = s.matchesPlayed || 0;
+    const smooth = (count, priorRate) => (count + priorRate*PRIOR_MATCHES) / (mp + PRIOR_MATCHES);
+    const lambda = Math.max(0.15, smooth(s.goals||0, 0.3));
     const p1 = 1 - Math.exp(-lambda);
     const p2 = 1 - Math.exp(-lambda)*(1+lambda);
-    const penRate = Math.max(0.02, s.matchesPlayed>0 ? (s.penaltiesScored/s.matchesPlayed) : 0.03);
+    const penRate = Math.max(0.04, smooth(s.penaltiesScored||0, 0.05));
     const pPen = 1 - Math.exp(-penRate);
-    const fkRate = Math.max(0.015, s.matchesPlayed>0 ? (s.freekickScored/s.matchesPlayed) : 0.02);
+    const fkRate = Math.max(0.03, smooth(s.freekickScored||0, 0.04));
     const pFk = 1 - Math.exp(-fkRate);
     return {
-      atLeast1: this.fairOdds(p1, 0.08, 1.15, 12),
-      atLeast2: this.fairOdds(p2, 0.10, 1.3, 25),
-      penalty: this.fairOdds(pPen, 0.12, 1.5, 20),
-      freekick: this.fairOdds(pFk, 0.12, 1.8, 25),
+      atLeast1: this.fairOdds(p1, 0.08, 1.15, 5),
+      atLeast2: this.fairOdds(p2, 0.10, 1.3, 12),
+      penalty: this.fairOdds(pPen, 0.12, 1.5, 8),
+      freekick: this.fairOdds(pFk, 0.12, 1.8, 10),
     };
+  },
+  /* ---------- Clôture des paris + équipe du parieur ---------- */
+  // Les paris ferment BET_CLOSE_MINUTES minutes avant le coup d'envoi (ex : match à 10h00 → plus aucun pari à
+  // partir de 9h50). Le coup d'envoi = date + heure du match (m.time, ex "10:00"), lues dans l'heure locale de
+  // l'appareil. Sans heure renseignée sur le match, on ne peut pas calculer de clôture : les paris restent
+  // ouverts jusqu'à ce que le résultat soit saisi (comme avant).
+  BET_CLOSE_MINUTES: 10,
+  matchKickoff(m){
+    if(!m || !m.date || !m.time) return null;
+    const dm = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(m.date));
+    const tm = /^(\d{1,2})\s*[:hH]\s*(\d{2})?/.exec(String(m.time).trim());
+    if(!dm || !tm) return null;
+    const d = new Date(+dm[1], +dm[2]-1, +dm[3], +tm[1], tm[2]?+tm[2]:0, 0, 0);
+    return isNaN(d.getTime()) ? null : d;
+  },
+  betWindow(m, now){
+    if(!m || m.played) return {open:false, reason:'played', kickoff:null, closesAt:null};
+    const kickoff = this.matchKickoff(m);
+    if(!kickoff) return {open:true, reason:null, kickoff:null, closesAt:null};
+    const closesAt = new Date(kickoff.getTime() - this.BET_CLOSE_MINUTES*60000);
+    const t = (now==null) ? Date.now() : now;
+    return {open: t < closesAt.getTime(), reason: t < closesAt.getTime() ? null : 'closed', kickoff, closesAt};
+  },
+  clockLabel(d){
+    if(!d) return "";
+    return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  },
+  betClosedMessage(m){
+    const w = this.betWindow(m);
+    if(w.reason==='closed') return "🔒 Les paris sont fermés pour ce match (clôture à "+this.clockLabel(w.closesAt)+", "+this.BET_CLOSE_MINUTES+" min avant le coup d'envoi).";
+    return "Ce match n'est plus ouvert aux paris.";
+  },
+  // Équipe ('A' ou 'B') dans laquelle un parieur joue CE match : d'abord la composition réelle du match
+  // (m.teamA / m.teamB, remplie quand le capitaine convoque et répartit les joueurs), via le joueur lié à
+  // son compte ; sinon l'équipe de son compte, sinon l'équipe de sa fiche joueur ; sinon null (supporter).
+  betTeamFor(username, m){
+    if(!username) return null;
+    const acc = (this.state.accounts||[]).find(a=>a.username===username);
+    const linked = (acc && acc.linkedPlayer) || username;
+    if(m){
+      if((m.teamA||[]).includes(linked)) return 'A';
+      if((m.teamB||[]).includes(linked)) return 'B';
+    }
+    if(acc && (acc.team==='A' || acc.team==='B')) return acc.team;
+    const pl = (this.state.players||[]).find(p=>p.name===linked);
+    return (pl && (pl.team==='A' || pl.team==='B')) ? pl.team : null;
   },
   openBetModal(matchId, type, arg1, arg2, odds, label){
     const m = this.state.matches.find(x=>x.id===matchId);
-    if(!m || m.played){ toast("Ce match n'est plus ouvert aux paris."); return; }
+    if(!m || !this.betWindow(m).open){ toast(this.betClosedMessage(m)); return; }
     let selection;
     if(type==='winner' || type==='diff2') selection = arg1;
     else if(type==='scorer') selection = {player:arg1, threshold:arg2};
@@ -3209,6 +3264,10 @@ const App = {
   async confirmBet(){
     const pb = this._pendingBet;
     if(!pb) return;
+    // La fenêtre de paris a pu se fermer pendant que la fenêtre de mise était ouverte : on revérifie au
+    // moment de valider (c'est ce moment-là qui compte, pas celui où on a ouvert la mise).
+    const mBet = this.state.matches.find(x=>x.id===pb.matchId);
+    if(!mBet || !this.betWindow(mBet).open){ this.closeModal(); toast(this.betClosedMessage(mBet)); return; }
     const stakeEl = document.getElementById("betStake");
     const stake = parseFloat(stakeEl.value)||0;
     if(stake<=0){ toast("Mise invalide"); return; }
@@ -3226,7 +3285,7 @@ const App = {
   },
   openScoreBetModal(matchId){
     const m = this.state.matches.find(x=>x.id===matchId);
-    if(!m || m.played){ toast("Ce match n'est plus ouvert aux paris."); return; }
+    if(!m || !this.betWindow(m).open){ toast(this.betClosedMessage(m)); return; }
     this.ensureMe((me)=>{
       const acc = this.state.accounts.find(a=>a.username===me);
       const wallet = acc ? (acc.wallet||0) : 0;
@@ -3267,6 +3326,7 @@ const App = {
   },
   async confirmScoreBet(matchId){
     const m = this.state.matches.find(x=>x.id===matchId);
+    if(!m || !this.betWindow(m).open){ this.closeModal(); toast(this.betClosedMessage(m)); return; }
     const us = parseInt(document.getElementById("betScoreUs").value,10)||0;
     const them = parseInt(document.getElementById("betScoreThem").value,10)||0;
     const odds = this._scoreBetOdds || this.scoreOdds(us, them, m&&m.opponent);
@@ -3287,8 +3347,23 @@ const App = {
   didBetWin(b, finalData){
     const sel = b.selection;
     if(b.type==='winner'){
-      const outcome = finalData.us>finalData.them ? 'us' : finalData.us===finalData.them ? 'draw' : 'them';
-      return sel===outcome;
+      // finalData.us / finalData.them = buts de l'équipe A / de l'équipe B (toujours du point de vue de A).
+      const outcome = finalData.us>finalData.them ? 'A' : finalData.us===finalData.them ? 'draw' : 'B';
+      // Nouveaux paris : le parieur choisit directement l'équipe gagnante par son nom ('A', 'B' ou 'draw').
+      if(sel==='A' || sel==='B' || sel==='draw') return sel===outcome;
+      // Anciens paris "Victoire" ('us') / "Défaite" ('them') : pour le parieur, "Victoire" voulait dire
+      // "mon équipe gagne" — pas "l'équipe A gagne" (c'est ce qui faisait perdre à tort un joueur de FC Nulos
+      // qui avait parié "Victoire" alors que son équipe avait bien gagné). On les lit donc par rapport à
+      // l'équipe où le parieur jouait CE match (composition réelle du match, voir betTeamFor), et par défaut
+      // l'équipe A si on ne sait pas (comme avant).
+      if(sel==='us' || sel==='them'){
+        const mm = this.state.matches.find(x=>x.id===b.matchId);
+        const mine = this.betTeamFor(b.bettor, mm) || 'A';
+        if(outcome==='draw') return false;
+        const myTeamWon = (outcome===mine);
+        return sel==='us' ? myTeamWon : !myTeamWon;
+      }
+      return false;
     }
     if(b.type==='score') return sel && sel.us===finalData.us && sel.them===finalData.them;
     if(b.type==='diff2'){
@@ -3399,19 +3474,36 @@ const App = {
     }).sort((a,b)=>b.rate-a.rate || a.name.localeCompare(b.name));
     const showAllScorers = !!(this.state.expandedBetScorers && this.state.expandedBetScorers[m.id]);
     const visibleScorers = showAllScorers ? withRate : withRate.slice(0,6);
+    // Fenêtre de paris : ouverte jusqu'à BET_CLOSE_MINUTES minutes avant le coup d'envoi. Fermée = tous les
+    // boutons de mise sont grisés et inactifs (et openBetModal/confirmBet refusent aussi, au cas où).
+    const win = this.betWindow(m);
+    const locked = !win.open;
+    const oc = js => locked ? `disabled style="opacity:.45;cursor:not-allowed;"` : `onclick="${js}"`;
+    const tn = this.teamNames();
+    const nameA = tn.a;
+    // Équipe B = "FC Nulos" pour un match interne (composition renseignée, ou nom de l'équipe dans le titre) ;
+    // sinon l'adversaire extérieur indiqué sur le match.
+    const isInternal = (m.teamB||[]).length>0 || (m.teamA||[]).length>0 || norm(m.opponent||"").includes(norm(tn.b));
+    const nameB = isInternal ? tn.b : (m.opponent || tn.b);
+    const myTeam = this.betTeamFor(this.me, m);
+    const mineTag = k => (myTeam===k) ? ' <span style="font-size:9px;font-weight:600;color:var(--text-muted);">⭐ ton équipe</span>' : '';
+    const winLabel = n => 'Victoire '+jsa(n);
     return `
     <div class="card">
       <div class="bet-match-head" onclick="App.toggleBetMatch('${m.id}')">
         <div>
           <h3 style="margin:0;">${esc(m.opponent||"Match")}</h3>
-          <span class="muted" style="font-size:11.5px;">${fmtDate(m.date)}</span>
+          <span class="muted" style="font-size:11.5px;">${fmtDate(m.date)}${m.time?' · '+esc(m.time):''}</span>
         </div>
         <div class="bet-match-teaser">
-          <span class="muted" style="font-size:10.5px;">Victoire</span>
-          <b>x${ow.us}</b>
+          ${locked
+            ? `<span class="muted" style="font-size:10.5px;">🔒 Paris fermés</span>`
+            : `<span class="muted" style="font-size:10.5px;">${esc(nameA)}</span><b>x${ow.us}</b>`}
           <span class="chevron">${open?'▲':'▼'}</span>
         </div>
       </div>
+      ${open && locked ? `<p class="muted" style="font-size:12px;margin:8px 0 0;background:var(--surface-2);border-radius:10px;padding:8px 10px;">${esc(this.betClosedMessage(m))}</p>` : ""}
+      ${open && !locked && win.closesAt ? `<p class="muted" style="font-size:11.5px;margin:8px 0 0;">⏱ Paris ouverts jusqu'à <b>${esc(this.clockLabel(win.closesAt))}</b> (${this.BET_CLOSE_MINUTES} min avant le coup d'envoi).</p>` : ""}
       ${open ? `
       <p class="muted" style="font-size:11px;font-weight:700;margin:10px 0 4px;">📊 Face-à-face${h2hIsSpecific?' contre '+esc(m.opponent||''):' — historique global (jamais affronté)'}</p>
       <div class="kv" style="border:none;background:var(--surface-2);border-radius:10px;padding:8px 10px;margin-bottom:4px;">
@@ -3421,27 +3513,28 @@ const App = {
         <span>🏅 Bilan (V-N-D)</span><b>${hw}-${hd}-${hl}${h2h.length?' sur '+h2h.length+' match'+(h2h.length>1?'s':''):''}</b>
       </div>
       <p class="muted" style="font-size:11px;font-weight:700;margin:10px 0 4px;">🏆 Résultat du match</p>
+      <p class="muted" style="font-size:11px;margin:0 0 6px;">Choisis l'équipe qui va gagner — peu importe dans quelle équipe tu joues.</p>
       <div class="bet-row">
-        <button class="bet-chip" onclick="App.openBetModal('${m.id}','winner','us',null,${ow.us},'Victoire${m.opponent?' vs '+jsa(m.opponent):''}')">✅ Victoire<b>x${ow.us}</b></button>
-        <button class="bet-chip" onclick="App.openBetModal('${m.id}','winner','draw',null,${ow.draw},'Match nul${m.opponent?' vs '+jsa(m.opponent):''}')">➖ Nul<b>x${ow.draw}</b></button>
-        <button class="bet-chip" onclick="App.openBetModal('${m.id}','winner','them',null,${ow.them},'Défaite${m.opponent?' vs '+jsa(m.opponent):''}')">❌ Défaite<b>x${ow.them}</b></button>
+        <button class="bet-chip" ${oc(`App.openBetModal('${m.id}','winner','A',null,${ow.us},'${winLabel(nameA)}')`)}>🏆 ${esc(nameA)}${mineTag('A')}<b>x${ow.us}</b></button>
+        <button class="bet-chip" ${oc(`App.openBetModal('${m.id}','winner','draw',null,${ow.draw},'Match nul')`)}>➖ Nul<b>x${ow.draw}</b></button>
+        <button class="bet-chip" ${oc(`App.openBetModal('${m.id}','winner','B',null,${ow.them},'${winLabel(nameB)}')`)}>🏆 ${esc(nameB)}${mineTag('B')}<b>x${ow.them}</b></button>
       </div>
       <p class="muted" style="font-size:11px;font-weight:700;margin:10px 0 4px;">📏 Écart de buts</p>
       <div class="bet-row">
-        <button class="bet-chip" onclick="App.openBetModal('${m.id}','diff2','under2',null,${od.under2},'Moins de 2 buts d\\'écart')">Moins de 2<b>x${od.under2}</b></button>
-        <button class="bet-chip" onclick="App.openBetModal('${m.id}','diff2','over2',null,${od.over2},'2 buts d\\'écart ou plus')">2 ou plus<b>x${od.over2}</b></button>
+        <button class="bet-chip" ${oc(`App.openBetModal('${m.id}','diff2','under2',null,${od.under2},'Moins de 2 buts d\\'écart')`)}>Moins de 2<b>x${od.under2}</b></button>
+        <button class="bet-chip" ${oc(`App.openBetModal('${m.id}','diff2','over2',null,${od.over2},'2 buts d\\'écart ou plus')`)}>2 ou plus<b>x${od.over2}</b></button>
       </div>
       <p class="muted" style="font-size:11px;font-weight:700;margin:10px 0 4px;">🎯 Score exact</p>
-      <button class="btn btn-ghost btn-sm" onclick="App.openScoreBetModal('${m.id}')">Parier sur un score précis</button>
+      <button class="btn btn-ghost btn-sm" ${locked ? `disabled style="opacity:.45;cursor:not-allowed;"` : `onclick="App.openScoreBetModal('${m.id}')"`}>Parier sur un score précis</button>
       <p class="muted" style="font-size:11px;font-weight:700;margin:12px 0 4px;">⚽ Buteurs <span style="font-weight:400;">(triés du plus prolifique au moins prolifique)</span></p>
       ${visibleScorers.length===0 ? `<p class="muted" style="font-size:12px;">Aucun joueur convoqué pour l'instant.</p>` : visibleScorers.map(row=>{
         const so = row.so, n = row.name;
         return `<div class="bet-player-row">
           <span class="nm">${esc(n)}</span>
-          <button class="bet-chip sm" onclick="App.openBetModal('${m.id}','scorer','${jsa(n)}',1,${so.atLeast1},'${jsa(n)} marque (1 but ou +)')">1+ but<b>x${so.atLeast1}</b></button>
-          <button class="bet-chip sm" onclick="App.openBetModal('${m.id}','scorer','${jsa(n)}',2,${so.atLeast2},'${jsa(n)} marque 2 buts ou +')">2+ buts<b>x${so.atLeast2}</b></button>
-          <button class="bet-chip sm" onclick="App.openBetModal('${m.id}','scorer_penalty','${jsa(n)}',null,${so.penalty},'${jsa(n)} marque sur penalty')">Pen.<b>x${so.penalty}</b></button>
-          <button class="bet-chip sm" onclick="App.openBetModal('${m.id}','scorer_freekick','${jsa(n)}',null,${so.freekick},'${jsa(n)} marque sur coup franc')">C.F.<b>x${so.freekick}</b></button>
+          <button class="bet-chip sm" ${oc(`App.openBetModal('${m.id}','scorer','${jsa(n)}',1,${so.atLeast1},'${jsa(n)} marque (1 but ou +)')`)}>1+ but<b>x${so.atLeast1}</b></button>
+          <button class="bet-chip sm" ${oc(`App.openBetModal('${m.id}','scorer','${jsa(n)}',2,${so.atLeast2},'${jsa(n)} marque 2 buts ou +')`)}>2+ buts<b>x${so.atLeast2}</b></button>
+          <button class="bet-chip sm" ${oc(`App.openBetModal('${m.id}','scorer_penalty','${jsa(n)}',null,${so.penalty},'${jsa(n)} marque sur penalty')`)}>Pen.<b>x${so.penalty}</b></button>
+          <button class="bet-chip sm" ${oc(`App.openBetModal('${m.id}','scorer_freekick','${jsa(n)}',null,${so.freekick},'${jsa(n)} marque sur coup franc')`)}>C.F.<b>x${so.freekick}</b></button>
         </div>`;
       }).join("")}
       ${withRate.length>6 ? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;" onclick="App.toggleBetScorers('${m.id}')">${showAllScorers? '▲ Voir moins de joueurs' : '▼ Voir tous les joueurs ('+withRate.length+')'}</button>` : ""}
