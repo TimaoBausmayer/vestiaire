@@ -4626,6 +4626,10 @@ const App = {
         <span class="chip ${key==='B'?'active':''}" onclick="App.setStatsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
         <span class="chip ${key==='ALL'?'active':''}" onclick="App.setStatsTeamView('ALL')">👥 Tout le monde</span>
       </div>
+      ${topScorer||topPasser ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin:0 0 10px;">
+        ${topScorer && topScorer.goals>0 ? `<span class="trophy-chip">⚽ Meilleur buteur : ${esc(topScorer.name)} (${topScorer.goals})</span>`:""}
+        ${topPasser && topPasser.assists>0 ? `<span class="trophy-chip">🎯 Meilleur passeur : ${esc(topPasser.name)} (${topPasser.assists})</span>`:""}
+      </div>` : ""}
       <div class="grid2" style="margin-bottom:10px;">
         <div class="card tight" style="margin:0;text-align:center;">
           ${key==='ALL' ? `<div class="fut-rating" style="font-size:22px;color:var(--accent2);">${rk.played}</div>
@@ -4645,10 +4649,7 @@ const App = {
         <span>⏳ Prochain match</span>
         <b style="text-align:right;">${nm ? `${countdown}${nm.opponent?' vs '+esc(nm.opponent):''}` : "Aucun match prévu"}</b>
       </div>
-      ${topScorer||topPasser ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:4px;">
-        ${topScorer && topScorer.goals>0 ? `<span class="trophy-chip">⚽ ${key==='ALL'?'Meilleur buteur : ':''}${esc(topScorer.name)} (${topScorer.goals})</span>`:""}
-        ${topPasser && topPasser.assists>0 ? `<span class="trophy-chip">🎯 ${key==='ALL'?'Meilleur passeur : ':''}${esc(topPasser.name)} (${topPasser.assists})</span>`:""}
-      </div>` : ""}
+
     </div>`;
   },
   /* ---------- Comparateur de joueurs ---------- */
@@ -4848,7 +4849,6 @@ const App = {
       <div class="wrap" style="margin-bottom:8px;">
         <span class="chip ${key==='A'?'active':''}" onclick="App.setStatsTeamView('A')">${this.teamLogoTag('A',13)} ${esc(tn.a)}</span>
         <span class="chip ${key==='B'?'active':''}" onclick="App.setStatsTeamView('B')">${this.teamLogoTag('B',13)} ${esc(tn.b)}</span>
-        <span class="chip ${key==='ALL'?'active':''}" onclick="App.setStatsTeamView('ALL')">👥 Tout le monde</span>
       </div>
       ${key==='ALL' ? `
       <div class="grid2" style="margin-bottom:14px;">
