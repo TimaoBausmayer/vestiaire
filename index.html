@@ -4857,7 +4857,7 @@ const App = {
     </div>
     ${mine.length ? `<div class="card"><h2>🧳 Mon patrimoine</h2>
       ${mine.map(a=>`<div class="kv" style="align-items:center;gap:8px;">${this.vieThumb(a)}<span style="flex:1;min-width:0;"><b>${esc(a.name)}</b>${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}<br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(a.price)}${a.sale?` · <b style="color:var(--accent2);">🏷️ en vente à ${this.fmtPrice(a.sale)}</b>`:''}${a.y? ` · 📈 ${this.fmtPct(a.y)} / match (+${this.fmtPrice(Math.round(a.price*a.y/100))})`:''}</span></span>
-        <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-ghost btn-sm" onclick="App.openVieList('${jsa(a.id)}')">🏷️ ${a.sale?'Modifier le prix':'Vendre aux joueurs'}</button>${a.sale?`<button class="btn btn-ghost btn-sm" onclick="App.unlistVie('${jsa(a.id)}')">Retirer</button>`:''}<button class="btn btn-ghost btn-sm" onclick="App.openVieSell('${jsa(a.id)}')">Revendre (70 %)</button></span></div>`).join("")}
+        <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-ghost btn-sm" onclick="App.openVieList('${jsa(a.id)}')">🏷️ ${a.sale?'Modifier le prix':'Vendre aux joueurs'}</button>${a.sale?`<button class="btn btn-ghost btn-sm" onclick="App.unlistVie('${jsa(a.id)}')">Retirer</button>`:''}<button class="btn btn-ghost btn-sm" onclick="App.openVieSell('${jsa(a.id)}')">Revendre (80 %)</button></span></div>`).join("")}
     </div>`:''}
     <div class="card">
       <input id="vieSearch" type="search" placeholder="🔎 Rechercher dans toute la boutique (Clio, Dodge, Rolex, Montpellier…)" value="${esc(this.state.vieSearch||'')}" oninput="App.setVieSearch(this.value)" style="width:100%;margin-bottom:8px;">
@@ -5070,9 +5070,9 @@ const App = {
   openVieSell(id){
     const acc = this.state.accounts.find(a=>a.username===this.me) || {};
     const a = this.vieAssets(acc).find(x=>x.id===id); if(!a) return;
-    const back = Math.round(a.price*0.7);
+    const back = Math.round(a.price*0.8);
     this.modal(`<h3>Revendre ${esc(a.emoji||'')} ${esc(a.name)} ?</h3>
-      <p class="muted" style="font-size:12.5px;">Tu récupères <b>${this.fmtPrice(back)}</b> (70 % du prix payé).</p>
+      <p class="muted" style="font-size:12.5px;">Tu récupères <b>${this.fmtPrice(back)}</b> (80 % du prix payé).</p>
       <button class="btn btn-danger btn-block" onclick="App.confirmVieSell('${jsa(id)}')">Revendre</button>`);
   },
   // ---------- MARCHÉ ENTRE JOUEURS ----------
@@ -5101,7 +5101,7 @@ const App = {
     const acc=this.state.accounts.find(a=>a.username===this.me)||{};
     const a=this.vieAssets(acc).find(x=>x.id===id); if(!a) return;
     this.modal(`<h3>🏷️ Vendre ${esc(a.emoji||'')} ${esc(a.name)}</h3>
-      <p class="muted" style="font-size:12.5px;">Prix d'achat : <b>${this.fmtPrice(a.price)}</b>. Fixe le prix que tu veux : les autres joueurs le verront dans « 🏪 Marché joueurs » et pourront l'acheter. L'objet reste à toi (et continue de rapporter) tant qu'il n'est pas vendu.</p>
+      <p class="muted" style="font-size:12.5px;">Prix payé (options incluses) : <b>${this.fmtPrice(a.price)}</b>. Fixe le prix, plus cher si tu veux, options comprises, que tu veux : les autres joueurs le verront dans « 🏪 Marché joueurs » et pourront l'acheter. L'objet reste à toi (et continue de rapporter) tant qu'il n'est pas vendu.</p>
       <label class="field">Ton prix (€)<input id="vieListPrice" type="number" min="1" step="1" value="${a.sale||a.price}"></label>
       <button class="btn btn-accent btn-block" onclick="App.confirmVieList('${jsa(id)}')">Mettre en vente</button>`);
   },
@@ -5162,7 +5162,7 @@ const App = {
       const fresh = await ref.get(); if(!fresh.exists) return;
       const d = fresh.data(); const assets = Array.isArray(d.assets)? d.assets.slice() : [];
       const k = assets.findIndex(a=>a.id===id); if(k<0){ this.closeModal(); return; }
-      const back = Math.round(assets[k].price*0.7); const name = assets[k].name;
+      const back = Math.round(assets[k].price*0.8); const name = assets[k].name;
       assets.splice(k,1);
       await ref.update({wallet:(d.wallet||0)+back, assets, history:this.pushHistory(d.history, {amount:back, label:"💰 Revente : "+name})});
       this.bigMoneyModal("Revente", back, name, "", true);
