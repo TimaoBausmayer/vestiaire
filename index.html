@@ -3763,15 +3763,23 @@ const App = {
     </div>`;
   },
   renderBetLeaderboard(){
-    const rows = this.realAccounts().slice().sort((a,b)=>(b.wallet||0)-(a.wallet||0)).slice(0,10);
-    if(!rows.length) return "";
+    const st={};
+    (this.state.bets||[]).forEach(b=>{
+      if(b.status!=='won'&&b.status!=='lost') return;
+      const o=st[b.bettor]||(st[b.bettor]={u:b.bettor,net:0,w:0,l:0});
+      o.net += (b.status==='won'?(b.payout||Math.round((b.stake||0)*(b.odds||1))):0) - (b.stake||0);
+      if(b.status==='won') o.w++; else o.l++;
+    });
+    const rows = Object.values(st).sort((a,b)=>b.net-a.net).slice(0,10);
     const medal = i => ['🥇','🥈','🥉'][i] || (i+1)+".";
+    const sg = v => (v>0?'+':'')+fmtEuro(v);
     return `
     <div class="card">
       <h2>🏆 Classement Paris</h2>
-      <p class="muted" style="font-size:12px;margin-top:-6px;">Classement par crédit disponible. Le premier décroche le titre de 🎲 Roi des Paris.</p>
-      <table class="stats"><thead><tr><th></th><th>Compte</th><th style="text-align:right;">Crédit</th></tr></thead>
-      <tbody>${rows.map((a,i)=>`<tr><td class="rank-medal">${medal(i)}</td><td>${esc(a.username)}${i===0?' <span class="chip" style="padding:1px 7px;font-size:10px;">🎲 Roi des Paris</span>':''}</td><td class="num">${fmtEuro(a.wallet||0)}</td></tr>`).join("")}</tbody></table>
+      <p class="muted" style="font-size:12px;margin-top:-6px;">Classement par argent gagné grâce aux paris (gains − mises, paris terminés). Le premier décroche le titre de 🎲 Roi des Paris.</p>
+      ${!rows.length ? `<p class="muted" style="font-size:12.5px;">Aucun pari terminé pour l'instant.</p>` : `
+      <table class="stats"><thead><tr><th></th><th>Compte</th><th style="text-align:right;">✅/❌</th><th style="text-align:right;">Gain net</th></tr></thead>
+      <tbody>${rows.map((a,i)=>`<tr><td class="rank-medal">${medal(i)}</td><td>${esc(a.u)}${i===0&&a.net>0?' <span class="chip" style="padding:1px 7px;font-size:10px;">🎲 Roi des Paris</span>':''}</td><td class="num">${a.w}/${a.l}</td><td class="num" style="color:${a.net>=0?'var(--accent2)':'#d33'};">${sg(a.net)}</td></tr>`).join("")}</tbody></table>`}
     </div>`;
   },
   renderMyBetsSection(){
