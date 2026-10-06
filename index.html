@@ -4732,8 +4732,8 @@ const App = {
   vieItem(cat, i){
     const r = (this.VIE_CATALOG[cat]||[])[i];
     if(!r) return null;
-    const ltd=(cat==='limited')?(this.VIE_LIMITED[r[1]]||1):0;
-    return {id:cat+"|"+r[1], cat, i, emoji:r[0], name:r[1], price:r[2], yld:this.vieYieldFor(cat,r[1],r[0]), ltd, left:ltd?this.vieLimitedLeft(r[1]):0};
+    const ltd=(cat==='limited')?1:0; const id=cat+"|"+r[1]; const owner=this.vieOwner(id);
+    return {id, cat, i, emoji:r[0], name:r[1], price:r[2], yld:this.vieYieldFor(cat,r[1],r[0]), ltd, owner, left:owner?0:1};
   },
   vieFortune(acc){ return ((acc&&acc.wallet)||0) + this.vieNetWorth(acc); },
   VIE_TIERS:[
@@ -4768,9 +4768,26 @@ const App = {
     const mine=this.vieAssets(acc).slice().sort((a,b)=>(b.price||0)-(a.price||0));
     this.modal(`<h3>👤 ${esc(username)}</h3>${this.renderLifestyleBar(acc,'Mode de vie')}
       <hr class="sep">
-      ${mine.length? mine.map(a=>`<div class="kv"><span>${esc(a.emoji||'🎁')} ${esc(a.name)}${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}</span><b>${this.fmtPrice(a.price)}</b></div>`).join("") : '<p class="muted">Rien pour l\'instant.</p>'}`);
+      ${mine.length? mine.map(a=>`<div class="kv" style="align-items:center;gap:8px;">${this.vieThumb(a)}<span style="flex:1;min-width:0;">${esc(a.name)}${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}</span><b>${this.fmtPrice(a.price)}</b></div>`).join("") : '<p class="muted">Rien pour l\'instant.</p>'}`);
+    setTimeout(()=>this.vieLoadThumbs(),60);
   },
   vieIncomePerMatch(acc){ return this.vieAssets(acc).reduce((s,a)=>s+Math.round((a.price||0)*(a.y||0)/100),0); },
+  vieThumb(a){
+    const idx=(this.VIE_CATALOG[a.cat]||[]).findIndex(r=>r[1]===a.name);
+    return `<span class="vieThumb" data-cat="${esc(a.cat)}" data-name="${esc(a.name)}" data-emoji="${esc(a.emoji||'')}" ${idx>=0?`onclick="App.openViePreview('${a.cat}',${idx})"`:''} style="flex:0 0 54px;width:54px;height:54px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;cursor:pointer;">${esc(a.emoji||'🎁')}</span>`;
+  },
+  async vieLoadThumbs(){
+    for(const el of [...document.querySelectorAll('.vieThumb:not([data-done])')]){
+      el.dataset.done='1';
+      try{
+        const cat=el.dataset.cat, name=el.dataset.name;
+        let src=await this.vieImgGet(this.vieImgId(cat,name));
+        if(!src){ const q=this.v3PhotoQuery(cat,name,el.dataset.emoji); const l=q?await this.v3FetchPhoto(q):null; src=l&&l[0]&&l[0].src; }
+        if(src && el.isConnected){ const im=new Image(); im.onload=()=>{ if(el.isConnected){ el.textContent=''; im.style.cssText='width:100%;height:100%;object-fit:cover;'; el.appendChild(im);} }; im.src=src; }
+      }catch(e){}
+    }
+  },
+  vieOwner(id){ const a=(this.state.accounts||[]).find(a=>this.vieAssets(a).some(x=>x.id===id)); return a?a.username:null; },
   vieLimitedLeft(name){
     const n=this.VIE_LIMITED[name]||0;
     const owners=(this.state.accounts||[]).filter(a=>this.vieAssets(a).some(x=>x.cat==='limited'&&x.name===name)).length;
@@ -4791,6 +4808,7 @@ const App = {
   setVieBrand(v){ this.state.vieBrand = v; this.render(); },
   toggleVieSort(){ this.state.vieSort = this.state.vieSort==='asc' ? 'desc' : 'asc'; this.render(); },
   renderVieTab(){
+    setTimeout(()=>this.vieLoadThumbs(),60);
     if(!this.me) return `<div class="card"><h2>🏠 Vie</h2><p class="muted" style="font-size:12.5px;">Connecte-toi pour acheter des voitures, des maisons, des montres…</p><button class="btn btn-accent btn-block" onclick="App.ensureMe(()=>App.render())">Se connecter</button></div>`;
     const acc = this.state.accounts.find(a=>a.username===this.me) || {};
     const wallet = acc.wallet||0;
@@ -4817,10 +4835,10 @@ const App = {
       const has = ownedIds.has(x.id);
       const can = wallet>=x.price;
       return `<div class="kv" style="align-items:center;gap:8px;">
-        <span style="flex:1;min-width:0;">${x.emoji} <b>${esc(x.name)}</b><br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(x.price)}${x.ltd?` · <b style="color:#b8860b;">💎 Édition limitée : ${x.left}/${x.ltd} dispo</b>`:''}${x.yld? ` · <b style="color:var(--accent2);">📈 ${this.fmtPct(x.yld)} / match</b> (≈ ${this.fmtPrice(Math.round(x.price*x.yld/100))})`:''}</span></span>
+        <span style="flex:1;min-width:0;">${x.emoji} <b>${esc(x.name)}</b><br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(x.price)}${x.ltd?` · <b style="color:#b8860b;">💎 Pièce unique</b>`:' · 🔖 Exemplaire unique'}${x.owner?` · <b>👤 à ${esc(x.owner)}</b>`:''}${x.yld? ` · <b style="color:var(--accent2);">📈 ${this.fmtPct(x.yld)} / match</b> (≈ ${this.fmtPrice(Math.round(x.price*x.yld/100))})`:''}</span></span>
         <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-ghost btn-sm" onclick="App.openViePreview('${x.cat}',${x.i})">👁️ Aperçu</button>
         ${has ? `<span class="chip active" style="cursor:default;">✅ Possédé</span>`
-              : (x.ltd&&x.left<=0) ? `<span class="chip" style="cursor:default;" title="Cherche-le au Marché joueurs">❌ Épuisé</span>`
+              : (x.left<=0) ? `<span class="chip" style="cursor:default;" title="Cherche-le au Marché joueurs">❌ Déjà pris</span>`
               : inCart(x.id) ? `<button class="btn btn-ghost btn-sm" onclick="App.openVieCart()">🛒 Dans le panier</button>`
               : `<button class="btn btn-sm ${can?'btn-accent':'btn-ghost'}" onclick="App.openVieBuy('${x.cat}',${x.i})">🛒 Ajouter</button>`}</span>
       </div>`;
@@ -4838,7 +4856,7 @@ const App = {
       </div>
     </div>
     ${mine.length ? `<div class="card"><h2>🧳 Mon patrimoine</h2>
-      ${mine.map(a=>`<div class="kv" style="align-items:center;gap:8px;"><span style="flex:1;min-width:0;">${esc(a.emoji||'🎁')} <b>${esc(a.name)}</b>${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}<br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(a.price)}${a.sale?` · <b style="color:var(--accent2);">🏷️ en vente à ${this.fmtPrice(a.sale)}</b>`:''}${a.y? ` · 📈 ${this.fmtPct(a.y)} / match (+${this.fmtPrice(Math.round(a.price*a.y/100))})`:''}</span></span>
+      ${mine.map(a=>`<div class="kv" style="align-items:center;gap:8px;">${this.vieThumb(a)}<span style="flex:1;min-width:0;"><b>${esc(a.name)}</b>${(a.opts&&a.opts.length)?`<br><span class="muted" style="font-size:11px;">${a.opts.map(esc).join(' · ')}</span>`:''}<br><span class="muted" style="font-size:11.5px;">${this.fmtPrice(a.price)}${a.sale?` · <b style="color:var(--accent2);">🏷️ en vente à ${this.fmtPrice(a.sale)}</b>`:''}${a.y? ` · 📈 ${this.fmtPct(a.y)} / match (+${this.fmtPrice(Math.round(a.price*a.y/100))})`:''}</span></span>
         <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-ghost btn-sm" onclick="App.openVieList('${jsa(a.id)}')">🏷️ ${a.sale?'Modifier le prix':'Vendre aux joueurs'}</button>${a.sale?`<button class="btn btn-ghost btn-sm" onclick="App.unlistVie('${jsa(a.id)}')">Retirer</button>`:''}<button class="btn btn-ghost btn-sm" onclick="App.openVieSell('${jsa(a.id)}')">Revendre (70 %)</button></span></div>`).join("")}
     </div>`:''}
     <div class="card">
@@ -4944,7 +4962,7 @@ const App = {
     if(cart.some(c=>c.id===x.id)){ toast("Déjà dans le panier"); return; }
     const acc=this.state.accounts.find(a=>a.username===this.me)||{};
     if(this.vieAssets(acc).some(a=>a.id===x.id)){ toast("Tu possèdes déjà ça"); return; }
-    if(x.ltd && x.left<=0){ toast("💎 Édition limitée épuisée — regarde au Marché joueurs"); return; }
+    if(x.left<=0){ toast("❌ Exemplaire unique déjà pris par "+(x.owner||'un joueur')+" — regarde au Marché joueurs"); return; }
     cart.push({id:x.id, cat, i, opts});
     this.saveVieCart(cart);
     this.closeModal();
@@ -4991,8 +5009,8 @@ const App = {
       const assets=Array.isArray(d.assets)?d.assets.slice():[];
       const dup=lines.filter(l=>assets.some(a=>a.id===l.id));
       if(dup.length){ toast("Déjà possédé : "+dup[0].name); this.saveVieCart(this.vieCart().filter(c=>!dup.some(l=>l.id===c.id))); return; }
-      const soldOut=lines.filter(l=>l.cat==='limited' && this.vieLimitedLeft(l.name)<=0);
-      if(soldOut.length){ toast("💎 Épuisé : "+soldOut[0].name); this.saveVieCart(this.vieCart().filter(c=>!soldOut.some(l=>l.id===c.id))); return; }
+      const soldOut=lines.filter(l=>this.vieOwner(l.id));
+      if(soldOut.length){ toast("❌ Déjà pris par un autre joueur : "+soldOut[0].name); this.saveVieCart(this.vieCart().filter(c=>!soldOut.some(l=>l.id===c.id))); return; }
       if(total>wallet){ toast("Pas assez de crédit ("+fmtEuro(wallet)+")"); return; }
       const now=new Date().toISOString();
       lines.forEach(l=>assets.push({id:l.id, cat:l.cat, emoji:l.emoji, name:l.name, price:l.total, opts:l.opts.map(o=>o.lb), at:now, y:l.yld||0}));
@@ -5265,7 +5283,7 @@ const App = {
     const box=document.getElementById('v3box'); if(box) box.innerHTML=`<div class="v3photo" style="flex-direction:column;gap:6px;text-align:center;padding:0 16px;">😕 Pas de photo pour cet article<br><span style="font-size:12px;">Ajoute la tienne avec « 📷 Mettre l'image » ci-dessous !</span></div>`;
     this.v3Ctl();
   },
-  v3Buy(){ const s=this._v3; if(!s) return; this.closeModal(); if(s.cat==='maisons') this.openVieBuy(s.cat,s.i); else this.addVieToCart(s.cat,s.i,[]); },
+  v3Buy(){ const s=this._v3; if(!s) return; this.closeModal(); this.openVieBuy(s.cat,s.i); },
   openViePreview(cat,i){
     const x=this.vieItem(cat,i); if(!x) return;
     const q=this.v3PhotoQuery(cat,x.name,x.emoji);
