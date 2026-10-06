@@ -3778,8 +3778,8 @@ const App = {
       <h2>🏆 Classement Paris</h2>
       <p class="muted" style="font-size:12px;margin-top:-6px;">Classement par argent gagné grâce aux paris (gains − mises, paris terminés). Le premier décroche le titre de 🎲 Roi des Paris.</p>
       ${!rows.length ? `<p class="muted" style="font-size:12.5px;">Aucun pari terminé pour l'instant.</p>` : `
-      <table class="stats"><thead><tr><th></th><th>Compte</th><th style="text-align:right;">✅/❌</th><th style="text-align:right;">Gain net</th></tr></thead>
-      <tbody>${rows.map((a,i)=>`<tr><td class="rank-medal">${medal(i)}</td><td>${esc(a.u)}${i===0&&a.net>0?' <span class="chip" style="padding:1px 7px;font-size:10px;">🎲 Roi des Paris</span>':''}</td><td class="num">${a.w}/${a.l}</td><td class="num" style="color:${a.net>=0?'var(--accent2)':'#d33'};">${sg(a.net)}</td></tr>`).join("")}</tbody></table>`}
+      <table class="stats"><thead><tr><th></th><th>Compte</th><th style="text-align:right;">Paris</th><th style="text-align:right;">Gain net</th></tr></thead>
+      <tbody>${rows.map((a,i)=>`<tr><td class="rank-medal">${medal(i)}</td><td>${esc(a.u)}${i===0&&a.net>0?' <span class="chip" style="padding:1px 7px;font-size:10px;">🎲 Roi des Paris</span>':''}</td><td class="num" style="white-space:nowrap;">${a.w} ✅ · ${a.l} ❌</td><td class="num" style="color:${a.net>=0?'var(--accent2)':'#d33'};">${sg(a.net)}</td></tr>`).join("")}</tbody></table>`}
     </div>`;
   },
   renderMyBetsSection(){
