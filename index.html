@@ -1554,13 +1554,21 @@ const App = {
   },
   // Corps commun (carte + détail) du résumé de match auto-généré : score, logos, buteurs, passeurs, et la
   // photo une fois ajoutée par le capitaine.
+  recapListText(arr){ return (arr||[]).map(s=>s.name+(s.count>1?` (${s.count})`:'')).join(", "); },
   renderMatchRecapBody(p){
-    const scorersLine = (p.scorers||[]).map(s=>`⚽ ${esc(s.name)}${s.count>1?` (${s.count})`:''}`).join(" · ") || "—";
-    const assistsLine = (p.assists||[]).map(s=>`🎯 ${esc(s.name)}${s.count>1?` (${s.count})`:''}`).join(" · ") || "—";
+    const us = p.score?+p.score.us:null, them = p.score?+p.score.them:null;
+    const res = (us==null||them==null) ? "" : us>them ? "Victoire" : us<them ? "Défaite" : "Match nul";
+    const head = (p.title!=null && p.title!=="") ? esc(p.title) : (res?res+" ":"")+"";
+    const scTxt = `${us==null?'–':us} - ${them==null?'–':them}`;
+    const sc = (p.scorersText!=null) ? p.scorersText : this.recapListText(p.scorers);
+    const as = (p.assistsText!=null) ? p.assistsText : this.recapListText(p.assists);
+    const lines = [];
+    if(sc) lines.push(`<b>Buteurs :</b> ⚽ ${esc(sc)}`);
+    if(as) lines.push(`<b>Passeurs :</b> 🎯 ${esc(as)}`);
     return `
-      <p style="font-size:14px;margin:8px 0;font-weight:700;">⚽ ${this.teamLogoTag('A',14)} ${this.teamLogoTag('B',14)} ${p.score?p.score.us:'–'} - ${p.score?p.score.them:'–'}${p.opponent?" vs "+esc(p.opponent):""}</p>
+      <p style="font-size:14.5px;margin:8px 0;font-weight:700;">⚽ ${this.teamLogoTag('A',14)} ${this.teamLogoTag('B',14)} ${head} ${scTxt}${p.opponent?" vs "+esc(p.opponent):""}</p>
       ${p.photo? `<img src="${p.photo}" style="width:100%;border-radius:10px;margin:6px 0;cursor:pointer;" onclick="App.openPostDetail('${p.id}')">`:""}
-      <p style="font-size:13px;line-height:1.6;margin:4px 0;"><b>Buteurs :</b> ${scorersLine}<br><b>Passeurs :</b> ${assistsLine}</p>
+      ${lines.length? `<p style="font-size:13px;line-height:1.6;margin:4px 0;">${lines.join("<br>")}</p>`:""}
       ${p.caption? `<p style="font-size:13.5px;line-height:1.6;margin:4px 0;white-space:pre-wrap;">${esc(p.caption)}</p>`:""}
     `;
   },
@@ -1690,7 +1698,15 @@ const App = {
         ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}
         ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayers)}`;
     } else if(p.type==='matchrecap'){
-      fields = `<label class="field">Photo ${p.photo?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="editPostPhoto" accept="image/*"></label>
+      const _us=p.score?p.score.us:0, _them=p.score?p.score.them:0;
+      const _res=_us>_them?"Victoire":_us<_them?"Défaite":"Match nul";
+      fields = `<label class="field">Titre (ex : Victoire, Grosse victoire…) <input type="text" id="editRecTitle" value="${esc(p.title!=null?p.title:_res)}"></label>
+        <div class="row" style="gap:8px;"><label class="field" style="flex:1;">Nos buts <input type="number" min="0" id="editRecUs" value="${_us}"></label>
+        <label class="field" style="flex:1;">Leurs buts <input type="number" min="0" id="editRecThem" value="${_them}"></label></div>
+        <label class="field">Adversaire <input type="text" id="editRecOpp" value="${esc(p.opponent||"")}"></label>
+        <label class="field">Buteurs (vide = rien d'affiché) <input type="text" id="editRecScorers" value="${esc(p.scorersText!=null?p.scorersText:this.recapListText(p.scorers))}"></label>
+        <label class="field">Passeurs (vide = rien d'affiché) <input type="text" id="editRecAssists" value="${esc(p.assistsText!=null?p.assistsText:this.recapListText(p.assists))}"></label>
+        <label class="field">Photo ${p.photo?"(laisser vide pour garder l'actuelle)":"(optionnel)"} <input type="file" id="editPostPhoto" accept="image/*"></label>
         <label class="field">Légende (optionnel) <textarea id="editPostCaption" rows="2">${esc(p.caption||"")}</textarea></label>
         ${this.renderPostIdentitySelect('editPostIdentity', currentIdentity)}
         ${this.renderPostTagPlayerSelect('editPostTagPlayer', currentTagPlayers)}`;
@@ -1720,6 +1736,13 @@ const App = {
     } else if(p.type==='photo' || p.type==='video'){
       updates.caption = document.getElementById("editPostCaption").value.trim();
     } else if(p.type==='matchrecap' || p.type==='recruit'){
+      if(p.type==='matchrecap'){
+        updates.title = document.getElementById("editRecTitle").value.trim();
+        updates.score = {us:Math.max(0,parseInt(document.getElementById("editRecUs").value)||0), them:Math.max(0,parseInt(document.getElementById("editRecThem").value)||0)};
+        updates.opponent = document.getElementById("editRecOpp").value.trim();
+        updates.scorersText = document.getElementById("editRecScorers").value.trim();
+        updates.assistsText = document.getElementById("editRecAssists").value.trim();
+      }
       const file = document.getElementById("editPostPhoto")?.files[0];
       if(file) updates.photo = await resizeImage(file, 900, 0.65);
       const capEl = document.getElementById("editPostCaption");
@@ -4850,22 +4873,58 @@ const App = {
     this.state.vieCartItems = list;
     try{ localStorage.setItem("vieCart:"+(this.me||""), JSON.stringify(list)); }catch(e){}
   },
+  vieOptList(cat,x){
+    if(cat==='maisons') return this.VIE_OPTIONS;
+    const n=(x.name||''), p=x.price||0, r=(f,min)=>Math.max(min||0,Math.round(p*f/100)*1);
+    const rd=v=>v>=10000?Math.round(v/1000)*1000:Math.round(v/10)*10;
+    const o=(lb,v)=>({k:lb,lb,price:rd(v)});
+    if(cat==='voitures'){
+      const L=[];
+      if(/Audi|RS ?\d|R8|\bS[3-8]\b|\bA[1-8]\b|\bQ[2-8]\b/i.test(n)) L.push(o('🔧 Moteur ABT Sportsline (+150 ch, biturbo)',r(14,3500)));
+      else if(/BMW|\bM[2-8]\b|\bX[1-7]\b|\bi[3-8]\b|Série/i.test(n)) L.push(o('🔧 Moteur M Competition (+60 ch)',r(12,3500)));
+      else if(/Mercedes|AMG|Classe|Class|\bG ?63|\bG ?500|\bCLS|\bGLE|\bGLS|Maybach/i.test(n)) L.push(o('🔧 Moteur Brabus (V8 biturbo +200 ch)',r(18,5000)));
+      else if(/Porsche|911|Cayenne|Macan|Taycan|Panamera/i.test(n)) L.push(o('🔧 Moteur Techart (+120 ch)',r(15,5000)));
+      else if(/Ferrari|Lamborghini|McLaren|Aston|Bugatti|Pagani|Koenigsegg/i.test(n)) L.push(o('🔧 Moteur Novitec (+150 ch, suralimenté)',r(14,15000)));
+      else if(/Dodge|Charger|Challenger|Mustang|Camaro|Corvette|Ford|Chevrolet/i.test(n)) L.push(o('🔧 Compresseur Hennessey (+300 ch)',r(16,4000)));
+      else if(/Range|Land Rover|Defender|Jeep|Bentley|Rolls/i.test(n)) L.push(o('🔧 Moteur Startech (V8 +150 ch)',r(13,5000)));
+      else L.push(o('🔧 Gros moteur stage 2 (reprog + turbo)',r(18,1500)));
+      L.push(o('⚡ Moteur de dingue — Stage 3 (+300 ch)',r(30,6000)));
+      L.push(o('🧩 Kit carrosserie Mansory (carbone)',r(22,6000)));
+      L.push(o('🏁 Échappement titane + Sport',r(4,800)));
+      L.push(o('🛞 Jantes forgées 22"',r(5,1200)));
+      L.push(o('🟥 Freins carbone-céramique',r(7,2000)));
+      L.push(o('🛋️ Intérieur cuir + carbone',r(6,1500)));
+      L.push(o('🎨 Peinture sur mesure / wrap',r(3,700)));
+      L.push(o('🪟 Vitres teintées',r(0.5,150)));
+      L.push(o('🧽 Tapis premium + protection',r(0.3,80)));
+      L.push(o('📍 GPS + caméra de recul',r(0.6,200)));
+      L.push(o('🔊 Sono Burmester / Bose',r(2,500)));
+      L.push(o('💡 Phares LED lasers',r(1.5,400)));
+      return L;
+    }
+    if(cat==='montres') return [o('✍️ Gravure personnalisée',r(1,150)),o('⌚ Bracelet supplémentaire',r(2,300)),o('💎 Sertissage diamants',r(35,2000)),o('📦 Coffret collector',r(1,200))];
+    if(cat==='tech') return [o('🛡️ Garantie 3 ans',r(12,40)),o('💾 Stockage max',r(15,80)),o('🎨 Coque / couleur premium',r(4,30)),o('🎧 Accessoires inclus',r(6,40))];
+    if(cat==='nautique') return [o('👨‍✈️ Équipage 1 an',r(10,3000)),o('🛁 Jacuzzi sur le pont',r(4,2000)),o('⚙️ Moteurs plus puissants',r(20,5000)),o('🛥️ Annexe + jet-ski',r(6,3000))];
+    if(cat==='voyages') return [o('💺 Classe affaires',r(40,150)),o('🏨 Suite luxe',r(30,150)),o('🚐 Chauffeur privé',r(10,80)),o('🧭 Guide privé',r(8,60))];
+    if(cat==='jeux'||cat==='luxe'||cat==='mode') return [o('🎁 Emballage cadeau premium',r(2,10)),o('🛡️ Assurance / garantie',r(10,20)),o('⭐ Version collector',r(25,30))];
+    return [];
+  },
   vieCartLine(c){
     const x = this.vieItem(c.cat, c.i); if(!x) return null;
-    const opts = (c.opts||[]).map(k=>this.VIE_OPTIONS[k]).filter(Boolean);
+    const OL=this.vieOptList(c.cat,x); const opts = (c.opts||[]).map(k=>OL[k]).filter(Boolean);
     return {...x, opts, total: x.price + opts.reduce((a,o)=>a+o.price,0)};
   },
   vieCartTotal(){ return this.vieCart().reduce((s,c)=>{ const l=this.vieCartLine(c); return s+(l?l.total:0); },0); },
   openVieBuy(cat, i){
     this.ensureMe(()=>{
       const x = this.vieItem(cat,i); if(!x) return;
-      if(cat!=='maisons'){ this.addVieToCart(cat,i,[]); return; }
+      const OL=this.vieOptList(cat,x); if(!OL.length){ this.addVieToCart(cat,i,[]); return; }
       this._vieSel = {cat, i};
       this.modal(`
         <h3>${x.emoji} ${esc(x.name)}</h3>
         <p class="muted" style="font-size:12.5px;margin-top:-4px;">Prix : <b>${this.fmtPrice(x.price)}</b></p>
         <p style="font-size:12.5px;margin:8px 0 4px;font-weight:700;">Options</p>
-        ${this.VIE_OPTIONS.map((o,k)=>`<label style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;"><input type="checkbox" class="vieOpt" data-k="${k}" onchange="App.updateViePrice()"> ${o.lb} <span class="muted">+${this.fmtPrice(o.price)}</span></label>`).join("")}
+        ${OL.map((o,k)=>`<label style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;"><input type="checkbox" class="vieOpt" data-k="${k}" onchange="App.updateViePrice()"> ${o.lb} <span class="muted">+${this.fmtPrice(o.price)}</span></label>`).join("")}
         <p style="font-size:16px;font-weight:800;margin:10px 0;">Total : <span id="viePriceTotal">${this.fmtPrice(x.price)}</span></p>
         <button class="btn btn-accent btn-block" onclick="App.addSelectedToCart()">🛒 Ajouter au panier</button>`);
     });
@@ -4875,7 +4934,7 @@ const App = {
   },
   updateViePrice(){
     const s=this._vieSel; if(!s) return; const x=this.vieItem(s.cat,s.i);
-    const tot = x.price + this.vieSelectedOpts().reduce((a,k)=>a+this.VIE_OPTIONS[k].price,0);
+    const tot = x.price + this.vieSelectedOpts().reduce((a,k)=>a+(this.vieOptList(s.cat,x)[k]||{price:0}).price,0);
     const el=document.getElementById('viePriceTotal'); if(el) el.textContent=this.fmtPrice(tot);
   },
   addSelectedToCart(){ const s=this._vieSel; if(!s) return; this.addVieToCart(s.cat,s.i,this.vieSelectedOpts()); },
