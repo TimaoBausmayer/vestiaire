@@ -353,7 +353,8 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
   import {
     initializeFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
-    collection, addDoc, getDocs, query, orderBy, deleteField
+    collection, addDoc, getDocs, query, orderBy, deleteField,
+    persistentLocalCache, persistentMultipleTabManager
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   // Petit adaptateur qui donne à Firestore la même forme (doc/collection, get/set/update/
@@ -394,18 +395,31 @@
   }
   function wrapQuerySnap(qs){ return { docs: qs.docs.map(d=>({id:d.id, data:()=>d.data()})) }; }
 
+  // HORS LIGNE : Firestore applique tout de suite l'écriture sur l'appareil (les écrans se mettent à jour)
+  // mais ne « termine » la promesse qu'une fois le serveur joignable. Sans réseau on ne veut pas que
+  // l'appli reste bloquée : au bout de 2,5 s on considère l'écriture comme prise en compte (elle part
+  // toute seule dès que le réseau revient). Une vraie erreur rapide (droits…) reste signalée.
+  function vWrite(p){
+    p.catch(()=>{});
+    return new Promise((resolve, reject)=>{
+      let done = false;
+      const t = setTimeout(()=>{ if(!done){ done = true; resolve(); } }, 2500);
+      p.then(v=>{ if(!done){ done = true; clearTimeout(t); resolve(v); } }, e=>{ if(!done){ done = true; clearTimeout(t); reject(e); } });
+    });
+  }
+
   class VDoc {
     constructor(fs, path){ this._ref = doc(fs, path); }
     get(){ return getDoc(this._ref).then(wrapDocSnap); }
-    set(data){ return setDoc(this._ref, data); }
-    update(patch){ return updateDoc(this._ref, flattenForUpdate(patch)); }
-    delete(){ return deleteDoc(this._ref); }
+    set(data){ return vWrite(setDoc(this._ref, data)); }
+    update(patch){ return vWrite(updateDoc(this._ref, flattenForUpdate(patch))); }
+    delete(){ return vWrite(deleteDoc(this._ref)); }
     onSnapshot(cb, errCb){ return onSnapshot(this._ref, s=>cb(wrapDocSnap(s)), errCb||function(){}); }
   }
   class VCollection {
     constructor(fs, path, order){ this._fs=fs; this._path=path; this._ref=collection(fs, path); this._order=order||null; }
     doc(id){ return new VDoc(this._fs, this._path + "/" + id); }
-    add(data){ return addDoc(this._ref, data).then(r=>({id:r.id})); }
+    add(data){ const r = doc(this._ref); return vWrite(setDoc(r, data)).then(()=>({id:r.id})); }
     orderBy(field, dir){ return new VCollection(this._fs, this._path, {field, dir: dir||"asc"}); }
     _q(){ return this._order ? query(this._ref, orderBy(this._order.field, this._order.dir)) : this._ref; }
     get(){ return getDocs(this._q()).then(wrapQuerySnap); }
@@ -420,7 +434,14 @@
 
   try{
     const fbApp = initializeApp(firebaseConfig);
-    const fs = initializeFirestore(fbApp, { ignoreUndefinedProperties: true });
+    let fs;
+    try{
+      // Cache persistant sur l'appareil : l'appli affiche les dernières données même sans réseau.
+      fs = initializeFirestore(fbApp, { ignoreUndefinedProperties: true, localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+    }catch(e){
+      console.warn("Cache hors ligne indisponible :", e);
+      fs = initializeFirestore(fbApp, { ignoreUndefinedProperties: true });
+    }
     window.__vestiaireDB = new VDB(fs);
   }catch(e){
     console.error("Firebase init a échoué :", e);
@@ -8801,6 +8822,19 @@ document.addEventListener("DOMContentLoaded", ()=>App.init());
 if(document.readyState !== "loading") App.init();
 // PWA : enregistre le service worker pour que l'appli soit installable ("Ajouter à l'écran
 // d'accueil") sur Android (et affichée en plein écran sans barre de navigateur une fois installée).
+/* ---- Bandeau hors ligne ---- */
+(function(){
+  function upd(){
+    let b=document.getElementById("offlineBar");
+    if(navigator.onLine){ if(b) b.remove(); return; }
+    if(!b){ b=document.createElement("div"); b.id="offlineBar";
+      b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#444;color:#fff;font-size:12.5px;text-align:center;padding:7px 10px;";
+      b.textContent="📴 Hors ligne — tu vois les dernières données enregistrées ; tes actions seront envoyées au retour du réseau.";
+      document.body.appendChild(b); }
+  }
+  window.addEventListener("online",upd); window.addEventListener("offline",upd);
+  if(document.body) upd(); else window.addEventListener("DOMContentLoaded",upd);
+})();
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>{
     navigator.serviceWorker.register("./sw.js").catch(()=>{});
