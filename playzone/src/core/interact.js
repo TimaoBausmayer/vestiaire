@@ -16,7 +16,7 @@ export class Interactions {
   update(pos, zone) {
     let best = null, bestScore = Infinity;
     for (const d of this.list) {
-      if (d.zone !== zone && !(d.zone === 'home' && zone.startsWith('home'))) continue;
+      if (d.zone !== 'any' && d.zone !== zone && !(d.zone === 'home' && zone.startsWith('home'))) continue;
       const x = typeof d.x === 'function' ? d.x() : d.x;
       const z = typeof d.z === 'function' ? d.z() : d.z;
       const dist = Math.hypot(pos.x - x, pos.z - z);

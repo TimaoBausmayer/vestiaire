@@ -122,6 +122,12 @@ export class HUD {
     const g = this.game;
     const p = g.player.pos;
     // zone
+    if (g.player.zone !== 'world' && this.lastZone !== g.player.zone) {
+      this.lastZone = g.player.zone;
+      const ins = g.home?.inside;
+      this.zoneName.textContent = ins && !ins.mine ? `Chez ${ins.ownerName}` : 'Chez moi';
+      this.zoneName.classList.add('show');
+    }
     if (g.player.zone === 'world') {
       const z = zoneAt(p.x, p.z);
       if (z.id !== this.lastZone) {

@@ -25,7 +25,7 @@ const PET_LINES = {
 };
 const SOUNDS = { chien: 'bark', chat: 'meow', poulet: 'cluck', canard: 'quack', vache: 'moo', pigeon: 'cluck' };
 
-class Animal {
+export class Animal {
   constructor(mgr, species, x, z, idx) {
     this.mgr = mgr;
     this.species = species;
