@@ -1,0 +1,92 @@
+import * as THREE from 'three';
+import { groundHeight, WATER_LEVEL, POND, MINIGAME_SPOTS } from '../../shared/world-layout.js';
+import { MATS, PALETTE } from '../core/materials.js';
+
+// Sol (herbe, sable, terre des champs) avec couleurs par sommet, et eau animée (mer + étang).
+
+function noise(x, z) {
+  return Math.sin(x * 0.13 + Math.sin(z * 0.07) * 2) * 0.5 + Math.sin(z * 0.11 + x * 0.05) * 0.5;
+}
+
+export function buildTerrain() {
+  const size = 300, seg = 150;
+  const geo = new THREE.PlaneGeometry(size, size, seg, seg).rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+  const c = new THREE.Color();
+  const grass = new THREE.Color(PALETTE.grass), grassDark = new THREE.Color(PALETTE.grassDark);
+  const sand = new THREE.Color(PALETTE.sand), wet = new THREE.Color(PALETTE.sandWet);
+  const dirt = new THREE.Color('#a47148'), forest = new THREE.Color('#4e8a3e'), path = new THREE.Color('#cdb48a');
+  const pen = MINIGAME_SPOTS.chickenRace.pen;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = groundHeight(x, z);
+    pos.setY(i, h);
+    const n = noise(x, z);
+    c.copy(grass).lerp(grassDark, 0.5 + n * 0.5);
+    const beachEdge = 64 + Math.sin(x * 0.08) * 2.5;
+    if (z > beachEdge) c.copy(sand).lerp(wet, Math.min(1, Math.max(0, (z - 86) / 6)));
+    else if (z > beachEdge - 2) c.lerp(sand, (z - beachEdge + 2) / 2);
+    if (x < -62 && z < -62) c.copy(forest).lerp(grassDark, 0.5 + n * 0.3);
+    // champs de la ferme (sillons)
+    if (x > -125 && x < -95 && z > 14 && z < 58) c.copy(dirt).lerp(grassDark, Math.sin(x * 2.2) > 0.3 ? 0.55 : 0);
+    // enclos à cochons boueux
+    if (x > -90 && x < -72 && z > 40 && z < 56) c.copy(dirt).multiplyScalar(0.8);
+    // allées du parc
+    if (z < -64 && z > -126 && x > -56 && x < 56 && (Math.abs(x) < 3 || Math.abs(z + 78) < 2.5)) c.lerp(path, 0.9);
+    // enclos à poulets (terre battue)
+    if (Math.abs(x - pen.x) < pen.w / 2 && Math.abs(z - pen.z) < pen.d / 2) c.copy(path).lerp(dirt, 0.3);
+    // bords de l'étang
+    const dp = Math.hypot(x - POND.x, z - POND.z);
+    if (dp < POND.r + 1.5 && dp > 1.6) c.lerp(wet, 0.6);
+    // sous l'eau
+    if (h < WATER_LEVEL) c.copy(wet).multiplyScalar(0.85);
+    colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, MATS.ground);
+  mesh.receiveShadow = true;
+  mesh.name = 'terrain';
+  return mesh;
+}
+
+const WATER_VERT = /* glsl */`
+uniform float time;
+varying vec3 vWorld;
+#include <fog_pars_vertex>
+void main() {
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  wp.y += sin(wp.x * 0.15 + time * 1.2) * 0.07 + cos(wp.z * 0.21 + time * 0.9) * 0.07;
+  vWorld = wp.xyz;
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`;
+const WATER_FRAG = /* glsl */`
+uniform float time; uniform vec3 deep; uniform vec3 shallow; uniform vec3 foam; uniform float light;
+varying vec3 vWorld;
+#include <fog_pars_fragment>
+void main() {
+  float w = sin(vWorld.x * 0.35 + time * 1.5 + sin(vWorld.z * 0.25 + time)) * 0.5 + 0.5;
+  float s = sin(vWorld.x * 0.55 + vWorld.z * 0.42 + time * 1.7 + sin(vWorld.z * 0.13 + vWorld.x * 0.05) * 3.0) * 0.5 + 0.5;
+  float stripes = smoothstep(0.93, 0.985, s);
+  vec3 col = mix(deep, shallow, w * 0.4);
+  col = mix(col, foam, stripes * 0.45);
+  gl_FragColor = vec4(col * light, 0.86);
+  #include <colorspace_fragment>
+  #include <fog_fragment>
+}`;
+
+export function buildWater() {
+  const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
+    time: { value: 0 }, deep: { value: new THREE.Color('#1f7fbf') }, shallow: { value: new THREE.Color('#4cc3e6') },
+    foam: { value: new THREE.Color('#ffffff') }, light: { value: 1 },
+  }]);
+  const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, transparent: true, fog: true, depthWrite: false });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 70, 70).rotateX(-Math.PI / 2), mat);
+  mesh.position.y = WATER_LEVEL;
+  mesh.renderOrder = 1;
+  mesh.name = 'water';
+  return mesh;
+}

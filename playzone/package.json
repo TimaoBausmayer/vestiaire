@@ -1,0 +1,22 @@
+{
+  "name": "playzone",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PLAYZONE — monde ouvert 3D multijoueur dans le navigateur",
+  "type": "module",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "vendor": "node tools/vendor-three.js",
+    "test": "node --disable-warning=ExperimentalWarning --test tests/unit/",
+    "test:e2e": "node --disable-warning=ExperimentalWarning tests/e2e/run.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "three": "^0.180.0"
+  }
+}

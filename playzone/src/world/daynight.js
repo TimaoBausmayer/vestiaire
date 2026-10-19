@@ -1,0 +1,75 @@
+import * as THREE from 'three';
+import { MATS } from '../core/materials.js';
+
+// Cycle jour/nuit partagé : l'heure du jeu se calcule à partir de l'heure réelle (synchronisée avec
+// le serveur en ligne), donc tous les joueurs voient la même heure. Un cycle complet = 20 minutes,
+// dont 4 minutes de nuit.
+
+export const CYCLE_MS = 20 * 60 * 1000;
+
+export function gameHour(nowMs) {
+  const f = (nowMs % CYCLE_MS) / CYCLE_MS;
+  return f < 0.8 ? 7 + (f / 0.8) * 13 : 20 + ((f - 0.8) / 0.2) * 11; // 7h→20h le jour, 20h→7h la nuit
+}
+
+export function formatHour(h) {
+  const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60);
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+const KEYS = [
+  { h: 0, top: '#070b1f', hor: '#16203f', light: 0.35, sun: 0.0, stars: 1, win: 1 },
+  { h: 5, top: '#141d44', hor: '#4a3a5f', light: 0.4, sun: 0.0, stars: 0.8, win: 1 },
+  { h: 6.5, top: '#3a5ea8', hor: '#f4a96a', light: 0.75, sun: 0.6, stars: 0.1, win: 0.6 },
+  { h: 8, top: '#4a90e2', hor: '#cfe9f7', light: 1, sun: 1, stars: 0, win: 0 },
+  { h: 13, top: '#3d8ee8', hor: '#bfe3f5', light: 1, sun: 1, stars: 0, win: 0 },
+  { h: 17.5, top: '#4a7fd0', hor: '#f6d9a0', light: 0.95, sun: 0.9, stars: 0, win: 0 },
+  { h: 19.5, top: '#34407a', hor: '#f08a5d', light: 0.7, sun: 0.45, stars: 0.1, win: 0.7 },
+  { h: 21, top: '#0e1533', hor: '#2a2f5a', light: 0.42, sun: 0.0, stars: 0.8, win: 1 },
+  { h: 24, top: '#070b1f', hor: '#16203f', light: 0.35, sun: 0.0, stars: 1, win: 1 },
+];
+
+const ca = new THREE.Color(), cb = new THREE.Color();
+function lerpColor(a, b, t, out) { ca.set(a); cb.set(b); return out.copy(ca).lerp(cb, t); }
+
+export class DayNight {
+  constructor(engine, water) {
+    this.engine = engine;
+    this.water = water;
+    this.hour = 12;
+    this.top = new THREE.Color(); this.hor = new THREE.Color();
+    this.night = 0;
+  }
+
+  update(nowMs) {
+    const h = this.forcedHour ?? gameHour(nowMs) % 24;
+    this.hour = h;
+    let i = 0;
+    while (i < KEYS.length - 2 && KEYS[i + 1].h <= h) i++;
+    const a = KEYS[i], b = KEYS[i + 1];
+    const t = (h - a.h) / (b.h - a.h);
+    const L = (k) => a[k] + (b[k] - a[k]) * t;
+    lerpColor(a.top, b.top, t, this.top);
+    lerpColor(a.hor, b.hor, t, this.hor);
+    const e = this.engine;
+    const u = e.skyUniforms;
+    u.topColor.value.copy(this.top);
+    u.horizonColor.value.copy(this.hor);
+    u.bottomColor.value.copy(this.hor).multiplyScalar(0.7);
+    u.starAmount.value = L('stars');
+    const light = L('light'), sun = L('sun');
+    e.scene.fog.color.copy(this.hor);
+    e.hemi.intensity = 0.55 + light * 1.1;
+    e.hemi.color.set(light > 0.6 ? 0xdff3ff : 0x8fa0d8);
+    e.sun.intensity = sun * 2.2;
+    // course du soleil (de l'est vers l'ouest)
+    const ang = ((h - 6) / 14) * Math.PI;
+    e.sunOffset.set(Math.cos(ang) * -70 + 20, Math.max(25, Math.sin(ang) * 90), 35);
+    u.sunDir.value.copy(e.sunOffset).normalize();
+    e.sun.color.set(h < 8 || h > 17.5 ? 0xffc890 : 0xfff1d6);
+    this.night = L('win');
+    MATS.windows.color.setRGB(0.36 + 0.64 * this.night, 0.42 + 0.53 * this.night, 0.54 + 0.2 * this.night);
+    MATS.glow.color.setScalar(0.45 + 0.55 * this.night);
+    if (this.water) this.water.material.uniforms.light.value = 0.45 + 0.55 * light;
+  }
+}
