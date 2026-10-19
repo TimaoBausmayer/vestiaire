@@ -28,7 +28,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 #ui .passthrough { pointer-events: none; }
 /* calques d'affichage : ils ne doivent jamais intercepter les clics destinés au jeu */
 #ui > .labels, #ui > .toasts, #ui > .floater, #ui > .crosshair, #ui > .countdown, #ui > .mg-hud, #ui > .compass,
-#ui > .hud-zone, #ui > .touch, #ui > .tracker, #ui > .hud-tl, #ui > .event-banner { pointer-events: none; }
+#ui > .dash, #ui > .hud-zone, #ui > .touch, #ui > .tracker, #ui > .hud-tl, #ui > .event-banner { pointer-events: none; }
 #ui .tbtns, #ui .tracker > div, #ui .hud-tl > *, #ui .toast button { pointer-events: auto; }
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; user-select: text; -webkit-user-select: text; }
@@ -279,3 +279,16 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
   .chat-log { max-height: 110px; font-size: 12.5px; }
   .dialog-box { bottom: calc(12px + var(--safe-b)); }
 }
+
+/* Compteur du véhicule */
+.dash { position: absolute; right: 16px; bottom: calc(196px + var(--safe-b, 0px)); width: 150px; padding: 10px 12px 12px; border-radius: 18px; background: rgba(12, 10, 35, .72); backdrop-filter: blur(6px); box-shadow: var(--shadow); text-align: center; color: #fff; }
+.dash.hidden { display: none; }
+.dash .speed { font-size: 40px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+.dash .unit { font-size: 11px; opacity: .7; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.dash .gauges { display: flex; flex-direction: column; gap: 5px; }
+.dash .g { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.dash .bar { flex: 1; height: 7px; border-radius: 9px; background: rgba(255,255,255,.15); overflow: hidden; }
+.dash .bar > div { height: 100%; width: 100%; background: linear-gradient(90deg, #ffb703, #7ac74f); border-radius: 9px; transition: width .2s; }
+.dash .bar.dmg > div { background: linear-gradient(90deg, #e63946, #2ec4b6); }
+.dash .name { margin-top: 6px; font-size: 12px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 700px) { .dash { right: 10px; bottom: calc(190px + var(--safe-b, 0px)); width: 112px; padding: 8px; } .dash .speed { font-size: 30px; } }

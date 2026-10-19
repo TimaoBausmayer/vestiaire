@@ -67,7 +67,7 @@ export class Events {
       this.chickens = invasionChickens(st.seed, st.n).map((c) => {
         if (caught.has(c.i)) return null;
         const m = buildAnimal('poulet');
-        if (c.golden) m.body.material = new THREE.MeshToonMaterial({ color: '#ffd23f', gradientMap: actorMaterial.gradientMap });
+        if (c.golden) m.body.material = new THREE.MeshStandardMaterial({ color: '#ffd23f', roughness: 0.25, metalness: 0.8 });
         g.engine.scene.add(m.root);
         this.objects.push(m.root);
         return { ...c, model: m, pos: new THREE.Vector3(), golden: c.golden };

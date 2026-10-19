@@ -14,6 +14,7 @@ import { JOB_BY_ID, jobLevel, FILLINGS, ABSURD_FILLINGS } from './content/jobs.j
 import { SPECIES, TRICKS, petStatus } from './content/animals.js';
 import { pieTargets, PIE_POINTS } from './minigame-logic.js';
 import { isClean } from './chat-filter.js';
+import { VEHICLES, CAR_PAINTS } from './content/vehicles.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
 export const TRASH_SPOTS = [
@@ -48,6 +49,7 @@ export class Authority {
     p.pets ||= [];
     p.activePet ??= null;
     p.vehicles ||= [];
+    for (const v of p.vehicles) { v.damage ??= 0; v.fuel ??= VEHICLES[v.model]?.fuel ?? 0; }
     p.home ||= { size: 'studio', furniture: [] };
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
@@ -166,7 +168,7 @@ const HANDLERS = {
     }
     if (it.vehicle) {
       if (p.vehicles.some((v) => v.model === it.vehicle)) return err('Tu possèdes déjà ce véhicule.');
-      const v = { id: ctx.newId(), model: it.vehicle, color: '#ff5a5f' };
+      const v = { id: ctx.newId(), model: it.vehicle, color: it.color || '#e63946', damage: 0, fuel: VEHICLES[it.vehicle]?.fuel ?? 0 };
       p.vehicles.push(v);
       this.addCoins(p, -it.price);
       return { ok: true, changed: true, data: { vehicle: v } };
@@ -577,11 +579,23 @@ const HANDLERS = {
   'vehicle.paint'(ctx, { vehicleId, color }) {
     const p = ctx.profile, v = p.vehicles.find((x) => x.id === vehicleId);
     if (!v) return err('Véhicule introuvable.');
-    if (!COLORS.includes(color)) return err('Couleur indisponible.');
+    if (!COLORS.includes(color) && !CAR_PAINTS.includes(color)) return err('Couleur indisponible.');
     if (!(p.inventory.peinture > 0)) return err('Achète d\'abord une peinture au garage.');
     p.inventory.peinture--;
     v.color = color;
     return { ok: true, changed: true, data: {} };
+  },
+
+  // État d'un véhicule possédé (après avoir roulé) : les dégâts ne peuvent qu'augmenter et le carburant
+  // que baisser (réparer et faire le plein se paient au garage / à la station-service).
+  'vehicle.state'(ctx, { vehicleId, damage, fuel }) {
+    const v = ctx.profile.vehicles.find((x) => x.id === vehicleId);
+    if (!v) return err('Véhicule introuvable.');
+    const spec = VEHICLES[v.model];
+    if (typeof damage !== 'number' || typeof fuel !== 'number' || !Number.isFinite(damage) || !Number.isFinite(fuel)) return err('État invalide.');
+    v.damage = Math.round(Math.max(v.damage || 0, Math.min(1, damage)) * 1000) / 1000;
+    v.fuel = Math.round(Math.max(0, Math.min(v.fuel ?? spec?.fuel ?? 0, fuel)) * 10) / 10;
+    return { ok: true, changed: true, data: { damage: v.damage, fuel: v.fuel } };
   },
 
   // ---------------------------------------------------------------- événements publics

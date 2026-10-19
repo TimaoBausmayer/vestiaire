@@ -7,6 +7,7 @@ import { buildContent } from '../shared/content/registry.js';
 import { LIMITS, SPEED } from '../shared/protocol.js';
 import { censor, hasPersonalInfo } from '../shared/chat-filter.js';
 import { POI, MINIGAME_SPOTS, HOME_INTERIOR, WORLD_HALF, dist2d } from '../shared/world-layout.js';
+import { maxSpeedOf } from '../shared/content/vehicles.js';
 
 const POSES = new Set(['idle', 'carry', 'spray', 'wave', 'throw', 'celebrate', 'cook', 'pet', 'sit', 'hold-forward', 'dance']);
 const newId = () => randomBytes(6).toString('hex');
@@ -212,7 +213,7 @@ export class World {
     }
     // vitesse : distance autorisée + crédit (gigue réseau, petits sauts autorisés)
     const vehicle = typeof s.v === 'string' ? p.profile.vehicles.find((v) => v.model === s.v) : null;
-    const max = vehicle ? SPEED.vehicle : SPEED.foot;
+    const max = vehicle ? maxSpeedOf(vehicle.model) : SPEED.foot;
     p.credit = Math.min(SPEED.creditMax, p.credit + SPEED.creditRefill * dt);
     const d = dist2d(p.pos.x, p.pos.z, x, z);
     const allowed = max * dt + 0.35;
@@ -231,7 +232,7 @@ export class World {
     if (zone.startsWith('home:') && (Math.abs(x - HOME_INTERIOR.origin.x) > 12 || Math.abs(z - HOME_INTERIOR.origin.z) > 9)) { this.correct(p); return; }
     p.pos = { x, y, z };
     p.state = {
-      ry: num(s.ry), s: Math.min(25, Math.max(0, num(s.s))), p: POSES.has(s.p) ? s.p : 'idle', d: Math.min(2, Math.max(0, num(s.d) | 0)),
+      ry: num(s.ry), s: Math.min(45, Math.max(0, num(s.s))), p: POSES.has(s.p) ? s.p : 'idle', d: Math.min(2, Math.max(0, num(s.d) | 0)),
       g: s.g ? 1 : 0, w: s.w ? 1 : 0, v: vehicle ? vehicle.model : null, c: vehicle ? vehicle.color : null,
     };
     this.server.authority.onPosition(this.ctx(p));

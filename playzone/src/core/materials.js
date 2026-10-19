@@ -1,35 +1,33 @@
 import * as THREE from 'three';
 
-// Identité graphique : rendu "cel-shading" en 3 tons (MeshToonMaterial + dégradé en escalier),
-// couleurs portées par les sommets. Un seul matériau sert à presque tout le décor et aux personnages.
-
-function makeGradient(steps) {
-  const data = new Uint8Array(steps.length * 4);
-  steps.forEach((v, i) => { const c = Math.round(v * 255); data.set([c, c, c, 255], i * 4); });
-  const tex = new THREE.DataTexture(data, steps.length, 1, THREE.RGBAFormat);
-  tex.minFilter = THREE.NearestFilter;
-  tex.magFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-export const gradientMap = makeGradient([0.42, 0.72, 0.9, 1.0]);
+// Identité graphique : rendu "semi-réaliste avec une touche cartoon". Matériaux physiques (PBR) éclairés
+// par le soleil, le ciel et une carte d'environnement (reflets), couleurs vives portées par les sommets.
+// Un seul matériau sert à presque tout le décor et aux personnages : très peu d'appels de dessin.
 
 export const MATS = {
-  main: new THREE.MeshToonMaterial({ vertexColors: true, gradientMap }),
-  ground: new THREE.MeshToonMaterial({ vertexColors: true, gradientMap }),
-  // Vitres : sombres le jour, chaudes la nuit (on change seulement la couleur du matériau).
-  windows: new THREE.MeshBasicMaterial({ vertexColors: true, color: 0x5d6b8a }),
+  main: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }),
+  ground: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0 }),
+  // Vitres : sombres et réfléchissantes le jour, éclairées (teinte des sommets) la nuit.
+  windows: windowMaterial(),
   // Ampoules et néons : s'allument la nuit.
   glow: new THREE.MeshBasicMaterial({ vertexColors: true, color: 0x777777 }),
 };
 
+function windowMaterial() {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x3a4a60, roughness: 0.08, metalness: 0.6, emissive: 0xffffff, emissiveIntensity: 0 });
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;');
+  };
+  m.customProgramCacheKey = () => 'pz-windows';
+  return m;
+}
+
 // Matériau pour objets mobiles individuels (personnages, animaux...).
 export const actorMaterial = MATS.main;
 
-export function toonColor(color) {
-  return new THREE.MeshToonMaterial({ color, gradientMap });
+// Matériau uni (une couleur), même rendu que le décor.
+export function solidMaterial(color, opts = {}) {
+  return new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0, ...opts });
 }
 
 export const PALETTE = {

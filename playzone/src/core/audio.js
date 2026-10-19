@@ -87,6 +87,12 @@ export class Sfx {
       case 'hiss': this.noise(0.4, 0.12, 'highpass', 3000); break;
       case 'secret': [784, 988, 1175, 1568, 1976].forEach((f, i) => this.tone('sine', f, f, 0.25, 0.08, i * 0.07)); break;
       case 'fail': [392, 330, 262].forEach((f, i) => this.tone('triangle', f, f * 0.95, 0.25, 0.08, i * 0.15)); break;
+      case 'crash': this.noise(0.5, 0.45, 'lowpass', 1800, 0, 150); this.tone('sine', 110, 40, 0.3, 0.3); this.noise(0.25, 0.15, 'highpass', 4000, 0.05); break;
+      case 'bump': this.noise(0.18, 0.25, 'lowpass', 700, 0, 120); this.tone('sine', 90, 50, 0.15, 0.18); break;
+      case 'start': this.tone('sawtooth', 60, 140, 0.35, 0.06); this.tone('sawtooth', 140, 90, 0.4, 0.05, 0.35); break;
+      case 'lock': this.tone('square', 1200, 1200, 0.05, 0.05); this.tone('square', 1200, 1200, 0.05, 0.05, 0.12); break;
+      case 'horn-truck': this.tone('sawtooth', 220, 220, 0.5, 0.07); this.tone('sawtooth', 277, 277, 0.5, 0.06); break;
+      case 'ring': this.tone('sine', 1320, 1320, 0.12, 0.08); this.tone('sine', 1760, 1760, 0.2, 0.08, 0.12); break;
       default: break;
     }
   }
@@ -105,6 +111,71 @@ export class Sfx {
     s.connect(f).connect(g).connect(this.master);
     s.start();
     this.loops.set(name, { s, g });
+  }
+
+  // Moteur du véhicule conduit : deux oscillateurs filtrés dont la hauteur suit le régime.
+  // o = { rpm 0..1, load 0..1, kind: 'car'|'moto'|'truck'|'electric'|null }
+  engine(o) {
+    if (!o || !o.kind || this.muted || !this.ensure() || this.ctx.state !== 'running') { this.engineStop(); return; }
+    const c = this.ctx;
+    if (!this.eng || this.eng.kind !== o.kind) {
+      this.engineStop();
+      const out = c.createGain(); out.gain.value = 0; out.connect(this.master);
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 600; f.Q.value = 2; f.connect(out);
+      const a = c.createOscillator(); a.type = o.kind === 'electric' ? 'sine' : 'sawtooth';
+      const b = c.createOscillator(); b.type = o.kind === 'electric' ? 'triangle' : 'square';
+      const ga = c.createGain(); ga.gain.value = 0.6; const gb = c.createGain(); gb.gain.value = 0.35;
+      a.connect(ga).connect(f); b.connect(gb).connect(f);
+      a.start(); b.start();
+      this.eng = { kind: o.kind, out, f, a, b };
+    }
+    const e = this.eng, t = c.currentTime;
+    const base = { car: 38, moto: 70, truck: 26, electric: 180 }[o.kind] || 40;
+    const span = { car: 110, moto: 190, truck: 60, electric: 420 }[o.kind] || 100;
+    const fr = base + o.rpm * span;
+    e.a.frequency.setTargetAtTime(fr, t, 0.05);
+    e.b.frequency.setTargetAtTime(fr * (o.kind === 'electric' ? 1.5 : 0.5), t, 0.05);
+    e.f.frequency.setTargetAtTime(300 + o.rpm * 1400 + o.load * 600, t, 0.08);
+    e.out.gain.setTargetAtTime((o.kind === 'electric' ? 0.025 : 0.055) * (0.55 + o.load * 0.45) * (o.volume ?? 1), t, 0.08);
+  }
+
+  engineStop() {
+    if (!this.eng) return;
+    const e = this.eng; this.eng = null;
+    e.out.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+    setTimeout(() => { try { e.a.stop(); e.b.stop(); } catch { /* déjà arrêté */ } }, 500);
+  }
+
+  // Crissement de pneus (niveau 0..1).
+  skid(level) {
+    if (this.muted || !this.ensure() || this.ctx.state !== 'running') return;
+    const c = this.ctx;
+    if (!this.skidV) {
+      const s = c.createBufferSource(); s.buffer = this.noiseBuf; s.loop = true;
+      const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 6;
+      const g = c.createGain(); g.gain.value = 0;
+      s.connect(f).connect(g).connect(this.master); s.start();
+      this.skidV = { s, g };
+    }
+    this.skidV.g.gain.setTargetAtTime(Math.min(1, level) * 0.22, c.currentTime, 0.05);
+  }
+
+  // Sirène (police, pompiers, ambulance) : deux tons alternés. level 0..1 (distance)
+  siren(level, kind = 'police') {
+    if (this.muted || !this.ensure() || this.ctx.state !== 'running') return;
+    const c = this.ctx;
+    if (!this.sirenV) {
+      const o = c.createOscillator(); o.type = 'square';
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2200;
+      const g = c.createGain(); g.gain.value = 0;
+      o.connect(f).connect(g).connect(this.master); o.start();
+      this.sirenV = { o, g };
+    }
+    const t = c.currentTime;
+    const hi = kind === 'police' ? 960 : 880, lo = kind === 'police' ? 720 : 660;
+    const phase = Math.floor(t / (kind === 'police' ? 0.45 : 0.7)) % 2;
+    this.sirenV.o.frequency.setTargetAtTime(phase ? hi : lo, t, 0.02);
+    this.sirenV.g.gain.setTargetAtTime(Math.min(1, level) * 0.05, t, 0.1);
   }
 
   // Musique de la soirée DJ (boucle générée, 120 BPM).

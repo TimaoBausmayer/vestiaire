@@ -19,7 +19,7 @@ export const LIMITS = {
 // Vitesses horizontales maximales vérifiées par le serveur (m/s), marges comprises.
 export const SPEED = {
   foot: 12.5,        // sprint 9 m/s x amélioration 1,12 + marge
-  vehicle: 21,       // voiturette 18,5 m/s + marge
+  vehicle: 21,       // (ancien plafond unique) : chaque modèle a désormais le sien, voir maxSpeedOf()
   knock: 16,         // éjection (bras tournants, crocodile...) absorbée par le "crédit" de distance
   creditMax: 7,      // crédit de distance (m) pour absorber la gigue réseau et les petits sauts
   creditRefill: 1.5, // m/s

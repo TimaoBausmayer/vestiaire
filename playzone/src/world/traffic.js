@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { buildMergedGeometry, SHAPES as B } from '../core/static-builder.js';
-import { actorMaterial } from '../core/materials.js';
+import { CarVisual, dimsOf } from '../vehicles/car-models.js';
 import { TRAFFIC_LOOP } from '../../shared/world-layout.js';
 
 // Circulation sur le boulevard : deux voies (on roule à droite), freinage devant les piétons,
@@ -31,33 +30,17 @@ function sample(path, s, out) {
   return out;
 }
 
-const MODELS = {
-  citadine: (c) => (sb) => {
-    sb.box(0, 0.35, 0, 1.8, 0.75, 3.8, c); sb.box(0, 1.1, -0.2, 1.6, 0.7, 2.0, c);
-    sb.box(0, 1.15, -0.2, 1.62, 0.5, 1.7, '#cfe8ff'); sb.box(0, 1.15, -0.2, 1.4, 0.5, 2.02, '#cfe8ff');
-    sb.box(0, 0.65, 1.91, 1.4, 0.2, 0.02, '#fff3b0'); sb.box(0, 0.65, -1.91, 1.4, 0.15, 0.02, '#e63946');
-  },
-  taxi: (c) => (sb) => { MODELS.citadine('#ffd23f')(sb); sb.box(0, 1.8, -0.2, 0.7, 0.25, 0.35, '#2b2d42'); },
-  camionnette: (c) => (sb) => {
-    sb.box(0, 0.35, -0.6, 2.0, 2.0, 3.6, '#f4f1ea'); sb.box(0, 0.35, 1.6, 2.0, 1.4, 1.2, c);
-    sb.box(0, 1.2, 2.21, 1.7, 0.5, 0.02, '#cfe8ff'); sb.box(0, 1.3, -0.6, 2.02, 0.5, 2.5, c);
-  },
-  bus: (c) => (sb) => {
-    sb.box(0, 0.4, 0, 2.3, 2.4, 7.5, c); sb.box(0, 1.5, 0, 2.32, 0.8, 7.0, '#cfe8ff'); sb.box(0, 2.8, 0, 2.1, 0.15, 7.0, '#f4f1ea');
-    sb.box(0, 1.0, 3.76, 1.8, 1.4, 0.02, '#cfe8ff');
-  },
-  glace: () => (sb) => {
-    sb.box(0, 0.35, 0, 2.0, 2.1, 4.4, '#ffc8dd'); sb.box(0, 1.4, 1.2, 2.02, 0.6, 1.4, '#cfe8ff');
-    sb.cone(0, 2.45, -0.5, 0.45, 1.1, '#e9a23b', 8); sb.add(B.cone(8), { y: 3.55, z: -0.5, sx: 0.9, sy: 0.9, sz: 0.9, rx: Math.PI, color: '#e9a23b' });
-    sb.sphere(0, 3.65, -0.5, 0.5, '#fff3f8', 10);
-  },
-};
 const FLEET = [
-  ['citadine', '#ff5a5f', 0], ['taxi', '', 0], ['bus', '#2ec4b6', 0], ['citadine', '#3d8ee8', 0], ['glace', '', 0],
-  ['camionnette', '#7ac74f', 1], ['citadine', '#c77dff', 1], ['citadine', '#f4f1ea', 1], ['taxi', '', 1], ['camionnette', '#ff9f1c', 1],
+  ['citadine', '#e63946', 0], ['taxi', '#ffd23f', 0], ['bus', '#2a9d8f', 0], ['berline', '#457b9d', 0], ['glace', '#ffc8dd', 0],
+  ['fourgon', '#f4f1ea', 1], ['suv', '#2b2d42', 1], ['break', '#a8dadc', 1], ['taxi', '#ffd23f', 1], ['pickup', '#bc6c25', 1],
 ];
-const LENGTH = { citadine: 3.8, taxi: 3.8, camionnette: 4.8, bus: 7.5, glace: 4.4 };
+const DRIVERS = [
+  { skin: '#f1c27d', hair: '#3b2a1e', top: '#3d8ee8' }, { skin: '#8d5524', hair: '#111111', top: '#e63946' },
+  { skin: '#ffdbac', hair: '#d4a017', top: '#2a9d8f' }, { skin: '#c68642', hair: '#5a3825', top: '#ffb703', hat: '#2b2d42' },
+  { skin: '#e0ac69', hair: '#bbbbbb', top: '#8338ec' }, { skin: '#ffdbac', hair: '#a52a2a', top: '#f4f1ea' },
+];
 const DRIVER_LINES = ['Pouet pouet !', 'On se pousse, oui ?', 'C\'est une route, pas un salon !', 'Je suis en retard pour ma sieste !', 'Le piéton est roi... mais pas trop.'];
+const CRASH_LINES = ['Ma carrosserie !', 'Vous avez votre permis à la tombola ?!', 'J\'appelle mon assureur... et ma maman !', 'Aïe aïe aïe, la peinture !', 'C\'était une voiture de location en plus !'];
 
 export class Traffic {
   constructor(game) {
@@ -66,35 +49,47 @@ export class Traffic {
     this.cars = [];
     const tmp = { pos: new THREE.Vector3(), yaw: 0 };
     const perLane = [0, 0];
-    FLEET.forEach(([type, color, lane]) => {
-      const L = LENGTH[type];
-      // carrosserie + roues fusionnées : un seul appel de dessin par voiture
-      const geo = buildMergedGeometry((sb) => {
-        MODELS[type](color)(sb);
-        for (const [x, z] of [[-0.95, L * 0.32], [0.95, L * 0.32], [-0.95, -L * 0.32], [0.95, -L * 0.32]]) {
-          sb.add(B.cyl(12), { x, y: 0.35, z, sx: 0.7, sy: 0.3, sz: 0.7, rz: Math.PI / 2, color: '#1b1b24' });
-          sb.add(B.cyl(8), { x, y: 0.35, z, sx: 0.35, sy: 0.32, sz: 0.35, rz: Math.PI / 2, color: '#c7ccd4' });
-        }
-      });
-      const root = new THREE.Group();
-      const body = new THREE.Mesh(geo, actorMaterial);
-      body.castShadow = true;
-      root.add(body);
-      game.engine.scene.add(root);
+    FLEET.forEach(([type, color, lane], i) => {
+      const dims = dimsOf(type);
+      const L = dims.L;
+      const d = DRIVERS[i % DRIVERS.length];
+      const visual = new CarVisual(type, { paint: color, driver: d, driverKey: `d${i % DRIVERS.length}` });
+      game.engine.scene.add(visual.root);
       const path = this.lanes[lane];
-      const s = (perLane[lane]++ / 5) * path.len;
+      const s0 = (perLane[lane]++ / 5) * path.len;
       const car = {
-        type, root, lane, path, s, L, speed: 0, max: type === 'bus' ? 6.5 : type === 'glace' ? 5 : 8 + Math.random() * 2,
-        blockedFor: 0, honked: 0, pos: new THREE.Vector3(), yaw: 0,
-        colliders: [game.collision.addCyl(0, 0, 1.15, 0, 1.6, { dynamic: true, noCamera: true }), game.collision.addCyl(0, 0, 1.15, 0, 1.6, { dynamic: true, noCamera: true })],
+        type, visual, root: visual.root, lane, path, s: s0, L, speed: 0, max: type === 'bus' ? 6.5 : type === 'glace' ? 5 : 8 + Math.random() * 2,
+        blockedFor: 0, honked: 0, pos: new THREE.Vector3(), yaw: 0, stunned: 0,
+        colliders: [],
       };
-      if (type === 'bus') car.colliders.push(game.collision.addCyl(0, 0, 1.2, 0, 2.6, { dynamic: true, noCamera: true }));
-      sample(path, s, tmp);
+      const n = Math.max(2, Math.round(L / (dims.W * 0.95)));
+      for (let k = 0; k < n; k++) car.colliders.push(game.collision.addCyl(0, 0, dims.W / 2, 0, L > 6 ? 2.6 : 1.5, { dynamic: true, noCamera: true, car }));
+      car.offs = car.colliders.map((_, k) => -L / 2 + dims.W / 2 + (k / (n - 1)) * (L - dims.W));
+      sample(path, s0, tmp);
       car.pos.copy(tmp.pos); car.yaw = tmp.yaw;
       this.cars.push(car);
     });
+    // un véhicule du joueur percute une voiture : bosse, arrêt, conducteur furieux
+    game.on('vehicle.bump', ({ other, sev, hit }) => {
+      if (!other || !this.cars.includes(other)) return;
+      const dx = hit.x - other.pos.x, dz = hit.z - other.pos.z;
+      const s = Math.sin(-other.yaw), c = Math.cos(-other.yaw);
+      other.visual.dent(dx * c + dz * s, 0.7, -dx * s + dz * c, sev * 1.3);
+      other.damage = Math.min(1, (other.damage || 0) + sev * 0.25);
+      other.visual.u.uDamage.value = other.damage * 0.85;
+      other.stunned = 2.5;
+      if (performance.now() - other.honked > 2500) {
+        other.honked = performance.now();
+        game.sfx('honk');
+        game.labels.bubble(other.root, CRASH_LINES[Math.floor(Math.random() * CRASH_LINES.length)], 2600, '', other.type === 'bus' ? 3.6 : 2.4);
+      }
+      game.emit('traffic.crash', { car: other, sev });
+    });
     this.tmp = tmp;
   }
+
+  // Véhicules dans lesquels le joueur peut monter (aucun pour l'instant dans la circulation).
+  enterable() { return []; }
 
   near(pos, r) {
     for (const c of this.cars) if (c.speed > 1 && Math.hypot(c.pos.x - pos.x, c.pos.z - pos.z) < r) return true;
@@ -116,6 +111,8 @@ export class Traffic {
   update(dt) {
     const obs = this.obstacles();
     const P = this.game.player.pos;
+    const camPos = this.game.engine.camera.position;
+    const night = this.game.world?.dayNight?.night || 0;
     for (const c of this.cars) {
       const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
       let blocked = false, byPlayer = false;
@@ -130,7 +127,9 @@ export class Traffic {
         if (ds < 0) ds += c.path.len;
         if (ds < (c.L + o.L) / 2 + 3.5) blocked = true;
       }
+      if (c.stunned > 0) { c.stunned -= dt; blocked = true; }
       const target = blocked ? 0 : c.max;
+      const prev = c.speed;
       c.speed += Math.sign(target - c.speed) * Math.min(Math.abs(target - c.speed), (blocked ? 16 : 5) * dt);
       c.s = (c.s + c.speed * dt) % c.path.len;
       sample(c.path, c.s, this.tmp);
@@ -140,9 +139,16 @@ export class Traffic {
       c.yaw += dy * Math.min(1, dt * 8);
       c.root.position.copy(c.pos);
       c.root.rotation.y = c.yaw;
+      const v = c.visual;
+      v.roll(c.speed * dt, Math.max(-0.5, Math.min(0.5, dy * 2)));
+      v.u.uBrake.value = c.speed < prev - 0.01 || c.speed < 0.3 ? 1 : 0;
+      v.setLights(night);
+      v.u.uTime.value = this.game.engine.time;
+      v.tilt.rotation.x += (Math.max(-0.04, Math.min(0.04, (c.speed - prev) / Math.max(dt, 1e-3) * -0.004)) - v.tilt.rotation.x) * Math.min(1, dt * 6);
+      const dist = camPos.distanceTo(c.pos);
+      v.setDetail(dist < 60 ? 0 : dist < 230 ? 1 : 2);
       // collisions : cylindres le long de la voiture
-      const offs = c.colliders.length === 3 ? [-c.L * 0.33, 0, c.L * 0.33] : [-c.L * 0.25, c.L * 0.25];
-      c.colliders.forEach((col, i) => { col.x = c.pos.x + Math.sin(c.yaw) * offs[i]; col.z = c.pos.z + Math.cos(c.yaw) * offs[i]; });
+      c.colliders.forEach((col, i) => { col.x = c.pos.x + Math.sin(c.yaw) * c.offs[i]; col.z = c.pos.z + Math.cos(c.yaw) * c.offs[i]; });
       // klaxon
       if (byPlayer && c.speed < 0.5) {
         c.blockedFor += dt;

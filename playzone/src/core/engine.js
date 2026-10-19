@@ -30,6 +30,27 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
+// Carte d'environnement (reflets sur la carrosserie, les vitres...) : ciel en dégradé, soleil,
+// silhouettes de la ville à l'horizon et sol. Recalculée quand l'heure change.
+const ENV_VERT = /* glsl */`
+varying vec3 vDir;
+void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const ENV_FRAG = /* glsl */`
+uniform vec3 top; uniform vec3 hor; uniform vec3 ground; uniform vec3 sunDir; uniform vec3 sunColor;
+varying vec3 vDir;
+void main() {
+  vec3 d = normalize(vDir);
+  float h = d.y;
+  vec3 col = h > 0.0 ? mix(hor, top, pow(min(h * 1.5, 1.0), 0.6)) : mix(hor * 0.7, ground, min(-h * 6.0, 1.0));
+  float a = atan(d.z, d.x);
+  float sky = 0.035 + 0.05 * abs(sin(a * 7.0) * sin(a * 19.0 + 1.3)) + 0.03 * step(0.6, fract(a * 6.0));
+  float city = step(h, sky) * step(-0.01, h);
+  col = mix(col, ground * 0.9 + hor * 0.25, city * 0.8);
+  float s = max(dot(d, normalize(sunDir)), 0.0);
+  col += sunColor * (pow(s, 90.0) * 12.0 + pow(s, 6.0) * 0.25);
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
 export function detectQuality() {
   let saved = null;
   try { saved = localStorage.getItem('playzone.quality'); } catch { /* stockage indisponible */ }
@@ -46,6 +67,8 @@ export class Engine {
     this.quality = quality;
     this.renderer = new THREE.WebGLRenderer({ antialias: quality !== 'low', powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(this.renderer.domElement);
     this.canvas = this.renderer.domElement;
@@ -95,6 +118,9 @@ export class Engine {
     const pr = Math.min(devicePixelRatio || 1, q === 'low' ? 1 : q === 'medium' ? 1.25 : 2);
     this.renderer.setPixelRatio(pr);
     this.renderer.shadowMap.enabled = q !== 'low';
+    this.renderer.shadowMap.type = q === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    if (q === 'low' && this.scene.environment) { this.envRT?.dispose(); this.envRT = null; this.scene.environment = null; }
+    this.envDirty = true;
     const size = q === 'high' ? 2048 : 1024;
     if (this.sun.shadow.mapSize.x !== size) {
       this.sun.shadow.mapSize.set(size, size);
@@ -108,6 +134,23 @@ export class Engine {
     // Les matériaux doivent être recompilés quand on active/désactive les ombres.
     this.scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
     this.resize();
+  }
+
+  // Met à jour la carte d'environnement (appelé par le cycle jour/nuit, seulement si les couleurs changent).
+  updateEnvironment(top, hor, ground, sunDir, sunColor) {
+    if (this.quality === 'low') return;
+    if (!this.pmrem) {
+      this.pmrem = new THREE.PMREMGenerator(this.renderer);
+      this.envUniforms = { top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, ground: { value: new THREE.Color() }, sunDir: { value: new THREE.Vector3() }, sunColor: { value: new THREE.Color() } };
+      this.envScene = new THREE.Scene();
+      this.envScene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 48, 24), new THREE.ShaderMaterial({ uniforms: this.envUniforms, vertexShader: ENV_VERT, fragmentShader: ENV_FRAG, side: THREE.BackSide, depthWrite: false })));
+    }
+    const u = this.envUniforms;
+    u.top.value.copy(top); u.hor.value.copy(hor); u.ground.value.copy(ground); u.sunDir.value.copy(sunDir).normalize(); u.sunColor.value.copy(sunColor);
+    const rt = this.pmrem.fromScene(this.envScene, 0, 0.1, 50, { size: 128 });
+    this.envRT?.dispose();
+    this.envRT = rt;
+    this.scene.environment = rt.texture;
   }
 
   setQuality(q) {

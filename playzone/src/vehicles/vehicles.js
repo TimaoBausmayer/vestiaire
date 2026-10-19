@@ -1,210 +1,429 @@
 import * as THREE from 'three';
-import { buildMergedGeometry, SHAPES as B } from '../core/static-builder.js';
-import { actorMaterial } from '../core/materials.js';
-import { groundHeight, WATER_LEVEL } from '../../shared/world-layout.js';
+import { CarVisual, seatOf, dimsOf } from './car-models.js';
+import { DriveSim } from './drive.js';
+import { SkidMarks } from './skidmarks.js';
+import { VEHICLES, CAR_PAINTS } from '../../shared/content/vehicles.js';
 import { h } from '../ui/dom.js';
 
-// VÉHICULES : trottinette, caddie turbo, scooter, voiturette. On les appelle depuis le téléphone,
-// on monte (E), on conduit (Z/S ou flèches : accélérer/freiner, Q/D : tourner), H : klaxon.
-export const SPECS = {
-  trottinette: { name: 'Trottinette', max: 9.5, acc: 7, turn: 2.6, seatY: 0.18, pose: 'hold-forward', radius: 0.6, seatZ: -0.1 },
-  caddie: { name: 'Caddie Turbo', max: 12, acc: 8, turn: 2.8, seatY: 0.62, pose: 'sit', radius: 0.8, seatZ: -0.05 },
-  scooter: { name: 'Scooter', max: 15.5, acc: 9, turn: 2.3, seatY: 0.62, pose: 'sit', radius: 0.9, seatZ: -0.25 },
-  voiturette: { name: 'Voiturette', max: 18.5, acc: 10, turn: 2.0, seatY: 0.42, pose: 'sit', radius: 1.3, seatZ: -0.25, seatX: -0.35 },
-};
+// VÉHICULES DU JOUEUR : appeler un véhicule possédé, monter / descendre (la portière s'ouvre),
+// conduire (Z/S ou flèches : accélérer / freiner / marche arrière, Q/D : tourner, Espace : frein à main,
+// H : klaxon), chocs et dégâts visibles, carburant, traces de pneus, son du moteur, compteur.
 
-const cache = new Map();
-export function vehicleGeometry(model, color) {
-  const key = `${model}|${color}`;
-  if (cache.has(key)) return cache.get(key);
-  const wheel = (sb, x, z, r = 0.3, w = 0.2) => { sb.add(B.cyl(12), { x, y: r, z, sx: r * 2, sy: w, sz: r * 2, rz: Math.PI / 2, color: '#1b1b24' }); sb.add(B.cyl(8), { x, y: r, z, sx: r, sy: w + 0.02, sz: r, rz: Math.PI / 2, color: '#c7ccd4' }); };
-  const geo = buildMergedGeometry((sb) => {
-    if (model === 'trottinette') {
-      sb.box(0, 0.12, 0, 0.35, 0.06, 1.1, color);
-      sb.add(B.cyl(6), { y: 0.15, z: 0.52, sx: 0.06, sy: 1.0, sz: 0.06, rx: -0.15, color: '#30343f' });
-      sb.add(B.cyl(6), { y: 1.1, z: 0.6, sx: 0.05, sy: 0.6, sz: 0.05, rz: Math.PI / 2, color: '#30343f' });
-      wheel(sb, 0, 0.5, 0.11, 0.08); wheel(sb, 0, -0.45, 0.11, 0.08);
-    } else if (model === 'caddie') {
-      const m = '#c7ccd4';
-      for (const x of [-0.35, 0.35]) sb.box(x, 0.35, 0, 0.04, 0.6, 1.0, m);
-      sb.box(0, 0.35, -0.48, 0.74, 0.6, 0.04, m); sb.box(0, 0.35, 0.48, 0.74, 0.6, 0.04, m); sb.box(0, 0.33, 0, 0.74, 0.04, 1.0, m);
-      for (let i = 0; i < 5; i++) { sb.box(-0.36, 0.45 + i * 0.1, 0, 0.05, 0.02, 1.0, color); sb.box(0.36, 0.45 + i * 0.1, 0, 0.05, 0.02, 1.0, color); }
-      sb.box(0, 1.0, -0.62, 0.8, 0.06, 0.06, color);
-      for (const [x, z] of [[-0.3, -0.4], [0.3, -0.4], [-0.3, 0.4], [0.3, 0.4]]) { sb.box(x, 0.1, z, 0.03, 0.25, 0.03, m); wheel(sb, x, z, 0.08, 0.05); }
-      sb.add(B.cone(8), { y: 0.5, z: -0.75, sx: 0.25, sy: 0.4, sz: 0.25, rx: Math.PI / 2 + Math.PI, color: '#ff9f1c' }); // "réacteur"
-    } else if (model === 'scooter') {
-      sb.box(0, 0.3, 0, 0.45, 0.25, 1.3, color);
-      sb.box(0, 0.55, -0.3, 0.4, 0.15, 0.6, '#2b2d42');
-      sb.box(0, 0.3, 0.6, 0.45, 0.8, 0.2, color);
-      sb.add(B.cyl(6), { y: 1.1, z: 0.62, sx: 0.05, sy: 0.75, sz: 0.05, rz: Math.PI / 2, color: '#30343f' });
-      sb.box(0, 0.85, 0.72, 0.2, 0.15, 0.05, '#fff3b0');
-      wheel(sb, 0, 0.62, 0.25, 0.14); wheel(sb, 0, -0.55, 0.25, 0.14);
-    } else {
-      sb.box(0, 0.25, 0, 1.6, 0.55, 2.6, color);
-      sb.box(0, 0.8, 0.95, 1.5, 0.12, 0.6, color);
-      sb.box(0, 0.8, 0.7, 1.45, 0.5, 0.06, '#cfe8ff');
-      for (const x of [-0.35, 0.35]) { sb.box(x, 0.55, -0.25, 0.6, 0.15, 0.6, '#2b2d42'); sb.box(x, 0.65, -0.55, 0.6, 0.6, 0.12, '#2b2d42'); }
-      sb.add(B.cyl(10), { x: -0.35, y: 0.85, z: 0.35, sx: 0.32, sy: 0.04, sz: 0.32, rx: -1.1, color: '#14141c' });
-      sb.box(0, 0.45, 1.31, 1.2, 0.15, 0.02, '#fff3b0'); sb.box(0, 0.45, -1.31, 1.2, 0.12, 0.02, '#e63946');
-      for (const [x, z] of [[-0.8, 0.85], [0.8, 0.85], [-0.8, -0.85], [0.8, -0.85]]) wheel(sb, x, z, 0.3, 0.2);
-    }
-  });
-  cache.set(key, geo);
-  return geo;
+export const VEHICLE_ICON = { board: '🛴', caddie: '🛒', bike: '🚲', scooter: '🛵', moto: '🏍️' };
+export function vehicleIcon(model) {
+  const s = VEHICLES[model];
+  if (!s) return '🚗';
+  if (s.kind !== 'car') return VEHICLE_ICON[s.kind] || '🛵';
+  return { police: '🚓', ambulance: '🚑', pompiers: '🚒', taxi: '🚕', bus: '🚌', suv: '🚙', pickup: '🛻', fourgon: '🚐', camion: '🚚', glace: '🍦', depanneuse: '🛻', sportive: '🏎️' }[model] || '🚗';
+}
+export function vehicleName(model) { return VEHICLES[model]?.name || model; }
+
+const ENGINE_KIND = { board: null, caddie: null, bike: null, scooter: 'moto', moto: 'moto' };
+const tmpV = new THREE.Vector3();
+let nextUid = 1;
+
+// Véhicule présent dans le monde (possédé, emprunté, PNJ...) : simulation + rendu.
+export class WorldVehicle {
+  constructor(game, { model, color = '#e63946', x, z, yaw = 0, owner = 'me', data = null, locked = false, driver = null, driverKey = '' }) {
+    this.game = game;
+    this.uid = nextUid++;
+    this.model = model;
+    this.spec = VEHICLES[model];
+    this.dims = dimsOf(model);
+    this.seat = seatOf(model);
+    this.owner = owner;
+    this.data = data;
+    this.locked = locked;
+    this.color = color;
+    this.visual = new CarVisual(model, { paint: color, driver, driverKey });
+    game.engine.scene.add(this.visual.root);
+    this.sim = new DriveSim(model, game.collision, { x, z, yaw });
+    this.sim.place(x, z, yaw);
+    this.door = 0; this.doorTarget = 0;
+    this.smokeT = 0;
+    this.sleep = 0;
+    this.lastHit = 0;
+    if (data) { this.sim.damage = data.damage || 0; if (data.fuel !== undefined) this.sim.fuel = data.fuel; }
+    this.updateVisual(0);
+  }
+
+  get pos() { return this.sim.pos; }
+  get yaw() { return this.sim.yaw; }
+
+  // point d'accès (portière conducteur, à gauche) dans le monde
+  doorPoint(out = tmpV) {
+    const s = this.sim, fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
+    if (this.spec.kind !== 'car') return out.set(s.pos.x + lx * 0.8, s.pos.y, s.pos.z + lz * 0.8);
+    const side = this.dims.W / 2 + 0.75;
+    return out.set(s.pos.x + lx * side + fx * this.seat.z, s.pos.y, s.pos.z + lz * side + fz * this.seat.z);
+  }
+
+  setPaint(c) { this.color = c; this.visual.setPaint(c); }
+
+  updateVisual(dt, t = 0, night = 0) {
+    const v = this.visual, s = this.sim, u = v.u;
+    v.root.position.copy(s.pos);
+    v.root.rotation.y = s.yaw;
+    v.roll(s.vf * dt, -s.steer);
+    // caisse : tangage au freinage / à l'accélération, roulis en virage (deux-roues : inclinaison)
+    const two = this.spec.kind !== 'car' && this.spec.kind !== 'caddie';
+    const pitch = Math.max(-0.045, Math.min(0.045, -s.accel * 0.0045));
+    const roll = two ? Math.max(-0.5, Math.min(0.5, s.latAcc * 0.05)) : Math.max(-0.05, Math.min(0.05, s.latAcc * 0.0045));
+    const k = Math.min(1, dt * 6);
+    v.tilt.rotation.x += (pitch - v.tilt.rotation.x) * k;
+    v.tilt.rotation.z += ((two && s.speed < 0.3 && !this.driven ? 0.18 : roll) - v.tilt.rotation.z) * k;
+    u.uBrake.value = s.brake ? 1 : 0;
+    u.uRev.value = s.reverse && s.vf < -0.2 ? 1 : 0;
+    v.setLights(this.driven || this.lightsOn ? Math.max(night, this.lightsOn ? 1 : 0) : 0);
+    u.uBlink.value = s.broken || this.hazard ? 1 : 0;
+    u.uDamage.value = Math.min(1, s.damage * 0.85);
+    u.uTime.value = t;
+    // portière
+    this.door += (this.doorTarget - this.door) * Math.min(1, dt * 7);
+    u.uDoor.value = this.door * 1.15;
+  }
+
+  dispose() {
+    this.game.engine.scene.remove(this.visual.root);
+    this.visual.dispose();
+    this.sim.remove();
+  }
 }
 
 export class Vehicles {
   constructor(game) {
     this.game = game;
-    this.parked = null;   // véhicule appelé : { v (données profil), mesh, pos, yaw, speed }
-    this.driving = false;
+    this.list = [];          // véhicules du joueur présents dans le monde
+    this.current = null;     // véhicule conduit
+    this.summoned = null;    // véhicule possédé appelé
+    this.skids = new SkidMarks(game.engine.scene);
+    this.nearest = null;
+    this.handbrake = false;
+    this.dash = h('div.dash.hidden',
+      this.dashSpeed = h('div.speed', '0'), h('div.unit', 'km/h'),
+      h('div.gauges',
+        h('div.g', h('span', '⛽'), h('div.bar', this.fuelBar = h('div'))),
+        h('div.g', h('span', '🔧'), h('div.bar.dmg', this.dmgBar = h('div')))),
+      this.dashName = h('div.name', ''));
+    game.ui.root.append(this.dash);
     game.interactions.add({
-      r: 2.6, priority: 3,
-      x: () => this.parked?.pos.x ?? 1e9, z: () => this.parked?.pos.z ?? 1e9,
-      enabled: () => !!this.parked && !this.driving,
-      label: () => `🔑 Monter : ${SPECS[this.parked?.v.model]?.name}`,
-      action: () => this.enter(),
+      r: 1.9, priority: 3,
+      x: () => this.nearest?.doorPoint().x ?? 1e9, z: () => this.nearest?.doorPoint().z ?? 1e9,
+      enabled: () => !!this.nearest && !this.current && game.player.zone === 'world',
+      label: () => this.enterLabel(this.nearest),
+      action: () => this.tryEnter(this.nearest),
     });
     game.interactions.add({
-      zone: 'any', r: 5, priority: 10,
+      zone: 'any', r: 6, priority: 10,
       x: () => game.player.pos.x, z: () => game.player.pos.z,
-      enabled: () => this.driving, label: '🚪 Descendre du véhicule', action: () => this.exit(),
+      enabled: () => !!this.current, label: () => (this.current?.sim.speed > 3 ? '🚪 Sauter du véhicule !' : '🚪 Descendre du véhicule'), action: () => this.exit(),
     });
-    game.input.on('key', (e) => { if (e.code === 'KeyH' && this.driving) this.honk(); });
+    game.input.on('key', (e) => {
+      if (!this.current || game.ui.blocking) return;
+      if (e.code === 'KeyH') this.honk();
+      if (e.code === 'KeyL') { this.current.lightsOn = !this.current.lightsOn; game.ui.toast(this.current.lightsOn ? 'Phares allumés' : 'Phares automatiques', '', 1200); }
+    });
+    addEventListener('keydown', (e) => { if (e.code === 'Space' && this.current) { this.handbrake = true; e.preventDefault(); } });
+    addEventListener('keyup', (e) => { if (e.code === 'Space') this.handbrake = false; });
     game.on('profile', (p) => {
-      if (!this.parked) return;
-      const v = p.vehicles.find((x) => x.id === this.parked.v.id);
-      if (!v) { this.despawn(); return; }
-      if (v.color !== this.parked.v.color) { this.parked.v = v; this.parked.mesh.geometry = vehicleGeometry(v.model, v.color); }
+      const s = this.summoned;
+      if (!s) return;
+      const v = p.vehicles.find((x) => x.id === s.data.id);
+      if (!v) { this.despawn(s); return; }
+      if (v.color !== s.color) s.setPaint(v.color);
+      s.data = v;
     });
   }
 
+  get driving() { return !!this.current; }
+  get parked() { return this.summoned; }
+
+  enterLabel(v) {
+    if (!v) return '';
+    const name = vehicleName(v.model);
+    if (v.owner === 'me') return `${vehicleIcon(v.model)} Monter : ${name}`;
+    if (v.locked) return `🔒 ${name} (verrouillé)`;
+    return `${vehicleIcon(v.model)} Monter : ${name}`;
+  }
+
+  tryEnter(v) {
+    const g = this.game;
+    if (!v) return;
+    if (v.locked && v.owner !== 'me') { g.sfx('lock'); g.ui.toast('C\'est verrouillé. Ce véhicule n\'est pas à toi.', 'bad'); return; }
+    this.enter(v);
+  }
+
+  // Véhicule possédé : appelé près du joueur (place libre la plus proche).
   summon(vehicleId) {
     const g = this.game;
     if (g.player.zone !== 'world') { g.ui.toast('Impossible d\'appeler un véhicule ici.', 'bad'); return; }
-    const v = g.profile.vehicles.find((x) => x.id === vehicleId);
-    if (!v) return;
-    if (this.driving) this.exit();
-    this.despawn();
-    const yaw = g.player.yaw;
-    const rx = Math.cos(yaw), rz = -Math.sin(yaw);
-    const pos = new THREE.Vector3(g.player.pos.x + rx * 2.4, 0, g.player.pos.z + rz * 2.4);
-    pos.y = g.collision.supportAt(pos.x, pos.z, g.player.pos.y + 0.5, 0.5);
-    const mesh = new THREE.Mesh(vehicleGeometry(v.model, v.color), actorMaterial);
-    mesh.castShadow = true;
-    g.engine.scene.add(mesh);
-    this.parked = { v, mesh, pos, yaw, speed: 0 };
-    this.place();
-    g.fx.burst(pos, '#ffffff', 16);
+    const data = g.profile.vehicles.find((x) => x.id === vehicleId);
+    if (!data || !VEHICLES[data.model]) return;
+    if (this.current) this.exit(true);
+    if (this.summoned) this.despawn(this.summoned);
+    const spot = this.freeSpot(data.model);
+    if (!spot) { g.ui.toast('Pas assez de place ici pour garer ce véhicule. Va dans un endroit plus dégagé.', 'bad'); return; }
+    const veh = new WorldVehicle(g, { model: data.model, color: data.color, x: spot.x, z: spot.z, yaw: spot.yaw, owner: 'me', data });
+    this.summoned = veh;
+    this.list.push(veh);
+    g.fx.burst(veh.pos, '#ffffff', 16);
     g.sfx('pop');
-    g.ui.toast(`${SPECS[v.model].name} livré(e) à côté de toi ! Approche-toi et appuie sur E.`, 'good');
+    g.ui.toast(`${vehicleName(data.model)} livré(e) à côté de toi ! Approche-toi de la portière et appuie sur E.`, 'good');
   }
 
-  despawn() {
-    if (!this.parked) return;
-    this.game.engine.scene.remove(this.parked.mesh);
-    this.parked = null;
+  // Cherche une place libre autour du joueur pour un véhicule.
+  freeSpot(model) {
+    const g = this.game, P = g.player.pos, d = dimsOf(model);
+    const yaw0 = g.player.yaw;
+    const dist = d.W / 2 + 1.6;
+    for (const [side, along] of [[-1, 0], [1, 0], [-1, 3], [1, 3], [-1, -3], [1, -3], [0, 6], [0, -6]]) {
+      const lx = Math.cos(yaw0) * side * dist + Math.sin(yaw0) * along, lz = -Math.sin(yaw0) * side * dist + Math.cos(yaw0) * along;
+      const x = P.x + lx, z = P.z + lz;
+      let free = true;
+      for (let k = -1; k <= 1 && free; k++) {
+        const cx = x + Math.sin(yaw0) * k * (d.L / 2 - d.W / 2), cz = z + Math.cos(yaw0) * k * (d.L / 2 - d.W / 2);
+        tmpV.set(cx, g.collision.supportAt(cx, cz, P.y + 0.5, 0.5), cz);
+        const before = tmpV.clone();
+        g.collision.pushOut(tmpV, d.W / 2, 1.4, 0.45);
+        if (tmpV.distanceTo(before) > 0.05 || Math.abs(before.y - P.y) > 1.2) free = false;
+      }
+      if (free) return { x, z, yaw: yaw0 };
+    }
+    return null;
   }
 
-  enter() {
+  despawn(v) {
+    if (!v) return;
+    if (v === this.current) this.exit(true);
+    this.saveState(v);
+    v.dispose();
+    this.list = this.list.filter((x) => x !== v);
+    if (v === this.summoned) this.summoned = null;
+  }
+
+  enter(v) {
     const g = this.game;
-    if (!this.parked || g.player.carrying || g.jobs?.active?.job.id === 'cook') { g.ui.toast('Impossible de conduire maintenant.', 'bad'); return; }
-    this.driving = true;
-    g.player.vehicle = this.parked.v;
+    if (g.player.carrying || g.jobs?.active?.job.id === 'cook') { g.ui.toast('Impossible de conduire maintenant.', 'bad'); return; }
+    this.current = v;
+    v.driven = true;
+    v.doorTarget = 1;
+    setTimeout(() => { if (this.current === v) v.doorTarget = 0; }, 450);
+    g.player.vehicle = { model: v.model, id: v.data?.id, color: v.color };
+    this.baseScale = g.avatar.root.scale.x;
     g.sfx('door');
-    g.hud.track('vehicle', { title: `🛵 ${SPECS[this.parked.v.model].name}`, text: g.input.isTouch ? 'Joystick : avancer / tourner. Bouton ✋ : descendre.' : 'Z/S : avancer/freiner · Q/D : tourner · H : klaxon · E : descendre' });
+    if (ENGINE_KIND[v.spec.kind] !== null && v.spec.kind !== 'bike') setTimeout(() => g.sfx('start'), 350);
+    this.camDist = g.cam.dist;
+    g.cam.dist = Math.max(g.cam.dist, v.spec.kind === 'car' ? 6 + v.dims.L * 0.9 : 6);
+    this.dash.classList.remove('hidden');
+    this.dashName.textContent = `${vehicleIcon(v.model)} ${vehicleName(v.model)}`;
+    const touch = g.input.isTouch;
+    g.hud.track('vehicle', { title: `${vehicleIcon(v.model)} ${vehicleName(v.model)}`, text: touch ? 'Joystick : avancer / tourner. ✋ : descendre.' : 'Z/S : avancer / freiner / reculer · Q/D : tourner · Espace : frein à main · H : klaxon · L : phares · E : descendre' });
+    this.emit('enter', v);
   }
 
-  exit() {
-    const g = this.game, c = this.parked;
-    if (!this.driving) return;
-    this.driving = false;
+  exit(silent = false) {
+    const g = this.game, v = this.current;
+    if (!v) return;
+    this.current = null;
+    v.driven = false;
+    this.handbrake = false;
     g.player.vehicle = null;
-    c.speed = 0;
-    const rx = Math.cos(c.yaw), rz = -Math.sin(c.yaw);
-    g.player.teleport(c.pos.x - rx * 1.6, c.pos.z - rz * 1.6, c.yaw);
+    g.avatar.root.scale.setScalar(this.baseScale || 1);
+    g.avatar.root.rotation.set(0, v.yaw, 0);
+    // on descend côté conducteur (ou on saute si ça roule)
+    const p = v.doorPoint(new THREE.Vector3());
+    if (!silent) { v.doorTarget = 1; setTimeout(() => { v.doorTarget = 0; }, 600); g.sfx('door'); }
+    g.player.teleport(p.x, p.z, v.yaw + Math.PI / 2);
+    if (v.sim.speed > 3 && !silent) { g.player.vel.set(v.sim.vx * 0.4, 5, v.sim.vz * 0.4); g.player.grounded = false; g.ui.toast('Cascade ! 🤸', '', 1500); }
+    g.cam.dist = this.camDist || 9;
+    g.sound.engineStop();
+    g.sound.skid(0);
+    this.dash.classList.add('hidden');
     g.hud.track('vehicle', null);
+    this.saveState(v);
+    this.emit('exit', v);
   }
+
+  emit(type, v) { this.game.emit(`vehicle.${type}`, v); }
 
   honk() {
-    this.game.sfx('honk');
+    const v = this.current;
+    this.game.sfx(v && (v.dims.L > 5.5) ? 'horn-truck' : 'honk');
     this.game.labels.bubble(this.game.avatar.root, 'Pouet pouet !', 1500, 'player');
+    this.game.emit('honk', v);
   }
 
-  place() {
-    const c = this.parked;
-    c.mesh.position.copy(c.pos);
-    c.mesh.rotation.y = c.yaw;
+  // Envoie l'état (dégâts, carburant) d'un véhicule possédé à l'autorité.
+  saveState(v) {
+    if (!v?.data || v.owner !== 'me') return;
+    const d = Math.round(v.sim.damage * 1000) / 1000, f = Math.round(v.sim.fuel * 10) / 10;
+    if (d === v.data.damage && f === v.data.fuel) return;
+    this.game.net.request('vehicle.state', { vehicleId: v.data.id, damage: d, fuel: f }).catch(() => {});
   }
 
-  update(dt) {
-    const g = this.game, c = this.parked;
-    if (!c) return;
-    if (g.player.zone !== 'world' && !this.driving) { this.despawn(); return; }
-    if (!this.driving) return;
-    const sp = SPECS[c.v.model];
-    const inp = g.input;
+  // Chocs : dégâts, bosses, étincelles, son, secousse.
+  onHits(v, hits, impactScale = 1) {
+    const g = this.game;
+    for (const hit of hits) {
+      if (hit.speed < 1.5) continue;
+      const now = performance.now();
+      const sev = Math.min(1, (hit.speed - 1.5) / 18) * impactScale;
+      v.sim.damage = Math.min(1, v.sim.damage + sev * 0.22 * (v.spec.kind === 'car' ? 1 : 0.6));
+      // coordonnées locales du point d'impact
+      const dx = hit.x - v.pos.x, dz = hit.z - v.pos.z;
+      const s = Math.sin(-v.yaw), c = Math.cos(-v.yaw);
+      const lx = dx * c + dz * s, lz = -dx * s + dz * c;
+      if (v.spec.kind === 'car' && sev > 0.08) v.visual.dent(Math.max(-v.dims.W / 2, Math.min(v.dims.W / 2, lx)), 0.7, Math.max(-v.dims.L / 2, Math.min(v.dims.L / 2, lz)), sev * 1.4);
+      if (now - v.lastHit > 250) {
+        v.lastHit = now;
+        g.sfx(sev > 0.25 ? 'crash' : 'bump');
+        if (v === this.current) g.cam.shake = Math.min(1.2, 0.3 + sev * 1.5);
+        g.fx.emit({ x: hit.x, y: v.pos.y + 0.6, z: hit.z, n: 6 + Math.round(sev * 20), colors: ['#ffd23f', '#ff9f1c', '#ffffff'], speed: 4 + sev * 6, gravity: 12, life: 0.4, size: 0.12 });
+        if (sev > 0.3) g.fx.emit({ x: hit.x, y: v.pos.y + 0.8, z: hit.z, n: 8, colors: ['#9aa0a8', '#c7ccd4'], speed: 2, gravity: -1, life: 1.2, size: 0.6, grow: 1 });
+        // autre véhicule percuté : il prend aussi
+        const other = hit.collider?.vehicle || hit.collider?.car;
+        if (other) g.emit('vehicle.bump', { by: v, other, sev, hit });
+        if (v.sim.broken && v === this.current) g.ui.toast('💥 Ton véhicule est en panne ! Appelle la dépanneuse depuis le téléphone (appli Garage).', 'bad', 5000);
+      }
+    }
+  }
+
+  update(dt, t) {
+    const g = this.game;
+    const night = g.world?.dayNight?.night || 0;
+    const camPos = g.engine.camera.position;
+    for (const v of this.list) {
+      if (v !== this.current) {
+        // véhicule libre : il finit de rouler puis s'endort
+        if (v.sim.speed > 0.05 || v.sleep < 1) {
+          const hits = v.sim.update(dt, { throttle: 0, steer: 0, handbrake: v.sim.speed < 3 });
+          this.onHits(v, hits, 0.6);
+          v.sleep = v.sim.speed < 0.05 ? v.sleep + dt : 0;
+        }
+      }
+      const d = camPos.distanceTo(v.pos);
+      v.visual.setDetail(d < 60 ? 0 : d < 220 ? 1 : 2);
+      v.updateVisual(dt, t, night);
+      this.effects(v, dt);
+    }
+    // véhicule accessible le plus proche
+    this.nearest = null;
+    if (!this.current && g.player.zone === 'world') {
+      let bd = 2.4;
+      for (const v of [...this.list, ...(g.traffic?.enterable?.() || [])]) {
+        if (v.driven) continue;
+        const d = v.doorPoint().distanceTo(g.player.pos);
+        if (d < bd) { bd = d; this.nearest = v; }
+      }
+    }
+    if (this.summoned && g.player.zone !== 'world' && !this.current) this.despawn(this.summoned);
+    this.skids.update(dt);
+    if (!this.current) return;
+    this.drive(dt, t);
+  }
+
+  drive(dt, t) {
+    const g = this.game, v = this.current, s = v.sim, inp = g.input;
     const frozen = g.ui.blocking || g.cutscene;
-    const throttle = frozen ? 0 : inp.move.y, steer = frozen ? 0 : inp.move.x;
-    if (throttle > 0.05) c.speed += throttle * sp.acc * dt * (c.speed < 0 ? 2.5 : 1);
-    else if (throttle < -0.05) c.speed += throttle * sp.acc * dt * (c.speed > 0 ? 2.5 : 0.8);
-    else c.speed *= Math.exp(-1.4 * dt);
-    c.speed = Math.max(-sp.max * 0.35, Math.min(sp.max, c.speed));
-    c.yaw -= steer * sp.turn * dt * Math.max(-1, Math.min(1, c.speed / 4));
-    const before = c.pos.clone();
-    c.pos.x += Math.sin(c.yaw) * c.speed * dt;
-    c.pos.z += Math.cos(c.yaw) * c.speed * dt;
-    const hit = g.collision.pushOut(c.pos, sp.radius, 1.4, 0.6);
-    if (hit && Math.abs(c.speed) > 4) { c.speed *= -0.25; g.sfx('land'); g.cam.shake = 0.4; } else if (hit) c.speed *= 0.6;
-    const support = g.collision.supportAt(c.pos.x, c.pos.z, c.pos.y + 0.5, sp.radius * 0.5, 0.6);
-    c.pos.y += (support - c.pos.y) * Math.min(1, dt * 12);
-    // dans l'eau profonde : le véhicule coule
-    if (groundHeight(c.pos.x, c.pos.z) < WATER_LEVEL - 0.7) {
-      g.ui.toast('Glouglou... ton véhicule a coulé. Il retourne au garage (rappelle-le depuis le téléphone).', 'bad', 5000);
+    const ctl = { throttle: frozen ? 0 : inp.move.y, steer: frozen ? 0 : inp.move.x, handbrake: frozen ? false : this.handbrake || g.touch?.handbrake };
+    const fuelBefore = s.fuel;
+    const hits = s.update(dt, ctl);
+    this.onHits(v, hits, 1);
+    if (fuelBefore > 0 && s.fuel <= 0 && s.spec.fuel > 0) g.ui.toast('⛽ Panne sèche ! Pousse ton véhicule jusqu\'à une station-service, ou appelle la dépanneuse.', 'bad', 5000);
+    if (s.sunk) {
+      g.ui.toast('Glouglou... ton véhicule a coulé. La dépanneuse le ramène (rappelle-le depuis le téléphone).', 'bad', 5000);
       g.sfx('splat');
-      const p = before;
-      this.exit();
-      g.player.teleport(p.x, p.z, c.yaw);
-      this.despawn();
+      s.damage = Math.max(s.damage, 0.6);
+      const back = s.pos.clone().sub(new THREE.Vector3(Math.sin(s.yaw), 0, Math.cos(s.yaw)).multiplyScalar(6));
+      this.exit(true);
+      g.player.teleport(back.x, back.z, s.yaw);
+      this.despawn(v);
       return;
     }
-    this.place();
-    c.mesh.rotation.z = -steer * Math.min(1, Math.abs(c.speed) / sp.max) * (c.v.model === 'scooter' || c.v.model === 'trottinette' ? 0.25 : 0.04);
-    // le joueur est assis / debout sur le véhicule
-    const p = g.player;
-    const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), rx = Math.cos(c.yaw), rz = -Math.sin(c.yaw);
-    p.pos.set(c.pos.x + fx * sp.seatZ + rx * (sp.seatX || 0), c.pos.y + sp.seatY, c.pos.z + fz * sp.seatZ + rz * (sp.seatX || 0));
-    p.yaw = c.yaw;
-    p.speed = Math.abs(c.speed);
+    // le personnage est assis dans le véhicule
+    const p = g.player, seat = v.seat;
+    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
+    p.pos.set(s.pos.x + fx * seat.z + lx * seat.x, s.pos.y + seat.y, s.pos.z + fz * seat.z + lz * seat.x);
+    p.yaw = s.yaw;
+    p.speed = s.speed;
     p.grounded = true;
-    g.avatar.root.position.copy(p.pos);
-    g.avatar.root.rotation.y = c.yaw;
-    g.avatar.root.rotation.z = c.mesh.rotation.z;
-    g.avatar.update(dt, { speed: 0, grounded: true, pose: sp.pose });
-    // la caméra se replace doucement derrière le véhicule
-    if (Math.abs(c.speed) > 2 && !inp.look.dx) {
-      const want = c.yaw + Math.PI;
-      g.cam.yaw += Math.atan2(Math.sin(want - g.cam.yaw), Math.cos(want - g.cam.yaw)) * Math.min(1, dt * 2.2);
+    const av = g.avatar.root;
+    av.position.copy(p.pos);
+    av.rotation.set(v.visual.tilt.rotation.x, s.yaw, v.visual.tilt.rotation.z, 'YXZ');
+    av.scale.setScalar((this.baseScale || 1) * seat.s);
+    g.avatar.update(dt, { speed: 0, grounded: true, pose: seat.pose });
+    // caméra : se replace derrière le véhicule, recule avec la vitesse
+    if (Math.abs(s.vf) > 2 && !inp.look.dx) {
+      const want = s.yaw + Math.PI + (s.vf < 0 ? Math.PI : 0) * 0;
+      g.cam.yaw += Math.atan2(Math.sin(want - g.cam.yaw), Math.cos(want - g.cam.yaw)) * Math.min(1, dt * 2.4);
     }
-    if (c.v.model === 'caddie' && c.speed > 8 && Math.random() < dt * 20) g.fx.emit({ x: c.pos.x - fx * 0.8, y: c.pos.y + 0.5, z: c.pos.z - fz * 0.8, n: 1, colors: ['#ff9f1c', '#ffd23f'], speed: 1, gravity: 0, life: 0.3, size: 0.25 });
+    // son moteur / pneus
+    const ratio = Math.abs(s.vf) / v.spec.max;
+    const gears = 5, gpos = ratio * gears, gear = Math.min(gears - 1, Math.floor(gpos));
+    const rpm = s.broken ? 0.05 : Math.min(1, 0.18 + (gpos - gear) * 0.7 + gear * 0.04);
+    const kind = v.spec.kind === 'car' ? (v.dims.L > 5.5 ? 'truck' : 'car') : ENGINE_KIND[v.spec.kind];
+    g.sound.engine(s.outOfFuel || s.broken ? null : { kind, rpm, load: Math.max(0, ctl.throttle) });
+    g.sound.skid(s.skid * Math.min(1, s.speed / 6));
+    // compteur
+    this._dashT = (this._dashT || 0) + dt;
+    if (this._dashT > 0.1) {
+      this._dashT = 0;
+      this.dashSpeed.textContent = Math.round(s.speed * 3.6);
+      this.fuelBar.style.width = `${v.spec.fuel ? Math.round((s.fuel / v.spec.fuel) * 100) : 100}%`;
+      this.fuelBar.parentElement.parentElement.style.display = v.spec.fuel ? '' : 'none';
+      this.dmgBar.style.width = `${Math.round((1 - s.damage) * 100)}%`;
+    }
+    // sauvegarde périodique de l'état
+    this._saveT = (this._saveT || 0) + dt;
+    if (this._saveT > 15) { this._saveT = 0; this.saveState(v); }
   }
 
-  mapMarkers() { return this.parked && !this.driving ? [{ x: this.parked.pos.x, z: this.parked.pos.z, color: '#2ec4b6', icon: '🛵', r: 4 }] : []; }
+  // Traces de pneus, fumée de dérapage, fumée de moteur abîmé.
+  effects(v, dt) {
+    const g = this.game, s = v.sim;
+    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), lx = Math.cos(s.yaw), lz = -Math.sin(s.yaw);
+    const D = v.dims;
+    if (s.skid > 0.25 && s.speed > 2 && v.spec.kind !== 'board') {
+      const half = D.track || 0;
+      for (const side of half ? [-1, 1] : [0]) {
+        const x = s.pos.x + fx * D.zR + lx * side * half, z = s.pos.z + fz * D.zR + lz * side * half;
+        this.skids.add(`${v.uid}r${side}`, x, s.pos.y, z, v.spec.kind === 'car' ? 0.24 : 0.12, Math.min(1, s.skid));
+      }
+      if (Math.random() < dt * 25 * s.skid) g.fx.emit({ x: s.pos.x + fx * D.zR, y: s.pos.y + 0.25, z: s.pos.z + fz * D.zR, n: 1, colors: ['#d8d8d8', '#bfbfbf'], speed: 1, gravity: -1.5, life: 1.0, size: 0.7, grow: 1.4, jitter: 1 });
+    } else {
+      for (const side of [-1, 0, 1]) this.skids.lift(`${v.uid}r${side}`);
+    }
+    v.smokeT -= dt;
+    if (s.damage > 0.45 && v.smokeT <= 0 && v.visual.lod === 0) {
+      v.smokeT = s.damage > 0.85 ? 0.08 : 0.25;
+      const black = s.damage > 0.85;
+      g.fx.emit({ x: s.pos.x + fx * (D.L / 2 - 0.6), y: s.pos.y + (v.spec.kind === 'car' ? 1.0 : 0.7), z: s.pos.z + fz * (D.L / 2 - 0.6), n: 1, colors: black ? ['#3a3a3a', '#555555'] : ['#c8c8c8', '#a8a8a8'], speed: 1.2, gravity: -2, life: 1.6, size: 0.6, grow: 1.6, jitter: 0.4 });
+    }
+  }
+
+  mapMarkers() {
+    return this.summoned && !this.summoned.driven ? [{ x: this.summoned.pos.x, z: this.summoned.pos.z, color: '#2ec4b6', icon: vehicleIcon(this.summoned.model), r: 4 }] : [];
+  }
 }
 
-// Panneau "Garage" (téléphone) : appeler un véhicule, le repeindre.
+// Panneau "Garage" (téléphone) : appeler un véhicule, voir son état, le repeindre.
 export function garagePanel(game, container, refresh) {
   const p = game.profile;
-  if (!p.vehicles.length) { container.append(h('p', 'Tu n\'as pas encore de véhicule. Le Garage Roule-Toujours est sur la Grande Place (côté est).')); return; }
+  if (!p.vehicles.length) { container.append(h('p', 'Tu n\'as pas encore de véhicule. Le Garage Roule-Toujours (Grande Place, côté est) en vend.')); return; }
   for (const v of p.vehicles) {
-    container.append(h('div.list-item', h('span', { style: { fontSize: '26px' } }, { trottinette: '🛴', caddie: '🛒', scooter: '🛵', voiturette: '🚗' }[v.model]),
-      h('div.grow', h('div.t', SPECS[v.model].name), h('div.d', h('span', { style: { display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: v.color, verticalAlign: 'middle', marginRight: '6px' } }), 'Peinture actuelle')),
+    const spec = VEHICLES[v.model];
+    if (!spec) continue;
+    const state = [];
+    if (spec.fuel) state.push(`⛽ ${Math.round(((v.fuel ?? spec.fuel) / spec.fuel) * 100)} %`);
+    state.push(`🔧 ${Math.round((1 - (v.damage || 0)) * 100)} %`);
+    container.append(h('div.list-item', h('span', { style: { fontSize: '26px' } }, vehicleIcon(v.model)),
+      h('div.grow', h('div.t', spec.name), h('div.d', h('span', { style: { display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: v.color, verticalAlign: 'middle', marginRight: '6px' } }), state.join(' · '))),
       h('button.btn.small', { onclick: () => { game.phone?.close(); game.vehicles.summon(v.id); } }, 'Appeler')));
   }
   container.append(h('p.muted', { style: { marginTop: '10px' } }, `Peintures en stock : ${p.inventory.peinture || 0} (Garage Roule-Toujours, 150 PC).`));
   if (p.inventory.peinture > 0) {
     for (const v of p.vehicles) {
-      container.append(h('div.field', h('label', `Repeindre : ${SPECS[v.model].name}`), h('div.swatches', ['#ff5a5f', '#ff9f1c', '#ffd23f', '#7ac74f', '#2ec4b6', '#3d8ee8', '#5b3fa6', '#c77dff', '#ff8fab', '#f4f1ea', '#2b2d42', '#14213d'].map((c) => h('button.swatch', {
+      container.append(h('div.field', h('label', `Repeindre : ${vehicleName(v.model)}`), h('div.swatches', CAR_PAINTS.map((c) => h('button.swatch', {
         style: { background: c }, onclick: async () => { try { await game.net.request('vehicle.paint', { vehicleId: v.id, color: c }); game.ui.toast('Nouvelle couleur !', 'good'); refresh?.(); } catch (e) { game.ui.toast(e.message, 'bad'); } },
       })))));
     }

@@ -63,10 +63,10 @@ export class Collision {
   }
 
   // Hauteur du support sous (x, z) pour des pieds situés à y (on peut monter une marche de stepH).
-  supportAt(x, z, y, r = 0.3, stepH = 0.5) {
+  supportAt(x, z, y, r = 0.3, stepH = 0.5, ignore = null) {
     let best = groundHeight(x, z);
     this.near(x, z, r, (c) => {
-      if (c.maxY > y + stepH || c.noStand) return;
+      if (c.maxY > y + stepH || c.noStand || (ignore && c.owner === ignore)) return;
       if (c.type === 'box') {
         if (x > c.minX - r * 0.5 && x < c.maxX + r * 0.5 && z > c.minZ - r * 0.5 && z < c.maxZ + r * 0.5) best = Math.max(best, c.maxY);
       } else if (Math.hypot(x - c.x, z - c.z) < c.r + r * 0.5) best = Math.max(best, c.maxY);
@@ -75,12 +75,12 @@ export class Collision {
   }
 
   // Repousse un cylindre (pos.x, pos.z, rayon r, pieds pos.y, hauteur h) hors des obstacles.
-  // Renvoie le collider touché le plus récent (ou null).
-  pushOut(pos, r, h, stepH = 0.5) {
+  // Renvoie le collider touché le plus récent (ou null). ignore : propriétaire dont on ignore les colliders.
+  pushOut(pos, r, h, stepH = 0.5, ignore = null) {
     let hit = null;
     for (let iter = 0; iter < 2; iter++) {
       this.near(pos.x, pos.z, r + 1, (c) => {
-        if (c.maxY <= pos.y + stepH || c.minY >= pos.y + h) return;
+        if (c.maxY <= pos.y + stepH || c.minY >= pos.y + h || (ignore && c.owner === ignore)) return;
         if (c.type === 'box') {
           const cx = Math.max(c.minX, Math.min(pos.x, c.maxX));
           const cz = Math.max(c.minZ, Math.min(pos.z, c.maxZ));

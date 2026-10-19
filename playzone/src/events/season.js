@@ -29,7 +29,7 @@ export class Season {
           m.castShadow = true;
           game.engine.scene.add(m);
         } else if (deco.type === 'ghost') {
-          const m = new THREE.Mesh(GHOST, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: actorMaterial.gradientMap, transparent: true, opacity: 0.8 }));
+          const m = new THREE.Mesh(GHOST, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, transparent: true, opacity: 0.8 }));
           m.position.set(x, 1.5, z);
           game.engine.scene.add(m);
           this.ghosts.push({ m, x, z, p: Math.random() * 6 });

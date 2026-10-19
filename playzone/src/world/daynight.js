@@ -59,16 +59,29 @@ export class DayNight {
     u.starAmount.value = L('stars');
     const light = L('light'), sun = L('sun');
     e.scene.fog.color.copy(this.hor);
-    e.hemi.intensity = 0.55 + light * 1.1;
+    // lumière ambiante : ciel (hémisphère) + carte d'environnement (reflets), soleil direct
+    const env = e.quality !== 'low';
+    e.hemi.intensity = env ? 0.35 + light * 0.75 : 0.55 + light * 1.1;
     e.hemi.color.set(light > 0.6 ? 0xdff3ff : 0x8fa0d8);
-    e.sun.intensity = sun * 2.2;
+    e.scene.environmentIntensity = 0.25 + light * 0.55;
+    e.sun.intensity = sun * 2.6;
     // course du soleil (de l'est vers l'ouest)
     const ang = ((h - 6) / 14) * Math.PI;
     e.sunOffset.set(Math.cos(ang) * -70 + 20, Math.max(25, Math.sin(ang) * 90), 35);
     u.sunDir.value.copy(e.sunOffset).normalize();
     e.sun.color.set(h < 8 || h > 17.5 ? 0xffc890 : 0xfff1d6);
     this.night = L('win');
-    MATS.windows.color.setRGB(0.36 + 0.64 * this.night, 0.42 + 0.53 * this.night, 0.54 + 0.2 * this.night);
+    MATS.windows.emissiveIntensity = this.night * 1.15;
+    // reflets : recalculés tous les quarts d'heure du jeu (≈ toutes les 12 s)
+    const bucket = Math.floor(h * 4);
+    if (env && (bucket !== this._envBucket || e.envDirty)) {
+      this._envBucket = bucket; e.envDirty = false;
+      this._ground ||= new THREE.Color();
+      this._ground.set('#5d6b4a').multiplyScalar(0.25 + light * 0.75);
+      this._sunCol ||= new THREE.Color();
+      this._sunCol.copy(e.sun.color).multiplyScalar(sun);
+      e.updateEnvironment(this.top, this.hor, this._ground, e.sunOffset, this._sunCol);
+    }
     MATS.glow.color.setScalar(0.45 + 0.55 * this.night);
     if (this.water) this.water.material.uniforms.light.value = 0.45 + 0.55 * light;
   }

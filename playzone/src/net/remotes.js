@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { Avatar } from '../characters/avatar.js';
 import { PetFollower } from '../animals/pets.js';
-import { vehicleGeometry, SPECS } from '../vehicles/vehicles.js';
-import { actorMaterial } from '../core/materials.js';
+import { CarVisual, seatOf } from '../vehicles/car-models.js';
+import { VEHICLES } from '../../shared/content/vehicles.js';
 import { JOB_BY_ID } from '../../shared/content/jobs.js';
 import { levelFromXp } from '../../shared/rules.js';
 import { h } from '../ui/dom.js';
@@ -67,28 +67,45 @@ class Remote {
     this.avatar.root.visible = visible;
     this.avatar.root.position.copy(this.pos);
     this.avatar.root.rotation.y = this.yaw;
-    // véhicule
-    if (s.v && visible) {
+    // véhicule : le joueur est assis ; on en déduit la position de la caisse
+    if (s.v && visible && VEHICLES[s.v]) {
       if (!this.veh || this.vehKey !== `${s.v}|${s.c}`) {
-        if (this.veh) this.game.engine.scene.remove(this.veh);
+        this.disposeVehicle();
         this.vehKey = `${s.v}|${s.c}`;
-        this.veh = new THREE.Mesh(vehicleGeometry(s.v, s.c || '#ff5a5f'), actorMaterial);
-        this.game.engine.scene.add(this.veh);
+        this.veh = new CarVisual(s.v, { paint: s.c || '#e63946' });
+        this.game.engine.scene.add(this.veh.root);
       }
-      const sp = SPECS[s.v];
-      this.veh.visible = true;
-      this.veh.position.set(this.pos.x - Math.sin(this.yaw) * sp.seatZ, this.pos.y - sp.seatY, this.pos.z - Math.cos(this.yaw) * sp.seatZ);
-      this.veh.rotation.y = this.yaw;
-    } else if (this.veh) { this.veh.visible = false; }
-    this.avatar.update(dt, { speed: s.v ? 0 : s.s, grounded: !!s.g, swimming: !!s.w, pose: s.v ? SPECS[s.v]?.pose || 'sit' : s.p, dance: s.d });
+      const seat = seatOf(s.v);
+      const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw), lx = Math.cos(this.yaw), lz = -Math.sin(this.yaw);
+      const cx = this.pos.x - fx * seat.z - lx * seat.x, cz = this.pos.z - fz * seat.z - lz * seat.x;
+      const moved = this.lastVeh ? Math.hypot(cx - this.lastVeh.x, cz - this.lastVeh.z) : 0;
+      this.lastVeh = { x: cx, z: cz };
+      this.veh.root.visible = true;
+      this.veh.root.position.set(cx, this.pos.y - seat.y, cz);
+      this.veh.root.rotation.y = this.yaw;
+      const dyaw = Math.atan2(Math.sin(this.yaw - (this.prevYaw ?? this.yaw)), Math.cos(this.yaw - (this.prevYaw ?? this.yaw)));
+      this.veh.roll(moved, Math.max(-0.5, Math.min(0.5, dyaw / Math.max(0.001, dt) * 0.3)));
+      this.veh.setLights(this.game.world?.dayNight?.night || 0);
+      this.veh.setDetail(this.game.engine.camera.position.distanceTo(this.pos) < 60 ? 0 : 1);
+      this.avatar.root.scale.setScalar((this.info.appearance?.height || 1) * seat.s);
+    } else if (this.veh) { this.veh.root.visible = false; this.avatar.root.scale.setScalar(this.info.appearance?.height || 1); }
+    this.prevYaw = this.yaw;
+    this.avatar.update(dt, { speed: s.v ? 0 : s.s, grounded: !!s.g, swimming: !!s.w, pose: s.v ? seatOf(s.v)?.pose || 'sit' : s.p, dance: s.d });
     this.pet?.update(dt, t, { pos: this.pos, yaw: this.yaw, speed: s.s, zone: this.zone }, visible && !s.v);
+  }
+
+  disposeVehicle() {
+    if (!this.veh) return;
+    this.game.engine.scene.remove(this.veh.root);
+    this.veh.dispose();
+    this.veh = null;
   }
 
   dispose() {
     this.avatar.dispose();
     this.game.labels.remove(this.label);
     this.pet?.dispose();
-    if (this.veh) this.game.engine.scene.remove(this.veh);
+    this.disposeVehicle();
   }
 }
 

@@ -1,5 +1,21 @@
 // Pack de contenu de base de PLAYZONE (version 0.1). Les packs suivants (saisons, mises à jour)
 // ajoutent des objets, missions, mini-jeux et événements au même format : voir registry.js.
+import { VEHICLES } from '../vehicles.js';
+
+// Véhicules neufs vendus par le garage (le prix et le niveau viennent du catalogue des véhicules).
+const NEW_CARS = [
+  ['velo', '🚲', 'Écologique, silencieux, parfait pour doubler les escargots.'],
+  ['moto', '🏍️', 'Pour arriver avant tout le monde (et décoiffé).'],
+  ['citadine', '🚗', 'Se gare partout, même là où il ne faut pas.'],
+  ['berline', '🚘', 'Confortable. Le siège passager est réservé à votre ego.'],
+  ['break', '🚙', 'Un coffre assez grand pour un canapé et deux poulets.'],
+  ['fourgon', '🚐', 'Idéal pour déménager... ou faire semblant d\'être livreur.'],
+  ['pickup', '🛻', 'La benne est fournie avec un mystérieux carton.'],
+  ['suv', '🚙', 'Monte sur les trottoirs (ne le faites pas).'],
+  ['camion', '🚚', 'Il klaxonne comme un paquebot.'],
+  ['coupe', '🏎️', 'Deux portes, zéro place pour vos courses.'],
+  ['sportive', '🏎️', 'Accélère plus vite que vos économies ne disparaissent.'],
+].map(([id, emoji, desc]) => ({ id, name: VEHICLES[id].name, shop: 'vehicles', vehicle: id, price: VEHICLES[id].price, level: VEHICLES[id].level, emoji, desc, max: 1 }));
 
 export default {
   id: 'base',
@@ -75,6 +91,7 @@ export default {
     { id: 'caddie', name: 'Caddie Turbo', shop: 'vehicles', vehicle: 'caddie', price: 1200, level: 2, emoji: '🛒', desc: 'Volé ? Non. "Emprunté pour la science".', max: 1 },
     { id: 'scooter', name: 'Scooter', shop: 'vehicles', vehicle: 'scooter', price: 1800, level: 3, emoji: '🛵', desc: 'Vroum, mais poliment.', max: 1 },
     { id: 'voiturette', name: 'Voiturette', shop: 'vehicles', vehicle: 'voiturette', price: 4500, level: 5, emoji: '🚗', desc: 'Deux places, dont une pour votre animal.', max: 1 },
+    ...NEW_CARS,
     { id: 'peinture', name: 'Peinture personnalisée', shop: 'vehicles', consumable: true, price: 150, emoji: '🎨', desc: 'Change la couleur d\'un de vos véhicules.', special: 'paint' },
   ],
 
