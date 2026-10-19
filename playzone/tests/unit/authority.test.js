@@ -116,10 +116,10 @@ test('parcours : le serveur chronomètre lui-même via les positions', () => {
   auth.handle(ctx, 'mg.start', { id: 'parcours' });
   assert.equal(auth.handle(ctx, 'mg.finish', {}).ok, false);
   let now = ctx.now + 3000;
-  for (const cp of spot.checkpoints) { now += 5000; ctx.now = now; ctx.pos = { x: cp.x, y: cp.y, z: cp.z }; auth.onPosition(ctx); }
+  for (const cp of spot.checkpoints) { now += 4000; ctx.now = now; ctx.pos = { x: cp.x, y: cp.y, z: cp.z }; auth.onPosition(ctx); }
   const fin = auth.handle(ctx, 'mg.finish', {});
   assert.ok(fin.ok, fin.error);
-  assert.equal(fin.data.score, 30);
+  assert.equal(fin.data.score, 24);
   assert.equal(fin.data.medal, 'or');
 });
 

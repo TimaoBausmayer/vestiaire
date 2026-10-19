@@ -92,6 +92,7 @@ export class LocalConnection extends Emitter {
 
   async request(type, payload) {
     if (!this.profile) throw new Error('Pas de profil.');
+    this.beforeRequest?.(); // position à jour avant toute décision de l'autorité
     const res = this.authority.handle(this.ctx(), type, payload);
     if (!res.ok) throw new Error(res.error);
     if (res.changed) { this.save(); this.emit('profile', this.profile); }

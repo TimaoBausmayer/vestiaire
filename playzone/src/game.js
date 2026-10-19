@@ -20,6 +20,7 @@ import { NPCs } from './characters/npcs.js';
 import { Animals } from './animals/animals.js';
 import { Traffic } from './world/traffic.js';
 import { Secrets } from './world/secrets.js';
+import { Minigames } from './minigames/index.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
 import { DEFAULT_APPEARANCE } from '../shared/appearance.js';
 import { levelFromXp } from '../shared/rules.js';
@@ -42,10 +43,11 @@ export class Game extends Emitter {
     this.interactions = new Interactions();
     this.sound = new Sfx();
     this.world = new World(this.engine, this.collision);
+    this.ui = new UI(this.uiRoot, this);
+    this.minigames = new Minigames(this); // ajoute aussi le décor des stands au monde
     this.world.build();
     if (this.qs.has('heure')) this.world.dayNight.forcedHour = +this.qs.get('heure');
 
-    this.ui = new UI(this.uiRoot, this);
     this.labels = new WorldLabels(this.ui.labels, this.engine.camera);
     this.avatar = new Avatar(DEFAULT_APPEARANCE);
     this.engine.scene.add(this.avatar.root);
@@ -63,7 +65,7 @@ export class Game extends Emitter {
     this.npcs = new NPCs(this);
     this.animals = new Animals(this);
     this.traffic = new Traffic(this);
-    this.ambient = [this.npcs, this.animals, this.traffic, this.fx];
+    this.ambient = [this.npcs, this.animals, this.traffic, this.minigames, this.fx];
 
     this.engine.onUpdate((dt, t) => this.update(dt, t));
     this.engine.start();
@@ -107,6 +109,7 @@ export class Game extends Emitter {
 
   afterConnect() {
     this.titleOrbit = false;
+    this.net.beforeRequest = () => { if (this.playing) this.net.sendState(this.player.netState(), this.player.zone); };
     this.net.on('profile', (p) => this.setProfile(p));
     if (!this.net.profile) {
       this.avatar.root.visible = true;
@@ -235,7 +238,7 @@ export class Game extends Emitter {
 
   // Marqueurs pour la mini-carte et la carte du téléphone.
   mapMarkers() {
-    const out = [];
+    const out = [...this.minigames.mapMarkers()];
     for (const s of this.systems) if (s.mapMarkers) out.push(...s.mapMarkers());
     return out;
   }

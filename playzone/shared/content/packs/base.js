@@ -82,7 +82,7 @@ export default {
   minigames: [
     { id: 'tartes', name: 'Bataille de tartes', emoji: '🥧', spot: 'pieToss', duration: 40, kind: 'score', targets: 40, reward: { base: 10, per: 2, cap: 90 }, xp: { base: 10, per: 1, cap: 60 },
       rules: 'Lance des tartes (clic / bouton) sur les cibles en carton. Cible normale : +1. Cible dorée : +3. Ne touche PAS Mamie Simone : -2. 40 secondes !' },
-    { id: 'parcours', name: 'Parcours du Combattant Mou', emoji: '🏃', spot: 'obstacle', kind: 'time', minTime: 16, maxTime: 180, reward: { gold: 30, silver: 45, bronze: 70, gold_pc: 80, silver_pc: 50, bronze_pc: 30, finish_pc: 15 }, xp: { base: 25 },
+    { id: 'parcours', name: 'Parcours du Combattant Mou', emoji: '🏃', spot: 'obstacle', kind: 'time', minTime: 11, maxTime: 180, reward: { gold: 26, silver: 38, bronze: 60, gold_pc: 80, silver_pc: 50, bronze_pc: 30, finish_pc: 15 }, xp: { base: 25 },
       rules: 'Traverse les 6 anneaux dans l\'ordre le plus vite possible. Attention aux bras tournants et aux plateformes qui bougent. Tomber dans la boue te renvoie au dernier anneau.' },
     { id: 'poulets', name: 'Course de poulets', emoji: '🐔', spot: 'chickenRace', duration: 60, kind: 'score', chickens: 12, reward: { base: 10, per: 6, cap: 90 }, xp: { base: 10, per: 3, cap: 50 },
       rules: 'Attrape les poulets (approche-toi et appuie sur E / bouton main) puis ramène-les dans le panier au centre de l\'enclos. 60 secondes. Un poulet à la fois !' },
