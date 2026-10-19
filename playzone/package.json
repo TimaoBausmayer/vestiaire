@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server/index.js",
     "vendor": "node tools/vendor-three.js",
-    "test": "node --disable-warning=ExperimentalWarning --test tests/unit/",
+    "test": "node --disable-warning=ExperimentalWarning --test tests/unit/*.test.js",
     "test:e2e": "node --disable-warning=ExperimentalWarning tests/e2e/run.js"
   },
   "engines": {

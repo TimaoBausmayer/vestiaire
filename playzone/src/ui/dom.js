@@ -1,5 +1,7 @@
 // Création d'éléments DOM sans innerHTML (le texte des joueurs n'est jamais interprété comme du HTML).
 export function h(tag, attrs = {}, ...children) {
+  // le 2e argument peut directement être un enfant (texte, élément, liste)
+  if (attrs === null || typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs)) { children.unshift(attrs); attrs = {}; }
   const [name, ...classes] = tag.split('.');
   const el = document.createElement(name || 'div');
   if (classes.length) el.className = classes.join(' ');

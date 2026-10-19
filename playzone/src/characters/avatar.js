@@ -128,7 +128,7 @@ function buildHead(sb, a, extra) {
       cap(0.63, 0.66, 0.62, -0.25);
       if (!hairUnderHat) sb.add(B.sphere(10), { y: 0.66, z: -0.08, sx: 0.26, sy: 0.24, sz: 0.26, color: hc });
       break;
-    case 'afro': if (!hairUnderHat) sb.add(B.ico1(), { y: 0.48, z: -0.03, sx: 0.9, sy: 0.75, sz: 0.85, color: hc }); else cap(0.66, 0.66, 0.64, -0.2); break;
+    case 'afro': if (!hairUnderHat) { sb.add(B.ico1(), { y: 0.5, z: -0.13, sx: 0.84, sy: 0.74, sz: 0.72, color: hc }); cap(0.64, 0.7, 0.62, -0.35); } else cap(0.66, 0.66, 0.64, -0.2); break;
     case 'crete':
       if (!hairUnderHat) for (let i = 0; i < 5; i++) sb.add(B.box(), { y: 0.52 + Math.sin((i / 4) * Math.PI) * 0.06, z: 0.2 - i * 0.11, sx: 0.08, sy: 0.22, sz: 0.1, color: hc });
       break;
@@ -144,8 +144,8 @@ function buildHead(sb, a, extra) {
   switch (hat) {
     case 'casquette': case 'casquette-livreur': {
       const c = hat === 'casquette-livreur' ? '#ffd23f' : '#ff5a5f';
-      sb.add(B.hemi(14), { y: 0.36, sx: 0.65, sy: 0.6, sz: 0.64, color: c });
-      sb.add(B.box(), { y: 0.38, z: 0.33, sx: 0.42, sy: 0.04, sz: 0.26, color: darker(c) });
+      sb.add(B.hemi(14), { y: 0.42, sx: 0.64, sy: 0.5, sz: 0.63, color: c });
+      sb.add(B.box(), { y: 0.43, z: 0.33, sx: 0.4, sy: 0.04, sz: 0.24, rx: -0.12, color: darker(c) });
       if (hat === 'casquette-livreur') sb.add(B.box(), { y: 0.5, z: 0.31, sx: 0.14, sy: 0.09, sz: 0.02, rx: -0.4, color: '#2d3a8c' });
       break;
     }
