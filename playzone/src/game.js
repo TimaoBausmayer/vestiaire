@@ -21,6 +21,7 @@ import { Animals } from './animals/animals.js';
 import { Traffic } from './world/traffic.js';
 import { Secrets } from './world/secrets.js';
 import { Minigames } from './minigames/index.js';
+import { Jobs } from './jobs/index.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
 import { DEFAULT_APPEARANCE } from '../shared/appearance.js';
 import { levelFromXp } from '../shared/rules.js';
@@ -133,6 +134,7 @@ export class Game extends Emitter {
     this.cam.pitch = 0.38;
     this.setupWorldInteractions();
     this.secrets = this.addSystem(new Secrets(this));
+    this.jobs = this.addSystem(new Jobs(this));
     this.hud.addButton('📱', 'Téléphone (P)', () => this.phone?.toggle());
     this.hud.addButton('👕', 'Garde-robe', () => openWardrobe(this));
     this.muteBtn = this.hud.addButton(this.sound.muted ? '🔇' : '🔊', 'Son', () => { this.sound.setMuted(!this.sound.muted); this.muteBtn.textContent = this.sound.muted ? '🔇' : '🔊'; });
@@ -216,14 +218,14 @@ export class Game extends Emitter {
   }
 
   interact() {
-    if (!this.playing || this.ui.blocking) return;
+    if (!this.playing || this.ui.blocking || this.cutscene) return;
     if (this.interactions.trigger()) this.sfx('click');
   }
 
   onKey(e) {
     if (!this.playing) return;
     const k = e.key.toLowerCase();
-    if (this.ui.blocking) return;
+    if (this.ui.blocking || this.cutscene) return;
     if (e.code === 'KeyE') this.interact();
     else if (k === 'p' || e.code === 'Tab') this.phone?.toggle();
     else if (k === 'm') this.phone?.open('map');
@@ -264,7 +266,7 @@ export class Game extends Emitter {
       this.player.frozen = this.ui.blocking || !!this.cutscene;
       this.player.update(dt, this.input, this.cam.yaw);
       for (const s of this.systems) s.update?.(dt, t);
-      const it = this.ui.blocking ? null : this.interactions.update(this.player.pos, this.player.zone);
+      const it = this.ui.blocking || this.cutscene ? null : this.interactions.update(this.player.pos, this.player.zone);
       this.ui.prompt(it ? this.interactions.label() : null);
       this._net = (this._net || 0) + dt;
       if (this._net >= 0.1) { this._net = 0; this.net.sendState(this.player.netState(), this.player.zone); }
