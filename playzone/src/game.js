@@ -30,6 +30,7 @@ import { Events } from './events/events.js';
 import { Season } from './events/season.js';
 import { Remotes } from './net/remotes.js';
 import { Social } from './net/social.js';
+import { TouchControls } from './ui/touch.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
 import { DEFAULT_APPEARANCE } from '../shared/appearance.js';
 import { levelFromXp } from '../shared/rules.js';
@@ -157,6 +158,7 @@ export class Game extends Emitter {
     this.hud.addButton('👕', 'Garde-robe', () => openWardrobe(this));
     this.muteBtn = this.hud.addButton(this.sound.muted ? '🔇' : '🔊', 'Son', () => { this.sound.setMuted(!this.sound.muted); this.muteBtn.textContent = this.sound.muted ? '🔇' : '🔊'; });
     this.input.on('key', (e) => this.onKey(e));
+    this.touch = this.addSystem(new TouchControls(this));
     this.playing = true;
     this.emit('playing');
     this.ui.toast(`Bienvenue à PLAYZONE, ${this.profile.name} ! ${this.net.mode === 'solo' ? '(mode solo)' : '(en ligne)'}`, 'good', 4500);

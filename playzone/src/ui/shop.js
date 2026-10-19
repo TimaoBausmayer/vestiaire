@@ -16,7 +16,6 @@ export function openShop(game, shopId) {
   const conf = SHOPS[shopId];
   const content = game.net.content;
   let tab = conf.tabs ? Object.keys(conf.tabs)[0] : null;
-  const preview = { ...game.profile.appearance };
   let trying = null;
   const tabsEl = h('div.tabs');
   const m = game.ui.modal({
@@ -98,12 +97,10 @@ export function openShop(game, shopId) {
     if (shopId === 'vehicles') body.append(h('p.muted', `Peintures en stock : ${p.inventory.peinture || 0}. Repeins tes véhicules depuis l'appli Garage du téléphone.`));
     body.append(h('div.grid', list.map(card)));
   }
-  void preview;
 }
 
 // Garde-robe : changer de tenue n'importe où avec les objets possédés.
 export function openWardrobe(game) {
-  const p = game.profile;
   const items = game.net.content.items;
   const slots = { hat: 'Chapeau', glasses: 'Visage', top: 'Haut', bottom: 'Bas', back: 'Dos' };
   const m = game.ui.modal({
@@ -126,5 +123,4 @@ export function openWardrobe(game) {
       body.append(h('button.btn.ghost', { onclick: () => { m.close(); game.editLook(); } }, '✂️ Changer coiffure, visage, silhouette...'));
     },
   });
-  void p;
 }

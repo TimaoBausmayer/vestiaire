@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildMergedGeometry, SHAPES as B } from '../core/static-builder.js';
-import { actorMaterial, MATS } from '../core/materials.js';
+import { actorMaterial } from '../core/materials.js';
 import { TRAFFIC_LOOP } from '../../shared/world-layout.js';
 
 // Circulation sur le boulevard : deux voies (on roule à droite), freinage devant les piétons,
@@ -52,7 +52,6 @@ const MODELS = {
     sb.sphere(0, 3.65, -0.5, 0.5, '#fff3f8', 10);
   },
 };
-const WHEEL = buildMergedGeometry((sb) => { sb.add(B.cyl(12), { sx: 0.7, sy: 0.3, sz: 0.7, rz: Math.PI / 2, color: '#1b1b24' }); sb.add(B.cyl(8), { sx: 0.35, sy: 0.32, sz: 0.35, rz: Math.PI / 2, color: '#c7ccd4' }); });
 const FLEET = [
   ['citadine', '#ff5a5f', 0], ['taxi', '', 0], ['bus', '#2ec4b6', 0], ['citadine', '#3d8ee8', 0], ['glace', '', 0],
   ['camionnette', '#7ac74f', 1], ['citadine', '#c77dff', 1], ['citadine', '#f4f1ea', 1], ['taxi', '', 1], ['camionnette', '#ff9f1c', 1],
@@ -68,17 +67,19 @@ export class Traffic {
     const tmp = { pos: new THREE.Vector3(), yaw: 0 };
     const perLane = [0, 0];
     FLEET.forEach(([type, color, lane]) => {
-      const geo = buildMergedGeometry(MODELS[type](color));
+      const L = LENGTH[type];
+      // carrosserie + roues fusionnées : un seul appel de dessin par voiture
+      const geo = buildMergedGeometry((sb) => {
+        MODELS[type](color)(sb);
+        for (const [x, z] of [[-0.95, L * 0.32], [0.95, L * 0.32], [-0.95, -L * 0.32], [0.95, -L * 0.32]]) {
+          sb.add(B.cyl(12), { x, y: 0.35, z, sx: 0.7, sy: 0.3, sz: 0.7, rz: Math.PI / 2, color: '#1b1b24' });
+          sb.add(B.cyl(8), { x, y: 0.35, z, sx: 0.35, sy: 0.32, sz: 0.35, rz: Math.PI / 2, color: '#c7ccd4' });
+        }
+      });
       const root = new THREE.Group();
       const body = new THREE.Mesh(geo, actorMaterial);
       body.castShadow = true;
       root.add(body);
-      const L = LENGTH[type];
-      for (const [x, z] of [[-0.95, L * 0.32], [0.95, L * 0.32], [-0.95, -L * 0.32], [0.95, -L * 0.32]]) {
-        const w = new THREE.Mesh(WHEEL, actorMaterial);
-        w.position.set(x, 0.35, z);
-        root.add(w);
-      }
       game.engine.scene.add(root);
       const path = this.lanes[lane];
       const s = (perLane[lane]++ / 5) * path.len;
@@ -155,4 +156,3 @@ export class Traffic {
   }
 }
 
-export { MATS };

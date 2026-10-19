@@ -3,7 +3,6 @@ import { Beacon } from './beacon.js';
 import { buildMergedGeometry } from '../core/static-builder.js';
 import { actorMaterial } from '../core/materials.js';
 import { buildAnimal } from '../animals/models.js';
-import { POI } from '../../shared/world-layout.js';
 import { h } from '../ui/dom.js';
 
 // POMPIER : éteindre les feux à la lance (maintenir clic / F / bouton 💦) et sauver les chats.
@@ -167,4 +166,3 @@ export class FirefighterJob {
   }
 }
 
-export { POI };

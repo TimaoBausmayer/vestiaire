@@ -1,7 +1,7 @@
 // Logique déterministe des mini-jeux et des événements : à partir d'une graine, client et serveur
 // calculent exactement les mêmes cibles, poulets et positions. Le serveur peut donc vérifier chaque
 // action (une cible touchée existait-elle vraiment à ce moment ? le poulet était-il là ?).
-import { mulberry32, range, pick } from './rng.js';
+import { mulberry32, range } from './rng.js';
 import { MINIGAME_SPOTS, POI } from './world-layout.js';
 
 // ---------- Bataille de tartes : planning des cibles
@@ -95,4 +95,3 @@ export function pumpkinSet(seed, n) {
   return spots.slice(0, n).map((p, idx) => ({ i: idx, x: p.x, z: p.z }));
 }
 
-export function pickSeedLabel(seed) { return pick(mulberry32(seed), ['A', 'B', 'C']); }

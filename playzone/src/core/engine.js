@@ -31,7 +31,8 @@ void main() {
 }`;
 
 export function detectQuality() {
-  const saved = localStorage.getItem('playzone.quality');
+  let saved = null;
+  try { saved = localStorage.getItem('playzone.quality'); } catch { /* stockage indisponible */ }
   if (saved) return saved;
   const mobile = matchMedia('(pointer: coarse)').matches;
   const cores = navigator.hardwareConcurrency || 4;
@@ -110,7 +111,7 @@ export class Engine {
   }
 
   setQuality(q) {
-    localStorage.setItem('playzone.quality', q);
+    try { localStorage.setItem('playzone.quality', q); } catch { /* stockage indisponible */ }
     this.applyQuality(q);
   }
 

@@ -3,7 +3,7 @@ import { HOME_INTERIOR, POI } from '../../shared/world-layout.js';
 import { buildMergedGeometry } from '../core/static-builder.js';
 import { actorMaterial } from '../core/materials.js';
 import { furnitureGeometry, furnitureFootprint } from './furniture.js';
-import { h, clear } from '../ui/dom.js';
+import { h } from '../ui/dom.js';
 
 // LOGEMENT : intérieur visitable, décoration (placer/tourner/retirer des meubles), meubles interactifs.
 // En ligne, on peut inviter des amis : ils entrent dans la même "zone" et voient la même déco.
@@ -299,4 +299,3 @@ export class Home {
   }
 }
 
-export { clear };

@@ -26,6 +26,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 #ui { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #ui > * { pointer-events: auto; }
 #ui .passthrough { pointer-events: none; }
+/* calques d'affichage : ils ne doivent jamais intercepter les clics destinés au jeu */
+#ui > .labels, #ui > .toasts, #ui > .floater, #ui > .crosshair, #ui > .countdown, #ui > .mg-hud, #ui > .compass,
+#ui > .hud-zone, #ui > .touch, #ui > .tracker, #ui > .hud-tl, #ui > .event-banner { pointer-events: none; }
+#ui .tbtns, #ui .tracker > div, #ui .hud-tl > *, #ui .toast button { pointer-events: auto; }
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; user-select: text; -webkit-user-select: text; }
 .noscript { padding: 2rem; text-align: center; }
@@ -255,3 +259,23 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
 .cook .ingr button:active { transform: scale(.95); }
 .cook .actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
 @media (max-width: 760px) { .cook { grid-template-columns: 1fr; } .cook .order { flex-direction: row; flex-wrap: wrap; align-items: center; } .cook .recipe { flex-direction: row; flex-wrap: wrap; } }
+
+/* ---------- Téléphone en portrait : HUD compact */
+@media (max-width: 760px) {
+  .hud-tl { gap: 5px; }
+  .hud-tr { flex-wrap: wrap; justify-content: flex-end; width: 110px; }
+  .icon-btn { width: 40px; height: 40px; font-size: 18px; }
+  .phone { right: 0; left: 0; margin: 0 auto; bottom: 0; height: 88vh; border-radius: 30px 30px 0 0; }
+  .prompt { bottom: calc(260px + var(--safe-b)); font-size: 14px; }
+  .tracker { top: calc(150px + var(--safe-t)); width: 190px; }
+  .toasts { top: calc(150px + var(--safe-t)); }
+  .compass { top: calc(96px + var(--safe-t)); }
+  .mg-hud { top: calc(96px + var(--safe-t)); }
+  .tbtns { bottom: calc(150px + var(--safe-b)); right: 12px; grid-template-columns: repeat(2, 58px); gap: 10px; }
+  .tbtn { width: 58px; height: 58px; }
+  .tbtn.big { width: 66px; height: 66px; }
+  .minimap { right: auto; left: 12px; bottom: calc(12px + var(--safe-b)); width: 104px; height: 104px; }
+  .chat { left: 12px; bottom: calc(126px + var(--safe-b)); width: 58vw; }
+  .chat-log { max-height: 110px; font-size: 12.5px; }
+  .dialog-box { bottom: calc(12px + var(--safe-b)); }
+}

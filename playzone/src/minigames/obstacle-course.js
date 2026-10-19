@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Minigame } from './minigame.js';
 import { buildMergedGeometry, SHAPES as B } from '../core/static-builder.js';
-import { actorMaterial, MATS } from '../core/materials.js';
+import { actorMaterial } from '../core/materials.js';
 import { MINIGAME_SPOTS } from '../../shared/world-layout.js';
 import { makeSign } from '../world/signs.js';
 
@@ -190,4 +190,3 @@ export class ObstacleCourse extends Minigame {
   }
 }
 
-export { MATS };

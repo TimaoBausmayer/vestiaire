@@ -1,4 +1,4 @@
-import { h, clear } from '../ui/dom.js';
+import { h } from '../ui/dom.js';
 import { LIMITS } from '../../shared/protocol.js';
 import { POI } from '../../shared/world-layout.js';
 
@@ -149,4 +149,3 @@ export class Social {
   }
 }
 
-export { clear };

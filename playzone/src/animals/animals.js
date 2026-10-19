@@ -306,6 +306,8 @@ export class Animals {
     });
   }
 
+  viewDist() { return { low: 50, medium: 70, high: VIEW }[this.game.engine.quality] || VIEW; }
+
   find(species, pos, r, filter) {
     for (const a of this.list) if (a.species === species && Math.hypot(a.pos.x - pos.x, a.pos.z - pos.z) < r && (!filter || filter(a))) return a;
     return null;
@@ -344,7 +346,7 @@ export class Animals {
     for (const a of this.list) {
       const d = Math.hypot(a.pos.x - P.x, a.pos.z - P.z);
       const flyer = a.def.behavior === 'fly';
-      const vis = inWorld && (d < VIEW || flyer);
+      const vis = inWorld && (d < this.viewDist() || flyer);
       a.setVisible(vis);
       if (!vis) continue;
       a.update(dt, t, ctx);

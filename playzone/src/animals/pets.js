@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import { Animal } from './animals.js';
 import { addCollar } from './models.js';
 import { groundHeight, isWater, WATER_LEVEL } from '../../shared/world-layout.js';
@@ -168,4 +167,3 @@ export class Pets {
   }
 }
 
-export { THREE };
