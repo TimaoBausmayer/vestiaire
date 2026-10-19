@@ -15,6 +15,11 @@ import { showTitle, probeServer } from './ui/title.js';
 import { openCreator } from './ui/creator.js';
 import { openShop, openWardrobe } from './ui/shop.js';
 import { LocalConnection } from './net/local.js';
+import { FX } from './core/fx.js';
+import { NPCs } from './characters/npcs.js';
+import { Animals } from './animals/animals.js';
+import { Traffic } from './world/traffic.js';
+import { Secrets } from './world/secrets.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
 import { DEFAULT_APPEARANCE } from '../shared/appearance.js';
 import { levelFromXp } from '../shared/rules.js';
@@ -52,6 +57,13 @@ export class Game extends Emitter {
     this.cam = new ThirdPersonCamera(this.engine.camera, this.collision);
     this.cam.snap(this.player.pos, this.player.yaw + Math.PI);
     this.avatar.root.visible = false;
+
+    // La ville vit déjà derrière l'écran titre : habitants, animaux, circulation.
+    this.fx = new FX(this.engine.scene);
+    this.npcs = new NPCs(this);
+    this.animals = new Animals(this);
+    this.traffic = new Traffic(this);
+    this.ambient = [this.npcs, this.animals, this.traffic, this.fx];
 
     this.engine.onUpdate((dt, t) => this.update(dt, t));
     this.engine.start();
@@ -117,6 +129,7 @@ export class Game extends Emitter {
     this.cam.snap(this.player.pos, this.player.yaw + Math.PI);
     this.cam.pitch = 0.38;
     this.setupWorldInteractions();
+    this.secrets = this.addSystem(new Secrets(this));
     this.hud.addButton('📱', 'Téléphone (P)', () => this.phone?.toggle());
     this.hud.addButton('👕', 'Garde-robe', () => openWardrobe(this));
     this.muteBtn = this.hud.addButton(this.sound.muted ? '🔇' : '🔊', 'Son', () => { this.sound.setMuted(!this.sound.muted); this.muteBtn.textContent = this.sound.muted ? '🔇' : '🔊'; });
@@ -243,6 +256,7 @@ export class Game extends Emitter {
       const a = t * 0.06;
       this.cam.override = { pos: new THREE.Vector3(Math.sin(a) * 42, 18, Math.cos(a) * 42), look: new THREE.Vector3(0, 2, 0) };
     }
+    for (const s of this.ambient) s.update(dt, t);
     if (this.playing) {
       this.player.frozen = this.ui.blocking || !!this.cutscene;
       this.player.update(dt, this.input, this.cam.yaw);

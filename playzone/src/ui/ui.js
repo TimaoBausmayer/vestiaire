@@ -45,6 +45,27 @@ export class UI {
     return m;
   }
 
+  // Boîte de dialogue de PNJ (en bas de l'écran). choices = [{ label, action }]
+  dialog({ name, role, text, choices = [] }) {
+    const el = h('div.dialog-box');
+    const m = {
+      el, blocking: true,
+      close: () => { if (m.closed) return; m.closed = true; el.remove(); this.stack = this.stack.filter((x) => x !== m); this.game.onUiChange?.(); },
+      show: (t, ch) => {
+        clear(el);
+        el.append(h('div', h('span.who', name), role ? h('span.role', role) : null), h('p', t));
+        const row = h('div.choices');
+        for (const c of ch) row.append(h(`button.btn.small${c.ghost ? '.ghost' : ''}`, { onclick: () => c.action(m) }, c.label));
+        el.append(row);
+      },
+    };
+    m.show(text, choices.length ? choices : [{ label: 'Au revoir', ghost: true, action: () => m.close() }]);
+    this.stack.push(m);
+    this.root.append(el);
+    this.game.onUiChange?.();
+    return m;
+  }
+
   closeTop() { this.stack[this.stack.length - 1]?.close(); }
   closeAll() { [...this.stack].forEach((m) => m.close()); }
 

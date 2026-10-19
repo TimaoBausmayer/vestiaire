@@ -59,7 +59,7 @@ export function tree(sb, col, x, z, kind = 'round', s = 1) {
     sb.blob(x - 0.7 * s, y + h + 0.8 * s, z - 0.6 * s, 1.3 * s, c1, 0.9);
     if (rand() > 0.7) for (let i = 0; i < 4; i++) sb.sphere(x + (rand() - 0.5) * 3 * s, y + h + 0.5 + rand() * 1.6, z + (rand() - 0.5) * 3 * s, 0.16, '#e63946', 6);
   }
-  col.addCyl(x, z, 0.45 * s, y, 6 * s, { noCamera: true });
+  col.addCyl(x, z, 0.45 * s, y, 6 * s);
 }
 
 function bush(sb, x, z, s = 1, color = '#4c9a3a') {

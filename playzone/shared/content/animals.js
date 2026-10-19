@@ -10,7 +10,7 @@ export const SPECIES = {
   rat: { name: 'Rat', emoji: '🐀', behavior: 'flee', speed: 4, count: 4, area: [62, -124, 126, -64], adoptable: true, sound: 'Couic !', flee: 6 },
   lapin: { name: 'Lapin', emoji: '🐇', behavior: 'flee', speed: 4.5, count: 5, area: [-55, -124, 55, -66], adoptable: true, sound: '...', flee: 7 },
   renard: { name: 'Renard', emoji: '🦊', behavior: 'flee', speed: 5, count: 2, area: [-124, -124, -66, -66], sound: 'Ya-ya-ya !', flee: 9 },
-  loup: { name: 'Loup', emoji: '🐺', behavior: 'prowl', speed: 3, count: 3, area: [-124, -124, -80, -80], sound: 'Aouuuh !', flee: 0 },
+  loup: { name: 'Loup', emoji: '🐺', behavior: 'prowl', speed: 3, count: 3, area: [-124, -124, -80, -80], sound: 'Aouuuh !', flee: 5 },
   ours: { name: 'Ours', emoji: '🐻', behavior: 'wander', speed: 1.4, count: 1, area: [-124, -100, -96, -70], sound: 'Grmmmbl.', flee: 0 },
   corbeau: { name: 'Corbeau', emoji: '🐦‍⬛', behavior: 'fly', speed: 6, count: 3, area: [-124, -124, -60, -60], adoptable: true, sound: 'Croa !', flee: 0 },
   canard: { name: 'Canard', emoji: '🦆', behavior: 'swim', speed: 1.2, count: 5, area: [-38, -120, -22, -104], adoptable: true, sound: 'Coin !', flee: 0, water: true },
