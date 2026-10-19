@@ -2754,7 +2754,7 @@ const App = {
       totalWeight: wTotalWeight,
       impAvg: wTotalWeight ? wImpSum/wTotalWeight : 5,
     };
-    return {goals, openPlayGoals, freekickScored, freekickTaken, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted};
+    return {goals, openPlayGoals, freekickScored, freekickTaken, assists, avgRating, ratingsCount, mvp, matchesPlayed, timesStarter, timesSub, goalsConceded, yellow, red, worstVotesTotal, beautifulGoalVotesTotal, W, D, L, penaltiesScored, penaltiesMissed, penaltiesCaused, cornersScored, cornersTaken, shotsOnTarget, tacklesWon, saves, penaltiesSaved, penaltiesConceded, minutesPlayed, criteria, matchVoteBest, matchVoteWorst, matchRankAvg, ballonDorAdj, pireJoueurAdj, pireActionAdj, position: (player && player.position) || null, weighted, name, matchIds: matches.slice().sort((a,b)=>((a.date||'')+(a.time||'')).localeCompare((b.date||'')+(b.time||'')) || String(a.id).localeCompare(String(b.id))).map(m=>m.id)};
   },
   // Poids d'un match dans le calcul du général (moyenne pondérée), selon son "importance" (1 à 10, saisie
   // sur la fiche du match). C'est un pur COEFFICIENT dans la moyenne — jamais un bonus ajouté à la note :
@@ -2847,7 +2847,43 @@ const App = {
   worstAwardAdj(name, key, topN){
     return this.seasonRankAdj(name, key, topN, -1);
   },
+  // GÉNÉRAL = « cible » (formule ci-dessous, calculée sur tous les matchs) mais atteint PROGRESSIVEMENT :
+  // on rejoue les matchs un par un, et le général ne peut bouger d'un match à l'autre que d'un maximum
+  // qui dépend (1) de l'importance du match — 1/10 = 2 points maxi, 5/10 ≈ 8, 10/10 ≈ 15 — et (2) de la
+  // hauteur du général : plus on est haut (90+), moins on peut monter (un petit match = +1 maxi), plus on
+  // est bas (40), plus on peut monter. Un 1/10 ne peut donc jamais faire « exploser » un général.
+  RATING_START: 52,
+  ratingStepCap(imp, r, up){
+    imp = (imp==null||isNaN(imp)) ? 5 : Math.max(1, Math.min(10, imp));
+    const base = 2 + 1.45*(imp-1);
+    const head = up ? Math.max(0.5, Math.min(1.2, (99-r)/55)) : Math.max(0.5, Math.min(1.2, (r-30)/55));
+    return base*head;
+  },
+  _rcCache:{},
   cardRating(stats){
+    if(!stats.matchesPlayed) return 30;
+    if(!stats.name || !stats.matchIds || !stats.matchIds.length) return this.cardRatingRaw(stats);
+    const key = stats.name+'|'+stats.matchIds.join(',')+'|'+(stats.weighted?stats.weighted.totalWeight:0)+'|'+(stats.ballonDorAdj||0)+'|'+(stats.pireJoueurAdj||0)+'|'+(stats.pireActionAdj||0)+'|'+stats.goals+'|'+stats.assists+'|'+stats.mvp+'|'+(stats.avgRating||0);
+    if(this._rcKeyT && Date.now()-this._rcKeyT>1500){ this._rcCache={}; this._rcKeyT=Date.now(); }
+    if(!this._rcKeyT) this._rcKeyT=Date.now();
+    if(this._rcCache[key]!=null) return this._rcCache[key];
+    let R = this.RATING_START, prevPlayed = 0, ids = [];
+    for(const id of stats.matchIds){
+      ids.push(id);
+      const st = this.computePlayerStats(stats.name, {includeIds:ids.slice()});
+      if(!st.matchesPlayed || st.matchesPlayed===prevPlayed) continue;
+      prevPlayed = st.matchesPlayed;
+      const m = this.state.matches.find(x=>x.id===id);
+      const imp = (m && m.importance!=null) ? m.importance : 5;
+      const target = this.cardRatingRaw(st);
+      if(target>R) R = Math.min(target, R + this.ratingStepCap(imp, R, true));
+      else R = Math.max(target, R - this.ratingStepCap(imp, R, false));
+    }
+    R = Math.round(R*10)/10;
+    this._rcCache[key] = R;
+    return R;
+  },
+  cardRatingRaw(stats){
     // Un joueur qui n'a jamais disputé le moindre match part à 30 (pas de général tant qu'il n'y a pas eu au
     // moins un match joué). Le plancher général est maintenant 30 (au lieu de 45) : un joueur qui enchaîne les
     // mauvaises performances doit pouvoir vraiment redescendre, pas juste stagner à 45 quoi qu'il arrive.
