@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SPECIES } from '../../shared/content/animals.js';
+import { EXTRA_HERDS, SPECIES } from '../../shared/content/animals.js';
 import { groundHeight, isWater, WATER_LEVEL, POND } from '../../shared/world-layout.js';
 import { mulberry32 } from '../../shared/rng.js';
 import { buildAnimal } from './models.js';
@@ -26,7 +26,7 @@ const PET_LINES = {
 const SOUNDS = { chien: 'bark', chat: 'meow', poulet: 'cluck', canard: 'quack', vache: 'moo', pigeon: 'cluck' };
 
 export class Animal {
-  constructor(mgr, species, x, z, idx) {
+  constructor(mgr, species, x, z, idx, area = null) {
     this.mgr = mgr;
     this.species = species;
     this.def = SPECIES[species];
@@ -45,7 +45,7 @@ export class Animal {
     this.alt = 0;          // altitude (oiseaux)
     this.cooldown = 0;
     this.trail = [];
-    const a = this.def.area;
+    const a = area || this.def.area;
     this.area = a;
     this.circle = { x: (a[0] + a[2]) / 2, z: (a[1] + a[3]) / 2, r: R(10, 22), a: rand() * 6.28 };
     if (this.def.behavior === 'fly') this.alt = this.def.high ? 38 : R(12, 20);
@@ -296,6 +296,8 @@ export class Animals {
         this.list.push(new Animal(this, sp, x, z, i));
       }
     }
+    // troupeaux et habitants des nouveaux quartiers
+    for (const [sp, n, a] of EXTRA_HERDS) for (let i = 0; i < n; i++) this.list.push(new Animal(this, sp, R(a[0], a[2]), R(a[1], a[3]), i, a));
     this.nearest = null;
     game.interactions.add({
       r: 2.6, priority: -1,

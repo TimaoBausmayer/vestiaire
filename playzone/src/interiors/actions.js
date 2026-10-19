@@ -1,0 +1,158 @@
+import { h } from '../ui/dom.js';
+import { openShop, openWardrobe, openBasket } from '../ui/shop.js';
+import { STAFF_LINES } from './templates.js';
+import { quizOfDay } from '../../shared/activities.js';
+import { VEHICLES } from '../../shared/content/vehicles.js';
+
+// ACTIONS DES POINTS D'INTÉRIEUR : acheter, s'asseoir, dormir, parler, regarder la télé, jouer...
+// Tout ce qui touche à l'argent, aux besoins ou aux récompenses passe par l'autorité (activity.do).
+
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const TV = ['"Les Feux de l\'Amour (des poulets)", épisode 4 012.', 'Un documentaire sur les pigeons de la Grande Place. Captivant.', 'La météo : il fera beau, sauf s\'il pleut.', 'Un jeu télévisé où l\'on gagne une baguette.', 'Les infos : "Un caddie aperçu à 80 km/h sur le boulevard".'];
+const FRIDGE = ['Un yaourt de 2019, une chaussette et un citron. L\'habitant : "Pas touche !"', 'Trois bouteilles de ketchup vides et une lasagne qui vous regarde.', 'Il fait froid là-dedans. Le frigo vous referme la porte au nez.'];
+const MAIL = ['Une carte postale de la tante Ginette : "Il fait beau. Le chat va bien. Le chat c\'est moi."', 'Une facture d\'électricité... pour un grille-pain.', 'Une publicité : "Achetez un caddie turbo, vous ne le regretterez (presque) pas".', 'Une lettre d\'amour d\'un pigeon. Écriture approximative.'];
+const MOVIES = ['« Le Retour du Poulet Masqué »', '« Fast & Croissants 9 »', '« La Vie Secrète des Caddies »', '« Mamie Turbo contre les Zombies Mous »'];
+const DIAG = ['Diagnostic : vous êtes en parfaite santé. Un peu trop de frites, peut-être.', 'Vous avez une légère "pigeonnite". Ça se soigne avec une sieste.', 'Votre cœur bat. C\'est bon signe. Au revoir !', 'Prenez deux croissants et rappelez-moi demain.'];
+
+async function activity(game, kind, b, extra = {}) {
+  try { return (await game.net.request('activity.do', { kind, buildingId: b.id, ...extra })); } catch (e) { game.ui.toast(e.message, 'bad'); game.sfx('error'); return null; }
+}
+
+function needsToast(game, data, label) {
+  if (!data) return;
+  const n = data.needs;
+  game.emit('needs', n);
+  if (label) game.ui.toast(`${label}${n ? ` · 🍔 ${Math.round(n.faim)} · ⚡ ${Math.round(n.energie)} · 🙂 ${Math.round(n.humeur)}` : ''}`, 'good', 3200);
+}
+
+export async function runAction(game, action, { b, spot, staff }) {
+  const g = game;
+  switch (action) {
+    case 'shop': openShop(g, b.shop, b); break;
+    case 'wardrobe': openWardrobe(g); break;
+    case 'basket': openBasket(g, b); break;
+    case 'checkout': g.basket?.checkout(b); break;
+    case 'sit': g.sitting?.sit(spot.seat, b); break;
+    case 'nap': {
+      g.sitting?.sit({ ...spot.seat, lie: true }, b);
+      g.labels.bubble(g.avatar.root, 'Zzzz...', 3500, 'player');
+      const r = await activity(g, 'nap', b);
+      if (r) needsToast(g, r, '😴 Petite sieste réparatrice');
+      break;
+    }
+    case 'talk': {
+      const who = staff || (g.interiors.loaded.get(b.id)?.people[0]);
+      const lines = STAFF_LINES[who?.role] || ['Bonjour ! Belle journée, n\'est-ce pas ?'];
+      const say = (m) => m.show(pick(lines), [{ label: 'Encore une !', action: (mm) => say(mm) }, { label: 'Au revoir', ghost: true, action: (mm) => mm.close() }]);
+      const m = g.ui.dialog({ name: who?.name || 'Quelqu\'un', role: b.name, text: pick(lines), choices: [{ label: 'Encore une !', action: (mm) => say(mm) }, { label: 'Au revoir', ghost: true, action: (mm) => mm.close() }] });
+      void m;
+      break;
+    }
+    case 'tv': {
+      g.labels.bubble(g.avatar.root, `📺 ${pick(TV)}`, 4500, 'player');
+      const r = await activity(g, 'tv', b); if (r) needsToast(g, r, '📺 Un moment de détente');
+      break;
+    }
+    case 'fridge': g.ui.toast(`🧊 ${pick(FRIDGE)}`, '', 4500); break;
+    case 'mail': {
+      g.ui.toast(`📬 ${pick(MAIL)}`, '', 5000);
+      await activity(g, 'mail', b);
+      break;
+    }
+    case 'elevator': g.ui.toast('🛗 "Ascenseur en panne depuis 1997. Merci de prendre l\'escalier." Il n\'y a pas d\'escalier.', '', 4500); break;
+    case 'police': {
+      const m = g.ui.dialog({ name: 'Accueil', role: 'Commissariat Central', text: 'Bonjour ! Que puis-je faire pour vous ?', choices: [
+        { label: '🐦 Signaler un pigeon voleur', action: (mm) => mm.show('Encore un ! Nous avons ouvert une cellule spéciale "pigeons". Elle est vide : ils s\'envolent.', [{ label: 'Merci', ghost: true, action: (x) => x.close() }]) },
+        { label: '💸 Mes amendes', action: (mm) => { mm.close(); g.police?.openFines?.() || g.ui.toast('Aucune amende à payer. Vous êtes un modèle de vertu (pour l\'instant).', 'good'); } },
+        { label: 'Au revoir', ghost: true, action: (mm) => mm.close() },
+      ] });
+      void m;
+      break;
+    }
+    case 'hospital': {
+      const r = await activity(g, 'hospital', b);
+      if (r) { g.ui.dialog({ name: 'Dr Bobo', role: 'Hôpital Saint-Bobo', text: pick(DIAG), choices: [{ label: 'Merci docteur', ghost: true, action: (m) => m.close() }] }); needsToast(g, r, '🩺 Consultation terminée'); }
+      break;
+    }
+    case 'bank': {
+      const p = g.profile;
+      g.ui.dialog({ name: 'Votre conseiller·ère', role: 'Banque PlayCoins', text: `Solde : ${p.coins.toLocaleString('fr-FR')} PC. Gagné depuis le début : ${p.stats.earned.toLocaleString('fr-FR')} PC. Dépensé : ${p.stats.spent.toLocaleString('fr-FR')} PC. ${p.stats.spent > p.stats.earned * 0.8 ? 'Je vous conseille de lever le pied sur les chapeaux.' : 'Bravo, vous êtes un·e as de l\'épargne !'}`, choices: [{ label: 'Merci', ghost: true, action: (m) => m.close() }] });
+      break;
+    }
+    case 'vault': g.ui.toast('🔒 Le coffre-fort refuse de s\'ouvrir. Il dit qu\'il ne vous connaît pas assez.', '', 4000); break;
+    case 'mairie': {
+      const r = await activity(g, 'mairie', b);
+      if (r) { g.ui.dialog({ name: 'Le Maire', role: 'Mairie', text: 'Votre réclamation "les pigeons me regardent bizarrement" a été enregistrée sous le numéro 4 812 007. Vous recevez le titre officiel de Râleur !', choices: [{ label: '😤 Merci !', ghost: true, action: (m) => m.close() }] }); g.reward({ coins: 0 }); if (r.title) g.ui.toast(`🏅 Nouveau titre : ${r.title}`, 'good', 4500); }
+      break;
+    }
+    case 'arcade': {
+      g.player.setPose('celebrate', 1.4);
+      const r = await activity(g, 'arcade', b);
+      if (r) { g.sfx(r.jackpot ? 'levelup' : 'beep'); g.labels.bubble(g.avatar.root, r.jackpot ? `JACKPOT ! +${r.coins} PC` : pick(['GAME OVER', 'Nouveau record ! (de défaites)', 'Niveau 2 atteint... puis perdu.', 'Bip bip boup !']), 2500, 'player'); }
+      break;
+    }
+    case 'claw': {
+      const r = await activity(g, 'claw', b);
+      if (r) { g.sfx(r.prize ? 'success' : 'fail'); g.ui.toast(r.prize ? '🐥 Vous avez attrapé la PELUCHE POULET GÉANTE ! (installez-la chez vous)' : 'La pince a lâché la peluche au dernier moment. Classique.', r.prize ? 'good' : '', 4000); }
+      break;
+    }
+    case 'movie': {
+      const r = await activity(g, 'movie', b);
+      if (r) { g.labels.bubble(g.avatar.root, `🎬 ${pick(MOVIES)}... quel film !`, 5000, 'player'); needsToast(g, r, '🍿 Bonne séance'); }
+      break;
+    }
+    case 'bowling': {
+      g.player.setPose('throw', 1);
+      const r = await activity(g, 'bowling', b);
+      if (r) { g.sfx(r.strike ? 'levelup' : 'land'); g.labels.bubble(g.avatar.root, r.strike ? '🎳 STRIKE ! (+5 PC)' : `🎳 ${r.pins} quille${r.pins > 1 ? 's' : ''}`, 3000, 'player'); }
+      break;
+    }
+    case 'gym': {
+      g.player.setPose('celebrate', 2);
+      const r = await activity(g, 'gym', b);
+      if (r) { g.labels.bubble(g.avatar.root, pick(['Hmpf ! 💪', 'Encore une... !', 'Je sens mes muscles... pousser ?']), 2200, 'player'); needsToast(g, r, '🏋️ Séance de musculation'); }
+      break;
+    }
+    case 'drink': { const r = await activity(g, 'drink', b); if (r) needsToast(g, r, '💧 Glou glou'); break; }
+    case 'pole': {
+      const r = await activity(g, 'pole', b);
+      if (r) { g.player.vel.y = 6; g.player.grounded = false; g.sfx('whistle'); g.labels.bubble(g.avatar.root, 'Wiiiii !', 1500, 'player'); }
+      break;
+    }
+    case 'chest': {
+      const r = await activity(g, 'chest', b);
+      if (r) { g.reward({ coins: r.coins, xp: r.xp }, '🗝️ Trésor de la cabane'); g.sfx('secret'); }
+      break;
+    }
+    case 'quiz': {
+      const q = quizOfDay(g.now());
+      g.ui.dialog({ name: 'Professeur·e', role: 'École des Petits Génies', text: q.q, choices: q.c.map((c, i) => ({ label: c, action: async (m) => {
+        m.close();
+        const r = await activity(g, 'quiz', b, { answer: i });
+        if (!r) return;
+        if (r.correct) { g.reward({ coins: r.coins, xp: r.xp }, '📚 Bonne réponse'); } else { g.sfx('fail'); g.ui.toast(`Raté ! La bonne réponse était : ${r.answer}. Revenez dans 10 minutes.`, 'bad', 4500); }
+      } })) });
+      break;
+    }
+    case 'prison': g.police?.guardDialog?.(b) || g.ui.dialog({ name: 'Gardien·ne', role: 'Prison de la Pomme Pourrie', text: 'Visite libre de 9 h à 18 h. Interdiction de cacher des limes dans les gâteaux.', choices: [{ label: 'Au revoir', ghost: true, action: (m) => m.close() }] }); break;
+    case 'car': carDialog(g, spot.model); break;
+    case 'repair': g.garage?.openRepair(b); break;
+    default: g.ui.toast('...', '', 1000);
+  }
+}
+
+// Fiche d'une voiture exposée (concession) : caractéristiques et achat.
+function carDialog(g, model) {
+  const s = VEHICLES[model];
+  const item = g.net.content.items[model];
+  const owned = g.profile.vehicles.some((v) => v.model === model);
+  const text = `${s.name} — ${Math.round(s.max * 3.6)} km/h max, ${s.seats} places, réservoir ${s.fuel} L. Prix : ${s.price.toLocaleString('fr-FR')} PC${s.level ? ` (niveau ${s.level} requis)` : ''}.`;
+  g.ui.dialog({ name: 'Commercial·e', role: 'Concession Auto Paillettes', text: owned ? `${text} Vous l'avez déjà !` : text, choices: [
+    ...(item && !owned ? [{ label: `Acheter (${s.price.toLocaleString('fr-FR')} PC)`, action: async (m) => {
+      try { await g.net.request('shop.buy', { itemId: model }); g.sfx('coin'); m.show(`Félicitations ! Votre ${s.name} vous attend : appelez-le depuis l'appli Garage de votre téléphone.`, [{ label: 'Super !', ghost: true, action: (x) => x.close() }]); } catch (e) { g.sfx('error'); m.show(e.message, [{ label: 'D\'accord', ghost: true, action: (x) => x.close() }]); }
+    } }] : []),
+    { label: 'Fermer', ghost: true, action: (m) => m.close() },
+  ] });
+}
+
+export { h };

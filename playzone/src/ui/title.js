@@ -1,15 +1,16 @@
 import { h } from './dom.js';
 
 // Écran titre : solo (sauvegarde locale) ou en ligne (si un serveur PLAYZONE répond à cette adresse).
-export async function probeServer() {
-  try {
-    const ctl = new AbortController();
-    setTimeout(() => ctl.abort(), 2500);
-    const r = await fetch('api/status', { signal: ctl.signal, cache: 'no-store' });
-    if (!r.ok) return null;
-    const j = await r.json();
-    return j && j.game === 'playzone' ? j : null;
-  } catch { return null; }
+// Interroge le serveur. Le délai d'attente n'est armé qu'au moment où l'on attend la réponse
+// (wait()), pour ne pas expirer pendant la construction du monde qui occupe le navigateur.
+export function probeServer() {
+  const req = fetch('api/status', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => (j && j.game === 'playzone' ? j : null))
+    .catch(() => null);
+  // le délai démarre après deux images affichées (la 1re image peut être longue : compilation des shaders)
+  const afterFrames = (ms) => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => res(null), ms))));
+  return { wait: (ms = 5000) => Promise.race([req, afterFrames(ms)]) };
 }
 
 export function showTitle(ui, { soloSave, serverInfo, onSolo, onOnline, onNewSolo, quality, onQuality }) {

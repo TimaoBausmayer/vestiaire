@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { groundHeight, WATER_LEVEL, POI, WORLD_HALF } from '../../shared/world-layout.js';
+import { groundHeight, WATER_LEVEL, POI, WORLD_BOUNDS } from '../../shared/world-layout.js';
 
 // Contrôleur du joueur : déplacement relatif à la caméra, sprint, saut (avec "coyote time"),
 // nage, trampoline, collisions. Les déplacements sont envoyés au serveur qui vérifie la vitesse.
@@ -104,7 +104,7 @@ export class Player {
     }
     if (this.swimming) this.grounded = false;
     if (p.y < -20) this.teleport(POI.spawn.x, POI.spawn.z); // sécurité
-    p.x = Math.max(-WORLD_HALF - 4, Math.min(inHome ? 2000 : WORLD_HALF + 4, p.x));
+    if (!inHome) { p.x = Math.max(WORLD_BOUNDS.minX - 4, Math.min(WORLD_BOUNDS.maxX + 4, p.x)); p.z = Math.max(WORLD_BOUNDS.minZ - 4, Math.min(WORLD_BOUNDS.maxZ + 4, p.z)); }
 
     // orientation : vers la direction du mouvement
     const hs = Math.hypot(v.x, v.z);

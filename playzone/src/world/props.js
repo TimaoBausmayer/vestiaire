@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BUILDINGS, ROADS, POI, MINIGAME_SPOTS, POND, CAT_TREES, groundHeight, WORLD_HALF } from '../../shared/world-layout.js';
+import { BUILDINGS, ROADS, POI, MINIGAME_SPOTS, POND, CAT_TREES, groundHeight } from '../../shared/world-layout.js';
 import { mulberry32 } from '../../shared/rng.js';
 import { PALETTE } from '../core/materials.js';
 import { SHAPES } from '../core/static-builder.js';
@@ -125,23 +125,7 @@ function stall(sb, col, x, z, color, ry = 0) {
 }
 
 export function buildProps(sb, col, scene) {
-  // ---------- Routes, trottoirs, place
-  for (const [x1, z1, x2, z2] of ROADS) {
-    sb.quad((x1 + x2) / 2, 0.03, (z1 + z2) / 2, x2 - x1, z2 - z1, PALETTE.road, 0, 'ground');
-  }
-  // marquages du boulevard
-  for (let t = -26; t < 26; t += 4) {
-    for (const s of [-28, 28]) {
-      sb.quad(t + 1, 0.05, s, 2, 0.25, PALETTE.roadLine, 0, 'ground');
-      sb.quad(s, 0.05, t + 1, 0.25, 2, PALETTE.roadLine, 0, 'ground');
-    }
-  }
-  for (let t = 36; t < 124; t += 5) sb.quad(t, 0.05, 0, 2.2, 0.25, PALETTE.roadLine, 0, 'ground');
-  for (let t = 36; t < 64; t += 5) { sb.quad(0, 0.05, t, 0.25, 2.2, PALETTE.roadLine, 0, 'ground'); sb.quad(0, 0.05, -t, 0.25, 2.2, PALETTE.roadLine, 0, 'ground'); sb.quad(-t, 0.05, 0, 2.2, 0.25, PALETTE.roadLine, 0, 'ground'); }
-  // passages piétons
-  for (const [cx, cz, vertical] of [[0, -28, true], [0, 28, true], [-28, 0, false], [28, 0, false]]) {
-    for (let i = -3; i <= 3; i++) sb.quad(cx + (vertical ? i * 0.9 : 0), 0.055, cz + (vertical ? 0 : i * 0.9), vertical ? 0.5 : 7.5, vertical ? 7.5 : 0.5, '#f5f1e3', 0, 'ground');
-  }
+  // ---------- Place (les routes, marquages et passages piétons sont générés par roads.js)
   // trottoirs autour du boulevard (côté extérieur)
   const sw = PALETTE.sidewalk;
   sb.box(0, 0, -34.5, 70, 0.12, 5, sw, 0, 'ground'); sb.box(0, 0, 34.5, 70, 0.12, 5, sw, 0, 'ground');
@@ -173,7 +157,6 @@ export function buildProps(sb, col, scene) {
     lamp(sb, col, t, -33.2, Math.PI / 2); lamp(sb, col, t + 6, 33.2, -Math.PI / 2);
     lamp(sb, col, -33.2, t + 6, 0); lamp(sb, col, 33.2, t, Math.PI);
   }
-  for (let t = 40; t < 124; t += 14) { lamp(sb, col, t, -5.5, Math.PI / 2); lamp(sb, col, t + 7, 5.5, -Math.PI / 2); }
 
   // ---------- Scène DJ
   const S = POI.djStage;
@@ -360,16 +343,5 @@ export function buildProps(sb, col, scene) {
   for (let i = 0; i < 40; i++) { const x = -126 + rand() * 252, z = -126 + rand() * 190; if (free(x, z, 1)) bush(sb, x, z, 0.8 + rand() * 0.5, rand() > 0.5 ? '#4c9a3a' : '#5fae45'); }
   for (let i = 0; i < 25; i++) { const x = -60 + rand() * 120, z = -60 + rand() * 124; if (free(x, z, 0.5)) flowers(sb, x, z, 5); }
 
-  // ---------- Collines lointaines (fermer l'horizon) et murs invisibles
-  for (let i = 0; i < 26; i++) {
-    const a = (i / 26) * Math.PI * 2;
-    if (Math.sin(a) > 0.35) continue; // pas de collines au sud : la mer
-    const r = 175 + rand() * 40;
-    sb.blob(Math.cos(a) * r, -6, Math.sin(a) * r, 22 + rand() * 18, i % 2 ? '#6aa84f' : '#5b9a45', 0.7);
-  }
-  const H = WORLD_HALF;
-  col.addBox(-H - 5, -10, -H - 5, H + 5, 50, -H, { noCamera: true });
-  col.addBox(-H - 5, -10, H, H + 5, 50, H + 5, { noCamera: true });
-  col.addBox(-H - 5, -10, -H, -H, 50, H, { noCamera: true });
-  col.addBox(H, -10, -H, H + 5, 50, H, { noCamera: true });
+  // (les collines et les limites du monde sont dans city-props.js)
 }

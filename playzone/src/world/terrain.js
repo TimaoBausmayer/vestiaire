@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { groundHeight, WATER_LEVEL, POND, MINIGAME_SPOTS } from '../../shared/world-layout.js';
+import { groundHeight, WATER_LEVEL, POND, MINIGAME_SPOTS, WORLD_BOUNDS } from '../../shared/world-layout.js';
 import { MATS, PALETTE } from '../core/materials.js';
 
 // Sol (herbe, sable, terre des champs) avec couleurs par sommet, et eau animée (mer + étang).
@@ -9,8 +9,10 @@ function noise(x, z) {
 }
 
 export function buildTerrain() {
-  const size = 300, seg = 150;
-  const geo = new THREE.PlaneGeometry(size, size, seg, seg).rotateX(-Math.PI / 2);
+  const B = WORLD_BOUNDS;
+  const sx = B.maxX - B.minX + 90, sz = B.maxZ - B.minZ + 90;
+  const geo = new THREE.PlaneGeometry(sx, sz, Math.round(sx / 3.5), Math.round(sz / 3.5)).rotateX(-Math.PI / 2);
+  geo.translate((B.minX + B.maxX) / 2, 0, (B.minZ + B.maxZ) / 2);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
   const c = new THREE.Color();
@@ -25,9 +27,15 @@ export function buildTerrain() {
     const n = noise(x, z);
     c.copy(grass).lerp(grassDark, 0.5 + n * 0.5);
     const beachEdge = 64 + Math.sin(x * 0.08) * 2.5;
-    if (z > beachEdge) c.copy(sand).lerp(wet, Math.min(1, Math.max(0, (z - 86) / 6)));
-    else if (z > beachEdge - 2) c.lerp(sand, (z - beachEdge + 2) / 2);
-    if (x < -62 && z < -62) c.copy(forest).lerp(grassDark, 0.5 + n * 0.3);
+    // campagne plus verte, quartiers nord légèrement plus jaunes, forêt
+    if (x < -136 && z < 56) c.lerp(new THREE.Color('#6fb14d'), 0.4);
+    if (z < -340) c.lerp(new THREE.Color('#5fa045'), 0.5 + n * 0.2);
+    if (z > beachEdge && !(x > 140)) c.copy(sand).lerp(wet, Math.min(1, Math.max(0, (z - 86) / 6)));
+    else if (z > beachEdge - 2 && !(x > 140)) c.lerp(sand, (z - beachEdge + 2) / 2);
+    if (x > 140 && z > 56) c.set('#a9a59c');
+    if (x < -62 && x > -136 && z < -62 && z > -136) c.copy(forest).lerp(grassDark, 0.5 + n * 0.3);
+    if (x < -150 && x > -300 && z < -140 && z > -335) c.lerp(new THREE.Color('#8f9a7a'), 0.45); // zone industrielle
+    if (x < B.minX - 2 || x > B.maxX + 2) c.copy(sand).lerp(wet, 0.5);
     // champs de la ferme (sillons)
     if (x > -125 && x < -95 && z > 14 && z < 58) c.copy(dirt).lerp(grassDark, Math.sin(x * 2.2) > 0.3 ? 0.55 : 0);
     // enclos à cochons boueux

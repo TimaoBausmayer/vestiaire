@@ -3,6 +3,16 @@
 // s'envole), fly (vole en cercles), swim (nage), bask (se dore au soleil, attaque si on approche),
 // prowl (rôde en meute), follow (animal de compagnie).
 
+// Animaux supplémentaires dans les nouveaux quartiers : [espèce, nombre, zone].
+export const EXTRA_HERDS = [
+  ['vache', 4, [-280, 12, -232, 46]], ['mouton', 5, [-280, 12, -232, 46]], ['cheval', 2, [-280, 12, -232, 46]],
+  ['poulet', 5, [-258, -38, -236, -30]], ['cochon', 2, [-258, -38, -236, -30]],
+  ['pigeon', 8, [-56, -226, -14, -202]], ['pigeon', 6, [150, 33, 198, 50]],
+  ['chien', 2, [-128, -330, 128, -150]], ['chat', 3, [-128, -330, 128, -150]],
+  ['rat', 3, [-284, -330, -150, -150]], ['lapin', 4, [-130, -415, 130, -345]], ['renard', 2, [-298, -134, -150, 50]],
+  ['tortue', 2, [-290, 76, -150, 90]], ['requin', 1, [150, 110, 290, 135]],
+];
+
 export const SPECIES = {
   chien: { name: 'Chien', emoji: '🐕', behavior: 'wander', speed: 3.2, count: 3, area: [-22, -22, 22, 22], adoptable: true, sound: 'Wouf !', flee: 0 },
   chat: { name: 'Chat', emoji: '🐈', behavior: 'wander', speed: 2.2, count: 3, area: [60, -55, 125, 55], adoptable: true, sound: 'Miaou.', flee: 3 },

@@ -162,6 +162,11 @@ function buildHead(sb, a, extra) {
       sb.add(B.cyl(16), { y: 0.36, sx: 0.8, sy: 0.04, sz: 0.88, color: '#b0231f' });
       sb.add(B.box(), { y: 0.5, z: 0.32, sx: 0.16, sy: 0.18, sz: 0.04, rx: -0.3, color: '#ffd23f' });
       break;
+    case 'casque-moto':
+      sb.add(B.sphere(14), { y: 0.36, sx: 0.74, sy: 0.74, sz: 0.74, color: '#e63946' });
+      sb.add(B.box(), { y: 0.3, z: 0.3, sx: 0.5, sy: 0.18, sz: 0.06, color: '#14141c' });
+      sb.add(B.box(), { y: 0.62, sx: 0.1, sy: 0.06, sz: 0.6, color: '#ffffff' });
+      break;
     case 'toque': sb.add(B.cyl(12), { y: 0.48, sx: 0.5, sy: 0.22, sz: 0.5, color: '#ffffff' }); sb.add(B.blob ? B.ico1() : B.sphere(10), { y: 0.82, sx: 0.62, sy: 0.38, sz: 0.62, color: '#ffffff' }); break;
     case 'paille': sb.add(B.cyl(16), { y: 0.5, sx: 1.0, sy: 0.04, sz: 1.0, color: '#e9c46a' }); sb.add(B.cyl(14), { y: 0.5, sx: 0.48, sy: 0.22, sz: 0.48, color: '#e9c46a' }); sb.add(B.cyl(14), { y: 0.52, sx: 0.49, sy: 0.06, sz: 0.49, color: '#e63946' }); break;
     case 'sombrero': sb.add(B.cyl(18), { y: 0.5, sx: 1.4, sy: 0.05, sz: 1.4, color: '#e9c46a' }); sb.add(B.cone(14), { y: 0.5, sx: 0.5, sy: 0.5, sz: 0.5, color: '#e9c46a' }); sb.add(B.cyl(18), { y: 0.53, sx: 1.2, sy: 0.04, sz: 1.2, color: '#2ec4b6' }); break;

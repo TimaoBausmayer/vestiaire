@@ -635,6 +635,7 @@ function buildSmall(cb, model) {
 // ---------------------------------------------------------------------------------------------
 const geoCache = new Map();
 const lodCache = new Map();
+export function lodGeometry(model) { return vehicleGeometries(model).lod; }
 // Géométries d'un modèle : { body, glass, lod } (mises en cache). driver = apparence du conducteur PNJ.
 export function vehicleGeometries(model, { driver = null, driverKey = '' } = {}) {
   const key = `${model}|${driverKey}`;
@@ -694,7 +695,8 @@ varying vec3 vLocal;
 float carHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 `;
 
-export function makeCarMaterial() {
+// instanced = true : version pour les voitures garées (une instance par voiture, peinture par instance).
+export function makeCarMaterial({ instanced = false } = {}) {
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 1, envMapIntensity: 1.1 });
   const u = {
     uPaint: { value: new THREE.Color('#e63946') }, uSpin: { value: 0 }, uSteer: { value: 0 }, uDoor: { value: 0 },
@@ -705,7 +707,8 @@ export function makeCarMaterial() {
   mat.userData.u = u;
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
-    sh.vertexShader = VERT_HEAD + sh.vertexShader
+    const head = instanced ? `attribute vec3 ipaint;\nvarying vec3 vIPaint;\n${VERT_HEAD}` : VERT_HEAD;
+    sh.vertexShader = head + sh.vertexShader
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nobjectNormal = carRot(objectNormal, true);')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         transformed = carRot(transformed, false);
@@ -719,10 +722,10 @@ export function makeCarMaterial() {
             transformed -= normalize(vec3(transformed.x, transformed.y - 0.75, transformed.z * 0.35) + 1e-4) * f * f * d.w * 0.28 * n;
           }
         }
-        vCPart = cpart; vLocal = transformed;`);
-    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader
+        vCPart = cpart; vLocal = transformed;${instanced ? ' vIPaint = ipaint;' : ''}`);
+    sh.fragmentShader = (instanced ? 'varying vec3 vIPaint;\n' : '') + FRAG_HEAD + sh.fragmentShader
       .replace('#include <color_fragment>', `#include <color_fragment>
-        diffuseColor.rgb *= mix(vec3(1.0), uPaint, vCPart.x);
+        diffuseColor.rgb *= mix(vec3(1.0), ${instanced ? 'vIPaint' : 'uPaint'}, vCPart.x);
         float grime = carHash(floor(vLocal * 2.5));
         float scratch = smoothstep(0.93, 1.0, carHash(floor(vLocal * vec3(30.0, 3.0, 30.0)))) * smoothstep(0.25, 0.7, uDamage);
         diffuseColor.rgb *= 1.0 - (uDamage * (0.18 + 0.22 * grime) + uDirt * 0.25 * grime * smoothstep(0.9, 0.2, vLocal.y)) * vCPart.x;
@@ -743,7 +746,7 @@ export function makeCarMaterial() {
           totalEmissiveRadiance += diffuseColor.rgb * e;
         }`);
   };
-  mat.customProgramCacheKey = () => 'playzone-car-1';
+  mat.customProgramCacheKey = () => (instanced ? 'playzone-car-inst-1' : 'playzone-car-1');
   return mat;
 }
 

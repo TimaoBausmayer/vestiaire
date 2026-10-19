@@ -5,7 +5,7 @@ import { mkdirSync, rmSync } from 'node:fs';
 mkdirSync('tests/e2e/out', { recursive: true });
 rmSync('tests/e2e/out/mp.db', { force: true });
 const srv = await startServer({ port: 0, dbFile: 'tests/e2e/out/mp.db', quiet: false, accountsPerIp: 50 });
-const url = `http://127.0.0.1:${srv.port}/index.html?heure=12`;
+const url = `http://127.0.0.1:${srv.port}/index.html?heure=12&qualite=low`;
 const { browser, context: ctxA } = await launch();
 const ctxB = await browser.newContext({ viewport: { width: 1280, height: 720 } });
 const A = await ctxA.newPage(), B = await ctxB.newPage();
@@ -14,8 +14,9 @@ let ok = true;
 const check = (cond, msg) => { console.log(`${cond ? '✔' : '✘'} ${msg}`); ok = ok && cond; };
 
 async function join(page, name) {
-  await page.goto(url);
-  await page.getByText('Jouer en ligne').click({ timeout: 90000 });
+  // deux navigateurs en rendu logiciel sur la même machine : le chargement peut être long
+  await page.goto(url, { waitUntil: 'commit', timeout: 120000 });
+  await page.getByText('Jouer en ligne').click({ timeout: 180000 });
   await page.getByPlaceholder('Ton pseudo').fill(name, { timeout: 60000 });
   await page.getByRole('button', { name: "C'est parti !" }).click();
   await page.waitForFunction(() => window.playzone?.playing, null, { timeout: 60000 });

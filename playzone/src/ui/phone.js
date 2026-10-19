@@ -1,6 +1,7 @@
 import { h, clear, fmt } from './dom.js';
-import { drawMapBase, drawMarkers } from './hud.js';
-import { WORLD_HALF, SECRETS, POI } from '../../shared/world-layout.js';
+import { drawMapBase, drawMarkers, drawRoute } from './hud.js';
+import { WORLD_BOUNDS, SECRETS, POI } from '../../shared/world-layout.js';
+import { destinations, DEST_CATS } from './gps.js';
 import { JOBS, jobLevel } from '../../shared/content/jobs.js';
 import { levelProgress } from '../../shared/rules.js';
 import { ROADMAP } from '../../shared/content/roadmap.js';
@@ -82,35 +83,94 @@ export class Phone {
   // ------------------------------------------------------------------ applis
   app_map(b) {
     const g = this.game;
+    const B = WORLD_BOUNDS, MW = B.maxX - B.minX, MH = B.maxZ - B.minZ;
     const c = h('canvas', { width: 600, height: 600 });
-    b.append(h('div.bigmap', c), h('p.muted', { style: { fontSize: '12px' } }, 'Touche la carte pour placer un repère (la boussole t\'y guidera).'));
+    // vue : centre (monde) + zoom (pixels par mètre)
+    const P0 = g.player.zone === 'world' ? g.player.pos : POI.homeDoor;
+    const view = this.mapView ||= { x: P0.x, z: P0.z, k: 1.6 };
+    if (this.mapFollow !== false) { view.x = P0.x; view.z = P0.z; }
+    const toScreen = (wx, wz) => [300 + (wx - view.x) * view.k, 300 + (wz - view.z) * view.k];
+    const toWorld = (sx, sy) => [view.x + (sx - 300) / view.k, view.z + (sy - 300) / view.k];
+    const info = h('p.muted', { style: { fontSize: '12px', margin: '6px 0' } }, 'Glisse pour te déplacer, molette / boutons pour zoomer. Touche un lieu pour lancer le GPS.');
+    const zoom = (f) => { view.k = Math.max(0.5, Math.min(6, view.k * f)); };
+    b.append(h('div.bigmap', c), h('div.row', { style: { gap: '6px', margin: '6px 0' } },
+      h('button.btn.small.ghost', { onclick: () => zoom(1.4) }, '➕'), h('button.btn.small.ghost', { onclick: () => zoom(1 / 1.4) }, '➖'),
+      h('button.btn.small.ghost', { onclick: () => { this.mapFollow = true; const p = g.player.pos; view.x = p.x; view.z = p.z; } }, '🎯 Moi'),
+      h('button.btn.small.ghost', { onclick: () => { view.x = (B.minX + B.maxX) / 2; view.z = (B.minZ + B.maxZ) / 2; view.k = 600 / Math.max(MW, MH); this.mapFollow = false; } }, '🗺️ Tout'),
+      g.gps?.dest ? h('button.btn.small', { onclick: () => { g.hud.compassTarget = null; g.gps.clear(); this.render(); } }, '✖ Arrêter le GPS') : null), info);
     const draw = () => {
       if (!c.isConnected) return;
       const x = c.getContext('2d');
-      x.drawImage(this.mapBase, 0, 0, 600, 600);
-      const k = 600 / (WORLD_HALF * 2);
-      const toScreen = (wx, wz) => [(wx + WORLD_HALF) * k, (wz + WORLD_HALF) * k];
+      x.fillStyle = '#2e9fd6'; x.fillRect(0, 0, 600, 600);
+      const [ox, oy] = toScreen(B.minX, B.minZ);
+      x.drawImage(this.mapBase, ox, oy, MW * view.k, MH * view.k);
+      drawRoute(x, toScreen, g.gps?.route, 1.2);
       const markers = [...g.mapMarkers()];
-      if (g.waypoint) markers.push({ ...g.waypoint, color: '#ffffff', icon: '📍' });
-      drawMarkers(x, toScreen, markers, 1.6);
+      if (g.gps?.dest) markers.push({ x: g.gps.dest.x, z: g.gps.dest.z, color: '#29e6ff', icon: '📍' });
+      drawMarkers(x, toScreen, markers, Math.max(1, Math.min(1.8, view.k)));
       const pp = g.player.zone === 'world' ? g.player.pos : POI.homeDoor;
       const [px, pz] = toScreen(pp.x, pp.z);
       x.save(); x.translate(px, pz); x.rotate(-g.player.yaw + Math.PI);
       x.fillStyle = '#fff'; x.strokeStyle = '#ff5a5f'; x.lineWidth = 3;
       x.beginPath(); x.moveTo(0, -11); x.lineTo(8, 8); x.lineTo(0, 4); x.lineTo(-8, 8); x.closePath(); x.fill(); x.stroke();
       x.restore();
-      requestAnimationFrame(() => setTimeout(draw, 250));
+      if (view.k > 2.2) { // noms des lieux de près
+        x.font = '600 11px system-ui'; x.fillStyle = '#1b1446'; x.textAlign = 'center';
+        for (const d of destinations()) { const [sx, sy] = toScreen(d.x, d.z); if (sx > 0 && sx < 600 && sy > 0 && sy < 600) x.fillText(d.name.slice(0, 26), sx, sy + 16); }
+      }
+      requestAnimationFrame(() => setTimeout(draw, 200));
     };
     draw();
-    c.addEventListener('click', (e) => {
-      const r = c.getBoundingClientRect();
-      const wx = ((e.clientX - r.left) / r.width) * WORLD_HALF * 2 - WORLD_HALF, wz = ((e.clientY - r.top) / r.height) * WORLD_HALF * 2 - WORLD_HALF;
-      g.waypoint = { x: wx, z: wz, label: 'Repère' };
-      if (!g.jobs?.active) g.hud.compassTarget = g.waypoint;
-      g.ui.toast('Repère placé : suis la flèche !', 'good');
+    // déplacement / zoom
+    let drag = null, moved = 0;
+    const scale = () => 600 / c.getBoundingClientRect().width;
+    c.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; moved = 0; c.setPointerCapture(e.pointerId); });
+    c.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const dx = (e.clientX - drag.x) * scale(), dy = (e.clientY - drag.y) * scale();
+      moved += Math.abs(dx) + Math.abs(dy);
+      view.x -= dx / view.k; view.z -= dy / view.k; drag = { x: e.clientX, y: e.clientY };
+      if (moved > 6) this.mapFollow = false;
     });
-    const legend = [['👕', 'Vêtements'], ['🛋️', 'Meubles'], ['🐾', 'Animalerie'], ['🛵', 'Garage'], ['📦', 'Livreur'], ['🚒', 'Pompier'], ['🍔', 'Cuisinier'], ['🏠', 'Chez moi'], ['🥧', 'Tartes'], ['🐔', 'Poulets'], ['🏃', 'Parcours'], ['📋', 'Événements']];
-    b.append(h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '12.5px' } }, legend.map(([i, t]) => h('span', `${i} ${t}`))));
+    c.addEventListener('pointerup', (e) => {
+      const wasDrag = moved > 6;
+      drag = null;
+      if (wasDrag) return;
+      const r = c.getBoundingClientRect();
+      const [wx, wz] = toWorld((e.clientX - r.left) * scale(), (e.clientY - r.top) * scale());
+      // lieu le plus proche du point touché
+      let best = null, bd = 14 / view.k + 6;
+      for (const d of destinations()) { const dd = Math.hypot(d.x - wx, d.z - wz); if (dd < bd) { bd = dd; best = d; } }
+      this.goTo(best || { x: wx, z: wz, name: 'Repère' });
+    });
+    c.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.2 : 1 / 1.2); }, { passive: false });
+    // liste des lieux (recherche + catégories)
+    const search = h('input', { type: 'search', placeholder: 'Rechercher un lieu (pizzeria, police, garage...)', style: { width: '100%', padding: '8px 10px', borderRadius: '10px', border: 'none', margin: '6px 0' } });
+    const list = h('div.list');
+    const fill = () => {
+      clear(list);
+      const q = search.value.trim().toLowerCase();
+      const all = destinations().filter((d) => !q || d.name.toLowerCase().includes(q));
+      for (const [cat, label] of Object.entries(DEST_CATS)) {
+        const items = all.filter((d) => d.cat === cat);
+        if (!items.length) continue;
+        list.append(h('h4', { style: { margin: '10px 0 4px' } }, label));
+        const P = g.player.pos;
+        items.sort((a2, b2) => Math.hypot(a2.x - P.x, a2.z - P.z) - Math.hypot(b2.x - P.x, b2.z - P.z));
+        for (const d of items) list.append(h('div.list-item', { style: { cursor: 'pointer' }, onclick: () => this.goTo(d) }, h('div.grow', h('div.t', d.name), h('div.d', `${Math.round(Math.hypot(d.x - P.x, d.z - P.z))} m à vol d'oiseau`)), h('span.pill', 'GPS')));
+      }
+    };
+    search.addEventListener('input', fill);
+    b.append(h('h4', { style: { margin: '10px 0 0' } }, '🧭 Aller à...'), search, list);
+    fill();
+  }
+
+  goTo(d) {
+    const g = this.game;
+    g.hud.compassTarget = { x: d.x, z: d.z, label: d.name, manual: true };
+    g.gps?.set({ x: d.x, z: d.z, label: d.name, manual: true });
+    g.ui.toast(`🧭 GPS : itinéraire vers ${d.name} (${Math.round(g.gps?.remaining() || 0)} m). Suis la ligne bleue !`, 'good', 3500);
+    this.close();
   }
 
   app_missions(b) {

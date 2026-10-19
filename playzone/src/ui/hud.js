@@ -1,40 +1,68 @@
 import * as THREE from 'three';
 import { h, clear, fmt } from './dom.js';
-import { BUILDINGS, ROADS, POND, zoneAt, WORLD_HALF, POI, MINIGAME_SPOTS } from '../../shared/world-layout.js';
+import { BUILDINGS, ROADS, POND, zoneAt, WORLD_BOUNDS, POI, MINIGAME_SPOTS, PARKINGS, CITY_POI, PORT_QUAY } from '../../shared/world-layout.js';
 import { levelProgress } from '../../shared/rules.js';
 import { formatHour } from '../world/daynight.js';
 
 // Affichage tête haute : argent, niveau, réputation, zone, horloge, mini-carte, missions, boussole.
 
-// Carte de fond pré-dessinée (sert à la mini-carte et à la carte du téléphone).
+// Carte de fond pré-dessinée (sert à la mini-carte et à la carte du téléphone). px pixels par mètre.
+export const MAP = WORLD_BOUNDS;
 export function drawMapBase(px = 2) {
-  const S = WORLD_HALF * 2 * px;
+  const B = WORLD_BOUNDS;
   const c = document.createElement('canvas');
-  c.width = c.height = S;
+  c.width = (B.maxX - B.minX) * px; c.height = (B.maxZ - B.minZ) * px;
   const g = c.getContext('2d');
-  const X = (x) => (x + WORLD_HALF) * px;
-  g.fillStyle = '#79c25a'; g.fillRect(0, 0, S, S);
-  g.fillStyle = '#4e8a3e'; g.fillRect(X(-128), X(-128), 68 * px, 68 * px);
-  g.fillStyle = '#a47148'; g.fillRect(X(-125), X(14), 30 * px, 44 * px);
-  g.fillStyle = '#f2d59b'; g.fillRect(0, X(64), S, S);
-  g.fillStyle = '#2e9fd6'; g.fillRect(0, X(93), S, S);
-  g.beginPath(); g.arc(X(POND.x), X(POND.z), POND.r * px, 0, 7); g.fill();
-  g.fillStyle = '#e8d5b5'; g.fillRect(X(-24), X(-24), 48 * px, 48 * px);
+  const X = (x) => (x - B.minX) * px, Y = (z) => (z - B.minZ) * px;
+  const rect = (x1, z1, x2, z2, col) => { g.fillStyle = col; g.fillRect(X(x1), Y(z1), (x2 - x1) * px, (z2 - z1) * px); };
+  rect(B.minX, B.minZ, B.maxX, B.maxZ, '#79c25a');
+  rect(-136, -136, -60, -60, '#4e8a3e');                 // forêt
+  rect(-300, -136, -136, 56, '#86c467');                  // campagne
+  rect(-300, -335, -136, -136, '#a3b08f');                // industrie
+  rect(-125, 14, -95, 58, '#a47148');                     // champs Bidoche
+  for (const [x1, z1, x2, z2] of [[-283, -63, -228, -14], [-212, -132, -150, -78], [-283, -132, -228, -78], [-212, 10, -150, 50]]) rect(x1, z1, x2, z2, '#b08850');
+  rect(B.minX, 64, 140, B.maxZ, '#f2d59b');               // plages
+  rect(B.minX, 93, 140, B.maxZ, '#2e9fd6');                // mer
+  rect(140, 56, B.maxX, PORT_QUAY.z, '#b3aea4');          // quai du port
+  rect(140, PORT_QUAY.z, B.maxX, B.maxZ, '#2e9fd6');
+  g.fillStyle = '#2e9fd6'; g.beginPath(); g.arc(X(POND.x), Y(POND.z), POND.r * px, 0, 7); g.fill();
+  rect(-24, -24, 24, 24, '#e8d5b5');                       // place
+  g.fillStyle = '#e9d8a6'; g.beginPath(); g.arc(X(CITY_POI.arena.x), Y(CITY_POI.arena.z), CITY_POI.arena.r * px, 0, 7); g.fill();
+  const C = CITY_POI.circuit;
+  g.strokeStyle = '#5a5e6a'; g.lineWidth = 9 * px; g.beginPath(); g.ellipse(X(C.x), Y(C.z), C.rx * px, C.rz * px, 0, 0, 7); g.stroke();
+  for (const p of PARKINGS) rect(p.x1, p.z1, p.x2, p.z2, '#8a8f96');
   g.fillStyle = '#5a5e6a';
-  for (const [x1, z1, x2, z2] of ROADS) g.fillRect(X(x1), X(z1), (x2 - x1) * px, (z2 - z1) * px);
-  g.fillStyle = '#b07d47'; g.fillRect(X(POI.pier.x - 4), X(POI.pier.z1), 8 * px, (POI.pier.z2 - POI.pier.z1) * px);
+  for (const [x1, z1, x2, z2] of ROADS) g.fillRect(X(x1), Y(z1), (x2 - x1) * px, (z2 - z1) * px);
+  rect(POI.pier.x - 4, POI.pier.z1, POI.pier.x + 4, POI.pier.z2, '#b07d47');
   for (const b of BUILDINGS) {
     if (b.secret) continue;
-    g.fillStyle = b.kind === 'shop' ? '#ff5a5f' : b.kind === 'job' ? '#ffd23f' : b.kind === 'home' ? '#2ec4b6' : '#d9d4c7';
-    g.fillRect(X(b.x - b.w / 2), X(b.z - b.d / 2), b.w * px, b.d * px);
+    const col = b.kind === 'shop' ? '#ff5a5f' : b.kind === 'job' ? '#ffd23f' : b.kind === 'home' || b.kind === 'home-buy' ? '#2ec4b6' : b.kind === 'service' ? '#7aa7ff' : '#d9d4c7';
+    rect(b.x - b.w / 2, b.z - b.d / 2, b.x + b.w / 2, b.z + b.d / 2, col);
   }
   g.fillStyle = '#ffffff';
-  g.beginPath(); g.arc(X(0), X(0), 4.5 * px, 0, 7); g.fill();
+  g.beginPath(); g.arc(X(0), Y(0), 4.5 * px, 0, 7); g.fill();
   return c;
 }
 
+// Trace un itinéraire GPS sur une carte.
+export function drawRoute(g, toScreen, route, scale = 1) {
+  if (!route || route.length < 2) return;
+  g.save();
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  for (const [w, col] of [[7 * scale, '#1b1446'], [4 * scale, '#29e6ff']]) {
+    g.strokeStyle = col; g.lineWidth = w;
+    g.beginPath();
+    route.forEach((p, i) => { const [x, y] = toScreen(p.x, p.z); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+    g.stroke();
+  }
+  g.restore();
+}
+
+const SHOP_ICON = { clothes: '👕', furniture: '🛋️', pets: '🐾', vehicles: '🛵', cafe: '☕', bakery: '🥖', burger: '🍔', pizzeria: '🍕', tacos: '🌮', homard: '🦞', poisson: '🐟', cafe2: '☕', paillote: '🍹', immo: '🏡', electronics: '📺', 'cars-new': '🚗', 'cars-used': '🚙', bikes: '🏍️', repair: '🔧', 'furniture-used': '🪑', 'pet-acc': '🦴', supermarket: '🛒', superette: '🛒', 'clothes-used': '🧥', depot: '♻️', brocante: '🏺', station: '⛽', rental: '🔑', scrapyard: '🔩', farm: '🥕' };
+const SERVICE_ICON = { police: '👮', hospital: '🏥', mairie: '🏛️', bank: '🏦', school: '🏫', prison: '⛓️', cinema: '🎬', bowling: '🎳', arcade: '🕹️', gym: '💪', office: '🏢' };
 const MAP_ICONS = [
-  ...BUILDINGS.filter((b) => b.kind === 'shop' || b.kind === 'job' || b.kind === 'home').map((b) => ({ x: b.door.x, z: b.door.z, icon: { clothes: '👕', furniture: '🛋️', pets: '🐾', vehicles: '🛵' }[b.shop] || { delivery: '📦', firefighter: '🚒', cook: '🍔' }[b.job] || '🏠' })),
+  ...BUILDINGS.filter((b) => b.kind === 'shop' || b.kind === 'job' || b.kind === 'home' || b.kind === 'service' || b.kind === 'home-buy').map((b) => ({ x: b.door.x, z: b.door.z, icon: { delivery: '📦', firefighter: '🚒', cook: '🍔' }[b.job] || SHOP_ICON[b.shop] || SERVICE_ICON[b.interior] || '🏠' })),
+  { x: CITY_POI.arena.x, z: CITY_POI.arena.z, icon: '🎪' }, { x: CITY_POI.circuit.x, z: CITY_POI.circuit.z, icon: '🏁' }, { x: CITY_POI.funfair.x, z: CITY_POI.funfair.z, icon: '🎡' },
   { x: POI.foodTruck.x, z: POI.foodTruck.z, icon: '🍔' },
   { x: MINIGAME_SPOTS.pieToss.x, z: MINIGAME_SPOTS.pieToss.z, icon: '🥧' },
   { x: MINIGAME_SPOTS.chickenRace.x, z: MINIGAME_SPOTS.chickenRace.z, icon: '🐔' },
@@ -140,10 +168,16 @@ export class HUD {
     }
     this.clock.textContent = `${g.world.dayNight.hour >= 20.5 || g.world.dayNight.hour < 6 ? '🌙' : '☀️'} ${formatHour(g.world.dayNight.hour)}`;
     // boussole vers l'objectif
-    const t = this.compassTarget;
+    // la boussole suit l'itinéraire GPS (prochain virage) quand il y en a un
+    const t0 = this.compassTarget;
+    if (g.gps) {
+      if (t0 && (!g.gps.dest || g.gps.dest.x !== t0.x || g.gps.dest.z !== t0.z)) g.gps.set({ x: t0.x, z: t0.z, label: t0.label, manual: !!t0.manual });
+      else if (!t0 && g.gps.dest) g.gps.clear();
+    }
+    const t = t0 && g.gps?.route ? { ...g.gps.next(), label: t0.label } : t0;
     if (t && g.player.zone === 'world') {
       const dx = t.x - p.x, dz = t.z - p.z;
-      const d = Math.hypot(dx, dz);
+      const d = t0 && g.gps?.route ? g.gps.remaining() : Math.hypot(dx, dz);
       this.compass.classList.add('show');
       const camF = g.cam.yaw;
       const ang = Math.atan2(dx, dz) - (camF + Math.PI);
@@ -157,7 +191,7 @@ export class HUD {
 
   drawMinimap() {
     const g = this.mapCanvas.getContext('2d');
-    const W = this.mapCanvas.width, px = 2, R = 55; // rayon visible en mètres
+    const W = this.mapCanvas.width, px = 2, R = this.game.vehicles?.driving ? 85 : 55; // rayon visible en mètres
     const p = this.game.player;
     const inWorld = p.zone === 'world';
     const cx = inWorld ? p.pos.x : POI.homeDoor.x, cz = inWorld ? p.pos.z : POI.homeDoor.z;
@@ -167,9 +201,10 @@ export class HUD {
     g.save();
     g.translate(W / 2, W / 2);
     g.scale(k / px, k / px);
-    g.drawImage(this.mapBase, -(cx + WORLD_HALF) * px, -(cz + WORLD_HALF) * px);
+    g.drawImage(this.mapBase, -(cx - WORLD_BOUNDS.minX) * px, -(cz - WORLD_BOUNDS.minZ) * px);
     g.restore();
     const toScreen = (x, z) => [W / 2 + (x - cx) * k, W / 2 + (z - cz) * k];
+    if (inWorld) drawRoute(g, toScreen, this.game.gps?.route, 2);
     drawMarkers(g, toScreen, [...this.game.mapMarkers()], 2);
     // joueur
     g.save();

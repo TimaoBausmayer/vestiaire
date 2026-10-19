@@ -48,7 +48,8 @@ if (which === 'all' || which === 'pompier') {
   await sleep(900);
   await page.screenshot({ path: 'tests/e2e/out/s5-pompier.png' });
   let done = false;
-  for (let i = 0; i < 20 && !done; i++) { await sleep(500); done = await ev(() => !window.playzone.jobs.active); }
+  // on avance la simulation à pas fixe (indépendant de la vitesse du rendu logiciel)
+  for (let i = 0; i < 30 && !done; i++) { done = await ev(() => { const g = window.playzone; g.debugStep(0.5); return !g.jobs.active; }); }
   await page.keyboard.up('KeyF');
   const c1 = await coins();
   console.log(`POMPIER : feu « ${f.name} » éteint = ${done}, PC ${c0} -> ${c1}`);

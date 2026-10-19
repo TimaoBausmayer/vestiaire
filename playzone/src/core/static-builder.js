@@ -59,7 +59,8 @@ export const SHAPES = {
 export class StaticBuilder {
   constructor(chunkSize = 64) {
     this.chunkSize = chunkSize;
-    this.groups = new Map(); // clé "materiau|chunk" -> { pos:[], nor:[], col:[] }
+    this.groups = new Map(); // clé "materiau|chunk" -> { pos:[], nor:[], col:[], cut:[] }
+    this.cut = 0;            // code "escamotable" courant (bâtiment visitable : toit / murs), 0 = jamais caché
   }
 
   // Ajoute une forme de base transformée. o = { x,y,z, sx,sy,sz, rx,ry,rz, color, mat }
@@ -78,7 +79,9 @@ export class StaticBuilder {
     const cs = this.chunkSize;
     const key = cs === Infinity ? `${mat}|0` : `${mat}|${Math.floor(cx / cs)},${Math.floor(cz / cs)}`;
     let g = this.groups.get(key);
-    if (!g) { g = { mat, pos: [], nor: [], col: [] }; this.groups.set(key, g); }
+    if (!g) { g = { mat, pos: [], nor: [], col: [], cut: [], hasCut: false }; this.groups.set(key, g); }
+    const cut = this.cut;
+    if (cut) g.hasCut = true;
     const { pos, nor } = shape;
     const e = matrix.elements;
     const ne = _n.elements;
@@ -90,6 +93,29 @@ export class StaticBuilder {
       const l = Math.hypot(tx, ty, tz) || 1;
       g.nor.push(tx / l, ty / l, tz / l);
       g.col.push(_c.r, _c.g, _c.b);
+      g.cut.push(cut);
+    }
+  }
+
+  // Copie une géométrie déjà colorée (meuble, objet...) avec une transformation (x, y, z, ry, échelle).
+  addColored(geo, x, y, z, ry = 0, scale = 1, mat = 'main') {
+    _e.set(0, ry, 0, 'YXZ'); _q.setFromEuler(_e); _s.set(scale, scale, scale); _v.set(x, y, z);
+    _m.compose(_v, _q, _s);
+    _n.getNormalMatrix(_m);
+    const cs = this.chunkSize;
+    const key = cs === Infinity ? `${mat}|0` : `${mat}|${Math.floor(x / cs)},${Math.floor(z / cs)}`;
+    let g = this.groups.get(key);
+    if (!g) { g = { mat, pos: [], nor: [], col: [], cut: [], hasCut: false }; this.groups.set(key, g); }
+    const P = geo.attributes.position.array, N = geo.attributes.normal.array, C = geo.attributes.color.array;
+    const e = _m.elements, ne = _n.elements, cut = this.cut;
+    if (cut) g.hasCut = true;
+    for (let i = 0; i < P.length; i += 3) {
+      const px = P[i], py = P[i + 1], pz = P[i + 2];
+      g.pos.push(e[0] * px + e[4] * py + e[8] * pz + e[12], e[1] * px + e[5] * py + e[9] * pz + e[13], e[2] * px + e[6] * py + e[10] * pz + e[14]);
+      const nx = N[i], ny = N[i + 1], nz = N[i + 2];
+      g.nor.push(ne[0] * nx + ne[3] * ny + ne[6] * nz, ne[1] * nx + ne[4] * ny + ne[7] * nz, ne[2] * nx + ne[5] * ny + ne[8] * nz);
+      g.col.push(C[i], C[i + 1], C[i + 2]);
+      g.cut.push(cut);
     }
   }
 
@@ -112,10 +138,12 @@ export class StaticBuilder {
       geo.setAttribute('position', new THREE.Float32BufferAttribute(g.pos, 3));
       geo.setAttribute('normal', new THREE.Float32BufferAttribute(g.nor, 3));
       geo.setAttribute('color', new THREE.Float32BufferAttribute(g.col, 3));
+      if (g.hasCut) geo.setAttribute('cut', new THREE.Float32BufferAttribute(g.cut, 1));
       geo.computeBoundingSphere();
       geo.computeBoundingBox();
       const mesh = new THREE.Mesh(geo, materials[g.mat] || materials.main);
       mesh.matrixAutoUpdate = false;
+      if (g.hasCut && materials.cutDepth) mesh.customDepthMaterial = materials.cutDepth;
       if (shadows && g.mat === 'main') { mesh.castShadow = true; mesh.receiveShadow = true; }
       if (g.mat === 'ground') mesh.receiveShadow = shadows;
       group.add(mesh);

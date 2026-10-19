@@ -18,6 +18,7 @@ export class ThirdPersonCamera {
     this.idle = 0;
     this.shake = 0;
     this.override = null;  // { pos, look } pour une vue fixe (mini-jeu, cuisine)
+    this.inside = null;    // { pitch, dist } : vue plongeante à l'intérieur d'un bâtiment
   }
 
   snap(target, yaw) {
@@ -39,13 +40,19 @@ export class ThirdPersonCamera {
       return;
     }
 
+    // à l'intérieur : la caméra plonge (toit et murs côté caméra escamotés)
+    if (this.inside) {
+      if (!(input.look.dx || input.look.dy)) this.pitch += (this.inside.pitch - this.pitch) * Math.min(1, dt * 3);
+      this.pitch = Math.max(0.55, this.pitch);
+    }
     this.smoothTarget.lerp(target, 1 - Math.exp(-dt * 14));
     const t = this.smoothTarget;
     const hx = t.x, hy = t.y + 1.6, hz = t.z;
     const cp = Math.cos(this.pitch);
     const dx = Math.sin(this.yaw) * cp, dy = Math.sin(this.pitch), dz = Math.cos(this.yaw) * cp;
-    const free = this.collision.segmentFree(hx, hy, hz, hx + dx * this.dist, hy + dy * this.dist, hz + dz * this.dist);
-    const want = Math.max(this.minDist * 0.6, this.dist * free - 0.2);
+    const dist = this.inside ? Math.min(this.dist, this.inside.dist) : this.dist;
+    const free = this.collision.segmentFree(hx, hy, hz, hx + dx * dist, hy + dy * dist, hz + dz * dist);
+    const want = Math.max(this.minDist * 0.6, dist * free - 0.2);
     this.curDist += (want - this.curDist) * (want < this.curDist ? 1 : 1 - Math.exp(-dt * 3));
     const d = this.curDist;
     let cy = hy + dy * d;

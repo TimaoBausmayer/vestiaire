@@ -15,6 +15,9 @@ import { SPECIES, TRICKS, petStatus } from './content/animals.js';
 import { pieTargets, PIE_POINTS } from './minigame-logic.js';
 import { isClean } from './chat-filter.js';
 import { VEHICLES, CAR_PAINTS } from './content/vehicles.js';
+import { BUILDINGS } from './world-layout.js';
+import { defaultNeeds, applyNeeds, needsStatus } from './needs.js';
+import { ACTIVITIES, quizOfDay } from './activities.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
 export const TRASH_SPOTS = [
@@ -60,7 +63,29 @@ export class Authority {
     p.activity ||= {};
     p.appearance = { ...DEFAULT_APPEARANCE, ...p.appearance };
     p.titles ||= [];
+    p.needs ||= defaultNeeds();
+    p.cooldowns ||= {};
+    p.done ||= [];
     return p;
+  }
+
+  // Début de session (connexion) : les besoins ne baissent pas pendant qu'on est déconnecté.
+  startSession(p, now) { p.needs = { ...(p.needs || defaultNeeds()), at: now }; }
+
+  // Le joueur est-il dans (ou devant) un bâtiment ? (intérieur visitable ou porte à moins de 12 m)
+  atBuilding(ctx, b, margin = 3) {
+    const pos = ctx.pos;
+    if (!pos) return false;
+    if (Math.abs(pos.x - b.x) < b.w / 2 + margin && Math.abs(pos.z - b.z) < b.d / 2 + margin) return true;
+    return this.near(ctx, b.door.x, b.door.z, NEAR.shop);
+  }
+
+  // Le joueur est-il dans une boutique qui vend cet objet ?
+  inShopFor(ctx, it) {
+    const shops = [it.shop, ...(it.also || [])];
+    const list = BUILDINGS.filter((b) => shops.includes(b.shop));
+    if (!list.length) return true;
+    return list.some((b) => this.atBuilding(ctx, b));
   }
 
   owned(p) { return new Set(Object.keys(p.inventory).filter((k) => p.inventory[k] > 0)); }
@@ -150,9 +175,8 @@ const HANDLERS = {
   'shop.buy'(ctx, { itemId }) {
     const p = ctx.profile;
     const it = this.content.items[itemId];
-    if (!it || !it.available) return err('Cet article n\'est pas en vente.');
-    const b = BUILDING_BY_ID[SHOP_BUILDING[it.shop]];
-    if (b && !this.near(ctx, b.door.x, b.door.z, NEAR.shop)) return err('Il faut être dans la boutique.');
+    if (!it || !it.available || !it.shop) return err('Cet article n\'est pas en vente.');
+    if (!this.inShopFor(ctx, it)) return err('Il faut être dans la boutique.');
     const lv = levelFromXp(p.xp);
     if (it.level && lv < it.level) return err(`Niveau ${it.level} requis.`);
     if (it.rep && p.rep < it.rep) return err(`${it.rep} points de réputation requis.`);
@@ -189,8 +213,7 @@ const HANDLERS = {
     const p = ctx.profile;
     const it = this.content.items[itemId];
     if (!it || it.consumable || it.pet || it.vehicle || it.special) return err('Cet objet ne se revend pas.');
-    const b = BUILDING_BY_ID[SHOP_BUILDING[it.shop]];
-    if (b && !this.near(ctx, b.door.x, b.door.z, NEAR.shop)) return err('Il faut être dans la boutique.');
+    if (!this.inShopFor(ctx, it)) return err('Il faut être dans la boutique.');
     const have = p.inventory[itemId] || 0;
     const placed = p.home.furniture.filter((f) => f.i === itemId).length;
     if (have - placed <= 0) return err(placed ? 'Retire d\'abord ce meuble de ton logement.' : 'Tu ne possèdes pas cet objet.');
@@ -480,6 +503,52 @@ const HANDLERS = {
   },
 
   // ---------------------------------------------------------------- animaux de compagnie
+  // ---------------------------------------------------------------- activités dans les bâtiments
+  'activity.do'(ctx, { kind, buildingId, answer }) {
+    const p = ctx.profile, a = ACTIVITIES[kind], b = BUILDING_BY_ID[buildingId];
+    if (!a || !b) return err('Activité inconnue.');
+    if (a.where && !a.where.includes(b.interior)) return err('Pas ici.');
+    if (!this.atBuilding(ctx, b, 1)) return err('Il faut être dans le bâtiment.');
+    const key = `${kind}`;
+    if (a.once && p.done.includes(`${kind}:${b.id}`)) return err('Déjà fait !');
+    const wait = (p.cooldowns[key] || 0) + (a.cooldown || 0) - ctx.now;
+    if (wait > 0) return err(`Encore ${Math.ceil(wait / 1000)} s avant de recommencer.`);
+    if (a.cost && p.coins < a.cost) return err('Pas assez de PlayCoins.');
+    const data = { kind };
+    if (kind === 'quiz') {
+      const qz = quizOfDay(ctx.now);
+      data.correct = answer === qz.a;
+      data.answer = qz.c[qz.a];
+      p.cooldowns[key] = ctx.now;
+      if (!data.correct) return { ok: true, changed: true, data };
+    }
+    if (a.cost) this.addCoins(p, -a.cost);
+    p.cooldowns[key] = ctx.now;
+    if (a.once) p.done.push(`${kind}:${b.id}`);
+    if (a.needs) applyNeeds(p.needs, ctx.now, a.needs);
+    if (a.xp) data.xp = a.xp, this.addXp(p, a.xp);
+    let coins = a.coins || 0;
+    if (a.jackpot && ctx.rand() < a.jackpot) { coins += a.jackpotCoins; data.jackpot = true; }
+    if (kind === 'bowling') { data.pins = Math.min(10, Math.floor(ctx.rand() * 11 + ctx.rand() * 3)); if (data.pins === 10) { coins += 5; data.strike = true; } }
+    if (a.prize && ctx.rand() < a.prizeChance) { p.inventory[a.prize] = (p.inventory[a.prize] || 0) + 1; data.prize = a.prize; }
+    if (a.title && !p.titles.includes(a.title)) { p.titles.push(a.title); data.title = a.title; }
+    if (coins) { this.addCoins(p, coins); data.coins = coins; }
+    data.needs = needsStatus(p.needs, ctx.now);
+    return { ok: true, changed: true, data };
+  },
+
+  // ---------------------------------------------------------------- besoins (manger, boire...)
+  'food.eat'(ctx, { itemId }) {
+    const p = ctx.profile, it = this.content.items[itemId];
+    if (!it?.food) return err('Ça ne se mange pas !');
+    if (!(p.inventory[itemId] > 0)) return err('Tu n\'en as plus.');
+    const st = needsStatus(p.needs, ctx.now);
+    if (st.faim >= 98 && it.food.faim > 10) return err('Tu n\'as vraiment plus faim.');
+    p.inventory[itemId]--;
+    applyNeeds(p.needs, ctx.now, it.food);
+    return { ok: true, changed: true, data: { needs: needsStatus(p.needs, ctx.now) } };
+  },
+
   'pet.feed'(ctx, { petId }) {
     const p = ctx.profile, pet = p.pets.find((x) => x.id === petId);
     if (!pet) return err('Animal introuvable.');

@@ -3,11 +3,12 @@
 // dates (start/end) : il s'active et se désactive tout seul, côté client comme côté serveur.
 import base from './packs/base.js';
 import halloween2026 from './packs/halloween-2026.js';
+import ville from './packs/city.js';
 import { JOBS, JOB_BY_ID } from './jobs.js';
 import { SPECIES } from './animals.js';
 import { BASE_EVENTS } from './events.js';
 
-export const PACKS = [base, halloween2026];
+export const PACKS = [base, ville, halloween2026];
 
 export function isPackActive(pack, now) {
   if (!pack.start) return true;

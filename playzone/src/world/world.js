@@ -4,6 +4,9 @@ import { MATS, actorMaterial } from '../core/materials.js';
 import { buildTerrain, buildWater } from './terrain.js';
 import { buildBuildings } from './buildings.js';
 import { buildProps } from './props.js';
+import { buildRoads } from './roads.js';
+import { buildCityProps } from './city-props.js';
+import { SignAtlas } from './signs.js';
 import { DayNight } from './daynight.js';
 import { mulberry32 } from '../../shared/rng.js';
 
@@ -16,6 +19,8 @@ export class World {
     this.scene = engine.scene;
     this.animated = [];
     this.contributors = []; // modules qui ajoutent du décor statique (mini-jeux, saisons...)
+    this.actorMaterial = actorMaterial;
+    this._cullT = 0;
   }
 
   addContributor(fn) { this.contributors.push(fn); }
@@ -28,11 +33,16 @@ export class World {
     scene.add(this.water);
 
     const sb = new StaticBuilder(64);
-    buildBuildings(sb, collision, scene);
+    const atlas = new SignAtlas();
+    buildBuildings(sb, collision, atlas);
+    this.trafficLights = buildRoads(sb, collision, scene);
     buildProps(sb, collision, scene);
+    buildCityProps(sb, collision, scene, this);
     for (const fn of this.contributors) fn(sb, collision, scene);
     this.static = sb.build(MATS, { shadows: true });
     scene.add(this.static);
+    this.signs = atlas.build();
+    scene.add(this.signs);
 
     this.buildFerrisWheel();
     this.buildClouds();
@@ -105,7 +115,18 @@ export class World {
     });
   }
 
+  // Les morceaux de décor trop loin (au-delà du brouillard) ne sont pas dessinés du tout.
+  cull(camPos) {
+    const far = this.engine.scene.fog.far + 30;
+    for (const m of this.static.children) {
+      const bs = m.geometry.boundingSphere;
+      m.visible = camPos.distanceTo(bs.center) - bs.radius < far;
+    }
+  }
+
   update(dt, t, nowMs) {
+    this._cullT -= dt;
+    if (this._cullT <= 0) { this._cullT = 0.25; this.cull(this.engine.camera.position); }
     this.water.material.uniforms.time.value = t;
     for (const fn of this.animated) fn(dt, t);
     this.dayNight.update(nowMs);

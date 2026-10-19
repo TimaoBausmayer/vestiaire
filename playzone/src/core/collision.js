@@ -45,10 +45,12 @@ export class Collision {
 
   remove(c) {
     if (c.dynamic) { this.dynamic.delete(c); return; }
-    for (const arr of this.grid.values()) {
-      const i = arr.indexOf(c);
+    const [minX, minZ, maxX, maxZ] = c.type === 'box' ? [c.minX, c.minZ, c.maxX, c.maxZ] : [c.x - c.r, c.z - c.r, c.x + c.r, c.z + c.r];
+    this._cells(minX, minZ, maxX, maxZ, (k) => {
+      const arr = this.grid.get(k);
+      const i = arr ? arr.indexOf(c) : -1;
       if (i >= 0) arr.splice(i, 1);
-    }
+    });
   }
 
   // Appelle fn pour chaque collider proche (sans doublon).
@@ -115,7 +117,7 @@ export class Collision {
   pointBlocked(x, y, z, pad = 0.25) {
     let blocked = false;
     this.near(x, z, pad, (c) => {
-      if (blocked || c.noCamera) return;
+      if (blocked || c.noCamera || (this.camIgnore && c.bid === this.camIgnore)) return;
       if (c.type === 'box') {
         if (x > c.minX - pad && x < c.maxX + pad && z > c.minZ - pad && z < c.maxZ + pad && y > c.minY - pad && y < c.maxY + pad) blocked = true;
       } else if (y > c.minY && y < c.maxY && Math.hypot(x - c.x, z - c.z) < c.r + pad) blocked = true;

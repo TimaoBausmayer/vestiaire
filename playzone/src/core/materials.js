@@ -4,23 +4,43 @@ import * as THREE from 'three';
 // par le soleil, le ciel et une carte d'environnement (reflets), couleurs vives portées par les sommets.
 // Un seul matériau sert à presque tout le décor et aux personnages : très peu d'appels de dessin.
 
+// "Maison de poupée" : quand le joueur est dans un bâtiment visitable, le toit, les étages et les murs
+// tournés vers la caméra sont escamotés dans le shader (attribut `cut` = bâtiment * 8 + partie ;
+// partie 1 = toit/étages, 2 = mur nord, 3 = sud, 4 = ouest, 5 = est).
+export const CUT = { uCutB: { value: 0 }, uCutMask: { value: new THREE.Vector4() }, uCutRoof: { value: 0 } };
+const CUT_HEAD = 'attribute float cut;\nuniform float uCutB; uniform vec4 uCutMask; uniform float uCutRoof;\n';
+const CUT_BODY = `#include <begin_vertex>
+  if (uCutB > 0.5 && cut > 0.5) {
+    float cb = floor(cut / 8.0 + 0.01);
+    float cp = cut - cb * 8.0;
+    if (abs(cb - uCutB) < 0.5) {
+      float hide = cp < 1.5 ? uCutRoof : cp < 2.5 ? uCutMask.x : cp < 3.5 ? uCutMask.y : cp < 4.5 ? uCutMask.z : uCutMask.w;
+      if (hide > 0.5) transformed = vec3(0.0, -500.0, 0.0);
+    }
+  }`;
+export function withCut(mat, key, extra) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    prev?.call(mat, sh, r);
+    Object.assign(sh.uniforms, CUT);
+    sh.vertexShader = CUT_HEAD + sh.vertexShader.replace('#include <begin_vertex>', CUT_BODY);
+    extra?.(sh);
+  };
+  mat.customProgramCacheKey = () => key;
+  return mat;
+}
+
 export const MATS = {
-  main: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }),
+  main: withCut(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), 'pz-main'),
   ground: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0 }),
   // Vitres : sombres et réfléchissantes le jour, éclairées (teinte des sommets) la nuit.
-  windows: windowMaterial(),
+  windows: withCut(new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x3a4a60, roughness: 0.08, metalness: 0.6, emissive: 0xffffff, emissiveIntensity: 0 }), 'pz-windows',
+    (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;'); }),
   // Ampoules et néons : s'allument la nuit.
-  glow: new THREE.MeshBasicMaterial({ vertexColors: true, color: 0x777777 }),
+  glow: withCut(new THREE.MeshBasicMaterial({ vertexColors: true, color: 0x777777 }), 'pz-glow'),
+  // Ombres des parties escamotables (le toit escamoté ne fait plus d'ombre à l'intérieur).
+  cutDepth: withCut(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), 'pz-cut-depth'),
 };
-
-function windowMaterial() {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x3a4a60, roughness: 0.08, metalness: 0.6, emissive: 0xffffff, emissiveIntensity: 0 });
-  m.onBeforeCompile = (sh) => {
-    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;');
-  };
-  m.customProgramCacheKey = () => 'pz-windows';
-  return m;
-}
 
 // Matériau pour objets mobiles individuels (personnages, animaux...).
 export const actorMaterial = MATS.main;

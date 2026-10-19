@@ -74,11 +74,13 @@ export class LocalConnection extends Emitter {
     if (raw) {
       try { this.profile = this.authority.migrate(JSON.parse(raw)); } catch { this.profile = null; }
     }
+    if (this.profile) this.authority.startSession(this.profile, Date.now());
     return { profile: this.profile };
   }
 
   async createProfile(name, appearance) {
     this.profile = this.authority.newProfile({ id: `solo-${Math.random().toString(36).slice(2, 10)}`, name, appearance, now: Date.now() });
+    this.authority.startSession(this.profile, Date.now());
     this.save(true);
     this.emit('profile', this.profile);
     return this.profile;

@@ -6,7 +6,7 @@ import { EventDirector } from '../shared/events-director.js';
 import { buildContent } from '../shared/content/registry.js';
 import { LIMITS, SPEED } from '../shared/protocol.js';
 import { censor, hasPersonalInfo } from '../shared/chat-filter.js';
-import { POI, MINIGAME_SPOTS, HOME_INTERIOR, WORLD_HALF, dist2d } from '../shared/world-layout.js';
+import { POI, MINIGAME_SPOTS, HOME_INTERIOR, inBounds, dist2d } from '../shared/world-layout.js';
 import { maxSpeedOf } from '../shared/content/vehicles.js';
 
 const POSES = new Set(['idle', 'carry', 'spray', 'wave', 'throw', 'celebrate', 'cook', 'pet', 'sit', 'hold-forward', 'dance']);
@@ -76,6 +76,7 @@ export class GameServer {
     let w = this.worlds.find((x) => x.players.size < LIMITS.playersPerWorld);
     if (!w) { w = new World(this, this.worlds.length + 1); this.worlds.push(w); }
     const p = new Player(conn, this.authority.migrate(profile));
+    this.authority.startSession(p.profile, Date.now());
     this.online.set(p.id, p);
     w.add(p);
     return p;
@@ -228,7 +229,7 @@ export class World {
       p.credit -= extra;
     }
     // limites de la zone
-    if (zone === 'world' && (Math.abs(x) > WORLD_HALF + 6 || Math.abs(z) > WORLD_HALF + 6)) { this.correct(p); return; }
+    if (zone === 'world' && !inBounds(x, z, 6)) { this.correct(p); return; }
     if (zone.startsWith('home:') && (Math.abs(x - HOME_INTERIOR.origin.x) > 12 || Math.abs(z - HOME_INTERIOR.origin.z) > 9)) { this.correct(p); return; }
     p.pos = { x, y, z };
     p.state = {

@@ -18,7 +18,7 @@ await page.keyboard.down('Space'); await step(0.25); await page.keyboard.up('Spa
 const pj = (await pos()).y;
 await step(1.5);
 const pl = (await pos()).y;
-await page.evaluate(() => { const g = window.playzone; g.player.teleport(-20, -30, Math.PI); g.cam.yaw = 0; });
+await page.evaluate(() => { const g = window.playzone; g.player.teleport(-28, -30, Math.PI); g.cam.yaw = 0; }); // à côté de la porte (la mairie se visite)
 await page.keyboard.down('KeyW'); await step(3); await page.keyboard.up('KeyW');
 const pw = await pos();
 await page.evaluate(() => { const g = window.playzone; g.player.teleport(0, 12, 0); g.cam.yaw = Math.PI; });
@@ -27,7 +27,7 @@ const ps = await pos();
 console.log('après 1 s de marche : avancé de', (p0.z - p1.z).toFixed(2), 'm');
 console.log('après 1 s de sprint : avancé de', (ps.z - 12).toFixed(2), 'm');
 console.log('hauteur pendant le saut', pj.toFixed(2), '/ après atterrissage', pl.toFixed(2));
-console.log('contre la mairie (façade à z=-35) : z =', pw.z.toFixed(2));
+console.log('contre le mur de la mairie (façade à z=-35) : z =', pw.z.toFixed(2));
 const ok = p0.z - p1.z > 4 && ps.z - 12 > 7 && pj > 1 && Math.abs(pl) < 0.01 && pw.z > -35.1 && pw.z < -34;
 console.log(ok ? 'OK : déplacement, sprint, saut et collision fonctionnent' : 'ÉCHEC');
 console.log(errors.length ? errors.join('\n') : 'Aucune erreur console');

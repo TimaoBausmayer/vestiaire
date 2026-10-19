@@ -2,7 +2,7 @@
 // ajoutent des objets, missions, mini-jeux et événements au même format : voir registry.js.
 import { VEHICLES } from '../vehicles.js';
 
-// Véhicules neufs vendus par le garage (le prix et le niveau viennent du catalogue des véhicules).
+// Véhicules neufs vendus à la concession Auto Paillettes (voitures) et chez Deux-Roues Express (vélo, moto) (le prix et le niveau viennent du catalogue des véhicules).
 const NEW_CARS = [
   ['velo', '🚲', 'Écologique, silencieux, parfait pour doubler les escargots.'],
   ['moto', '🏍️', 'Pour arriver avant tout le monde (et décoiffé).'],
@@ -15,7 +15,7 @@ const NEW_CARS = [
   ['camion', '🚚', 'Il klaxonne comme un paquebot.'],
   ['coupe', '🏎️', 'Deux portes, zéro place pour vos courses.'],
   ['sportive', '🏎️', 'Accélère plus vite que vos économies ne disparaissent.'],
-].map(([id, emoji, desc]) => ({ id, name: VEHICLES[id].name, shop: 'vehicles', vehicle: id, price: VEHICLES[id].price, level: VEHICLES[id].level, emoji, desc, max: 1 }));
+].map(([id, emoji, desc]) => ({ id, name: VEHICLES[id].name, shop: id === 'velo' || id === 'moto' ? 'bikes' : 'cars-new', vehicle: id, price: VEHICLES[id].price, level: VEHICLES[id].level, emoji, desc, max: 1 }));
 
 export default {
   id: 'base',

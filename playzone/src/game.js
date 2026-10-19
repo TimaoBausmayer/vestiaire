@@ -19,6 +19,7 @@ import { FX } from './core/fx.js';
 import { NPCs } from './characters/npcs.js';
 import { Animals } from './animals/animals.js';
 import { Traffic } from './world/traffic.js';
+import { ParkedCars } from './vehicles/parked.js';
 import { Secrets } from './world/secrets.js';
 import { Minigames } from './minigames/index.js';
 import { Jobs } from './jobs/index.js';
@@ -31,6 +32,7 @@ import { Season } from './events/season.js';
 import { Remotes } from './net/remotes.js';
 import { Social } from './net/social.js';
 import { TouchControls } from './ui/touch.js';
+import { GPS } from './ui/gps.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
 import { DEFAULT_APPEARANCE } from '../shared/appearance.js';
 import { levelFromXp } from '../shared/rules.js';
@@ -47,6 +49,8 @@ export class Game extends Emitter {
   }
 
   async boot() {
+    // on interroge le serveur tout de suite (la construction du monde et la 1re image prennent du temps)
+    const serverProbe = probeServer();
     this.engine = new Engine(this.container, this.qs.get('qualite') || detectQuality());
     this.input = new Input(this.engine.canvas);
     this.collision = new Collision();
@@ -75,6 +79,7 @@ export class Game extends Emitter {
     this.npcs = new NPCs(this);
     this.animals = new Animals(this);
     this.traffic = new Traffic(this);
+    this.parked = new ParkedCars(this);
     this.season = new Season(this);
     this.ambient = [this.npcs, this.animals, this.traffic, this.minigames, this.season, this.fx];
 
@@ -84,7 +89,7 @@ export class Game extends Emitter {
 
     // Écran titre (la ville tourne en arrière-plan)
     this.titleOrbit = true;
-    const serverInfo = await probeServer();
+    const serverInfo = await serverProbe.wait(5000);
     const solo = new LocalConnection();
     const save = solo.hasSave() ? (await solo.connect()).profile : null;
     if (this.qs.get('auto') === 'solo') return this.startSolo(solo, false);
@@ -137,6 +142,7 @@ export class Game extends Emitter {
   startPlaying(firstTime) {
     this.cam.override = null;
     this.hud = new HUD(this.ui, this);
+    this.gps = this.addSystem(new GPS(this));
     this.setProfile(this.net.profile);
     this.avatar.root.visible = true;
     this.player.teleport(POI.spawn.x, POI.spawn.z, POI.spawn.ry);
