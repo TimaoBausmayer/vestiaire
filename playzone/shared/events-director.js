@@ -73,7 +73,7 @@ export class EventDirector {
       if (!ch || c.caught.has(ch.i)) return { ok: false, error: 'Trop tard, quelqu\'un l\'a eu !' };
       // tolérance : on compare avec la position du poulet un peu avant/après (latence réseau)
       let okNear = false;
-      for (const dt of [0, -0.25, -0.5, 0.25]) {
+      for (const dt of [0, -0.25, -0.5, -0.75, 0.25]) {
         const cp = invasionChickenPos(ch, t + dt);
         if (cp.landed && dist2d(pos.x, pos.z, cp.x, cp.z) <= 3.6) { okNear = true; break; }
       }

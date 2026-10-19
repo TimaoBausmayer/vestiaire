@@ -65,6 +65,8 @@ export class LocalConnection extends Emitter {
 
   serverNow() { return Date.now(); }
 
+  currentEvent() { return this.events.publicState(); }
+
   hasSave() { return !!safeGet(SAVE_KEY); }
 
   async connect() {
