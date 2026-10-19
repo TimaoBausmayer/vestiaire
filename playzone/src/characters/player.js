@@ -129,6 +129,7 @@ export class Player {
       x: Math.round(this.pos.x * 100) / 100, y: Math.round(this.pos.y * 100) / 100, z: Math.round(this.pos.z * 100) / 100,
       ry: Math.round(this.yaw * 100) / 100, s: Math.round(this.speed * 10) / 10,
       p: this.pose, d: this.dance, g: this.grounded ? 1 : 0, w: this.swimming ? 1 : 0,
+      v: this.vehicle ? this.vehicle.model : null,
     };
   }
 }

@@ -23,13 +23,16 @@ export function openCreator(game, opts) {
   let name = opts.name || '';
   const avatar = game.avatar;
   const prevPos = game.player.pos.clone(), prevYaw = game.player.yaw, prevZone = game.player.zone;
-  // studio : devant la fontaine, caméra fixe
-  const studio = new THREE.Vector3(-6, 0, 22);
-  game.player.teleport(studio.x, studio.z, 0);
+  // studio : à la création, devant la fontaine ; en cours de partie, sur place (pas de téléportation,
+  // le serveur refuserait un déplacement impossible) : c'est la caméra qui vient au joueur.
+  const studio = game.playing ? game.player.pos.clone() : new THREE.Vector3(-6, 0, 22);
+  if (!game.playing) game.player.teleport(studio.x, studio.z, 0);
+  else { game.player.yaw = 0; game.avatar.root.rotation.y = 0; }
   game.cutscene = true;
   game.player.frozen = true;
-  game.cam.override = { pos: new THREE.Vector3(-6.9, 1.5, 26.2), look: new THREE.Vector3(-5.2, 1.2, 22) };
-  if (innerWidth <= 760) game.cam.override = { pos: new THREE.Vector3(-6, 2.6, 27.5), look: new THREE.Vector3(-6, 0.6, 22) };
+  const S = studio;
+  game.cam.override = { pos: new THREE.Vector3(S.x - 0.9, S.y + 1.5, S.z + 4.2), look: new THREE.Vector3(S.x + 0.8, S.y + 1.2, S.z) };
+  if (innerWidth <= 760) game.cam.override = { pos: new THREE.Vector3(S.x, S.y + 2.6, S.z + 5.5), look: new THREE.Vector3(S.x, S.y + 0.6, S.z) };
   avatar.setAppearance(app);
   let spin = 0;
   const offSpin = game.engine.onUpdate((dt) => { spin += dt * 0.6; avatar.root.rotation.y = Math.sin(spin) * 0.6; });
@@ -81,7 +84,7 @@ export function openCreator(game, opts) {
     game.cutscene = false;
     game.player.frozen = false;
   };
-  const restore = () => { game.player.zone = prevZone; game.player.teleport(prevPos.x, prevPos.z, prevYaw, prevPos.y); };
+  const restore = () => { game.player.zone = prevZone; game.player.yaw = prevYaw; if (!game.playing) game.player.teleport(prevPos.x, prevPos.z, prevYaw, prevPos.y); };
   const foot = h('div.panel-foot',
     err,
     h('button.btn.ghost', { onclick: () => { Object.assign(app, randomAppearance()); if (opts.askName && !name) name = pickR(NAMES) + Math.floor(Math.random() * 90 + 10); apply(); render(); } }, '🎲 Au hasard'),

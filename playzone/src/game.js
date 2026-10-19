@@ -28,6 +28,8 @@ import { Vehicles } from './vehicles/vehicles.js';
 import { Phone } from './ui/phone.js';
 import { Events } from './events/events.js';
 import { Season } from './events/season.js';
+import { Remotes } from './net/remotes.js';
+import { Social } from './net/social.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
 import { DEFAULT_APPEARANCE } from '../shared/appearance.js';
 import { levelFromXp } from '../shared/rules.js';
@@ -147,6 +149,10 @@ export class Game extends Emitter {
     this.vehicles = this.addSystem(new Vehicles(this));
     this.phone = new Phone(this);
     this.events = this.addSystem(new Events(this));
+    if (this.net.mode === 'online') {
+      this.remotes = this.addSystem(new Remotes(this));
+      this.social = new Social(this);
+    }
     this.hud.addButton('📱', 'Téléphone (P)', () => this.phone?.toggle());
     this.hud.addButton('👕', 'Garde-robe', () => openWardrobe(this));
     this.muteBtn = this.hud.addButton(this.sound.muted ? '🔇' : '🔊', 'Son', () => { this.sound.setMuted(!this.sound.muted); this.muteBtn.textContent = this.sound.muted ? '🔇' : '🔊'; });
