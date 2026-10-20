@@ -209,6 +209,26 @@ const HANDLERS = {
     return { ok: true, changed: true, data: { count: p.inventory[itemId] } };
   },
 
+  // Panier (supermarché) : plusieurs articles payés d'un coup à la caisse.
+  'shop.buyMany'(ctx, { items }) {
+    const p = ctx.profile;
+    if (!Array.isArray(items) || !items.length || items.length > 30) return err('Panier invalide.');
+    let total = 0;
+    const lines = [];
+    for (const { id, n } of items) {
+      const it = this.content.items[id], k = n | 0;
+      if (!it || !it.available || !it.shop || !it.consumable || k < 1 || k > 20) return err('Article invalide dans le panier.');
+      if (!this.inShopFor(ctx, it)) return err('Il faut être à la caisse du magasin.');
+      if ((p.inventory[id] || 0) + k > (it.max ?? 99)) return err(`Trop de « ${it.name} » !`);
+      total += it.price * k;
+      lines.push([id, k]);
+    }
+    if (p.coins < total) return err(`Pas assez de PlayCoins (${total} PC).`);
+    for (const [id, k] of lines) p.inventory[id] = (p.inventory[id] || 0) + k;
+    this.addCoins(p, -total);
+    return { ok: true, changed: true, data: { total } };
+  },
+
   'shop.sell'(ctx, { itemId }) {
     const p = ctx.profile;
     const it = this.content.items[itemId];

@@ -172,7 +172,7 @@ export const TEMPLATES = {
     lightsAround(t);
     // cuisine au fond derrière un muret
     const kz = I.z1 + 2.4;
-    t.wall(I.x1 + 0.2, kz, I.x2 - 3.2, kz, 1.1, '#e9e4da');
+    t.wall(I.x1 + 0.2, kz, I.x2 - 3.2, kz, 1.1, '#d9cdb8');
     for (let x = I.x1 + 1; x < I.x2 - 3.5; x += 1.4) { t.box(x, 0, I.z1 + 0.6, 1.2, 0.95, 0.8, '#c7ccd4'); t.box(x, 0.95, I.z1 + 0.6, 0.9, 0.04, 0.6, '#2b2d33'); t.cyl(x - 0.2, 0.99, I.z1 + 0.6, 0.18, 0.2, '#9aa0a8', 10); }
     t.solid((I.x1 + I.x2 - 3) / 2, I.z1 + 0.6, I.x2 - I.x1 - 3.5, 0.9, 1);
     t.staff(I.x1 + 2.5, I.z1 + 1.6, Math.PI, 'cuisinier');
@@ -389,7 +389,8 @@ export const TEMPLATES = {
     lightsAround(t);
     // cloison : salon devant, chambre + cuisine au fond
     const pz = (I.z1 + I.z2) / 2 - 0.5;
-    t.wall(I.x1, pz, -0.8, pz, t.gH - 0.4, t.st.wall); t.wall(0.8, pz, I.x2, pz, t.gH - 0.4, t.st.wall);
+    // cloisons à mi-hauteur : on voit toutes les pièces depuis la vue plongeante
+    t.wall(I.x1, pz, -0.8, pz, 1.25, t.st.wall); t.wall(0.8, pz, I.x2, pz, 1.25, t.st.wall);
     // salon
     t.furn('canape', I.x1 + 2, I.z2 - 1.4, Math.PI / 2); t.solid(I.x1 + 2, I.z2 - 1.4, 1, 2.4, 1); t.seat(I.x1 + 2, I.z2 - 1.4, Math.PI / 2, 0.45);
     t.furn('tapis', 0, I.z2 - 2, 0);

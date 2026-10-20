@@ -29,9 +29,27 @@ export class Player {
     this.vehicle = null;     // véhicule conduit (géré par vehicles.js)
     this.speed = 0;
     this.onBounce = null;
+    this.seated = null;      // siège occupé : { x, z, yaw, y, lie }
+    this.needsSpeed = 1;     // effet (doux) de la faim / fatigue sur la vitesse
+    this.noSprint = false;
   }
 
   setPose(p, duration = 0) { this.pose = p; this.poseTimer = duration; }
+
+  sit(seat) { this.seated = seat; this.vel.set(0, 0, 0); this.onSit?.(seat); }
+
+  stand() {
+    const s = this.seated;
+    if (!s) return;
+    this.seated = null;
+    this.avatar.root.rotation.set(0, this.yaw, 0);
+    // on se relève un peu devant le siège
+    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
+    this.pos.set(s.x + fx * (s.lie ? 1.6 : 0.7), 0, s.z + fz * (s.lie ? 1.6 : 0.7));
+    this.pos.y = this.collision.supportAt(this.pos.x, this.pos.z, 1, PLAYER_RADIUS);
+    this.collision.pushOut(this.pos, PLAYER_RADIUS, PLAYER_HEIGHT, 0.6);
+    this.onStand?.(s);
+  }
 
   teleport(x, z, yaw, y) {
     this.pos.set(x, y ?? this.collision.supportAt(x, z, 50, PLAYER_RADIUS), z);
@@ -45,6 +63,20 @@ export class Player {
     if (this.vehicle) return; // le véhicule gère le joueur
     const p = this.pos, v = this.vel;
     const canMove = !this.frozen;
+    // assis / allongé : on se lève dès qu'on bouge
+    if (this.seated) {
+      const s = this.seated;
+      if (canMove && (Math.hypot(input.move.x, input.move.y) > 0.25 || input.pressed('Space'))) { this.stand(); }
+      else {
+        p.set(s.x, 0, s.z); v.set(0, 0, 0); this.yaw = s.yaw; this.speed = 0; this.grounded = true;
+        const r = this.avatar.root;
+        r.rotation.order = 'YXZ';
+        if (s.lie) { r.position.set(s.x + Math.sin(s.yaw) * 0.95, (s.y || 0.6) + 0.12, s.z + Math.cos(s.yaw) * 0.95); r.rotation.set(-Math.PI / 2, s.yaw, 0); }
+        else { r.position.set(s.x, Math.max(0, (s.y ?? 0.5) - 0.48), s.z); r.rotation.set(0, s.yaw, 0); }
+        this.avatar.update(dt, { speed: 0, grounded: true, pose: s.lie ? 'idle' : this.pose === 'eat' ? 'eat' : 'sit' });
+        return;
+      }
+    }
     // direction voulue (relative à la caméra)
     let mx = 0, mz = 0;
     if (canMove) {
@@ -57,8 +89,8 @@ export class Player {
     const ground = groundHeight(p.x, p.z);
     const inHome = this.zone.startsWith('home');
     this.swimming = !inHome && ground < WATER_LEVEL - 1.0 && p.y < WATER_LEVEL - 0.6;
-    let target = this.swimming ? 3.6 : input.sprint ? this.runSpeed : this.walkSpeed;
-    target *= this.speedBonus;
+    let target = this.swimming ? 3.6 : input.sprint && !this.noSprint ? this.runSpeed : this.walkSpeed;
+    target *= this.speedBonus * this.needsSpeed;
     if (this.pose === 'carry') target *= 0.85;
     const accel = this.grounded || this.swimming ? 14 : 4;
     const tx = mlen > 0.01 ? (mx / Math.max(1, mlen)) * target : 0;
@@ -130,6 +162,7 @@ export class Player {
       ry: Math.round(this.yaw * 100) / 100, s: Math.round(this.speed * 10) / 10,
       p: this.pose, d: this.dance, g: this.grounded ? 1 : 0, w: this.swimming ? 1 : 0,
       v: this.vehicle ? this.vehicle.model : null,
+      ...(this.seated ? { p: this.seated.lie ? 'idle' : 'sit' } : {}),
     };
   }
 }

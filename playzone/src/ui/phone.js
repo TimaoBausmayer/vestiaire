@@ -198,10 +198,17 @@ export class Phone {
     const owned = Object.keys(p.inventory).filter((k) => p.inventory[k] > 0 && items[k]);
     b.append(h('button.btn.block', { onclick: () => { this.close(); openWardrobe(g); } }, '👕 Ouvrir la garde-robe'));
     if (!owned.length) { b.append(h('p.muted', 'Ton sac est vide. Les boutiques sont sur la Grande Place !')); return; }
-    const group = (title, f) => { const list = owned.filter((k) => f(items[k])); if (list.length) b.append(h('h4', { style: { margin: '14px 0 6px' } }, title), h('div.list', list.map((k) => h('div.list-item', h('span', { style: { fontSize: '22px' } }, items[k].emoji), h('div.grow', h('div.t', items[k].name)), h('span.pill', `x${p.inventory[k]}`))))); };
+    const st = g.life?.status;
+    if (st) b.append(h('p.muted', `🍔 Faim ${Math.round(st.faim)} · ⚡ Énergie ${Math.round(st.energie)} · 🙂 Humeur ${Math.round(st.humeur)}`));
+    const eat = async (k) => {
+      try { const r = await g.net.request('food.eat', { itemId: k }); this.close(); g.eating?.play(items[k]); g.emit('needs', r.needs); } catch (e) { g.ui.toast(e.message, 'bad'); }
+    };
+    const group = (title, f, action) => { const list = owned.filter((k) => f(items[k])); if (list.length) b.append(h('h4', { style: { margin: '14px 0 6px' } }, title), h('div.list', list.map((k) => h('div.list-item', h('span', { style: { fontSize: '22px' } }, items[k].emoji), h('div.grow', h('div.t', items[k].name), items[k].food ? h('div.d', `🍔 +${items[k].food.faim} · ⚡ ${items[k].food.energie} · 🙂 ${items[k].food.humeur}`) : null), h('span.pill', `x${p.inventory[k]}`), action ? h('button.btn.small', { onclick: () => action(k) }, action === eat ? 'Manger' : 'OK') : null)))); };
+    group('Nourriture et boissons', (it) => !!it.food && !it.ingredient, eat);
+    group('Ingrédients (à cuisiner chez soi, sur une cuisinière)', (it) => !!it.ingredient);
     group('Vêtements et accessoires', (it) => !!it.slot);
     group('Meubles', (it) => !!it.furniture);
-    group('Consommables', (it) => !!it.consumable);
+    group('Autres consommables', (it) => !!it.consumable && !it.food);
   }
 
   app_events(b) {

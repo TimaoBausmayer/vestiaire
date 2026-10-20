@@ -33,6 +33,9 @@ import { Remotes } from './net/remotes.js';
 import { Social } from './net/social.js';
 import { TouchControls } from './ui/touch.js';
 import { GPS } from './ui/gps.js';
+import { Interiors } from './interiors/interiors.js';
+import { Life } from './life/life.js';
+import { Basket } from './ui/shop.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
 import { DEFAULT_APPEARANCE } from '../shared/appearance.js';
 import { levelFromXp } from '../shared/rules.js';
@@ -143,6 +146,11 @@ export class Game extends Emitter {
     this.cam.override = null;
     this.hud = new HUD(this.ui, this);
     this.gps = this.addSystem(new GPS(this));
+    this.life = this.addSystem(new Life(this));
+    this.eating = this.life;
+    this.sitting = this.life;
+    this.basket = new Basket(this);
+    this.interiors = this.addSystem(new Interiors(this));
     this.setProfile(this.net.profile);
     this.avatar.root.visible = true;
     this.player.teleport(POI.spawn.x, POI.spawn.z, POI.spawn.ry);
@@ -235,13 +243,8 @@ export class Game extends Emitter {
     return { x: (v.x * 0.5 + 0.5) * innerWidth, y: (-v.y * 0.5 + 0.5) * innerHeight };
   }
 
-  setupWorldInteractions() {
-    for (const b of BUILDINGS) {
-      if (b.kind === 'shop') {
-        this.interactions.add({ x: b.door.x, z: b.door.z, r: 3.2, label: `Entrer : ${b.name}`, action: () => { this.sfx('door'); openShop(this, b.shop); } });
-      }
-    }
-  }
+  // Les boutiques se visitent : on entre par la porte et on achète au comptoir (voir interiors/).
+  setupWorldInteractions() {}
 
   interact() {
     if (!this.playing || this.ui.blocking || this.cutscene) return;

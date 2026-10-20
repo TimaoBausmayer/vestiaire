@@ -63,6 +63,8 @@ export class DayNight {
     const env = e.quality !== 'low';
     e.hemi.intensity = env ? 0.35 + light * 0.75 : 0.55 + light * 1.1;
     e.hemi.color.set(light > 0.6 ? 0xdff3ff : 0x8fa0d8);
+    // à l'intérieur d'un bâtiment, l'éclairage des lampes compense la nuit
+    if (this.interiorBoost) { e.hemi.intensity += this.interiorBoost * 0.95 * (1 - light); if (light < 0.7) e.hemi.color.set(0xfff1dc); }
     e.scene.environmentIntensity = 0.25 + light * 0.55;
     e.sun.intensity = sun * 2.6;
     // course du soleil (de l'est vers l'ouest)

@@ -1,9 +1,10 @@
 // Lance tous les tests de bout en bout (Chromium sans écran, rendu WebGL logiciel).
 // Usage : npm run test:e2e
 import { spawnSync } from 'node:child_process';
-const SUITES = ['move.js', 'step2.js', 'step3.js', ['minigames.js', 'all'], ['jobs.js', 'all'], 'step6.js', 'events.js', 'mobile.js', 'multiplayer.js'];
+const SUITES = ['move.js', 'step2.js', 'step3.js', ['minigames.js', 'all'], ['jobs.js', 'all'], 'step6.js', 'events.js', 'mobile.js', 'multiplayer.js', 'drive.js', 'city.js', 'interiors.js'];
+const only = process.argv.slice(2);
 let failed = 0;
-for (const s of SUITES) {
+for (const s of SUITES.filter((s) => !only.length || only.includes([].concat(s)[0]))) {
   const [file, ...args] = [].concat(s);
   const t0 = Date.now();
   const r = spawnSync(process.execPath, ['--disable-warning=ExperimentalWarning', `tests/e2e/${file}`, ...args], { stdio: 'pipe', encoding: 'utf8', timeout: 420_000 });

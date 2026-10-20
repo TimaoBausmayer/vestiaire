@@ -19,9 +19,14 @@ await page.getByRole('button', { name: "C'est parti !" }).click();
 await sleep(2500);
 const p1 = await page.evaluate(() => ({ coins: window.playzone.profile.coins, name: window.playzone.profile.name }));
 console.log('profil créé :', p1);
-// aller à la boutique de vêtements
+// aller à la boutique de vêtements : on entre et on va au comptoir
 await page.evaluate(() => { const g = window.playzone; const b = { x: -18, z: 34.5 }; g.player.teleport(b.x, b.z, 0); g.cam.yaw = Math.PI; });
-await page.evaluate(() => window.playzone.debugStep(0.3));
+await page.evaluate(() => window.playzone.debugStep(1.2));
+await page.evaluate(() => {
+  const g = window.playzone;
+  for (const d of g.interactions.list) { const l = typeof d.label === 'function' ? d.label() : d.label; if (/Acheter : Fringues/.test(l || '')) { g.player.teleport(d.x, d.z, Math.PI); break; } }
+  g.debugStep(0.3);
+});
 const prompt = await page.locator('.prompt').textContent();
 console.log('invite :', prompt);
 await page.keyboard.press('KeyE');

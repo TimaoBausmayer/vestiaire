@@ -12,8 +12,8 @@ const ev = (fn, arg) => page.evaluate(fn, arg);
 const req = (type, payload) => ev(([t, p]) => window.playzone.net.request(t, p).then((r) => ({ ok: true, r }), (e) => ({ ok: false, e: e.message })), [type, payload]);
 let ok = true;
 const check = (cond, msg) => { console.log(cond ? '✔' : '✘', msg); if (!cond) ok = false; };
-// achat au garage
-await ev(() => { const g = window.playzone; g.player.teleport(34.5, 18, 0); g.debugStep(0.1); });
+// achat à la concession (dans le showroom)
+await ev(() => { const g = window.playzone; g.player.teleport(172, -160, 0); g.debugStep(0.1); });
 const buy = await req('shop.buy', { itemId: 'berline' });
 check(buy.ok, `achat berline ${buy.ok ? '' : buy.e}`);
 // appel sur l'avenue est (route dégagée), cap à l'est

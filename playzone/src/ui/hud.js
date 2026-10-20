@@ -138,6 +138,14 @@ export class HUD {
     if (content.button) el.append(h('button.btn.small.ghost', { style: { marginTop: '8px' }, onclick: content.button.onclick }, content.button.label));
   }
 
+  // Nom du lieu (bâtiment) quand on y entre.
+  showPlace(name) {
+    this.zoneName.textContent = name;
+    this.zoneName.classList.add('show');
+    clearTimeout(this._zt);
+    this._zt = setTimeout(() => this.zoneName.classList.remove('show'), 3000);
+  }
+
   setEventBanner(content) {
     const b = this.eventBanner;
     if (!content) { b.classList.add('hidden'); return; }

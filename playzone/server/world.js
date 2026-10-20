@@ -9,7 +9,7 @@ import { censor, hasPersonalInfo } from '../shared/chat-filter.js';
 import { POI, MINIGAME_SPOTS, HOME_INTERIOR, inBounds, dist2d } from '../shared/world-layout.js';
 import { maxSpeedOf } from '../shared/content/vehicles.js';
 
-const POSES = new Set(['idle', 'carry', 'spray', 'wave', 'throw', 'celebrate', 'cook', 'pet', 'sit', 'hold-forward', 'dance']);
+const POSES = new Set(['idle', 'carry', 'spray', 'wave', 'throw', 'celebrate', 'cook', 'pet', 'sit', 'hold-forward', 'dance', 'eat']);
 const newId = () => randomBytes(6).toString('hex');
 const num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const r2 = (v) => Math.round(v * 100) / 100;

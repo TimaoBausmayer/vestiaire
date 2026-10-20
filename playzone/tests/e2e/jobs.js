@@ -14,6 +14,8 @@ const coins = () => ev(() => window.playzone.profile.coins);
 let ok = true;
 
 async function startMission(x, z, name) {
+  // la scène précédente (ex. sauvetage du chat) peut encore se jouer quand le rendu logiciel est lent
+  await page.waitForFunction(() => { const g = window.playzone; return !g.cutscene && !g.ui.blocking && !g.jobs.active; }, null, { timeout: 30000 });
   await tp(x, z);
   await page.keyboard.press('KeyE');
   await sleep(600);

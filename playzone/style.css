@@ -292,3 +292,15 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
 .dash .bar.dmg > div { background: linear-gradient(90deg, #e63946, #2ec4b6); }
 .dash .name { margin-top: 6px; font-size: 12px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 700px) { .dash { right: 10px; bottom: calc(190px + var(--safe-b, 0px)); width: 112px; padding: 8px; } .dash .speed { font-size: 30px; } }
+
+/* Jauges de besoins (faim, énergie, humeur) */
+.needs { display: flex; gap: 6px; flex-wrap: wrap; }
+.needs .need { display: flex; align-items: center; gap: 5px; background: var(--panel); border-radius: 999px; padding: 4px 9px 4px 7px; box-shadow: var(--shadow); font-size: 13px; }
+.needs .nb { width: 46px; height: 7px; border-radius: 9px; background: rgba(255,255,255,.15); overflow: hidden; }
+.needs .nb > div { height: 100%; width: 80%; border-radius: 9px; background: linear-gradient(90deg, #ffd23f, #7ac74f); transition: width .5s; }
+.needs .energie .nb > div { background: linear-gradient(90deg, #ffb703, #29e6ff); }
+.needs .humeur .nb > div { background: linear-gradient(90deg, #ff8fab, #c77dff); }
+.needs .need.low { animation: needPulse 1s infinite alternate; }
+.needs .need.low .nb > div { background: #e63946; }
+@keyframes needPulse { from { box-shadow: var(--shadow); } to { box-shadow: 0 0 0 3px rgba(230,57,70,.6); } }
+@media (max-width: 700px) { .needs .nb { width: 30px; } .needs .need { padding: 3px 7px; font-size: 11px; } }

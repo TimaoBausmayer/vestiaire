@@ -112,7 +112,7 @@ export function buildRoads(sb, col, scene) {
       }
     }
   }
-  for (const [x, z, ry] of lampSpots) streetLamp(sb, col, x, z, ry);
+  for (const [x, z, ry] of lampSpots) if (!BUILDINGS.some((b) => Math.hypot(b.door.x - x, b.door.z - z) < 4)) streetLamp(sb, col, x, z, ry);
   return buildTrafficLights(sb, col, scene);
 }
 

@@ -152,10 +152,12 @@ export function buildProps(sb, col, scene) {
   stall(sb, col, 17, 4, '#ff5a5f', -Math.PI / 2);
   stall(sb, col, -18, -12, '#2ec4b6', Math.PI / 2);
   tree(sb, col, CAT_TREES[2].x, CAT_TREES[2].z, 'round', 1.2);
-  // lampadaires des trottoirs
+  // lampadaires des trottoirs (jamais devant une porte)
+  const nearDoor = (x, z) => BUILDINGS.some((b) => Math.hypot(b.door.x - x, b.door.z - z) < 4);
+  const lampIf = (x, z, ry) => { if (!nearDoor(x, z)) lamp(sb, col, x, z, ry); };
   for (let t = -30; t <= 30; t += 12) {
-    lamp(sb, col, t, -33.2, Math.PI / 2); lamp(sb, col, t + 6, 33.2, -Math.PI / 2);
-    lamp(sb, col, -33.2, t + 6, 0); lamp(sb, col, 33.2, t, Math.PI);
+    lampIf(t, -33.2, Math.PI / 2); lampIf(t + 6, 33.2, -Math.PI / 2);
+    lampIf(-33.2, t + 6, 0); lampIf(33.2, t, Math.PI);
   }
 
   // ---------- Scène DJ

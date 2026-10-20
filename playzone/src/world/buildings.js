@@ -13,14 +13,14 @@ const T = 0.3; // épaisseur des murs
 
 // Couleur du sol et des murs intérieurs selon le type d'intérieur.
 export const INTERIOR_STYLE = {
-  shop: { floor: '#e9e4da', alt: '#d8d1c3', wall: '#f6f1e7' }, restaurant: { floor: '#b9875a', alt: '#a8784e', wall: '#f3e3c9' },
+  shop: { floor: '#d9d2c4', alt: '#c9c0ae', wall: '#efe8da' }, restaurant: { floor: '#b9875a', alt: '#a8784e', wall: '#f3e3c9' },
   fastfood: { floor: '#f1f1f1', alt: '#e63946', wall: '#fff3d6' }, cafe: { floor: '#9c6b43', alt: '#8a5c37', wall: '#efe0c8' },
-  bakery: { floor: '#efe3cf', alt: '#d9c7a6', wall: '#fbf2e2' }, supermarket: { floor: '#eeeeee', alt: '#dcdcdc', wall: '#f8f8f8' },
-  minimarket: { floor: '#eeeeee', alt: '#dcdcdc', wall: '#f8f8f8' }, showroom: { floor: '#dfe3e8', alt: '#cdd3da', wall: '#ffffff' },
+  bakery: { floor: '#efe3cf', alt: '#d9c7a6', wall: '#fbf2e2' }, supermarket: { floor: '#bdbcb5', alt: '#acaba4', wall: '#e4e3dd' },
+  minimarket: { floor: '#bdbcb5', alt: '#acaba4', wall: '#e4e3dd' }, showroom: { floor: '#c9ced6', alt: '#b8bec8', wall: '#f4f4f4' },
   workshop: { floor: '#8d939b', alt: '#7d838b', wall: '#c9cdd3' }, warehouse: { floor: '#9a9a96', alt: '#8c8c88', wall: '#c8c6c0' },
   factory: { floor: '#8f8f8a', alt: '#7f7f7a', wall: '#bcb8b0' }, office: { floor: '#8fa3b8', alt: '#7f93a8', wall: '#eef2f6' },
-  agency: { floor: '#c9b79c', alt: '#b9a78c', wall: '#f7f3ec' }, police: { floor: '#b8c4d6', alt: '#a8b4c6', wall: '#eef1f6' },
-  hospital: { floor: '#e8f1f2', alt: '#d4e4e6', wall: '#ffffff' }, firestation: { floor: '#8d939b', alt: '#c1121f', wall: '#e9e2d6' },
+  agency: { floor: '#c9b79c', alt: '#b9a78c', wall: '#f7f3ec' }, police: { floor: '#9aa8bc', alt: '#8a98ac', wall: '#e2e6ee' },
+  hospital: { floor: '#cfe0e2', alt: '#bdd2d5', wall: '#f2f6f6' }, firestation: { floor: '#8d939b', alt: '#c1121f', wall: '#e9e2d6' },
   house: { floor: '#b88a5a', alt: '#a97c4f', wall: '#f4ecdf' }, lobby: { floor: '#d6ccc2', alt: '#c7bdb3', wall: '#f5ebe0' },
   bank: { floor: '#e9dfc4', alt: '#d4c49c', wall: '#fbf6e9' }, mairie: { floor: '#c9b38f', alt: '#b59f7b', wall: '#f8f0dd' },
   arcade: { floor: '#2b2350', alt: '#3b2f6e', wall: '#1d1838' }, cinema: { floor: '#5a1e2c', alt: '#4a1824', wall: '#2a1b3d' },
@@ -176,21 +176,21 @@ function buildShell(sb, col, atlas, b) {
     if (shopFront || glassFront) {
       const vh = glassFront ? Math.min(gH - 1.0, 3.2) : Math.min(2.4, gH - 1.6);
       box((a + c) / 2, 0.55, fz + 0.03, len, vh, 0.12, '#cfe8ff', 'windows');
-      box((a + c) / 2, 0.55, fz - T - 0.03, len, vh, 0.06, '#cfe8ff', 'windows');
+      box((a + c) / 2, 0.55, fz - T - 0.03, len, vh, 0.06, '#d6ecfa');
       box((a + c) / 2, 0.4, fz + 0.1, len + 0.2, 0.18, 0.3, trim);
     } else {
       winRow(len, (lx) => {
         box((a + c) / 2 + lx, winY, fz + 0.03, 1.2, winH, 0.12, '#ffe9a8', 'windows');
-        box((a + c) / 2 + lx, winY, fz - T - 0.03, 1.2, winH, 0.06, '#ffe9a8', 'windows');
+        box((a + c) / 2 + lx, winY, fz - T - 0.03, 1.2, winH, 0.06, '#d6ecfa');
         box((a + c) / 2 + lx, winY - 0.15, fz + 0.12, 1.5, 0.15, 0.25, '#f4f1ea');
       });
     }
   }
   // fenêtres des côtés et de l'arrière (rez-de-chaussée)
   if (!['warehouse', 'factory', 'cinema', 'bowling'].includes(b.interior)) {
-    setPart(P.left); winRow(D - 2, (lz) => { box(-W / 2 - 0.03, winY, lz, 0.12, winH, 1.2, '#ffe9a8', 'windows'); box(-W / 2 + T + 0.03, winY, lz, 0.06, winH, 1.2, '#ffe9a8', 'windows'); }, 4);
-    setPart(P.right); winRow(D - 2, (lz) => { box(W / 2 + 0.03, winY, lz, 0.12, winH, 1.2, '#ffe9a8', 'windows'); box(W / 2 - T - 0.03, winY, lz, 0.06, winH, 1.2, '#ffe9a8', 'windows'); }, 4);
-    setPart(P.back); winRow(W - 2, (lx) => { box(lx, winY, -D / 2 - 0.03, 1.2, winH, 0.12, '#ffe9a8', 'windows'); box(lx, winY, -D / 2 + T + 0.03, 1.2, winH, 0.06, '#ffe9a8', 'windows'); }, 4);
+    setPart(P.left); winRow(D - 2, (lz) => { box(-W / 2 - 0.03, winY, lz, 0.12, winH, 1.2, '#ffe9a8', 'windows'); box(-W / 2 + T + 0.03, winY, lz, 0.06, winH, 1.2, '#d6ecfa'); }, 4);
+    setPart(P.right); winRow(D - 2, (lz) => { box(W / 2 + 0.03, winY, lz, 0.12, winH, 1.2, '#ffe9a8', 'windows'); box(W / 2 - T - 0.03, winY, lz, 0.06, winH, 1.2, '#d6ecfa'); }, 4);
+    setPart(P.back); winRow(W - 2, (lx) => { box(lx, winY, -D / 2 - 0.03, 1.2, winH, 0.12, '#ffe9a8', 'windows'); box(lx, winY, -D / 2 + T + 0.03, 1.2, winH, 0.06, '#d6ecfa'); }, 4);
   } else {
     // bardage nervuré (entrepôts, usines) : nervures verticales
     for (const [part, lenA, place] of [[P.left, D, (t) => box(-W / 2 - 0.05, 0, t, 0.1, gH - 0.2, 0.12, trim)], [P.right, D, (t) => box(W / 2 + 0.05, 0, t, 0.1, gH - 0.2, 0.12, trim)], [P.back, W, (t) => box(t, 0, -D / 2 - 0.05, 0.12, gH - 0.2, 0.1, trim)]]) {

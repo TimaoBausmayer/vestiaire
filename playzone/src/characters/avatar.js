@@ -311,6 +311,10 @@ export class Avatar {
       set(AR, -Math.PI + Math.sin(t * 5 + Math.PI) * 1.6, 0, -0.2);
       set(L, Math.sin(t * 9) * 0.35, 0, 0); set(R, -Math.sin(t * 9) * 0.35, 0, 0);
       headX = -0.9;
+    } else if (pose === 'eat') {
+      bodyY = 0;
+      set(AR, -2.3 + Math.sin(t * 7) * 0.35, 0, -0.35); set(AL, -0.3, 0, 0.1);
+      headX = Math.sin(t * 7) * 0.08;
     } else if (pose === 'sit') {
       bodyY = -0.35;
       set(L, -1.45, 0, 0.05); set(R, -1.45, 0, -0.05);
