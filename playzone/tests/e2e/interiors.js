@@ -35,7 +35,7 @@ check(r.inside === 'pizzeria', `entré dans la pizzeria (${JSON.stringify(r)})`)
 check(await ev(async () => { const { CUT } = await import('/src/core/materials.js'); return CUT.uCutB.value > 0 && CUT.uCutRoof.value === 1; }), 'toit et murs escamotés (vue maison de poupée)');
 await shot('pizzeria');
 const faim0 = await ev(() => window.playzone.life.status.faim);
-const lab = await spot('Commander');
+const lab = await spot('Commander :');
 check(!!lab, `comptoir trouvé : ${lab}`);
 await page.keyboard.press('KeyE'); await sleep(600);
 await page.screenshot({ path: 'tests/e2e/out/int-pizzeria-menu.png' });

@@ -17,7 +17,7 @@ const SHOPS = {
   superette: { title: 'Supérette du Coin', sub: 'Petite mais costaude.' },
   station: { title: 'Boutique de la station', sub: 'Snacks et boissons pour la route.' },
 };
-const FOOD_SHOPS = new Set(['bakery', 'cafe', 'cafe2', 'paillote', 'burger', 'pizzeria', 'tacos', 'homard', 'poisson', 'supermarket', 'superette', 'farm', 'station', 'cinema']);
+export const FOOD_SHOPS = new Set(['bakery', 'cafe', 'cafe2', 'paillote', 'burger', 'pizzeria', 'tacos', 'homard', 'poisson', 'supermarket', 'superette', 'farm', 'station', 'cinema']);
 export const soldIn = (it, shopId) => it.available && (it.shop === shopId || (it.also || []).includes(shopId));
 
 function priceTag(price) { return h('div.price', h('span.coin', { style: { width: '18px', height: '18px', fontSize: '8px', display: 'inline-grid', placeItems: 'center', borderRadius: '50%', background: '#ffd23f', color: '#7a4a00' } }, 'PC'), fmt(price)); }

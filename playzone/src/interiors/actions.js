@@ -6,6 +6,7 @@ import { VEHICLES } from '../../shared/content/vehicles.js';
 import { dealerPanel, usedCarsPanel, rentalPanel, immoPanel, secondHandPanel, isSecondHand, scrapPanel } from '../property/panels.js';
 import { repairPanel } from '../vehicles/vehicles.js';
 import { HOUSING_BY_ID } from '../../shared/property.js';
+import { cookPanel, shower, sleep, showerFx } from '../life/home-life.js';
 
 // ACTIONS DES POINTS D'INTÉRIEUR : acheter, s'asseoir, dormir, parler, regarder la télé, jouer...
 // Tout ce qui touche à l'argent, aux besoins ou aux récompenses passe par l'autorité (activity.do).
@@ -89,6 +90,14 @@ export async function runAction(game, action, { b, spot, staff }) {
       break;
     }
     case 'homefun': g.home?.useFunItem(spot.item); break;
+    case 'publicshower': {
+      const r = await activity(g, 'douche', b);
+      if (r) { showerFx(g); needsToast(g, r, '🚿 Douche des vestiaires'); }
+      break;
+    }
+    case 'cook': cookPanel(g); break;
+    case 'shower': shower(g); break;
+    case 'sleep': sleep(g, spot.seat); break;
     case 'police': {
       const m = g.ui.dialog({ name: 'Accueil', role: 'Commissariat Central', text: 'Bonjour ! Que puis-je faire pour vous ?', choices: [
         { label: '🐦 Signaler un pigeon voleur', action: (mm) => mm.show('Encore un ! Nous avons ouvert une cellule spéciale "pigeons". Elle est vide : ils s\'envolent.', [{ label: 'Merci', ghost: true, action: (x) => x.close() }]) },

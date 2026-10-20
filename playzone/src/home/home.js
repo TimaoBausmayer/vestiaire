@@ -6,6 +6,7 @@ import { furnitureGeometry, furnitureFootprint } from './furniture.js';
 import { h } from '../ui/dom.js';
 import { HOUSING_BY_ID, HOME_SIZES, homeSize } from '../../shared/property.js';
 import { buildingFrame } from '../world/buildings.js';
+import { cookPanel, shower, sleep } from '../life/home-life.js';
 
 // Maison "dans le monde" (on y entre vraiment) : le logement habité est-il une maison / ferme ?
 export const isHousePlace = (place) => ['maison', 'ferme'].includes(HOUSING_BY_ID[place]?.kind);
@@ -27,7 +28,7 @@ const FUN = {
   cercueil: ['Étonnamment confortable. Ne le dis à personne.'],
 };
 
-export const FUN_LABEL = { tele: '📺 Allumer la télé', 'borne-arcade': '🕹️ Jouer à la borne', piano: '🎹 Jouer du piano', frigo: '🧊 Ouvrir le frigo', lit: '🛏️ Faire une sieste', 'boule-disco': '🪩 Allumer la boule disco', aquarium: '🐠 Regarder Gérard', 'nain-jardin': '🧙 Fixer le nain', trone: '👑 S\'asseoir sur le trône', 'statue-poulet': '🐔 Admirer la statue', cercueil: '⚰️ S\'allonger' };
+export const FUN_LABEL = { cuisiniere: '🍳 Cuisiner', douche: '🚿 Prendre une douche', tele: '📺 Allumer la télé', 'borne-arcade': '🕹️ Jouer à la borne', piano: '🎹 Jouer du piano', frigo: '🧊 Ouvrir le frigo', lit: '🛏️ Dormir', 'boule-disco': '🪩 Allumer la boule disco', aquarium: '🐠 Regarder Gérard', 'nain-jardin': '🧙 Fixer le nain', trone: '👑 S\'asseoir sur le trône', 'statue-poulet': '🐔 Admirer la statue', cercueil: '⚰️ S\'allonger' };
 
 export class Home {
   constructor(game) {
@@ -195,7 +196,7 @@ export class Home {
     const P = this.game.player.pos;
     let best = null, bd = 2.2;
     for (const it of this.items) {
-      if (!FUN[it.f.i] && it.f.i !== 'boule-disco') continue;
+      if (!FUN_LABEL[it.f.i]) continue;
       const d = Math.hypot(P.x - (O.x + it.f.x), P.z - (O.z + it.f.z));
       if (d < bd) { bd = d; best = it; }
     }
@@ -209,7 +210,15 @@ export class Home {
     if (!it) return;
     const g = this.game;
     if (it.f.i === 'boule-disco') { this.toggleDisco(!this.disco); return; }
+    if (it.f.i === 'cuisiniere') { cookPanel(g); return; }
+    if (it.f.i === 'douche') { shower(g); return; }
+    if (it.f.i === 'lit') {
+      const m = it.mesh;
+      sleep(g, m ? { x: O.x + it.f.x, z: O.z + it.f.z, yaw: m.rotation.y, y: 0.6 } : null);
+      return;
+    }
     const lines = FUN[it.f.i];
+    if (!lines) return;
     g.labels.bubble(g.avatar.root, lines[Math.floor(Math.random() * lines.length)], 3500, 'player');
     if (it.f.i === 'piano') [262, 330, 392].forEach((f, i) => setTimeout(() => g.sound.ensure() && g.sound.tone('triangle', f, f, 0.3, 0.1), i * 180));
     if (it.f.i === 'lit') g.player.setPose('sit', 2.5);

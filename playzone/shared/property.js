@@ -147,3 +147,10 @@ export function secondHandOffers(items, shop, now) {
   return out;
 }
 export const secondHandBuys = (shop, it) => (SECOND_HAND[shop]?.kinds.includes(kindOf(it)) && resellable(it) ? Math.floor(it.price * SECOND_HAND[shop].buys) : 0);
+
+// Coordonnées locales d'un point dans un bâtiment (x le long de la façade, z vers la porte).
+const ROT = { S: 0, N: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 };
+export function localInBuilding(b, x, z) {
+  const th = ROT[b.facing] || 0, c = Math.cos(th), s = Math.sin(th), dx = x - b.x, dz = z - b.z;
+  return { x: dx * c - dz * s, z: dx * s + dz * c };
+}

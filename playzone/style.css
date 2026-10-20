@@ -300,6 +300,16 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
 .needs .nb > div { height: 100%; width: 80%; border-radius: 9px; background: linear-gradient(90deg, #ffd23f, #7ac74f); transition: width .5s; }
 .needs .energie .nb > div { background: linear-gradient(90deg, #ffb703, #29e6ff); }
 .needs .humeur .nb > div { background: linear-gradient(90deg, #ff8fab, #c77dff); }
+.needs .hygiene .nb > div { background: linear-gradient(90deg, #90e0ef, #48cae4); }
+/* mini-jeu de cuisson */
+.cook-game { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: min(460px, 90vw); background: var(--panel); border-radius: 18px; padding: 12px 16px 14px; box-shadow: var(--shadow); text-align: center; z-index: 25; cursor: pointer; }
+.cook-game .t { font-weight: 800; font-size: 17px; margin-bottom: 8px; }
+.cook-game .d { font-size: 12px; opacity: .8; margin-top: 8px; }
+.cook-bar { position: relative; height: 22px; border-radius: 12px; background: linear-gradient(90deg, #e63946, #ff9f1c 30%, #ff9f1c 70%, #e63946); overflow: hidden; }
+.cook-ok { position: absolute; top: 0; bottom: 0; background: #ffd23f; }
+.cook-perfect { position: absolute; top: 0; bottom: 0; background: #7ac74f; }
+.cook-needle { position: absolute; top: -3px; bottom: -3px; width: 5px; margin-left: -2px; background: #fff; border-radius: 3px; box-shadow: 0 0 6px #000; }
+.cook-game.perfect { outline: 4px solid #7ac74f; } .cook-game.ok { outline: 4px solid #ffd23f; } .cook-game.burnt { outline: 4px solid #e63946; }
 .needs .need.low { animation: needPulse 1s infinite alternate; }
 .needs .need.low .nb > div { background: #e63946; }
 @keyframes needPulse { from { box-shadow: var(--shadow); } to { box-shadow: 0 0 0 3px rgba(230,57,70,.6); } }

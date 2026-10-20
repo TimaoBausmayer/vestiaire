@@ -16,6 +16,7 @@ export const ACTIVITIES = {
   pole: { name: 'Mât des pompiers', where: ['firestation'], needs: { humeur: 6 }, cooldown: 5_000 },
   sit: { name: 'S\'asseoir', where: null, needs: { energie: 2 }, cooldown: 20_000, quiet: true },
   mail: { name: 'Courrier', where: ['lobby'], cooldown: 60_000, needs: { humeur: 3 } },
+  douche: { name: 'Douche', where: ['gym', 'hospital'], cost: 2, needs: { hygiene: 100, humeur: 3 }, cooldown: 30_000 },
 };
 
 // Questions du jour (école) : la bonne réponse est l'indice `a`.

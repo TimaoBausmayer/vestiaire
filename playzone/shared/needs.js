@@ -3,11 +3,11 @@
 // en buvant, en dormant, en se douchant ou en s'amusant. Ils ne bloquent jamais le jeu : au pire,
 // on marche un peu moins vite et le ventre gargouille.
 
-export const NEED_KEYS = ['faim', 'energie', 'humeur'];
+export const NEED_KEYS = ['faim', 'energie', 'humeur', 'hygiene'];
 // perte par minute de jeu
-export const NEED_DECAY = { faim: 2.2, energie: 1.4, humeur: 0.9 };
+export const NEED_DECAY = { faim: 2.2, energie: 1.4, humeur: 0.9, hygiene: 0.6 };
 
-export function defaultNeeds() { return { faim: 90, energie: 90, humeur: 80, at: 0 }; }
+export function defaultNeeds() { return { faim: 90, energie: 90, humeur: 80, hygiene: 90, at: 0 }; }
 
 // Valeurs actuelles (calculées à partir du dernier enregistrement).
 export function needsStatus(n, now) {
@@ -30,6 +30,6 @@ export function needsEffects(st) {
   return {
     speed: st.faim < 12 || st.energie < 10 ? 0.88 : 1,
     noSprint: st.energie < 6,
-    hungry: st.faim < 20, tired: st.energie < 20, grumpy: st.humeur < 15,
+    hungry: st.faim < 20, tired: st.energie < 20, grumpy: st.humeur < 15, smelly: st.hygiene < 20,
   };
 }

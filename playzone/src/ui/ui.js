@@ -17,8 +17,6 @@ export class UI {
 
   get blocking() { return this.stack.some((m) => m.blocking !== false); }
 
-  closeAll() { for (const m of [...this.stack]) m.close(); }
-
   // Ouvre une fenêtre. build(body, close) remplit le contenu. Renvoie { el, close, refresh }.
   modal({ title, sub, build, foot, width, blocking = true, onClose, tabs, className }) {
     const body = h('div.panel-body');

@@ -199,7 +199,7 @@ export class Phone {
     b.append(h('button.btn.block', { onclick: () => { this.close(); openWardrobe(g); } }, '👕 Ouvrir la garde-robe'));
     if (!owned.length) { b.append(h('p.muted', 'Ton sac est vide. Les boutiques sont sur la Grande Place !')); return; }
     const st = g.life?.status;
-    if (st) b.append(h('p.muted', `🍔 Faim ${Math.round(st.faim)} · ⚡ Énergie ${Math.round(st.energie)} · 🙂 Humeur ${Math.round(st.humeur)}`));
+    if (st) b.append(h('p.muted', `🍔 Faim ${Math.round(st.faim)} · ⚡ Énergie ${Math.round(st.energie)} · 🙂 Humeur ${Math.round(st.humeur)} · 🧼 Propreté ${Math.round(st.hygiene)}`));
     const eat = async (k) => {
       try { const r = await g.net.request('food.eat', { itemId: k }); this.close(); g.eating?.play(items[k]); g.emit('needs', r.needs); } catch (e) { g.ui.toast(e.message, 'bad'); }
     };

@@ -52,6 +52,7 @@ export class Player {
   }
 
   teleport(x, z, yaw, y) {
+    if (this.seated) { this.seated = null; this.avatar.root.rotation.set(0, this.yaw, 0); }
     this.pos.set(x, y ?? this.collision.supportAt(x, z, 50, PLAYER_RADIUS), z);
     this.vel.set(0, 0, 0);
     if (yaw !== undefined) this.yaw = yaw;
@@ -73,7 +74,8 @@ export class Player {
         r.rotation.order = 'YXZ';
         if (s.lie) { r.position.set(s.x + Math.sin(s.yaw) * 0.95, (s.y || 0.6) + 0.12, s.z + Math.cos(s.yaw) * 0.95); r.rotation.set(-Math.PI / 2, s.yaw, 0); }
         else { r.position.set(s.x, Math.max(0, (s.y ?? 0.5) - 0.48), s.z); r.rotation.set(0, s.yaw, 0); }
-        this.avatar.update(dt, { speed: 0, grounded: true, pose: s.lie ? 'idle' : this.pose === 'eat' ? 'eat' : 'sit' });
+        if (this.poseTimer > 0) { this.poseTimer -= dt; if (this.poseTimer <= 0) this.pose = 'idle'; }
+        this.avatar.update(dt, { speed: 0, grounded: true, pose: s.lie ? 'idle' : this.pose === 'eat' ? 'sit-eat' : 'sit' });
         return;
       }
     }

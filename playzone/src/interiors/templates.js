@@ -415,8 +415,10 @@ export const TEMPLATES = {
       const ry = (f.r || 0) * Math.PI / 2;
       t.furn(f.i, f.x, f.z, ry);
       const [fw, fd] = t.footprint(f.i, f.r || 0);
-      if (fw > 0 && !['tapis', 'tapis-rond', 'lampe'].includes(f.i)) t.solid(f.x, f.z, fw, fd, f.i === 'lit' || f.i === 'canape' ? 0.6 : 1.1);
-      if (f.i === 'lit') t.bed(f.x, f.z, ry);
+      if (fw > 0 && !['tapis', 'tapis-rond', 'lampe', 'douche'].includes(f.i)) t.solid(f.x, f.z, fw, fd, f.i === 'lit' || f.i === 'canape' ? 0.6 : 1.1);
+      if (f.i === 'lit') { const [x, z] = t.F.L(f.x, f.z); t.spot(f.x, f.z, { label: '🛏️ Dormir', action: 'sleep', r: 1.6, seat: { x, z, yaw: t.F.th + ry, y: 0.6, lie: true } }); }
+      else if (f.i === 'cuisiniere') t.spot(f.x + Math.sin(ry) * 1, f.z + Math.cos(ry) * 1, { label: '🍳 Cuisiner', action: 'cook', r: 1.5 });
+      else if (f.i === 'douche') t.spot(f.x, f.z, { label: '🚿 Prendre une douche', action: 'shower', r: 1.4 });
       else if (f.i === 'canape' || f.i === 'chaise' || f.i === 'trone') t.seat(f.x, f.z, ry + Math.PI, f.i === 'chaise' ? 0.5 : 0.45);
       else if (FUN[f.i]) t.spot(f.x + Math.sin(ry) * 1.2, f.z + Math.cos(ry) * 1.2, { label: FUN[f.i][0], action: FUN[f.i][1], r: 1.5 });
       else if (t.funLabel(f.i)) t.spot(f.x, f.z, { label: t.funLabel(f.i), action: 'homefun', item: f.i, r: 1.6 });
@@ -517,6 +519,9 @@ export const TEMPLATES = {
     t.box(0, 0.01, (I.z1 + I.z2) / 2 + 1, I.x2 - I.x1 - 4, 0.04, 3, '#ff70a6');
     t.staff(I.x2 - 2, I.z2 - 2.5, Math.PI, 'coach');
     t.box(I.x1 + 0.12, 0.4, (I.z1 + I.z2) / 2, 0.04, 2, I.z2 - I.z1 - 4, '#cfe8ff', 'windows'); // miroir
+    // vestiaires : douches
+    for (const dx of [0.7, 2.1]) t.furn('douche', I.x1 + dx, I.z2 - 0.8, Math.PI);
+    t.spot(I.x1 + 1.4, I.z2 - 1.2, { label: '🚿 Douche des vestiaires (2 PC)', action: 'publicshower', r: 1.4 });
   },
 
   school(t) {
