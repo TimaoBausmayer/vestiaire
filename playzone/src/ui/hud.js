@@ -90,17 +90,17 @@ export class HUD {
     this.money = h('div.chip.money', { title: 'Compte en banque (carte) · argent liquide' }, h('span.coin', 'PC'), this.moneyText = h('span', '0'), this.cashText = h('small.cash', ''));
     this.levelChip = h('div.chip', h('span', '⭐'), this.levelText = h('span', 'Niv. 1'), this.xpbar = h('div.xpbar', this.xpFill = h('div')));
     this.repChip = h('div.chip', h('span', '💬'), this.repText = h('span', '0'), h('small', 'réputation'));
-    this.tl = h('div.hud-tl', this.money, this.levelChip, this.repChip);
+    this.tracker = h('div.tracker');
+    this.tl = h('div.hud-tl', this.money, this.levelChip, this.repChip, this.tracker);
     this.zoneName = h('div.name');
     this.clock = h('div.clock', '12:00');
     this.zoneEl = h('div.hud-zone', this.zoneName, this.clock);
     this.tr = h('div.hud-tr');
-    this.tracker = h('div.tracker');
     this.compass = h('div.compass', this.compassArrow = h('div.arrow'), this.compassDist = h('div.dist'));
     this.mapCanvas = h('canvas', { width: 336, height: 336 });
     this.minimap = h('div.minimap', { title: 'Carte', onclick: () => game.phone?.open('map') }, this.mapCanvas);
     this.eventBanner = h('div.event-banner.hidden');
-    ui.root.append(this.tl, this.zoneEl, this.tr, this.tracker, this.compass, this.minimap, this.eventBanner);
+    ui.root.append(this.tl, this.zoneEl, this.tr, this.compass, this.minimap, this.eventBanner);
     this.mapBase = drawMapBase(2);
     this.lastZone = null;
     this.markers = [];       // marqueurs dynamiques {x, z, color, icon}

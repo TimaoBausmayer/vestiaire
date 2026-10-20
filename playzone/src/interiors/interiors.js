@@ -6,6 +6,7 @@ import { buildingFrame, isEnterable, groundStorey, INTERIOR_STYLE, facadeOpening
 import { TEMPLATES, STAFF_LINES } from './templates.js';
 import { furnitureGeometry, furnitureFootprint } from '../home/furniture.js';
 import { FUN_LABEL, isHousePlace } from '../home/home.js';
+import { jobsAt } from '../../shared/authority-careers.js';
 import { Avatar } from '../characters/avatar.js';
 import { CarVisual, vehicleGeometries } from '../vehicles/car-models.js';
 import { VEHICLES } from '../../shared/content/vehicles.js';
@@ -197,6 +198,12 @@ export class Interiors {
       pets: (list, lx, lz) => { list.forEach((sp, i) => { const [x, z] = L(lx + i * 2.6, lz); dyn.push({ type: 'animal', species: sp, x, z, yaw: th }); }); },
     };
     (view ? TEMPLATES.home : TEMPLATES[b.interior] || TEMPLATES.shop)(tt);
+    // tableau des offres d'emploi (et pointage) près de l'entrée
+    if (!view && jobsAt(b).length) {
+      const dx = door.x + (door.x > 0 ? -1.9 : 1.9);
+      tt.box(dx, 1.1, D / 2 - 0.45, 1.1, 0.8, 0.05, '#f4f1ea'); tt.box(dx, 1.12, D / 2 - 0.48, 0.9, 0.6, 0.02, '#3d8ee8', 'glow');
+      tt.spot(dx, D / 2 - 1.4, { label: '💼 Emplois : offres et pointage', action: 'job', r: 1.6, priority: 3 });
+    }
     const group = sb.build(MATS, { shadows: false });
     group.name = `interior-${b.id}`;
     for (const m of group.children) { m.receiveShadow = true; m.castShadow = false; }

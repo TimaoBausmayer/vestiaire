@@ -99,7 +99,7 @@ export class UI {
       const m = this.modal({
         title, width: 'min(420px, 94vw)',
         build: (b) => b.append(h('p', text)),
-        foot: (f) => f.append(h('button.btn.ghost', { onclick: () => { m.close(); resolve(false); } }, 'Annuler'), h('button.btn', { onclick: () => { m.close(); resolve(true); } }, okLabel)),
+        foot: (f) => f.append(h('button.btn.ghost', { onclick: () => { resolve(false); m.close(); } }, 'Annuler'), h('button.btn', { onclick: () => { resolve(true); m.close(); } }, okLabel)),
         onClose: () => resolve(false),
       });
     });

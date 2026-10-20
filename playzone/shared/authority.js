@@ -20,6 +20,7 @@ import { defaultNeeds, applyNeeds, needsStatus } from './needs.js';
 import { ACTIVITIES, quizOfDay } from './activities.js';
 import { PROPERTY_HANDLERS, expireRentals } from './authority-property.js';
 import { BANK_HANDLERS } from './authority-bank.js';
+import { CAREER_HANDLERS, careerOnPosition, defaultCareer } from './authority-careers.js';
 import { deliverySpot, homeSize } from './property.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
@@ -63,6 +64,7 @@ export class Authority {
     p.debt ??= 0;
     p.cash ??= 0;
     p.savings ??= 0;
+    p.career ||= defaultCareer();
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
     p.minigames ||= {};
@@ -151,6 +153,7 @@ export class Authority {
 
   // Appelé à chaque position validée (en ligne : par le serveur ; en solo : par le client).
   onPosition(ctx) {
+    careerOnPosition(ctx);
     const s = ctx.session, pos = ctx.pos, now = ctx.now;
     const mg = s.mg;
     if (mg?.id === 'parcours' && !mg.finishAt && now - mg.startedAt > 3000) {
@@ -741,7 +744,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS);
 
 // Termine une mission : paie (avec rendements décroissants), XP, statistiques.
 Authority.prototype.completeMission = function completeMission(ctx, m, pay, xp, notes, stats) {

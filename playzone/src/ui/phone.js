@@ -7,6 +7,7 @@ import { levelProgress } from '../../shared/rules.js';
 import { ROADMAP } from '../../shared/content/roadmap.js';
 import { garagePanel } from '../vehicles/vehicles.js';
 import { bankApp } from '../property/bank.js';
+import { workApp } from '../career/career.js';
 import { openWardrobe } from './shop.js';
 import { formatHour } from '../world/daynight.js';
 
@@ -18,6 +19,7 @@ const APPS = [
   { id: 'pets', name: 'Animaux', icon: '🐾', bg: '#ff9f1c' },
   { id: 'garage', name: 'Garage', icon: '🛵', bg: '#3d8ee8' },
   { id: 'bank', name: 'Banque', icon: '🏦', bg: '#2a9d8f' },
+  { id: 'work', name: 'Travail', icon: '💼', bg: '#6c757d' },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'events', name: 'Événements', icon: '🎉', bg: '#ff5a5f' },
   { id: 'messages', name: 'Messages', icon: '💬', bg: '#5fd068' },
@@ -196,6 +198,8 @@ export class Phone {
   app_garage(b) { garagePanel(this.game, b, () => this.render()); }
 
   app_bank(b) { bankApp(this.game, b, () => this.render()); }
+
+  app_work(b) { workApp(this.game, b); }
 
   app_bag(b) {
     const g = this.game, p = g.profile, items = g.net.content.items;

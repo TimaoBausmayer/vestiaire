@@ -33,7 +33,7 @@ export class Life {
     this.game = game;
     this.el = h('div.needs',
       this.bars = NEED_KEYS.map((k) => h(`div.need.${k}`, h('span', ICONS[k]), h('div.nb', h('div')))));
-    game.hud.tl.append(this.el);
+    game.hud.tl.insertBefore(this.el, game.hud.tracker);
     this.t = 0; this.talkT = 30;
     game.player.onSit = () => {};
     game.on('needs', () => this.refresh());

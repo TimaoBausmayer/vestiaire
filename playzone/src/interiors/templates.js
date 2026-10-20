@@ -534,6 +534,10 @@ export const TEMPLATES = {
     }
     t.staff(0, I.z1 + 1.4, 0, 'professeur');
     t.spot(0, I.z1 + 2.6, { label: '📚 Assister au cours (question du jour)', action: 'quiz', r: 2.2, priority: 2 });
+    // secrétariat : inscriptions aux formations et examens
+    t.box(I.x2 - 1.6, 0, I.z2 - 2.4, 2.2, 1.05, 0.7, '#ffd166'); t.solid(I.x2 - 1.6, I.z2 - 2.4, 2.2, 0.7, 1.1);
+    t.staff(I.x2 - 1.6, I.z2 - 3.1, 0, 'accueil');
+    t.spot(I.x2 - 1.6, I.z2 - 1.5, { label: '🎓 Formations, diplômes et examens', action: 'training', r: 2, priority: 3 });
   },
 
   prison(t) {

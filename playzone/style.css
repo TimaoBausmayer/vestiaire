@@ -86,7 +86,8 @@ input, textarea, select { font-family: inherit; user-select: text; -webkit-user-
 @keyframes toastIn { from { opacity: 0; transform: translateY(-10px) scale(.96); } }
 .floater { position: absolute; font-weight: 900; font-size: 22px; color: var(--sun); text-shadow: 0 2px 0 #7a4a00, 0 4px 12px rgba(0,0,0,.4); pointer-events: none; animation: floatUp 1.4s forwards; transform: translate(-50%, -50%); }
 @keyframes floatUp { to { transform: translate(-50%, -160%); opacity: 0; } }
-.tracker { position: absolute; left: 12px; top: calc(150px + var(--safe-t)); width: 250px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.tracker { width: 250px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.tracker:empty { display: none; }
 .tracker > div { background: var(--panel); border-radius: 14px; padding: 10px 12px; box-shadow: var(--shadow); pointer-events: auto; }
 .tracker h4 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--sun); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .tracker p { margin: 0; font-size: 14px; line-height: 1.35; }
@@ -228,7 +229,7 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
 .tbtn.big { width: 76px; height: 76px; font-size: 28px; background: rgba(255, 210, 63, .85); color: #1b1446; }
 @media (max-width: 760px) {
   .minimap { width: 120px; height: 120px; bottom: calc(12px + var(--safe-b)); }
-  .tracker { width: 200px; top: calc(118px + var(--safe-t)); }
+  .tracker { width: 200px; }
   .tracker p { font-size: 12.5px; }
   .chip { font-size: 14px; }
   .xpbar { width: 110px; }
