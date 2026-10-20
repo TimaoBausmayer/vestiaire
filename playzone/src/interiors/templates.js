@@ -363,7 +363,8 @@ export const TEMPLATES = {
     const rz = I.z2 - 4;
     counter(t, 0, rz, 5, 0, '#4ea8de', '#ffffff');
     t.staff(-1, rz - 0.9, 0, 'infirmier'); t.staff(1.2, rz - 0.9, 0, 'medecin');
-    t.spot(0, rz + 1.2, { label: '🩺 Consultation (bilan de santé)', action: 'hospital', r: 2.6, priority: 2 });
+    t.spot(-1.6, rz + 1.2, { label: '🩺 Consultation (bilan, énergie)', action: 'hospital', r: 1.6, priority: 2 });
+    t.spot(1.6, rz + 1.2, { label: '🩹 Urgences : soins, clinique', action: 'care', r: 1.6, priority: 2 });
     for (let i = 0; i < 6; i++) { t.furn('chaise', I.x1 + 1 + i * 0.8, I.z2 - 1, Math.PI); t.seat(I.x1 + 1 + i * 0.8, I.z2 - 1, Math.PI, 0.5); }
     for (let x = I.x1 + 2; x < I.x2 - 2; x += 3.4) {
       t.furn('lit', x, I.z1 + 1.6, 0); t.solid(x, I.z1 + 1.6, 1.8, 2.3, 1);
@@ -405,6 +406,22 @@ export const TEMPLATES = {
     t.solid(I.x2 - 2.1, I.z1 + 0.5, 1.6, 0.65, 1);
     t.staff(0.2, I.z2 - 2.8, Math.PI, 'habitant');
     t.spot(0.2, I.z2 - 1.8, { label: '💬 Parler à l\'habitant', action: 'talk', r: 1.8 });
+  },
+
+  // Salon de coiffure : fauteuils, miroirs, bacs.
+  salon(t) {
+    const I = t.inner;
+    lightsAround(t);
+    for (let i = 0; i < 3; i++) {
+      const x = I.x1 + 1.4 + i * 2.2;
+      t.box(x, 0.8, I.z1 + 0.12, 1.4, 1.3, 0.05, '#cfe8ff', 'windows');
+      t.box(x, 0, I.z1 + 1.2, 0.7, 0.5, 0.7, '#14141c'); t.box(x, 0.5, I.z1 + 0.95, 0.7, 0.7, 0.12, '#14141c');
+      t.seat(x, I.z1 + 1.25, Math.PI, 0.55);
+    }
+    t.staff(I.x1 + 2.5, I.z1 + 2.2, Math.PI, 'coiffeur');
+    t.box(I.x2 - 1.2, 0, I.z2 - 2, 1.4, 1.0, 0.6, '#ffafcc'); t.solid(I.x2 - 1.2, I.z2 - 2, 1.4, 0.6, 1.1);
+    t.spot(I.x2 - 1.2, I.z2 - 1.1, { label: '✂️ Coiffeur : coupe et couleur', action: 'hair', r: 1.8, priority: 2 });
+    plant(t, I.x2 - 0.6, I.z1 + 0.6);
   },
 
   // Maison d'un joueur : ses propres meubles (posés depuis le mode Décoration), utilisables.
@@ -511,14 +528,32 @@ export const TEMPLATES = {
   gym(t) {
     const I = t.inner;
     lightsAround(t);
-    for (let x = I.x1 + 2; x < I.x2 - 2; x += 3) {
-      t.box(x, 0, I.z1 + 1.5, 0.6, 0.5, 1.6, '#2b2d42'); t.box(x, 1.1, I.z1 + 1.1, 1.8, 0.06, 0.06, '#adb5bd');
-      for (const s of [-0.85, 0.85]) t.cyl(x + s, 0.95, I.z1 + 1.1, 0.25, 0.1, '#14141c', 12);
-      t.solid(x, I.z1 + 1.5, 1.8, 1.8, 1.2);
-      t.spot(x, I.z1 + 2.8, { label: '🏋️ Soulever des haltères', action: 'gym', r: 1.4 });
+    const n = Math.floor((I.x2 - I.x1 - 4) / 3);
+    for (let i = 0; i < n; i++) {
+      const x = I.x1 + 2 + i * 3, kind = ['banc', 'tapis', 'velo'][i % 3];
+      if (kind === 'banc') {
+        t.box(x, 0, I.z1 + 1.5, 0.6, 0.5, 1.6, '#2b2d42'); t.box(x, 1.1, I.z1 + 1.1, 1.8, 0.06, 0.06, '#adb5bd');
+        for (const s of [-0.85, 0.85]) t.cyl(x + s, 0.95, I.z1 + 1.1, 0.25, 0.1, '#14141c', 12);
+        t.solid(x, I.z1 + 1.5, 1.8, 1.8, 0.5);
+        t.spot(x, I.z1 + 2.8, { label: '🏋️ Banc de musculation (tourne tout seul)', action: 'machine', machine: 'banc', r: 1.4, seat: { lx: x, lz: I.z1 + 1.5 - 0.95, ry: 0, y: 0.55 } });
+      } else if (kind === 'tapis') {
+        t.box(x, 0, I.z1 + 1.6, 0.9, 0.25, 2, '#14141c'); t.box(x, 0.25, I.z1 + 1.6, 0.7, 0.02, 1.8, '#495057');
+        t.box(x, 0, I.z1 + 0.6, 0.9, 1.3, 0.12, '#2b2d42'); t.box(x, 1.2, I.z1 + 0.7, 0.6, 0.3, 0.05, '#3d8ee8', 'glow');
+        t.spot(x, I.z1 + 3, { label: '🏃 Tapis de course (tourne tout seul)', action: 'machine', machine: 'tapis', r: 1.4, seat: { lx: x, lz: I.z1 + 1.8, ry: Math.PI, y: 0.27 } });
+      } else {
+        t.box(x, 0, I.z1 + 1.5, 0.3, 0.55, 1.2, '#2b2d42'); t.box(x, 0.55, I.z1 + 1.9, 0.4, 0.08, 0.4, '#14141c'); t.cyl(x, 0.2, I.z1 + 1.2, 0.25, 0.08, '#adb5bd', 12, Math.PI / 2);
+        t.box(x, 0.55, I.z1 + 1.0, 0.08, 0.6, 0.08, '#2b2d42'); t.box(x, 1.12, I.z1 + 1.0, 0.5, 0.05, 0.08, '#2b2d42');
+        t.solid(x, I.z1 + 1.5, 0.6, 1.4, 0.6);
+        t.spot(x, I.z1 + 2.9, { label: '🚴 Vélo d\'appartement (tourne tout seul)', action: 'machine', machine: 'velo', r: 1.4, seat: { lx: x, lz: I.z1 + 1.9, ry: Math.PI, y: 1.0 } });
+      }
     }
+    // tapis de sol (pompes) et accueil (abonnements)
+    t.box(I.x2 - 3, 0.01, (I.z1 + I.z2) / 2 - 2, 1.2, 0.04, 2.2, '#2ec4b6');
+    t.spot(I.x2 - 3, (I.z1 + I.z2) / 2 - 2, { label: '💪 Tapis de sol : faire des pompes', action: 'pushups', r: 1.3 });
+    t.box(I.x2 - 2, 0, I.z2 - 1.2, 2, 1.05, 0.7, '#ff70a6'); t.solid(I.x2 - 2, I.z2 - 1.2, 2, 0.7, 1.1);
+    t.spot(I.x2 - 3.4, I.z2 - 1.4, { label: '🎫 Accueil : abonnements', action: 'gympass', r: 1.3, priority: 2 });
     t.box(0, 0.01, (I.z1 + I.z2) / 2 + 1, I.x2 - I.x1 - 4, 0.04, 3, '#ff70a6');
-    t.staff(I.x2 - 2, I.z2 - 2.5, Math.PI, 'coach');
+    t.staff(I.x2 - 2, I.z2 - 2.2, Math.PI, 'coach');
     t.box(I.x1 + 0.12, 0.4, (I.z1 + I.z2) / 2, 0.04, 2, I.z2 - I.z1 - 4, '#cfe8ff', 'windows'); // miroir
     // vestiaires : douches
     for (const dx of [0.7, 2.1]) t.furn('douche', I.x1 + dx, I.z2 - 0.8, Math.PI);

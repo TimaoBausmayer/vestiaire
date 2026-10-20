@@ -27,7 +27,7 @@ const ENTERABLE = BUILDINGS.filter(isEnterable);
 const ROLE_LOOK = {
   cuisinier: { hat: 'toque', top: 'tablier', topColor: '#f4f1ea' }, boulanger: { hat: 'toque', top: 'tablier', topColor: '#f4f1ea' },
   serveur: { top: 'chemise', topColor: '#2b2d42' }, equipier: { hat: 'casquette', top: 'tshirt', topColor: '#e63946' },
-  policier: { hat: 'casquette', top: 'chemise', topColor: '#1d3557' }, gardien: { hat: 'casquette', top: 'chemise', topColor: '#4a4e69' },
+  coiffeur: { top: 'chemise', topColor: '#cdb4db' }, policier: { hat: 'casquette', top: 'chemise', topColor: '#1d3557' }, gardien: { hat: 'casquette', top: 'chemise', topColor: '#4a4e69' },
   pompier: { hat: 'casque-pompier', top: 'uniforme-pompier', topColor: '#2b2d42' }, medecin: { top: 'tablier', topColor: '#ffffff' },
   infirmier: { top: 'chemise', topColor: '#90e0ef' }, mecano: { hat: 'casquette', top: 'debardeur', topColor: '#495057' },
   commercial: { top: 'costume', topColor: '#14213d' }, banquier: { top: 'costume', topColor: '#2b2d42' }, agent: { top: 'costume', topColor: '#3d5a80' },
@@ -41,7 +41,7 @@ const ROLE_NAME = {
   equipier: 'Équipier·ère', caissier: 'Caissier·ère', commercial: 'Commercial·e', mecano: 'Mécanicien·ne', manutentionnaire: 'Chef d\'entrepôt', ouvrier: 'Ouvrier·ère',
   accueil: 'Accueil', agent: 'Agent·e', ferrailleur: 'Ferrailleur·se', policier: 'Policier·ère', infirmier: 'Infirmier·ère', medecin: 'Médecin', pompier: 'Pompier·ère',
   habitant: 'Habitant·e', concierge: 'Concierge', banquier: 'Banquier·ère', secretaire: 'Secrétaire de mairie', maire: 'Le Maire', gerant: 'Gérant·e', coach: 'Coach',
-  professeur: 'Professeur·e', gardien: 'Gardien·ne', fermier: 'Fermier·ère',
+  professeur: 'Professeur·e', gardien: 'Gardien·ne', fermier: 'Fermier·ère', coiffeur: 'Coiffeur·se',
 };
 const FIRST = ['Gégé', 'Josiane', 'Kévin', 'Mireille', 'Bertrand', 'Sonia', 'Jean-Claude', 'Lulu', 'Fatou', 'Yannick', 'Paulette', 'Momo', 'Ginette', 'Rachid', 'Odette', 'Nono'];
 
@@ -183,7 +183,12 @@ export class Interiors {
         tt.box((x1 + x2) / 2, 0, (z1 + z2) / 2, len, h, 0.15, color, 'main', ry);
         tt.solid((x1 + x2) / 2, (z1 + z2) / 2, len, 0.2, h, ry);
       },
-      spot: (lx, lz, def) => { const [x, z] = L(lx, lz); spots.push({ x, z, ...def }); },
+      spot: (lx, lz, def) => {
+        const [x, z] = L(lx, lz);
+        // siège local (machines de sport) → coordonnées du monde
+        const seat = def.seat && def.seat.lx !== undefined ? (() => { const [sx, sz] = L(def.seat.lx, def.seat.lz); return { x: sx, z: sz, yaw: th + def.seat.ry, y: def.seat.y }; })() : def.seat;
+        spots.push({ x, z, ...def, seat });
+      },
       seat: (lx, lz, ry, y) => { const [x, z] = L(lx, lz); spots.push({ x, z, r: 0.9, label: '🪑 S\'asseoir', action: 'sit', seat: { x, z, yaw: th + ry, y } }); },
       bed: (lx, lz, ry) => { const [x, z] = L(lx, lz); spots.push({ x, z, r: 1.6, label: '😴 Faire une sieste', action: 'nap', seat: { x, z, yaw: th + ry, y: 0.6, lie: true } }); },
       staff: (lx, lz, ry, role) => { const [x, z] = L(lx, lz); staff.push({ x, z, yaw: th + ry, role }); },

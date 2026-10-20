@@ -21,6 +21,7 @@ export function randomAppearance() {
 export function openCreator(game, opts) {
   const app = { ...(opts.appearance || randomAppearance()) };
   let name = opts.name || '';
+  let startAge = 20;
   const avatar = game.avatar;
   const prevPos = game.player.pos.clone(), prevYaw = game.player.yaw, prevZone = game.player.zone;
   // studio : à la création, devant la fontaine ; en cours de partie, sur place (pas de téléportation,
@@ -62,11 +63,18 @@ export function openCreator(game, opts) {
       body.append(field('Couleur de peau', swatches('skin', SKINS)));
       body.append(field('Silhouette', opts2('body', BODIES, { mince: 'Mince', moyen: 'Moyenne', costaud: 'Costaude' })));
       body.append(field('Taille', h('input', { type: 'range', min: 0.9, max: 1.1, step: 0.01, value: app.height, style: { width: '100%' }, oninput: (e) => { app.height = +e.target.value; apply(); } })));
+      if (opts.askName) {
+        const ageLbl = h('span', `${startAge} ans`);
+        body.append(field('Âge de départ (on vieillit en jouant : 6 h de jeu = 1 an)', h('div.row', { style: { gap: '10px', alignItems: 'center' } }, h('input', { type: 'range', min: 16, max: 40, step: 1, value: startAge, style: { flex: '1' }, oninput: (e) => { startAge = +e.target.value; ageLbl.textContent = `${startAge} ans`; } }), ageLbl)));
+      }
     } else if (tab === 'visage') {
       body.append(field('Regard', opts2('eyes', EYES, EYE_LABELS)));
     } else if (tab === 'cheveux') {
-      body.append(field('Coiffure', opts2('hair', HAIR_STYLES, HAIR_LABELS)));
-      body.append(field('Couleur', swatches('hairColor', HAIR_COLORS)));
+      if (opts.noHair) body.append(h('p', '✂️ Pour changer de coupe ou de couleur, va au Salon Tifs & Brushing (Quartier des Tilleuls) !'));
+      else {
+        body.append(field('Coiffure', opts2('hair', HAIR_STYLES, HAIR_LABELS)));
+        body.append(field('Couleur', swatches('hairColor', HAIR_COLORS)));
+      }
     } else if (tab === 'tenue') {
       const tops = [...BASE_TOPS, ...(opts.extraTops || [])];
       const bottoms = [...BASE_BOTTOMS, ...(opts.extraBottoms || [])];
@@ -93,7 +101,7 @@ export function openCreator(game, opts) {
       onclick: async () => {
         if (opts.askName) { const bad = validName(name); if (bad) { err.textContent = bad; return; } }
         try {
-          await opts.onDone(name.trim(), { ...app });
+          await opts.onDone(name.trim(), { ...app }, { age: startAge });
           close();
           if (!opts.askName) restore();
         } catch (e) { err.textContent = e.message; }

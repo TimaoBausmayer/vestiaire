@@ -21,7 +21,7 @@ export const INTERIOR_STYLE = {
   factory: { floor: '#8f8f8a', alt: '#7f7f7a', wall: '#bcb8b0' }, office: { floor: '#8fa3b8', alt: '#7f93a8', wall: '#eef2f6' },
   agency: { floor: '#c9b79c', alt: '#b9a78c', wall: '#f7f3ec' }, police: { floor: '#9aa8bc', alt: '#8a98ac', wall: '#e2e6ee' },
   hospital: { floor: '#cfe0e2', alt: '#bdd2d5', wall: '#f2f6f6' }, firestation: { floor: '#8d939b', alt: '#c1121f', wall: '#e9e2d6' },
-  house: { floor: '#b88a5a', alt: '#a97c4f', wall: '#f4ecdf' }, lobby: { floor: '#d6ccc2', alt: '#c7bdb3', wall: '#f5ebe0' },
+  house: { floor: '#b88a5a', alt: '#a97c4f', wall: '#f4ecdf' }, salon: { floor: '#f1e4f3', alt: '#e2cfe6', wall: '#fff0f6' }, lobby: { floor: '#d6ccc2', alt: '#c7bdb3', wall: '#f5ebe0' },
   bank: { floor: '#e9dfc4', alt: '#d4c49c', wall: '#fbf6e9' }, mairie: { floor: '#c9b38f', alt: '#b59f7b', wall: '#f8f0dd' },
   arcade: { floor: '#2b2350', alt: '#3b2f6e', wall: '#1d1838' }, cinema: { floor: '#5a1e2c', alt: '#4a1824', wall: '#2a1b3d' },
   bowling: { floor: '#c9a46a', alt: '#b8945a', wall: '#24243e' }, gym: { floor: '#3a3a44', alt: '#2f2f38', wall: '#f1f1f1' },

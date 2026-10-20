@@ -302,6 +302,7 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
 .needs .energie .nb > div { background: linear-gradient(90deg, #ffb703, #29e6ff); }
 .needs .humeur .nb > div { background: linear-gradient(90deg, #ff8fab, #c77dff); }
 .needs .hygiene .nb > div { background: linear-gradient(90deg, #90e0ef, #48cae4); }
+.needs .sante .nb > div { background: linear-gradient(90deg, #ff4d6d, #ff8fa3); }
 /* mini-jeu de cuisson */
 .cook-game { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); width: min(460px, 90vw); background: var(--panel); border-radius: 18px; padding: 12px 16px 14px; box-shadow: var(--shadow); text-align: center; z-index: 25; cursor: pointer; }
 .cook-game .t { font-weight: 800; font-size: 17px; margin-bottom: 8px; }

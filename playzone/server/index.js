@@ -78,7 +78,7 @@ export function startServer({ port = PORT, host = HOST, dbFile = DB_FILE, quiet 
           } else if (m.t === 'create') {
             if (db.accountsFromIp(ipHash, Date.now() - 3600_000) >= accountsPerIp) { conn.send({ t: 'create_error', error: 'Trop de personnages créés depuis cette connexion. Réessaie plus tard.' }); return; }
             let profile;
-            try { profile = game.authority.newProfile({ id: `p_${randomBytes(8).toString('hex')}`, name: m.name, appearance: m.appearance, now: Date.now() }); } catch (e) { conn.send({ t: 'create_error', error: e.message }); return; }
+            try { profile = game.authority.newProfile({ id: `p_${randomBytes(8).toString('hex')}`, name: m.name, appearance: m.appearance, now: Date.now(), age: m.age }); } catch (e) { conn.send({ t: 'create_error', error: e.message }); return; }
             const token = randomBytes(24).toString('hex');
             db.createPlayer(profile, token, ipHash);
             conn.send({ t: 'created', token });

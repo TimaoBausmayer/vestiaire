@@ -9,6 +9,25 @@ export default {
   name: 'La Grande Ville',
   version: '0.2.0',
   items: [
+    // ---------- Chaussures (nouvel emplacement « pieds »)
+    { id: 'baskets-blanches', name: 'Baskets blanches', shop: 'clothes', slot: 'feet', price: 150, emoji: '👟', desc: 'Toutes blanches. À garder propres (bon courage).' },
+    { id: 'tongs', name: 'Tongs de plage', shop: 'clothes', slot: 'feet', price: 25, emoji: '🩴', desc: 'Clac, clac, clac.' },
+    { id: 'bottes-pluie', name: 'Bottes de pluie', shop: 'clothes', slot: 'feet', price: 60, emoji: '🥾', desc: 'Pour sauter dans les flaques sans remords.' },
+    // ---------- Maison Paillettes (luxe) : plus c'est cher, plus on attire les regards
+    { id: 'baskets-luxe', name: 'Baskets Paillettes Gold', shop: 'luxury', slot: 'feet', price: 890, emoji: '👟', desc: 'Liseré doré. On les regarde plus que toi.' },
+    { id: 'mocassins-cuir', name: 'Mocassins en cuir', shop: 'luxury', slot: 'feet', price: 520, emoji: '👞', desc: 'Pour les rendez-vous importants (et le golf).' },
+    { id: 'bottes-cuir', name: 'Bottes en cuir', shop: 'luxury', slot: 'feet', price: 640, emoji: '🥾', desc: 'Cuir véritable, attitude véritable.' },
+    { id: 'talons-or', name: 'Escarpins dorés', shop: 'luxury', slot: 'feet', price: 1450, emoji: '👠', desc: 'Brillent même dans le noir. Ou presque.' },
+    { id: 'veste-luxe', name: 'Veste de créateur', shop: 'luxury', slot: 'top', price: 1200, emoji: '🧥', desc: 'Revers dorés, coupe parfaite. Tout le monde se retourne.' },
+    { id: 'chapeau-luxe', name: 'Chapeau de créateur', shop: 'luxury', slot: 'hat', price: 950, emoji: '🎩', desc: 'Feutre noir, ruban doré. Mystérieux.' },
+    { id: 'lunettes-luxe', name: 'Lunettes de star', shop: 'luxury', slot: 'glasses', price: 680, emoji: '🕶️', desc: 'Pour échapper aux paparazzis (imaginaires).' },
+    { id: 'sac-luxe', name: 'Sac de créateur', shop: 'luxury', slot: 'back', price: 2400, emoji: '👜', desc: 'Il contient un ticket de bus et 3 bonbons. Mais quel sac !' },
+    { id: 'parfum-fleurs', name: 'Eau de toilette « Fleur de Navet »', shop: 'luxury', also: ['supermarket'], price: 65, emoji: '🧴', consumable: true, perfume: 60, max: 10, desc: 'Sent bon pendant une heure de jeu (+ attirance).' },
+    { id: 'parfum-paillettes', name: 'Parfum « Paillettes N°5 »', shop: 'luxury', price: 380, emoji: '💎', consumable: true, perfume: 120, max: 10, desc: 'Sillage irrésistible pendant deux heures de jeu.' },
+    { id: 'creme-jeunesse', name: 'Crème Jeunesse Éternelle', shop: 'luxury', price: 2500, emoji: '🫙', consumable: true, perfume: 30, antiAge: 360, max: 5, desc: 'Rajeunit d\'un an de jeu (paraît-il). Sent la noix de coco.' },
+    // ---------- Pharmacie (supermarché, station, hôpital)
+    { id: 'pansement', name: 'Boîte de pansements', shop: 'supermarket', also: ['superette', 'station'], price: 12, emoji: '🩹', consumable: true, heal: 10, cures: ['bosse'], max: 10, desc: 'Soigne les bosses (+10 santé).' },
+    { id: 'antidouleur', name: 'Antidouleur', shop: 'supermarket', also: ['superette'], price: 25, emoji: '💊', consumable: true, heal: 20, max: 10, desc: '+20 santé. Ne répare pas les os cassés.' },
     // ---------- Boulangeries (La Mie Câline, des Tilleuls)
     F('croissant', 'Croissant', 'bakery', 4, '🥐', 'Feuilleté, doré, et qui fait plein de miettes.', { faim: 18, energie: 4, humeur: 3 }),
     F('pain-choc', 'Pain au chocolat', 'bakery', 4, '🍫', 'Ou chocolatine. Le débat est ouvert.', { faim: 20, energie: 4, humeur: 4 }),

@@ -389,7 +389,7 @@ export class Vehicles {
       if (now - v.lastHit > 250) {
         v.lastHit = now;
         g.sfx(sev > 0.25 ? 'crash' : 'bump');
-        if (v === this.current) g.cam.shake = Math.min(1.2, 0.3 + sev * 1.5);
+        if (v === this.current) { g.cam.shake = Math.min(1.2, 0.3 + sev * 1.5); if (hit.speed >= 15) g.emit('vehicle.crash', hit.speed); }
         g.fx.emit({ x: hit.x, y: v.pos.y + 0.6, z: hit.z, n: 6 + Math.round(sev * 20), colors: ['#ffd23f', '#ff9f1c', '#ffffff'], speed: 4 + sev * 6, gravity: 12, life: 0.4, size: 0.12 });
         if (sev > 0.3) g.fx.emit({ x: hit.x, y: v.pos.y + 0.8, z: hit.z, n: 8, colors: ['#9aa0a8', '#c7ccd4'], speed: 2, gravity: -1, life: 1.2, size: 0.6, grow: 1 });
         // autre véhicule percuté : il prend aussi

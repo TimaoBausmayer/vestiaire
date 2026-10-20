@@ -53,6 +53,7 @@ export class Player {
 
   teleport(x, z, yaw, y) {
     if (this.seated) { this.seated = null; this.avatar.root.rotation.set(0, this.yaw, 0); }
+    this.teleportedAt = performance.now();
     this.pos.set(x, y ?? this.collision.supportAt(x, z, 50, PLAYER_RADIUS), z);
     this.vel.set(0, 0, 0);
     if (yaw !== undefined) this.yaw = yaw;
@@ -67,15 +68,18 @@ export class Player {
     // assis / allongé : on se lève dès qu'on bouge
     if (this.seated) {
       const s = this.seated;
-      if (canMove && (Math.hypot(input.move.x, input.move.y) > 0.25 || input.pressed('Space'))) { this.stand(); }
+      if (canMove && (Math.hypot(input.move.x, input.move.y) > 0.25 || (input.pressed('Space') && !s.keepSpace))) { this.stand(); }
       else {
         p.set(s.x, 0, s.z); v.set(0, 0, 0); this.yaw = s.yaw; this.speed = 0; this.grounded = true;
         const r = this.avatar.root;
         r.rotation.order = 'YXZ';
-        if (s.lie) { r.position.set(s.x + Math.sin(s.yaw) * 0.95, (s.y || 0.6) + 0.12, s.z + Math.cos(s.yaw) * 0.95); r.rotation.set(-Math.PI / 2, s.yaw, 0); }
+        const sp = s.pose;
+        if (sp === 'pushup') { r.position.set(s.x, 0.22 + (this.pushPhase || 0) * 0.32, s.z); r.rotation.set(Math.PI / 2 - 0.12 - (this.pushPhase || 0) * 0.25, s.yaw, 0); }
+        else if (sp === 'run') { r.position.set(s.x, s.y ?? 0.25, s.z); r.rotation.set(0, s.yaw, 0); }
+        else if (s.lie) { r.position.set(s.x + Math.sin(s.yaw) * 0.95, (s.y || 0.6) + 0.12, s.z + Math.cos(s.yaw) * 0.95); r.rotation.set(-Math.PI / 2, s.yaw, 0); }
         else { r.position.set(s.x, Math.max(0, (s.y ?? 0.5) - 0.48), s.z); r.rotation.set(0, s.yaw, 0); }
         if (this.poseTimer > 0) { this.poseTimer -= dt; if (this.poseTimer <= 0) this.pose = 'idle'; }
-        this.avatar.update(dt, { speed: 0, grounded: true, pose: s.lie ? 'idle' : this.pose === 'eat' ? 'sit-eat' : 'sit' });
+        this.avatar.update(dt, { speed: sp === 'run' ? 6.5 : 0, grounded: true, pose: sp === 'run' ? 'idle' : sp || (s.lie ? 'idle' : this.pose === 'eat' ? 'sit-eat' : 'sit') });
         return;
       }
     }
@@ -91,8 +95,8 @@ export class Player {
     const ground = groundHeight(p.x, p.z);
     const inHome = this.zone.startsWith('home');
     this.swimming = !inHome && ground < WATER_LEVEL - 1.0 && p.y < WATER_LEVEL - 0.6;
-    let target = this.swimming ? 3.6 : input.sprint && !this.noSprint ? this.runSpeed : this.walkSpeed;
-    target *= this.speedBonus * this.needsSpeed;
+    let target = this.swimming ? 3.6 : input.sprint && !this.noSprint && !this.bodyNoSprint ? this.runSpeed : this.walkSpeed;
+    target *= this.speedBonus * this.needsSpeed * (this.bodySpeed || 1);
     if (this.pose === 'carry') target *= 0.85;
     const accel = this.grounded || this.swimming ? 14 : 4;
     const tx = mlen > 0.01 ? (mx / Math.max(1, mlen)) * target : 0;
@@ -103,7 +107,7 @@ export class Player {
 
     // saut
     this.coyote = this.grounded ? 0.12 : Math.max(0, this.coyote - dt);
-    if (canMove && input.pressed('Space') && this.coyote > 0 && !this.swimming) {
+    if (canMove && input.pressed('Space') && this.coyote > 0 && !this.swimming && !this.bodyNoJump) {
       v.y = 8.6;
       this.grounded = false;
       this.coyote = 0;

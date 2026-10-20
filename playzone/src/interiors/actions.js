@@ -9,6 +9,7 @@ import { HOUSING_BY_ID } from '../../shared/property.js';
 import { cashPanel } from '../property/bank.js';
 import { jobPanel, schoolPanel } from '../career/career.js';
 import { createCompanyPanel } from '../career/business.js';
+import { gymPassPanel, hairPanel, hospitalCarePanel } from '../life/body.js';
 import { cookPanel, shower, sleep, showerFx } from '../life/home-life.js';
 
 // ACTIONS DES POINTS D'INTÉRIEUR : acheter, s'asseoir, dormir, parler, regarder la télé, jouer...
@@ -101,6 +102,11 @@ export async function runAction(game, action, { b, spot, staff }) {
       if (r) { showerFx(g); needsToast(g, r, '🚿 Douche des vestiaires'); }
       break;
     }
+    case 'machine': g.body?.startMachine(spot.machine, spot.seat); break;
+    case 'gympass': gymPassPanel(g); break;
+    case 'pushups': g.body?.pushups(); break;
+    case 'hair': hairPanel(g); break;
+    case 'care': hospitalCarePanel(g); break;
     case 'cook': cookPanel(g); break;
     case 'shower': shower(g); break;
     case 'sleep': sleep(g, spot.seat); break;

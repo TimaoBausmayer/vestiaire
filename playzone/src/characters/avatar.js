@@ -14,8 +14,8 @@ function darker(hex, f = 0.75) { const c = new THREE.Color(hex); c.multiplyScala
 // ---------- Tronc (pivot aux hanches, y = 0.85)
 function buildTorso(sb, a, w, extra) {
   const top = extra.top || a.top;
-  const tc = extra.topColor || a.topColor;
-  const skinArms = top === 'debardeur';
+  const tc = top === 'torse' ? a.skin : extra.topColor || a.topColor;
+  const skinArms = top === 'debardeur' || top === 'torse';
   // bassin (couleur du bas)
   sb.add(B.sphere(12), { y: 0.06, sx: 0.5 * w, sy: 0.28, sz: 0.36, color: a.bottomColor });
   if (a.bottom === 'jupe') sb.add(B.cone(12), { y: -0.32, sx: 0.78 * w, sy: 0.5, sz: 0.62, rx: Math.PI, color: a.bottomColor });
@@ -47,6 +47,17 @@ function buildTorso(sb, a, w, extra) {
     sb.add(B.box(), { y: 0.2, z: 0.19, sx: 0.06, sy: 0.32, sz: 0.02, color: '#c0392b' }); // cravate
     sb.add(B.box(), { y: 0.48, z: 0.19, sx: 0.14, sy: 0.12, sz: 0.02, color: '#ffffff' });
   }
+  if (top === 'veste-luxe') {
+    for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.09, y: 0.36, z: 0.2, sx: 0.1, sy: 0.34, sz: 0.02, rz: sx * 0.25, color: '#fca311' });
+    for (let i = 0; i < 2; i++) sb.add(B.sphere(5), { y: 0.22 - i * 0.12, z: 0.21, x: 0.04, sx: 0.04, sy: 0.04, sz: 0.02, color: '#fca311' });
+    sb.add(B.box(), { y: 0.5, z: 0.18, sx: 0.12, sy: 0.12, sz: 0.02, color: '#ffffff' });
+  }
+  if (top === 'torse') {
+    const m = extra.strong || 0;
+    if (m > 0.3) for (const sx of [-1, 1]) sb.add(B.sphere(10), { x: sx * 0.12 * w, y: 0.4, z: 0.15, sx: 0.24 * w, sy: 0.16, sz: 0.1 + m * 0.06, color: darker(a.skin, 0.93) }); // pectoraux
+    if (m > 0.55) for (let r = 0; r < 3; r++) for (const sx of [-1, 1]) sb.add(B.sphere(6), { x: sx * 0.055, y: 0.24 - r * 0.075, z: 0.18, sx: 0.08, sy: 0.06, sz: 0.04, color: darker(a.skin, 0.9) }); // abdos
+    sb.add(B.box(), { y: 0.04, sx: 0.4 * w, sy: 0.05, sz: 0.39, color: '#2b2d42' });
+  }
   if (top === 'tablier') {
     sb.add(B.box(), { y: -0.25, z: 0.2, sx: 0.46 * w, sy: 0.75, sz: 0.03, color: '#ffffff' });
     sb.add(B.box(), { y: 0.3, z: 0.18, sx: 0.04, sy: 0.4, sz: 0.02, x: 0.12, color: '#eeeeee' });
@@ -75,6 +86,7 @@ function buildTorso(sb, a, w, extra) {
     sb.add(B.box(), { y: 0.35, z: -0.3, x: 0.15, sx: 0.06, sy: 0.6, sz: 0.05, rz: 0.4, color: '#5b3a1e' });
   }
   if (back === 'echarpe') sb.add(B.ring(), { y: 0.58, sx: 0.4, sy: 0.6, sz: 0.4, color: '#ff5a5f' });
+  if (back === 'sac-luxe') { sb.add(B.box(), { x: 0.3 * w, y: -0.2, z: 0.02, sx: 0.12, sy: 0.3, sz: 0.34, color: '#7f5539' }); sb.add(B.box(), { x: 0.3 * w, y: -0.12, z: 0.2, sx: 0.13, sy: 0.05, sz: 0.02, color: '#fca311' }); sb.add(B.ring(), { x: 0.22 * w, y: 0.22, rz: 0.4, sx: 0.16, sy: 0.7, sz: 0.16, color: '#7f5539' }); }
   if (back === 'cape-vampire') sb.add(B.box(), { y: -0.55, z: -0.22, sx: 0.66 * w, sy: 1.1, sz: 0.04, rx: 0.12, color: '#1d1029' });
 }
 
@@ -181,6 +193,7 @@ function buildHead(sb, a, extra) {
       for (const s of [-1, 1]) { sb.add(B.sphere(8), { x: s * 0.13, y: 0.78, sx: 0.12, sy: 0.4, sz: 0.06, rz: s * -0.2, color: '#ffffff' }); sb.add(B.sphere(8), { x: s * 0.13, y: 0.78, z: 0.02, sx: 0.06, sy: 0.3, sz: 0.04, rz: s * -0.2, color: '#ffb3c6' }); }
       break;
     case 'bandeau': sb.add(B.cyl(14), { y: 0.42, sx: 0.62, sy: 0.08, sz: 0.6, color: '#ff5a5f' }); break;
+    case 'chapeau-luxe': sb.add(B.cyl(16), { y: 0.5, sx: 0.86, sy: 0.04, sz: 0.8, color: '#22223b' }); sb.add(B.cyl(14), { y: 0.5, sx: 0.5, sy: 0.32, sz: 0.48, color: '#22223b' }); sb.add(B.cyl(14), { y: 0.55, sx: 0.51, sy: 0.06, sz: 0.49, color: '#fca311' }); break;
     case 'citrouille':
       sb.add(B.sphere(12), { y: 0.55, sx: 0.85, sy: 0.65, sz: 0.8, color: '#ff8c1a' });
       sb.add(B.cyl(6), { y: 0.86, sx: 0.08, sy: 0.15, sz: 0.08, color: '#3f8f3a' });
@@ -208,6 +221,10 @@ function buildHead(sb, a, extra) {
     case 'lunettes-coeur':
       for (const sx of [-0.1, 0.1]) { sb.add(B.sphere(8), { x: sx - 0.025, y: 0.34, z: 0.29, sx: 0.08, sy: 0.08, sz: 0.03, color: '#ff3f7f' }); sb.add(B.sphere(8), { x: sx + 0.025, y: 0.34, z: 0.29, sx: 0.08, sy: 0.08, sz: 0.03, color: '#ff3f7f' }); sb.add(B.cone(4), { x: sx, y: 0.32, z: 0.29, sx: 0.12, sy: 0.07, sz: 0.03, rx: Math.PI, color: '#ff3f7f' }); }
       break;
+    case 'lunettes-luxe':
+      for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.12, y: 0.3, z: 0.29, sx: 0.2, sy: 0.11, sz: 0.03, color: '#111111' });
+      sb.add(B.box(), { y: 0.33, z: 0.29, sx: 0.46, sy: 0.025, sz: 0.03, color: '#fca311' });
+      break;
     case 'monocle': sb.add(B.torus(), { x: 0.1, y: 0.33, z: 0.29, sx: 0.2, sy: 0.2, sz: 0.2, color: '#ffd23f' }); sb.add(B.box(), { x: 0.17, y: 0.15, z: 0.27, sx: 0.01, sy: 0.3, sz: 0.01, color: '#ffd23f' }); break;
     case 'masque-plongee':
       sb.add(B.box(), { y: 0.33, z: 0.28, sx: 0.36, sy: 0.16, sz: 0.06, color: '#2ec4b6' });
@@ -223,11 +240,12 @@ function buildHead(sb, a, extra) {
 function buildArm(sb, a, extra) {
   const top = extra.top || a.top;
   const tc = extra.topColor || a.topColor;
-  const long = ['sweat', 'chemise', 'costume', 'uniforme-pompier', 'raye'].includes(top);
-  const bare = top === 'debardeur';
-  sb.add(B.sphere(8), { y: -0.02, sx: 0.2, sy: 0.2, sz: 0.2, color: bare ? a.skin : tc });
-  sb.add(B.cyl(8), { y: -0.3, sx: 0.17, sy: 0.3, sz: 0.17, color: bare ? a.skin : tc });
-  sb.add(B.cyl(8), { y: -0.56, sx: 0.15, sy: 0.27, sz: 0.15, color: long ? tc : a.skin });
+  const long = ['sweat', 'chemise', 'costume', 'uniforme-pompier', 'raye', 'veste-luxe'].includes(top);
+  const bare = top === 'debardeur' || top === 'torse';
+  const m = 1 + (extra.strong || 0) * 0.45 + Math.max(0, extra.fat || 0) * 0.3;
+  sb.add(B.sphere(8), { y: -0.02, sx: 0.2 * m, sy: 0.2, sz: 0.2 * m, color: bare ? a.skin : tc });
+  sb.add(B.cyl(8), { y: -0.3, sx: 0.17 * m, sy: 0.3, sz: 0.17 * m, color: bare ? a.skin : tc });
+  sb.add(B.cyl(8), { y: -0.56, sx: 0.15 * m, sy: 0.27, sz: 0.15 * m, color: long ? tc : a.skin });
   if (top === 'uniforme-pompier') sb.add(B.cyl(8), { y: -0.45, sx: 0.16, sy: 0.04, sz: 0.16, color: '#ffe14d' });
   sb.add(B.sphere(8), { y: -0.62, sx: 0.17, sy: 0.17, sz: 0.17, color: a.skin });
 }
@@ -238,8 +256,24 @@ function buildLeg(sb, a) {
   const skirt = a.bottom === 'jupe';
   sb.add(B.cyl(8), { y: -0.42, sx: 0.22, sy: 0.42, sz: 0.22, color: skirt ? a.skin : a.bottomColor });
   sb.add(B.cyl(8), { y: -0.76, sx: 0.19, sy: 0.36, sz: 0.19, color: short || skirt ? a.skin : a.bottomColor });
-  sb.add(B.box(), { y: -0.85, z: 0.05, sx: 0.22, sy: 0.13, sz: 0.34, color: a.shoes });
-  sb.add(B.box(), { y: -0.85, z: 0.05, sx: 0.23, sy: 0.03, sz: 0.35, color: '#f4f1ea' });
+  const f = a.feet;
+  if (f === 'bottes-cuir' || f === 'bottes-pluie') {
+    const c = f === 'bottes-pluie' ? '#ffd23f' : '#5c3d2e';
+    sb.add(B.cyl(8), { y: -0.74, sx: 0.21, sy: 0.24, sz: 0.21, color: c });
+    sb.add(B.box(), { y: -0.86, z: 0.06, sx: 0.22, sy: 0.12, sz: 0.36, color: c });
+  } else if (f === 'mocassins-cuir') {
+    sb.add(B.box(), { y: -0.87, z: 0.06, sx: 0.2, sy: 0.09, sz: 0.34, color: '#6f1d1b' }); sb.add(B.box(), { y: -0.82, z: 0.16, sx: 0.12, sy: 0.02, sz: 0.06, color: '#fca311' });
+  } else if (f === 'talons-or') {
+    sb.add(B.box(), { y: -0.84, z: 0.08, sx: 0.18, sy: 0.08, sz: 0.3, rx: 0.25, color: '#fca311' }); sb.add(B.cyl(6), { y: -0.9, z: -0.08, sx: 0.04, sy: 0.12, sz: 0.04, color: '#fca311' });
+  } else if (f === 'tongs') {
+    sb.add(B.box(), { y: -0.9, z: 0.05, sx: 0.22, sy: 0.03, sz: 0.34, color: '#2ec4b6' }); sb.add(B.box(), { y: -0.86, z: 0.1, sx: 0.03, sy: 0.05, sz: 0.1, color: '#2ec4b6' }); sb.add(B.box(), { y: -0.86, z: 0.05, sx: 0.18, sy: 0.05, sz: 0.25, color: a.skin });
+  } else {
+    // baskets (couleur au choix), version luxe : blanches et dorées, ou blanches
+    const lux = f === 'baskets-luxe', white = f === 'baskets-blanches';
+    sb.add(B.box(), { y: -0.85, z: 0.05, sx: 0.22, sy: 0.13, sz: 0.34, color: lux || white ? '#f8f9fa' : a.shoes });
+    sb.add(B.box(), { y: -0.85, z: 0.05, sx: 0.23, sy: 0.03, sz: 0.35, color: lux ? '#fca311' : '#f4f1ea' });
+    if (lux) sb.add(B.box(), { x: 0.115, y: -0.83, z: 0.02, sx: 0.01, sy: 0.05, sz: 0.16, color: '#fca311' });
+  }
 }
 
 export class Avatar {
@@ -265,7 +299,7 @@ export class Avatar {
     for (const m of this.meshes) { m.parent.remove(m); m.geometry.dispose(); }
     this.meshes = [];
     const a = this.appearance;
-    const w = BODY_W[a.body] || 1;
+    const w = (BODY_W[a.body] || 1) * (1 + Math.max(-0.12, Math.min(0.45, (extra.fat || 0) * 0.45)) + (extra.strong || 0) * 0.1);
     const add = (parent, geo) => {
       const m = new THREE.Mesh(geo, actorMaterial);
       m.castShadow = true;
@@ -315,6 +349,15 @@ export class Avatar {
       bodyY = 0;
       set(AR, -2.3 + Math.sin(t * 7) * 0.35, 0, -0.35); set(AL, -0.3, 0, 0.1);
       headX = Math.sin(t * 7) * 0.08;
+    } else if (pose === 'pushup') {
+      set(AL, -Math.PI / 2, 0, 0.25); set(AR, -Math.PI / 2, 0, -0.25); set(L, 0, 0, 0.04); set(R, 0, 0, -0.04); headX = -0.4;
+    } else if (pose === 'bench') {
+      const k2 = Math.sin(t * 2.6) * 0.35;
+      set(AL, -Math.PI / 2 + k2, 0, 0.3); set(AR, -Math.PI / 2 + k2, 0, -0.3); set(L, -1.2, 0, 0.1); set(R, -1.2, 0, -0.1);
+    } else if (pose === 'pedal') {
+      bodyY = -0.35;
+      set(L, -1.45 + Math.sin(t * 8) * 0.4, 0, 0.05); set(R, -1.45 - Math.sin(t * 8) * 0.4, 0, -0.05);
+      set(AL, -1.2, 0, 0.1); set(AR, -1.2, 0, -0.1);
     } else if (pose === 'sit' || pose === 'sit-eat') {
       bodyY = -0.35;
       set(L, -1.45, 0, 0.05); set(R, -1.45, 0, -0.05);

@@ -17,7 +17,7 @@ export const BOTTOM_LABELS = { jean: 'Pantalon', short: 'Short' };
 export const DEFAULT_APPEARANCE = {
   skin: '#f1c27d', hair: 'court', hairColor: '#4a2f1b', eyes: 'rond', body: 'moyen', height: 1,
   top: 'tshirt', topColor: '#ff5a5f', bottom: 'jean', bottomColor: '#3d8ee8', shoes: '#2b2d42',
-  hat: null, glasses: null, back: null,
+  hat: null, glasses: null, back: null, feet: null,
 };
 
 const isColor = (c) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
@@ -41,6 +41,7 @@ export function sanitizeAppearance(app, catalog, owned) {
   if (slotOk('hat', app.hat)) a.hat = app.hat;
   if (slotOk('glasses', app.glasses)) a.glasses = app.glasses;
   if (slotOk('back', app.back)) a.back = app.back;
+  if (slotOk('feet', app.feet)) a.feet = app.feet;
   return a;
 }
 

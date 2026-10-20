@@ -78,8 +78,8 @@ export class LocalConnection extends Emitter {
     return { profile: this.profile };
   }
 
-  async createProfile(name, appearance) {
-    this.profile = this.authority.newProfile({ id: `solo-${Math.random().toString(36).slice(2, 10)}`, name, appearance, now: Date.now() });
+  async createProfile(name, appearance, age) {
+    this.profile = this.authority.newProfile({ id: `solo-${Math.random().toString(36).slice(2, 10)}`, name, appearance, now: Date.now(), age });
     this.authority.startSession(this.profile, Date.now());
     this.save(true);
     this.emit('profile', this.profile);

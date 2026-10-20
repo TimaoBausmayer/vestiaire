@@ -5,7 +5,8 @@ import { VEHICLES } from '../../shared/content/vehicles.js';
 
 // Boutiques physiques (on entre dedans et on va au comptoir) + garde-robe (accessible partout).
 const SHOPS = {
-  clothes: { title: 'Fringues & Frites', sub: 'Mode, accessoires et frites (les frites ne sont pas à vendre).', tabs: { hat: 'Chapeaux', glasses: 'Visage', top: 'Hauts', bottom: 'Bas', back: 'Dos' } },
+  clothes: { title: 'Fringues & Frites', sub: 'Mode, accessoires et frites (les frites ne sont pas à vendre).', tabs: { hat: 'Chapeaux', glasses: 'Visage', top: 'Hauts', bottom: 'Bas', back: 'Dos', feet: 'Chaussures' } },
+  luxury: { title: 'Maison Paillettes', sub: 'Luxe, parfums et créateurs. Plus c\'est cher, plus on te remarque (attirance).' },
   furniture: { title: 'Meubles Mous', sub: 'Tout pour un logement confortable (et un peu bizarre).', tabs: null },
   pets: { title: 'Animalerie Poil-Poil', sub: 'Adoptions responsables et croquettes douteuses.', tabs: { adopt: 'Adopter', care: 'Soins' } },
   vehicles: { title: 'Garage Roule-Toujours', sub: 'Véhicules garantis 3 jours (ou 3 virages).', tabs: null },
@@ -180,7 +181,7 @@ export function openBasket(game, b) {
 // Garde-robe : changer de tenue n'importe où avec les objets possédés.
 export function openWardrobe(game) {
   const items = game.net.content.items;
-  const slots = { hat: 'Chapeau', glasses: 'Visage', top: 'Haut', bottom: 'Bas', back: 'Dos' };
+  const slots = { hat: 'Chapeau', glasses: 'Visage', top: 'Haut', bottom: 'Bas', back: 'Dos', feet: 'Chaussures' };
   const m = game.ui.modal({
     title: 'Garde-robe', sub: 'Tes vêtements et accessoires.',
     build: (body) => {
@@ -197,8 +198,11 @@ export function openWardrobe(game) {
       const colorRow = (key, label) => h('div.field', h('label', label), h('div.swatches', COLORS.map((c) => h(`button.swatch${prof.appearance[key] === c ? '.sel' : ''}`, {
         style: { background: c }, onclick: () => game.net.request('avatar.update', { appearance: { ...game.profile.appearance, [key]: c } }).then(() => m.refresh()),
       }))));
-      body.append(colorRow('topColor', 'Couleur du haut'), colorRow('bottomColor', 'Couleur du bas'), colorRow('shoes', 'Chaussures'));
-      body.append(h('button.btn.ghost', { onclick: () => { m.close(); game.editLook(); } }, '✂️ Changer coiffure, visage, silhouette...'));
+      body.append(colorRow('topColor', 'Couleur du haut'), colorRow('bottomColor', 'Couleur du bas'), colorRow('shoes', 'Couleur des baskets'));
+      const bare = !!prof.body?.shirtless;
+      body.append(h('div.field', h('label', 'Torse nu'), h('button.btn.small' + (bare ? '' : '.ghost'), { onclick: () => game.net.request('body.shirt', { off: !bare }).then(() => m.refresh()) }, bare ? '👕 Remettre le haut' : '💪 Enlever le t-shirt (montrer ses muscles)')));
+      if (prof.brandWorn) body.append(h('p.muted', `Tu portes « ${prof.brandWorn.name} » de ta marque ${prof.brandWorn.brand}.`));
+      body.append(h('button.btn.ghost', { onclick: () => { m.close(); game.editLook(); } }, '🪞 Visage, silhouette, couleurs... (la coiffure, c\'est chez le coiffeur !)'));
     },
   });
 }

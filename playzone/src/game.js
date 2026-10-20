@@ -37,6 +37,8 @@ import { Interiors } from './interiors/interiors.js';
 import { Bills } from './property/bills.js';
 import { Bank } from './property/bank.js';
 import { Career } from './career/career.js';
+import { bodyEffects } from '../shared/body.js';
+import { Body } from './life/body.js';
 import { Life } from './life/life.js';
 import { Basket } from './ui/shop.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
@@ -137,8 +139,8 @@ export class Game extends Emitter {
       this.avatar.root.visible = true;
       openCreator(this, {
         askName: true,
-        onDone: async (name, appearance) => {
-          await this.net.createProfile(name, appearance);
+        onDone: async (name, appearance, extra = {}) => {
+          await this.net.createProfile(name, appearance, extra.age);
           this.startPlaying(true);
         },
       });
@@ -159,6 +161,7 @@ export class Game extends Emitter {
     try { this.world.dayNight.shift = this.net.mode === 'solo' ? +(localStorage.getItem('playzone.timeShift') || 0) || 0 : 0; } catch { /* stockage indisponible */ }
     this.bank = new Bank(this);
     this.career = this.addSystem(new Career(this));
+    this.body = this.addSystem(new Body(this));
     this.setProfile(this.net.profile);
     this.avatar.root.visible = true;
     this.player.teleport(POI.spawn.x, POI.spawn.z, POI.spawn.ry);
@@ -205,15 +208,24 @@ export class Game extends Emitter {
   }
 
   // Tenue affichée : apparence du profil + uniforme du métier en cours éventuel.
-  refreshAvatar() {
-    if (!this.profile) return;
-    const key = JSON.stringify([this.profile.appearance, this.uniform]);
-    if (key === this._avatarKey) return;
-    this._avatarKey = key;
-    this.avatar.setAppearance(this.profile.appearance, this.uniform || {});
+  // Silhouette (poids, muscles) et torse nu, arrondis pour ne reconstruire le personnage que si ça change.
+  physique() {
+    const b = this.profile?.body;
+    if (!b) return {};
+    const fx = bodyEffects(b);
+    return { fat: Math.round(fx.fat * 10) / 10, strong: Math.round(fx.strong * 10) / 10, ...(b.shirtless && !this.uniform?.top ? { top: 'torse' } : {}) };
   }
 
-  previewAppearance(app) { this._avatarKey = null; this.avatar.setAppearance(app, this.uniform || {}); }
+  refreshAvatar() {
+    if (!this.profile) return;
+    const extra = { ...this.physique(), ...(this.uniform || {}) };
+    const key = JSON.stringify([this.profile.appearance, extra]);
+    if (key === this._avatarKey) return;
+    this._avatarKey = key;
+    this.avatar.setAppearance(this.profile.appearance, extra);
+  }
+
+  previewAppearance(app) { this._avatarKey = null; this.avatar.setAppearance(app, { ...this.physique(), ...(this.uniform || {}) }); }
 
   setUniform(u) { this.uniform = u; this.refreshAvatar(); this.emit('uniform', u); }
 
@@ -222,11 +234,11 @@ export class Game extends Emitter {
     const items = this.net.content.items;
     const owned = Object.keys(this.profile.inventory).filter((k) => this.profile.inventory[k] > 0);
     openCreator(this, {
-      appearance: app,
+      appearance: app, noHair: true,
       extraTops: owned.filter((id) => items[id]?.slot === 'top'),
       extraBottoms: owned.filter((id) => items[id]?.slot === 'bottom'),
       labels: Object.fromEntries(owned.map((id) => [id, items[id]?.name])),
-      onDone: (_, a) => this.net.request('avatar.update', { appearance: { ...a, hat: app.hat, glasses: app.glasses, back: app.back } }),
+      onDone: (_, a) => this.net.request('avatar.update', { appearance: { ...a, hair: app.hair, hairColor: app.hairColor, hat: app.hat, glasses: app.glasses, back: app.back, feet: app.feet } }),
       onCancel: () => { this._avatarKey = null; this.refreshAvatar(); },
     });
   }

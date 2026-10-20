@@ -22,6 +22,8 @@ import { PROPERTY_HANDLERS, expireRentals } from './authority-property.js';
 import { BANK_HANDLERS } from './authority-bank.js';
 import { CAREER_HANDLERS, careerOnPosition, defaultCareer } from './authority-careers.js';
 import { BUSINESS_HANDLERS } from './authority-business.js';
+import { BODY_HANDLERS } from './authority-body.js';
+import { defaultBody, eatWeight } from './body.js';
 import { deliverySpot, homeSize } from './property.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
@@ -41,12 +43,14 @@ export class Authority {
   constructor(content) { this.content = content; }
   setContent(content) { this.content = content; }
 
-  newProfile({ id, name, appearance, now }) {
+  newProfile({ id, name, appearance, now, age }) {
     const bad = validName(name);
     if (bad) throw new Error(bad);
+    const body = defaultBody();
+    if (typeof age === 'number' && age >= 16 && age <= 40) body.age = Math.floor(age); // âge de départ choisi
     return this.migrate({
       v: 1, id, name: name.trim().replace(/\s+/g, ' '), createdAt: now,
-      coins: START_COINS, cash: START_CASH, xp: 0, rep: 0,
+      coins: START_COINS, cash: START_CASH, xp: 0, rep: 0, body,
       appearance: sanitizeAppearance(appearance, this.content.items, new Set()),
     });
   }
@@ -66,6 +70,7 @@ export class Authority {
     p.cash ??= 0;
     p.savings ??= 0;
     p.career ||= defaultCareer();
+    p.body = { ...defaultBody(), ...(p.body || {}) };
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
     p.minigames ||= {};
@@ -596,8 +601,9 @@ const HANDLERS = {
     const st = needsStatus(p.needs, ctx.now);
     if (st.faim >= 98 && it.food.faim > 10) return err('Tu n\'as vraiment plus faim.');
     p.inventory[itemId]--;
+    eatWeight(p.body, st.faim, it.food);
     applyNeeds(p.needs, ctx.now, it.food);
-    return { ok: true, changed: true, data: { needs: needsStatus(p.needs, ctx.now) } };
+    return { ok: true, changed: true, data: { needs: needsStatus(p.needs, ctx.now), weight: p.body.weight } };
   },
 
   'pet.feed'(ctx, { petId }) {
@@ -745,7 +751,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS);
 // Liste des entreprises de joueurs où investir (en ligne).
 HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 

@@ -93,11 +93,11 @@ export class OnlineConnection extends Emitter {
     }
   }
 
-  createProfile(name, appearance) {
+  createProfile(name, appearance, age) {
     return new Promise((resolve, reject) => {
       this._onCreated = () => { this._onCreated = null; resolve(this.profile); };
       this._onCreateError = (e) => { this._onCreated = null; reject(e); };
-      this.send({ t: 'create', name, appearance });
+      this.send({ t: 'create', name, appearance, age });
     });
   }
 

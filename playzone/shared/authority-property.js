@@ -13,6 +13,7 @@ import { HOME_INTERIOR } from './world-layout.js';
 import { applyNeeds, needsStatus } from './needs.js';
 import { RECIPE_BY_ID, recipeEffect, canCook } from './recipes.js';
 import { companyTick } from './authority-business.js';
+import { bodyTick } from './body.js';
 import { DEFAULT_APPEARANCE } from './appearance.js';
 
 const err = (error) => ({ ok: false, error });
@@ -334,6 +335,7 @@ export const PROPERTY_HANDLERS = {
     // intérêts du livret d'épargne, activité de l'entreprise du joueur
     if (p.savings > 0) p.savings = Math.round((p.savings + p.savings * SAVINGS_RATE * mins) * 100) / 100;
     const co = companyTick(this, ctx, mins);
+    bodyTick(p.body, needsStatus(p.needs, ctx.now), mins, ctx.now);
     const bills = hourlyBills(p);
     b.acc = (b.acc || 0) + bills.total * mins / 60;
     let due = Math.floor(b.acc);

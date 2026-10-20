@@ -22,7 +22,7 @@ const spotIn = (bid, re) => ev(([bid, re]) => { const g = window.playzone; const
 const needs = () => ev(() => { const g = window.playzone; g.life.refresh(); return g.life.status; });
 const shot = async (name) => { await ev(() => window.playzone.debugStep(0.4)); await sleep(600); await page.screenshot({ path: `tests/e2e/out/life-${name}.png` }); };
 
-check(await ev(() => document.querySelectorAll('.needs .need').length === 4), '4 jauges : faim, énergie, humeur, propreté');
+check(await ev(() => document.querySelectorAll('.needs .need').length === 5), '5 jauges : santé, faim, énergie, humeur, propreté');
 await inside('maison-t3');
 const n0 = await needs();
 check(n0.hygiene < 20, `propreté basse au départ (${Math.round(n0.hygiene)})`);

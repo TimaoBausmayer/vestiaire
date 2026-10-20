@@ -20,7 +20,7 @@ class Remote {
     this.pos = new THREE.Vector3(info.x ?? 0, info.y ?? 0, info.z ?? 0);
     this.yaw = info.ry || 0;
     this.zone = info.zone || 'world';
-    this.avatar = new Avatar(info.appearance, uniformOf(info.duty));
+    this.avatar = new Avatar(info.appearance, { ...(info.phy || {}), ...uniformOf(info.duty) });
     game.engine.scene.add(this.avatar.root);
     this.labelEl = h('div.wlabel');
     this.label = game.labels.add(this.avatar.root, this.labelEl, 2.45, 30);
@@ -33,8 +33,8 @@ class Remote {
     this.name = i.name;
     this.labelEl.textContent = '';
     this.labelEl.append(`${i.name}`, h('span.tag', ` #${i.tag}`), h('div.tag', `Niv. ${levelFromXp(i.level || 0)}${i.duty ? ` · ${JOB_BY_ID[i.duty]?.name}` : ''}`));
-    const key = JSON.stringify([i.appearance, i.duty]);
-    if (key !== this.appKey) { this.appKey = key; this.avatar.setAppearance(i.appearance, uniformOf(i.duty)); }
+    const key = JSON.stringify([i.appearance, i.duty, i.phy]);
+    if (key !== this.appKey) { this.appKey = key; this.avatar.setAppearance(i.appearance, { ...(i.phy || {}), ...uniformOf(i.duty) }); }
     const petKey = i.pet ? JSON.stringify(i.pet) : null;
     if (petKey !== this.petKey) {
       this.petKey = petKey;

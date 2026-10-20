@@ -10,6 +10,14 @@ import { POI, MINIGAME_SPOTS, HOME_INTERIOR, BUILDING_BY_ID, inBounds, dist2d } 
 import { maxSpeedOf } from '../shared/content/vehicles.js';
 import { HOUSING_BY_ID } from '../shared/property.js';
 import { CompanyRegistry } from './companies.js';
+import { bodyEffects } from '../shared/body.js';
+
+// Silhouette publique (poids, muscles, torse nu) pour les autres joueurs.
+function physiqueOf(p) {
+  if (!p.body) return {};
+  const fx = bodyEffects(p.body);
+  return { fat: Math.round(fx.fat * 10) / 10, strong: Math.round(fx.strong * 10) / 10, ...(p.body.shirtless ? { top: 'torse' } : {}) };
+}
 
 const POSES = new Set(['idle', 'carry', 'spray', 'wave', 'throw', 'celebrate', 'cook', 'pet', 'sit', 'hold-forward', 'dance', 'eat']);
 const newId = () => randomBytes(6).toString('hex');
@@ -44,7 +52,7 @@ export class Player {
     const p = this.profile;
     const pet = p.pets.find((x) => x.id === p.activePet);
     return {
-      id: this.id, name: p.name, tag: this.tag, appearance: p.appearance, zone: this.zone, duty: this.duty,
+      id: this.id, name: p.name, tag: this.tag, appearance: p.appearance, zone: this.zone, duty: this.duty, phy: physiqueOf(p),
       pet: pet ? { id: pet.id, species: pet.species, name: pet.name, collar: pet.collar, tricks: pet.tricks } : null,
       level: p.xp, titles: p.titles,
     };
@@ -199,7 +207,7 @@ export class World {
     if (res.changed) { p.dirty = true; p.send({ t: 'profile', profile: p.profile }); }
     // effets visibles par les autres joueurs
     p.duty = p.session.mission?.job || null;
-    if (m.type === 'avatar.update' || m.type.startsWith('pet.') || p.duty !== before) this.broadcast({ t: 'pupdate', ...p.publicInfo() }, p);
+    if (m.type === 'avatar.update' || m.type.startsWith('pet.') || /^(body|gym|hair|company)\./.test(m.type) || p.duty !== before) this.broadcast({ t: 'pupdate', ...p.publicInfo() }, p);
     if (m.type.startsWith('home.') || m.type === 'shop.buy') this.pushHome(p);
   }
 

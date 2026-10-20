@@ -9,6 +9,7 @@ import { garagePanel } from '../vehicles/vehicles.js';
 import { bankApp } from '../property/bank.js';
 import { workApp } from '../career/career.js';
 import { businessApp } from '../career/business.js';
+import { healthApp } from '../life/body.js';
 import { openWardrobe } from './shop.js';
 import { formatHour } from '../world/daynight.js';
 
@@ -22,6 +23,7 @@ const APPS = [
   { id: 'bank', name: 'Banque', icon: '🏦', bg: '#2a9d8f' },
   { id: 'work', name: 'Travail', icon: '💼', bg: '#6c757d' },
   { id: 'business', name: 'Business', icon: '📈', bg: '#14213d' },
+  { id: 'health', name: 'Santé', icon: '❤️', bg: '#ff4d6d' },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'events', name: 'Événements', icon: '🎉', bg: '#ff5a5f' },
   { id: 'messages', name: 'Messages', icon: '💬', bg: '#5fd068' },
@@ -205,6 +207,8 @@ export class Phone {
 
   app_business(b) { businessApp(this.game, b, () => this.render()); }
 
+  app_health(b) { healthApp(this.game, b); }
+
   app_bag(b) {
     const g = this.game, p = g.profile, items = g.net.content.items;
     const owned = Object.keys(p.inventory).filter((k) => p.inventory[k] > 0 && items[k]);
@@ -215,9 +219,11 @@ export class Phone {
     const eat = async (k) => {
       try { const r = await g.net.request('food.eat', { itemId: k }); this.close(); g.eating?.play(items[k]); g.emit('needs', r.needs); } catch (e) { g.ui.toast(e.message, 'bad'); }
     };
-    const group = (title, f, action) => { const list = owned.filter((k) => f(items[k])); if (list.length) b.append(h('h4', { style: { margin: '14px 0 6px' } }, title), h('div.list', list.map((k) => h('div.list-item', h('span', { style: { fontSize: '22px' } }, items[k].emoji), h('div.grow', h('div.t', items[k].name), items[k].food ? h('div.d', `🍔 +${items[k].food.faim} · ⚡ ${items[k].food.energie} · 🙂 ${items[k].food.humeur}`) : null), h('span.pill', `x${p.inventory[k]}`), action ? h('button.btn.small', { onclick: () => action(k) }, action === eat ? 'Manger' : 'OK') : null)))); };
+    const group = (title, f, action) => { const list = owned.filter((k) => f(items[k])); if (list.length) b.append(h('h4', { style: { margin: '14px 0 6px' } }, title), h('div.list', list.map((k) => h('div.list-item', h('span', { style: { fontSize: '22px' } }, items[k].emoji), h('div.grow', h('div.t', items[k].name), items[k].food ? h('div.d', `🍔 +${items[k].food.faim} · ⚡ ${items[k].food.energie} · 🙂 ${items[k].food.humeur}`) : null), h('span.pill', `x${p.inventory[k]}`), action ? h('button.btn.small', { onclick: () => action(k) }, action === eat ? 'Manger' : 'Utiliser') : null)))); };
     group('Nourriture et boissons', (it) => !!it.food && !it.ingredient, eat);
     group('Ingrédients (à cuisiner chez soi, sur une cuisinière)', (it) => !!it.ingredient);
+    const care = async (k) => { const it = items[k]; try { if (it.perfume) { await g.net.request('perfume.use', { itemId: k }); g.ui.toast(`${it.emoji} Pschitt ! Tu sens divinement bon (+ attirance).`, 'good'); } else { const r = await g.net.request('body.heal', { itemId: k }); g.ui.toast(`${it.emoji} Santé : ${Math.round(r.health)}`, 'good'); } } catch (e) { g.ui.toast(e.message, 'bad'); } };
+    group('Parfums et soins', (it) => !!(it.perfume || it.heal), care);
     group('Vêtements et accessoires', (it) => !!it.slot);
     group('Meubles', (it) => !!it.furniture);
     group('Autres consommables', (it) => !!it.consumable && !it.food);
