@@ -407,6 +407,22 @@ export const TEMPLATES = {
     t.spot(0.2, I.z2 - 1.8, { label: '💬 Parler à l\'habitant', action: 'talk', r: 1.8 });
   },
 
+  // Maison d'un joueur : ses propres meubles (posés depuis le mode Décoration), utilisables.
+  home(t) {
+    lightsAround(t);
+    const FUN = { tele: ['📺 Regarder la télé', 'tv'], 'tele-geante': ['📺 Regarder la télé géante', 'tv'], frigo: ['🧊 Ouvrir le frigo', 'fridge'] };
+    for (const f of t.home.furniture) {
+      const ry = (f.r || 0) * Math.PI / 2;
+      t.furn(f.i, f.x, f.z, ry);
+      const [fw, fd] = t.footprint(f.i, f.r || 0);
+      if (fw > 0 && !['tapis', 'tapis-rond', 'lampe'].includes(f.i)) t.solid(f.x, f.z, fw, fd, f.i === 'lit' || f.i === 'canape' ? 0.6 : 1.1);
+      if (f.i === 'lit') t.bed(f.x, f.z, ry);
+      else if (f.i === 'canape' || f.i === 'chaise' || f.i === 'trone') t.seat(f.x, f.z, ry + Math.PI, f.i === 'chaise' ? 0.5 : 0.45);
+      else if (FUN[f.i]) t.spot(f.x + Math.sin(ry) * 1.2, f.z + Math.cos(ry) * 1.2, { label: FUN[f.i][0], action: FUN[f.i][1], r: 1.5 });
+      else if (t.funLabel(f.i)) t.spot(f.x, f.z, { label: t.funLabel(f.i), action: 'homefun', item: f.i, r: 1.6 });
+    }
+  },
+
   lobby(t) {
     const I = t.inner;
     lightsAround(t);

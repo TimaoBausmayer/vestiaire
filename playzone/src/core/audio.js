@@ -93,6 +93,10 @@ export class Sfx {
       case 'lock': this.tone('square', 1200, 1200, 0.05, 0.05); this.tone('square', 1200, 1200, 0.05, 0.05, 0.12); break;
       case 'horn-truck': this.tone('sawtooth', 220, 220, 0.5, 0.07); this.tone('sawtooth', 277, 277, 0.5, 0.06); break;
       case 'ring': this.tone('sine', 1320, 1320, 0.12, 0.08); this.tone('sine', 1760, 1760, 0.2, 0.08, 0.12); break;
+      case 'pump': this.noise(1.4, 0.07, 'bandpass', 700, 0, 500); this.tone('square', 880, 880, 0.06, 0.04, 1.4); break;
+      case 'drill': for (let i = 0; i < 3; i++) this.noise(0.25, 0.09, 'bandpass', 2400, i * 0.35, 3200); break;
+      case 'cash': this.tone('square', 1568, 1568, 0.06, 0.05); this.tone('square', 2093, 2093, 0.15, 0.05, 0.06); this.noise(0.1, 0.08, 'highpass', 5000, 0.12); break;
+      case 'unlock': this.tone('square', 1000, 1000, 0.05, 0.05); break;
       default: break;
     }
   }

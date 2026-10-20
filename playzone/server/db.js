@@ -39,6 +39,8 @@ export class DB {
       topAsc: this.db.prepare('SELECT player_id AS id, name, score FROM scores WHERE mg = ? ORDER BY score ASC, at ASC LIMIT ?'),
       topDesc: this.db.prepare('SELECT player_id AS id, name, score FROM scores WHERE mg = ? ORDER BY score DESC, at ASC LIMIT ?'),
       report: this.db.prepare('INSERT INTO reports (at, reporter, target, reason, context) VALUES (?, ?, ?, ?, ?)'),
+      byId: this.db.prepare('SELECT id, name, profile FROM players WHERE id = ?'),
+      all: this.db.prepare('SELECT id, name, profile FROM players'),
     };
   }
 
@@ -53,6 +55,9 @@ export class DB {
   }
 
   accountsFromIp(ipHash, sinceMs) { return this.q.countIp.get(ipHash, sinceMs).n; }
+
+  profileById(id) { const row = this.q.byId.get(id); return row ? JSON.parse(row.profile) : null; }
+  *allProfiles() { for (const row of this.q.all.iterate()) { try { yield JSON.parse(row.profile); } catch { /* profil illisible */ } } }
 
   saveProfile(profile) { this.q.save.run(JSON.stringify(profile), profile.name, Date.now(), profile.id); }
 

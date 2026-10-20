@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { findRoute, BUILDINGS, MINIGAME_SPOTS, POI, PARKINGS, GAS_STATIONS, CITY_POI } from '../../shared/world-layout.js';
+import { findRoute, BUILDINGS, BUILDING_BY_ID, MINIGAME_SPOTS, POI, PARKINGS, GAS_STATIONS, CITY_POI } from '../../shared/world-layout.js';
+import { HOUSING_BY_ID } from '../../shared/property.js';
+import { VEHICLES } from '../../shared/content/vehicles.js';
 
 // GPS : itinéraire le long des routes jusqu'à une destination (repère, boutique, mission...).
 // Le trajet s'affiche sur la mini-carte, sur la carte du téléphone et au sol (ruban lumineux),
@@ -12,9 +14,15 @@ const CAT = {
 const FOOD = new Set(['cafe', 'bakery', 'burger', 'pizzeria', 'tacos', 'homard', 'poisson', 'cafe2', 'paillote', 'superette', 'supermarket', 'farm', 'station']);
 const CARS = new Set(['vehicles', 'cars-new', 'cars-used', 'bikes', 'repair', 'rental', 'scrapyard']);
 
-// Liste des destinations proposées (bâtiments nommés + lieux de loisirs).
-export function destinations() {
+// Liste des destinations proposées (chez moi, mes véhicules, bâtiments nommés, lieux de loisirs).
+export function destinations(profile = null) {
   const out = [];
+  if (profile) {
+    const h = HOUSING_BY_ID[profile.home?.place || 'studio'];
+    const b = h && BUILDING_BY_ID[h.building];
+    if (b) out.push({ id: 'chez-moi', name: `🏠 Chez moi (${h.name})`, cat: 'home', x: b.door.x, z: b.door.z });
+    for (const v of profile.vehicles || []) if (v.park) out.push({ id: `veh-${v.id}`, name: `🔑 Mon véhicule : ${VEHICLES[v.model]?.name || v.model}`, cat: 'cars', x: v.park.x, z: v.park.z });
+  }
   for (const b of BUILDINGS) {
     if (b.secret || (b.kind === 'house' && b.district)) continue;
     let cat = 'other';

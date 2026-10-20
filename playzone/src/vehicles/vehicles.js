@@ -3,6 +3,8 @@ import { CarVisual, seatOf, dimsOf } from './car-models.js';
 import { DriveSim } from './drive.js';
 import { SkidMarks } from './skidmarks.js';
 import { VEHICLES, CAR_PAINTS } from '../../shared/content/vehicles.js';
+import { TOW_FEE, FUEL_PRICE, resaleValue, repairCost } from '../../shared/property.js';
+import { GAS_STATIONS, zoneAt } from '../../shared/world-layout.js';
 import { h } from '../ui/dom.js';
 
 // VÉHICULES DU JOUEUR : appeler un véhicule possédé, monter / descendre (la portière s'ouvre),
@@ -118,22 +120,121 @@ export class Vehicles {
       x: () => game.player.pos.x, z: () => game.player.pos.z,
       enabled: () => !!this.current, label: () => (this.current?.sim.speed > 3 ? '🚪 Sauter du véhicule !' : '🚪 Descendre du véhicule'), action: () => this.exit(),
     });
+    this.owned = new Map();  // id du véhicule possédé -> véhicule présent dans le monde
+    this.syncT = 0;
     game.input.on('key', (e) => {
-      if (!this.current || game.ui.blocking) return;
+      if (game.ui.blocking) return;
+      if (e.code === 'KeyK') { const v = this.current || this.nearOwn(4); if (v) this.toggleLock(v); return; }
+      if (!this.current) return;
       if (e.code === 'KeyH') this.honk();
       if (e.code === 'KeyL') { this.current.lightsOn = !this.current.lightsOn; game.ui.toast(this.current.lightsOn ? 'Phares allumés' : 'Phares automatiques', '', 1200); }
     });
+    // pompe à essence : à pied près de son véhicule, ou à l'arrêt au volant, dans une station-service
+    game.interactions.add({
+      zone: 'any', r: 1e9, priority: 12,
+      x: () => game.player.pos.x, z: () => game.player.pos.z,
+      enabled: () => !!this.fuelTarget(),
+      label: () => { const v = this.fuelTarget(); if (!v) return ''; const l = Math.max(0, v.spec.fuel - v.sim.fuel); return `⛽ Faire le plein (${l.toFixed(0)} L · ${Math.round(l * FUEL_PRICE)} PC)`; },
+      action: () => this.refuel(this.fuelTarget()),
+    });
     addEventListener('keydown', (e) => { if (e.code === 'Space' && this.current) { this.handbrake = true; e.preventDefault(); } });
     addEventListener('keyup', (e) => { if (e.code === 'Space') this.handbrake = false; });
-    game.on('profile', (p) => {
-      const s = this.summoned;
-      if (!s) return;
-      const v = p.vehicles.find((x) => x.id === s.data.id);
-      if (!v) { this.despawn(s); return; }
-      if (v.color !== s.color) s.setPaint(v.color);
-      s.data = v;
-    });
+    game.on('profile', (p) => this.syncOwned(p));
   }
+
+  // ------------------------------------------------------------------ véhicules possédés garés dans le monde
+  // On retrouve ses véhicules là où on les a laissés (verrouillés). Ils n'existent dans la scène que
+  // quand on est à moins de 220 m.
+  syncOwned(p) {
+    const g = this.game;
+    for (const [id, wv] of this.owned) {
+      const data = p.vehicles.find((x) => x.id === id);
+      if (!data) {
+        if (wv.data?.rentUntil) g.ui.toast(`⏰ Location terminée : ${vehicleName(wv.model)} retourne chez Location Rapido.`, '', 4500);
+        this.despawn(wv, false);
+        continue;
+      }
+      if (data.color !== wv.color) wv.setPaint(data.color);
+      if ((data.damage || 0) < wv.sim.damage - 0.01) { wv.sim.damage = data.damage || 0; wv.visual.clearDents(); }
+      if ((data.fuel ?? 0) > wv.sim.fuel + 0.4) wv.sim.fuel = data.fuel;
+      wv.data = data;
+      wv.locked = !!data.locked;
+    }
+    this.spawnNearby();
+  }
+
+  spawnNearby() {
+    const g = this.game, P = g.player.pos;
+    if (g.player.zone !== 'world' || !g.profile) return;
+    for (const data of g.profile.vehicles) {
+      if (this.owned.has(data.id) || !data.park || !VEHICLES[data.model]) continue;
+      if (Math.hypot(data.park.x - P.x, data.park.z - P.z) > 220) continue;
+      const veh = new WorldVehicle(g, { model: data.model, color: data.color, x: data.park.x, z: data.park.z, yaw: data.park.yaw, owner: 'me', data, locked: !!data.locked });
+      this.owned.set(data.id, veh);
+      this.list.push(veh);
+    }
+  }
+
+  // Véhicule possédé le plus proche (pour les clés).
+  nearOwn(r) {
+    let best = null, bd = r;
+    for (const v of this.owned.values()) { const d = v.pos.distanceTo(this.game.player.pos); if (d < bd) { bd = d; best = v; } }
+    return best;
+  }
+
+  toggleLock(v, locked = !v.locked) {
+    if (v.owner !== 'me' || !v.data) return;
+    v.locked = locked;
+    this.blink(v);
+    this.game.sfx(locked ? 'lock' : 'unlock');
+    this.game.net.request('vehicle.lock', { vehicleId: v.data.id, locked }).catch(() => {});
+    if (!this.current) this.game.ui.toast(locked ? `🔒 ${vehicleName(v.model)} verrouillé(e)` : `🔓 ${vehicleName(v.model)} déverrouillé(e)`, '', 1500);
+  }
+
+  blink(v) { v.hazard = true; clearTimeout(v._blinkT); v._blinkT = setTimeout(() => { v.hazard = false; }, 700); }
+
+  // Gare le véhicule possédé là où il est (position mémorisée par l'autorité).
+  park(v) {
+    if (v?.owner !== 'me' || !v.data) return;
+    this.game.net.request('vehicle.park', { vehicleId: v.data.id, x: v.pos.x, z: v.pos.z, yaw: v.yaw, locked: v.locked }).catch(() => {});
+  }
+
+  // Dépanneuse : le véhicule est amené près du joueur.
+  async deliver(vehicleId) {
+    const g = this.game;
+    try {
+      await g.net.request('vehicle.deliver', { vehicleId });
+      g.sfx('cash');
+      const wv = this.owned.get(vehicleId);
+      if (wv) this.despawn(wv, false);
+      this.summon(vehicleId);
+    } catch (e) { g.ui.toast(e.message, 'bad'); }
+  }
+
+  // Station-service : véhicule à remplir (celui qu'on conduit à l'arrêt, ou le sien tout près).
+  fuelTarget() {
+    const g = this.game;
+    if (g.player.zone !== 'world') return null;
+    const v = this.current ? (this.current.sim.speed < 0.6 ? this.current : null) : this.nearOwn(4.5);
+    if (!v || v.owner !== 'me' || !v.spec.fuel || v.spec.fuel - v.sim.fuel < 0.5) return null;
+    const P = v.pos;
+    return GAS_STATIONS.some((s) => Math.abs(P.x - s.x) < s.w / 2 + 4 && Math.abs(P.z - s.z) < s.d / 2 + 4) ? v : null;
+  }
+
+  async refuel(v) {
+    const g = this.game;
+    if (!v) return;
+    try {
+      this.saveState(v);
+      const r = await g.net.request('vehicle.refuel', { vehicleId: v.data.id, x: v.pos.x, z: v.pos.z });
+      v.sim.fuel = Math.min(v.spec.fuel, v.sim.fuel + r.liters);
+      g.sfx('pump');
+      g.ui.toast(`⛽ ${r.liters} L à ${r.station} : -${r.cost} PC. Ça sent bon l'essence (non).`, 'money', 3500);
+    } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+  }
+
+  // Location : temps restant (secondes) d'un véhicule loué.
+  rentLeft(v) { return v?.data?.rentUntil ? Math.max(0, Math.round((v.data.rentUntil - this.game.now()) / 1000)) : null; }
 
   get driving() { return !!this.current; }
   get parked() { return this.summoned; }
@@ -141,7 +242,7 @@ export class Vehicles {
   enterLabel(v) {
     if (!v) return '';
     const name = vehicleName(v.model);
-    if (v.owner === 'me') return `${vehicleIcon(v.model)} Monter : ${name}`;
+    if (v.owner === 'me') return `${v.locked ? '🔑' : vehicleIcon(v.model)} Monter : ${name}${v.data?.rentUntil ? ' (location)' : ''}`;
     if (v.locked) return `🔒 ${name} (verrouillé)`;
     return `${vehicleIcon(v.model)} Monter : ${name}`;
   }
@@ -150,6 +251,7 @@ export class Vehicles {
     const g = this.game;
     if (!v) return;
     if (v.locked && v.owner !== 'me') { g.sfx('lock'); g.ui.toast('C\'est verrouillé. Ce véhicule n\'est pas à toi.', 'bad'); return; }
+    if (v.locked && v.owner === 'me') { v.locked = false; this.blink(v); g.sfx('unlock'); }
     this.enter(v);
   }
 
@@ -160,12 +262,15 @@ export class Vehicles {
     const data = g.profile.vehicles.find((x) => x.id === vehicleId);
     if (!data || !VEHICLES[data.model]) return;
     if (this.current) this.exit(true);
-    if (this.summoned) this.despawn(this.summoned);
+    const prev = this.owned.get(vehicleId);
+    if (prev) this.despawn(prev, false);
     const spot = this.freeSpot(data.model);
     if (!spot) { g.ui.toast('Pas assez de place ici pour garer ce véhicule. Va dans un endroit plus dégagé.', 'bad'); return; }
     const veh = new WorldVehicle(g, { model: data.model, color: data.color, x: spot.x, z: spot.z, yaw: spot.yaw, owner: 'me', data });
     this.summoned = veh;
+    this.owned.set(vehicleId, veh);
     this.list.push(veh);
+    this.park(veh);
     g.fx.burst(veh.pos, '#ffffff', 16);
     g.sfx('pop');
     g.ui.toast(`${vehicleName(data.model)} livré(e) à côté de toi ! Approche-toi de la portière et appuie sur E.`, 'good');
@@ -192,13 +297,14 @@ export class Vehicles {
     return null;
   }
 
-  despawn(v) {
+  despawn(v, save = true) {
     if (!v) return;
-    if (v === this.current) this.exit(true);
-    this.saveState(v);
+    if (v === this.current) this.exit(true, save);
+    if (save) this.saveState(v);
     v.dispose();
     this.list = this.list.filter((x) => x !== v);
     if (v === this.summoned) this.summoned = null;
+    if (v.data && this.owned.get(v.data.id) === v) this.owned.delete(v.data.id);
   }
 
   enter(v) {
@@ -221,7 +327,7 @@ export class Vehicles {
     this.emit('enter', v);
   }
 
-  exit(silent = false) {
+  exit(silent = false, save = true) {
     const g = this.game, v = this.current;
     if (!v) return;
     this.current = null;
@@ -233,14 +339,18 @@ export class Vehicles {
     // on descend côté conducteur (ou on saute si ça roule)
     const p = v.doorPoint(new THREE.Vector3());
     if (!silent) { v.doorTarget = 1; setTimeout(() => { v.doorTarget = 0; }, 600); g.sfx('door'); }
-    g.player.teleport(p.x, p.z, v.yaw + Math.PI / 2);
+    g.player.teleport(p.x, p.z, v.yaw + Math.PI / 2, g.collision.supportAt(p.x, p.z, v.pos.y + 1.6, 0.35));
     if (v.sim.speed > 3 && !silent) { g.player.vel.set(v.sim.vx * 0.4, 5, v.sim.vz * 0.4); g.player.grounded = false; g.ui.toast('Cascade ! 🤸', '', 1500); }
     g.cam.dist = this.camDist || 9;
     g.sound.engineStop();
     g.sound.skid(0);
     this.dash.classList.add('hidden');
     g.hud.track('vehicle', null);
-    this.saveState(v);
+    if (save) {
+      this.saveState(v);
+      // on verrouille en partant (bip bip)
+      if (v.owner === 'me' && v.data) { v.locked = true; setTimeout(() => { this.blink(v); if (!silent) g.sfx('lock'); }, 500); this.park(v); }
+    }
     this.emit('exit', v);
   }
 
@@ -257,8 +367,10 @@ export class Vehicles {
   saveState(v) {
     if (!v?.data || v.owner !== 'me') return;
     const d = Math.round(v.sim.damage * 1000) / 1000, f = Math.round(v.sim.fuel * 10) / 10;
-    if (d === v.data.damage && f === v.data.fuel) return;
-    this.game.net.request('vehicle.state', { vehicleId: v.data.id, damage: d, fuel: f }).catch(() => {});
+    const km = Math.round(((v.data.km || 0) + (v.kmAcc || 0)) * 10) / 10;
+    if (d === v.data.damage && f === v.data.fuel && km === v.data.km) return;
+    v.kmAcc = 0;
+    this.game.net.request('vehicle.state', { vehicleId: v.data.id, damage: d, fuel: f, km }).catch(() => {});
   }
 
   // Chocs : dégâts, bosses, étincelles, son, secousse.
@@ -283,7 +395,7 @@ export class Vehicles {
         // autre véhicule percuté : il prend aussi
         const other = hit.collider?.vehicle || hit.collider?.car;
         if (other) g.emit('vehicle.bump', { by: v, other, sev, hit });
-        if (v.sim.broken && v === this.current) g.ui.toast('💥 Ton véhicule est en panne ! Appelle la dépanneuse depuis le téléphone (appli Garage).', 'bad', 5000);
+        if (v.sim.broken && v === this.current) g.ui.toast('💥 Ton véhicule est en panne ! Appelle la dépanneuse (appli Garage) et fais-le réparer dans un garage.', 'bad', 5000);
       }
     }
   }
@@ -316,6 +428,26 @@ export class Vehicles {
         if (d < bd) { bd = d; this.nearest = v; }
       }
     }
+    // véhicules possédés : apparition / disparition selon la distance, fin des locations
+    this.syncT -= dt;
+    if (this.syncT <= 0) {
+      this.syncT = 1;
+      if (g.player.zone !== 'world') { for (const v of [...this.owned.values()]) if (v !== this.current) this.despawn(v); }
+      else {
+        this.spawnNearby();
+        for (const v of [...this.owned.values()]) if (v !== this.current && v.pos.distanceTo(g.player.pos) > 260) this.despawn(v);
+      }
+      for (const v of this.owned.values()) {
+        const left = this.rentLeft(v);
+        if (left === null) continue;
+        if (left <= 0 && !v.returning) { v.returning = true; g.net.request('vehicle.return', { vehicleId: v.data.id }).catch(() => {}); }
+        else if (left <= 60 && !v.warned && v === this.current) { v.warned = true; g.ui.toast('⏰ Plus qu\'une minute de location !', 'bad', 3500); }
+      }
+      if (this.current) {
+        const left = this.rentLeft(this.current);
+        this.dashName.textContent = `${vehicleIcon(this.current.model)} ${vehicleName(this.current.model)}${left !== null ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : ''}`;
+      }
+    }
     if (this.summoned && g.player.zone !== 'world' && !this.current) this.despawn(this.summoned);
     this.skids.update(dt);
     if (!this.current) return;
@@ -328,6 +460,7 @@ export class Vehicles {
     const ctl = { throttle: frozen ? 0 : inp.move.y, steer: frozen ? 0 : inp.move.x, handbrake: frozen ? false : this.handbrake || g.touch?.handbrake };
     const fuelBefore = s.fuel;
     const hits = s.update(dt, ctl);
+    v.kmAcc = (v.kmAcc || 0) + (s.speed * dt) / 1000;
     this.onHits(v, hits, 1);
     if (fuelBefore > 0 && s.fuel <= 0 && s.spec.fuel > 0) g.ui.toast('⛽ Panne sèche ! Pousse ton véhicule jusqu\'à une station-service, ou appelle la dépanneuse.', 'bad', 5000);
     if (s.sunk) {
@@ -406,26 +539,64 @@ export class Vehicles {
   }
 }
 
-// Panneau "Garage" (téléphone) : appeler un véhicule, voir son état, le repeindre.
+// Panneau "Garage" (téléphone) : où sont mes véhicules, état, GPS, dépanneuse, clés, peinture.
 export function garagePanel(game, container, refresh) {
   const p = game.profile;
-  if (!p.vehicles.length) { container.append(h('p', 'Tu n\'as pas encore de véhicule. Le Garage Roule-Toujours (Grande Place, côté est) en vend.')); return; }
+  if (!p.vehicles.length) { container.append(h('p', 'Tu n\'as pas encore de véhicule. Concession Auto Paillettes (neuf), Occaz\' du Siècle (occasion), Deux-Roues Express, ou Location Rapido pour essayer.')); return; }
+  const vs = game.vehicles;
   for (const v of p.vehicles) {
     const spec = VEHICLES[v.model];
     if (!spec) continue;
+    const wv = vs.owned.get(v.id);
+    const pos = wv ? wv.pos : v.park;
     const state = [];
-    if (spec.fuel) state.push(`⛽ ${Math.round(((v.fuel ?? spec.fuel) / spec.fuel) * 100)} %`);
-    state.push(`🔧 ${Math.round((1 - (v.damage || 0)) * 100)} %`);
+    if (spec.fuel) state.push(`⛽ ${Math.round(((wv ? wv.sim.fuel : v.fuel ?? spec.fuel) / spec.fuel) * 100)} %`);
+    state.push(`🔧 ${Math.round((1 - (wv ? wv.sim.damage : v.damage || 0)) * 100)} %`);
+    state.push(`${Math.round(v.km || 0).toLocaleString('fr-FR')} km`);
+    const where = vs.current?.data?.id === v.id ? 'tu es au volant' : pos ? `garé·e : ${zoneAt(pos.x, pos.z)?.name || 'en ville'} (${Math.round(Math.hypot(pos.x - game.player.pos.x, pos.z - game.player.pos.z))} m)` : 'à la fourrière de la dépanneuse';
+    const left = v.rentUntil ? Math.max(0, Math.round((v.rentUntil - game.now()) / 60000)) : null;
     container.append(h('div.list-item', h('span', { style: { fontSize: '26px' } }, vehicleIcon(v.model)),
-      h('div.grow', h('div.t', spec.name), h('div.d', h('span', { style: { display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: v.color, verticalAlign: 'middle', marginRight: '6px' } }), state.join(' · '))),
-      h('button.btn.small', { onclick: () => { game.phone?.close(); game.vehicles.summon(v.id); } }, 'Appeler')));
+      h('div.grow', h('div.t', `${spec.name}${left !== null ? ` · location (${left} min)` : ''}`),
+        h('div.d', h('span', { style: { display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: v.color, verticalAlign: 'middle', marginRight: '6px' } }), state.join(' · ')),
+        h('div.d', `${v.locked ? '🔒' : '🔓'} ${where}`)),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
+        pos && vs.current?.data?.id !== v.id ? h('button.btn.small.ghost', { onclick: () => { game.phone?.goTo({ x: pos.x, z: pos.z, name: spec.name }); } }, '📍 GPS') : null,
+        vs.current?.data?.id !== v.id ? h('button.btn.small', { title: `${TOW_FEE} PC`, onclick: () => { game.phone?.close(); vs.deliver(v.id); } }, `🚚 ${TOW_FEE} PC`) : null)));
   }
+  container.append(h('p.muted', { style: { marginTop: '8px' } }, 'Touche K près de ton véhicule : verrouiller / déverrouiller. Pleins : stations-service. Réparations : Garage du Piston Fou, Clé à Molette ou Roule-Toujours. Revente : concession, Occaz\' du Siècle ou casse.'));
   container.append(h('p.muted', { style: { marginTop: '10px' } }, `Peintures en stock : ${p.inventory.peinture || 0} (Garage Roule-Toujours, 150 PC).`));
   if (p.inventory.peinture > 0) {
-    for (const v of p.vehicles) {
+    for (const v of p.vehicles.filter((x) => !x.rentUntil)) {
       container.append(h('div.field', h('label', `Repeindre : ${vehicleName(v.model)}`), h('div.swatches', CAR_PAINTS.map((c) => h('button.swatch', {
         style: { background: c }, onclick: async () => { try { await game.net.request('vehicle.paint', { vehicleId: v.id, color: c }); game.ui.toast('Nouvelle couleur !', 'good'); refresh?.(); } catch (e) { game.ui.toast(e.message, 'bad'); } },
       })))));
     }
   }
+}
+
+// Atelier (garage) : réparer les véhicules garés devant, voir le prix de reprise.
+export function repairPanel(game, b) {
+  const vs = game.vehicles;
+  const m = game.ui.modal({
+    title: `🔧 ${b.name}`, sub: 'Amène ton véhicule devant l\'atelier (ou dedans) : on répare tout, même les bosses.',
+    build: (body) => {
+      const near = [...vs.owned.values()].filter((v) => Math.hypot(v.pos.x - b.x, v.pos.z - b.z) < Math.max(b.w, b.d) / 2 + 16);
+      if (!near.length) { body.append(h('p', 'Aucun de tes véhicules n\'est garé ici. Gare-le devant l\'atelier puis reviens au comptoir.')); return; }
+      for (const v of near) {
+        const cost = repairCost(v.model, v.sim.damage);
+        body.append(h('div.list-item', h('span', { style: { fontSize: '26px' } }, vehicleIcon(v.model)),
+          h('div.grow', h('div.t', vehicleName(v.model)), h('div.d', `État : ${Math.round((1 - v.sim.damage) * 100)} % · réparation ${cost ? `${cost} PC` : 'inutile'} · reprise ≈ ${resaleValue({ ...v.data, damage: v.sim.damage }).toLocaleString('fr-FR')} PC`)),
+          h('button.btn.small', { disabled: !cost, onclick: async () => {
+            try {
+              vs.saveState(v);
+              const r = await game.net.request('vehicle.repair', { vehicleId: v.data.id, x: v.pos.x, z: v.pos.z });
+              v.sim.damage = 0; v.visual.clearDents();
+              game.sfx('drill');
+              game.ui.toast(`🔧 Réparé·e comme neuf·ve ! -${r.cost} PC. Le mécano a même retrouvé une frite sous le siège.`, 'money', 4000);
+              m.refresh();
+            } catch (e) { game.sfx('error'); game.ui.toast(e.message, 'bad'); }
+          } }, cost ? `Réparer (${cost} PC)` : 'Comme neuf')));
+      }
+    },
+  });
 }

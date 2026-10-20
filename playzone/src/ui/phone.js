@@ -150,7 +150,7 @@ export class Phone {
     const fill = () => {
       clear(list);
       const q = search.value.trim().toLowerCase();
-      const all = destinations().filter((d) => !q || d.name.toLowerCase().includes(q));
+      const all = destinations(this.game.profile).filter((d) => !q || d.name.toLowerCase().includes(q));
       for (const [cat, label] of Object.entries(DEST_CATS)) {
         const items = all.filter((d) => d.cat === cat);
         if (!items.length) continue;

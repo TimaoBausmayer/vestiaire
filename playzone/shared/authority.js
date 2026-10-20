@@ -18,6 +18,8 @@ import { VEHICLES, CAR_PAINTS } from './content/vehicles.js';
 import { BUILDINGS } from './world-layout.js';
 import { defaultNeeds, applyNeeds, needsStatus } from './needs.js';
 import { ACTIVITIES, quizOfDay } from './activities.js';
+import { PROPERTY_HANDLERS, expireRentals } from './authority-property.js';
+import { deliverySpot, homeSize } from './property.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
 export const TRASH_SPOTS = [
@@ -52,8 +54,12 @@ export class Authority {
     p.pets ||= [];
     p.activePet ??= null;
     p.vehicles ||= [];
-    for (const v of p.vehicles) { v.damage ??= 0; v.fuel ??= VEHICLES[v.model]?.fuel ?? 0; }
+    for (const v of p.vehicles) { v.damage ??= 0; v.fuel ??= VEHICLES[v.model]?.fuel ?? 0; v.km ??= 0; v.locked ??= true; }
     p.home ||= { size: 'studio', furniture: [] };
+    p.home.place ||= 'studio';
+    p.properties ||= [{ id: 'studio', how: 'rent', since: p.createdAt || 0 }];
+    p.bills ||= { at: 0, acc: 0, paid: 0 };
+    p.debt ??= 0;
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
     p.minigames ||= {};
@@ -70,7 +76,11 @@ export class Authority {
   }
 
   // Début de session (connexion) : les besoins ne baissent pas pendant qu'on est déconnecté.
-  startSession(p, now) { p.needs = { ...(p.needs || defaultNeeds()), at: now }; }
+  startSession(p, now) {
+    p.needs = { ...(p.needs || defaultNeeds()), at: now };
+    p.bills = { ...(p.bills || {}), at: now };
+    expireRentals(p, now);
+  }
 
   // Le joueur est-il dans (ou devant) un bâtiment ? (intérieur visitable ou porte à moins de 12 m)
   atBuilding(ctx, b, margin = 3) {
@@ -118,7 +128,10 @@ export class Authority {
     const fn = HANDLERS[type];
     if (!fn) return err('Action inconnue.');
     try {
-      return fn.call(this, ctx, payload || {}) || err('Erreur.');
+      const expired = ctx.profile && expireRentals(ctx.profile, ctx.now);
+      const res = fn.call(this, ctx, payload || {}) || err('Erreur.');
+      if (expired && res.ok) res.changed = true;
+      return res;
     } catch (e) {
       ctx.log?.(`[authority] ${type}: ${e.stack || e}`);
       return err('Erreur interne.');
@@ -191,14 +204,17 @@ const HANDLERS = {
       return { ok: true, changed: true, data: { pet } };
     }
     if (it.vehicle) {
-      if (p.vehicles.some((v) => v.model === it.vehicle)) return err('Tu possèdes déjà ce véhicule.');
-      const v = { id: ctx.newId(), model: it.vehicle, color: it.color || '#e63946', damage: 0, fuel: VEHICLES[it.vehicle]?.fuel ?? 0 };
+      if (p.vehicles.some((v) => v.model === it.vehicle && !v.rentUntil)) return err('Tu possèdes déjà ce véhicule.');
+      if (p.vehicles.filter((v) => !v.rentUntil).length >= 8) return err('Ton garage est plein (8 véhicules).');
+      const shopB = BUILDINGS.find((b) => b.shop === it.shop);
+      const v = { id: ctx.newId(), model: it.vehicle, color: it.color || '#e63946', damage: 0, fuel: VEHICLES[it.vehicle]?.fuel ?? 0, km: 0, locked: true, park: shopB ? deliverySpot(shopB, p.vehicles.length) : null };
       p.vehicles.push(v);
       this.addCoins(p, -it.price);
       return { ok: true, changed: true, data: { vehicle: v } };
     }
     if (it.special === 'home-upgrade') {
       if (p.home.size === 'appart') return err('Ton logement est déjà agrandi.');
+      if (p.home.place !== 'studio') return err('L\'agrandissement concerne le studio de la Résidence Les Mouettes.');
       p.home.size = 'appart';
       this.addCoins(p, -it.price);
       return { ok: true, changed: true, data: {} };
@@ -642,7 +658,7 @@ const HANDLERS = {
     const placed = p.home.furniture.filter((f) => f.i === itemId).length;
     if ((p.inventory[itemId] || 0) <= placed) return err('Tu n\'as plus ce meuble en stock.');
     if (p.home.furniture.length >= 60) return err('Ton logement est plein !');
-    const pos = clampHome(p.home.size, x, z);
+    const pos = clampHome(p, x, z);
     if (!pos) return err('Position invalide.');
     p.home.furniture.push({ i: itemId, x: pos.x, z: pos.z, r: (r | 0) & 3 });
     return { ok: true, changed: true, data: { index: p.home.furniture.length - 1 } };
@@ -651,7 +667,7 @@ const HANDLERS = {
   'home.move'(ctx, { index, x, z, r }) {
     const f = ctx.profile.home.furniture[index];
     if (!f) return err('Meuble introuvable.');
-    const pos = clampHome(ctx.profile.home.size, x, z);
+    const pos = clampHome(ctx.profile, x, z);
     if (!pos) return err('Position invalide.');
     Object.assign(f, { x: pos.x, z: pos.z, r: (r | 0) & 3 });
     return { ok: true, changed: true, data: {} };
@@ -677,14 +693,16 @@ const HANDLERS = {
 
   // État d'un véhicule possédé (après avoir roulé) : les dégâts ne peuvent qu'augmenter et le carburant
   // que baisser (réparer et faire le plein se paient au garage / à la station-service).
-  'vehicle.state'(ctx, { vehicleId, damage, fuel }) {
+  'vehicle.state'(ctx, { vehicleId, damage, fuel, km }) {
     const v = ctx.profile.vehicles.find((x) => x.id === vehicleId);
     if (!v) return err('Véhicule introuvable.');
     const spec = VEHICLES[v.model];
     if (typeof damage !== 'number' || typeof fuel !== 'number' || !Number.isFinite(damage) || !Number.isFinite(fuel)) return err('État invalide.');
     v.damage = Math.round(Math.max(v.damage || 0, Math.min(1, damage)) * 1000) / 1000;
     v.fuel = Math.round(Math.max(0, Math.min(v.fuel ?? spec?.fuel ?? 0, fuel)) * 10) / 10;
-    return { ok: true, changed: true, data: { damage: v.damage, fuel: v.fuel } };
+    // compteur kilométrique : ne fait qu'augmenter, et pas plus vite qu'une voiture
+    if (typeof km === 'number' && Number.isFinite(km)) v.km = Math.round(Math.max(v.km || 0, Math.min(km, (v.km || 0) + 5)) * 10) / 10;
+    return { ok: true, changed: true, data: { damage: v.damage, fuel: v.fuel, km: v.km } };
   },
 
   // ---------------------------------------------------------------- événements publics
@@ -712,6 +730,8 @@ const HANDLERS = {
   },
 };
 
+Object.assign(HANDLERS, PROPERTY_HANDLERS);
+
 // Termine une mission : paie (avec rendements décroissants), XP, statistiques.
 Authority.prototype.completeMission = function completeMission(ctx, m, pay, xp, notes, stats) {
   const p = ctx.profile;
@@ -726,8 +746,8 @@ Authority.prototype.completeMission = function completeMission(ctx, m, pay, xp, 
   return { ok: true, changed: true, data: { done: true, coins, xp: Math.round(xp * factor), notes, ...lv } };
 };
 
-function clampHome(size, x, z) {
-  const S = HOME_INTERIOR.sizes[size] || HOME_INTERIOR.sizes.studio;
+function clampHome(p, x, z) {
+  const S = homeSize(p);
   if (typeof x !== 'number' || typeof z !== 'number' || !Number.isFinite(x) || !Number.isFinite(z)) return null;
   const hx = S.w / 2 - 0.6, hz = S.d / 2 - 0.6;
   if (Math.abs(x) > hx + 0.01 || Math.abs(z) > hz + 0.01) return null;

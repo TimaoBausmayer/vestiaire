@@ -51,7 +51,7 @@ export function openShop(game, shopId, building = null) {
         trying = null;
       }
       if (it.pet) game.ui.toast('Ton nouvel animal te suit ! Gère-le depuis l\'appli Animaux du téléphone.', 'good', 4500);
-      if (it.vehicle) game.ui.toast('Véhicule acheté ! Appelle-le depuis l\'appli Garage du téléphone.', 'good', 4500);
+      if (it.vehicle) game.ui.toast('Véhicule acheté ! Il t\'attend garé devant la boutique (appli Garage : GPS). Touche K : clés.', 'good', 5000);
       if (it.furniture) game.ui.toast('Meuble livré chez toi : place-le depuis ton logement (bouton Déco).', 'good', 4500);
       return true;
     } catch (e) { game.sfx('error'); game.ui.toast(e.message, 'bad'); return false; }

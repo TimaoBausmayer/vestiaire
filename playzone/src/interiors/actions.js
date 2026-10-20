@@ -3,6 +3,9 @@ import { openShop, openWardrobe, openBasket } from '../ui/shop.js';
 import { STAFF_LINES } from './templates.js';
 import { quizOfDay } from '../../shared/activities.js';
 import { VEHICLES } from '../../shared/content/vehicles.js';
+import { dealerPanel, usedCarsPanel, rentalPanel, immoPanel, secondHandPanel, isSecondHand, scrapPanel } from '../property/panels.js';
+import { repairPanel } from '../vehicles/vehicles.js';
+import { HOUSING_BY_ID } from '../../shared/property.js';
 
 // ACTIONS DES POINTS D'INTÉRIEUR : acheter, s'asseoir, dormir, parler, regarder la télé, jouer...
 // Tout ce qui touche à l'argent, aux besoins ou aux récompenses passe par l'autorité (activity.do).
@@ -28,7 +31,24 @@ function needsToast(game, data, label) {
 export async function runAction(game, action, { b, spot, staff }) {
   const g = game;
   switch (action) {
-    case 'shop': openShop(g, b.shop, b); break;
+    case 'shop': {
+      const s = b.shop;
+      if (s === 'cars-new') dealerPanel(g, b, () => openShop(g, s, b));
+      else if (s === 'cars-used') usedCarsPanel(g, b);
+      else if (s === 'rental') rentalPanel(g, b);
+      else if (s === 'immo') immoPanel(g, b);
+      else if (s === 'scrapyard') scrapPanel(g, b);
+      else if (s === 'repair') repairPanel(g, b);
+      else if (isSecondHand(s)) secondHandPanel(g, b);
+      else if (s === 'vehicles') {
+        g.ui.dialog({ name: 'Garagiste', role: b.name, text: 'Salut ! On vend, on répare, on repeint. Et on ne pose pas de questions sur les bosses.', choices: [
+          { label: '🛵 Acheter / peintures', action: (m) => { m.close(); openShop(g, s, b); } },
+          { label: '🔧 Réparer un véhicule', action: (m) => { m.close(); repairPanel(g, b); } },
+          { label: 'Au revoir', ghost: true, action: (m) => m.close() },
+        ] });
+      } else openShop(g, s, b);
+      break;
+    }
     case 'wardrobe': openWardrobe(g); break;
     case 'basket': openBasket(g, b); break;
     case 'checkout': g.basket?.checkout(b); break;
@@ -59,7 +79,16 @@ export async function runAction(game, action, { b, spot, staff }) {
       await activity(g, 'mail', b);
       break;
     }
-    case 'elevator': g.ui.toast('🛗 "Ascenseur en panne depuis 1997. Merci de prendre l\'escalier." Il n\'y a pas d\'escalier.', '', 4500); break;
+    case 'elevator': {
+      // appartement du joueur dans cet immeuble : l'ascenseur y monte
+      const p = g.profile;
+      const mine = p.properties.map((x) => HOUSING_BY_ID[x.id]).find((x) => x?.kind === 'appart' && x.building === b.id);
+      if (!mine) { g.ui.toast('🛗 "Ascenseur réservé aux résidents. Et en panne depuis 1997." (Agence Immo Pas Cher pour louer ou acheter ici.)', '', 4500); break; }
+      if (p.home.place !== mine.id) { g.ui.toast(`🛗 Tu possèdes l'${mine.name.toLowerCase()} mais tu n'y habites pas : emménage depuis l'agence immobilière.`, '', 4500); break; }
+      g.home.enter(null, null, null, { x: spot.x, z: spot.z });
+      break;
+    }
+    case 'homefun': g.home?.useFunItem(spot.item); break;
     case 'police': {
       const m = g.ui.dialog({ name: 'Accueil', role: 'Commissariat Central', text: 'Bonjour ! Que puis-je faire pour vous ?', choices: [
         { label: '🐦 Signaler un pigeon voleur', action: (mm) => mm.show('Encore un ! Nous avons ouvert une cellule spéciale "pigeons". Elle est vide : ils s\'envolent.', [{ label: 'Merci', ghost: true, action: (x) => x.close() }]) },
@@ -136,7 +165,7 @@ export async function runAction(game, action, { b, spot, staff }) {
     }
     case 'prison': g.police?.guardDialog?.(b) || g.ui.dialog({ name: 'Gardien·ne', role: 'Prison de la Pomme Pourrie', text: 'Visite libre de 9 h à 18 h. Interdiction de cacher des limes dans les gâteaux.', choices: [{ label: 'Au revoir', ghost: true, action: (m) => m.close() }] }); break;
     case 'car': carDialog(g, spot.model); break;
-    case 'repair': g.garage?.openRepair(b); break;
+    case 'repair': repairPanel(g, b); break;
     default: g.ui.toast('...', '', 1000);
   }
 }
@@ -149,7 +178,7 @@ function carDialog(g, model) {
   const text = `${s.name} — ${Math.round(s.max * 3.6)} km/h max, ${s.seats} places, réservoir ${s.fuel} L. Prix : ${s.price.toLocaleString('fr-FR')} PC${s.level ? ` (niveau ${s.level} requis)` : ''}.`;
   g.ui.dialog({ name: 'Commercial·e', role: 'Concession Auto Paillettes', text: owned ? `${text} Vous l'avez déjà !` : text, choices: [
     ...(item && !owned ? [{ label: `Acheter (${s.price.toLocaleString('fr-FR')} PC)`, action: async (m) => {
-      try { await g.net.request('shop.buy', { itemId: model }); g.sfx('coin'); m.show(`Félicitations ! Votre ${s.name} vous attend : appelez-le depuis l'appli Garage de votre téléphone.`, [{ label: 'Super !', ghost: true, action: (x) => x.close() }]); } catch (e) { g.sfx('error'); m.show(e.message, [{ label: 'D\'accord', ghost: true, action: (x) => x.close() }]); }
+      try { await g.net.request('shop.buy', { itemId: model }); g.sfx('cash'); m.show(`Félicitations ! Votre ${s.name} vous attend, garée devant la concession. Voici les clés 🔑 (touche K pour verrouiller).`, [{ label: 'Super !', ghost: true, action: (x) => x.close() }]); } catch (e) { g.sfx('error'); m.show(e.message, [{ label: 'D\'accord', ghost: true, action: (x) => x.close() }]); }
     } }] : []),
     { label: 'Fermer', ghost: true, action: (m) => m.close() },
   ] });

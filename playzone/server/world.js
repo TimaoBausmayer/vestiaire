@@ -6,8 +6,9 @@ import { EventDirector } from '../shared/events-director.js';
 import { buildContent } from '../shared/content/registry.js';
 import { LIMITS, SPEED } from '../shared/protocol.js';
 import { censor, hasPersonalInfo } from '../shared/chat-filter.js';
-import { POI, MINIGAME_SPOTS, HOME_INTERIOR, inBounds, dist2d } from '../shared/world-layout.js';
+import { POI, MINIGAME_SPOTS, HOME_INTERIOR, BUILDING_BY_ID, inBounds, dist2d } from '../shared/world-layout.js';
 import { maxSpeedOf } from '../shared/content/vehicles.js';
+import { HOUSING_BY_ID } from '../shared/property.js';
 
 const POSES = new Set(['idle', 'carry', 'spray', 'wave', 'throw', 'celebrate', 'cook', 'pet', 'sit', 'hold-forward', 'dance', 'eat']);
 const newId = () => randomBytes(6).toString('hex');
@@ -58,6 +59,7 @@ export class GameServer {
     this.leaderboard = db.leaderboard((mg) => this.content.minigames[mg]?.kind === 'time');
     this.worlds = [];
     this.online = new Map(); // id -> Player
+    this.housing = new HousingRegistry(db);
     this.timer = setInterval(() => this.tick(), 1000 / LIMITS.snapshotHz);
     this.contentTimer = setInterval(() => { this.content = buildContent(Date.now()); this.authority.setContent(this.content); }, 60_000);
   }
@@ -139,6 +141,14 @@ export class World {
 
   tick(now) {
     this.director.tick(now);
+    // factures (loyer, crédit, charges) : prélevées chaque minute de jeu
+    if (!this._billAt || now - this._billAt > 60_000) {
+      this._billAt = now;
+      for (const p of this.players.values()) {
+        const res = this.server.authority.handle(this.ctx(p), 'bills.tick', {});
+        if (res.ok && res.changed) { p.dirty = true; p.send({ t: 'profile', profile: p.profile }); if (res.data?.paid || res.data?.evicted) p.send({ t: 'bills', ...res.data }); }
+      }
+    }
     // instantanés : seulement les joueurs de la même zone et assez proches (gestion d'intérêt)
     const list = [...this.players.values()];
     for (const p of list) {
@@ -157,7 +167,7 @@ export class World {
     const s = this.server;
     return {
       profile: p.profile, session: p.session, now: Date.now(), pos: p.pos, zone: p.zone, rand: Math.random, newId,
-      leaderboard: s.leaderboard, events: this.director, log: s.log,
+      leaderboard: s.leaderboard, events: this.director, log: s.log, housing: s.housing,
     };
   }
 
@@ -171,6 +181,7 @@ export class World {
       case 'party': return this.onParty(p, m);
       case 'invite': return this.onInvite(p, m);
       case 'visit': return this.onVisit(p, m.host);
+      case 'house': return this.onHouse(p, m.id);
       case 'report': return this.onReport(p, m);
       case 'ping': return p.send({ t: 'pong', c: m.c, s: Date.now() });
       default: return null;
@@ -190,8 +201,21 @@ export class World {
     if (m.type.startsWith('home.') || m.type === 'shop.buy') this.pushHome(p);
   }
 
+  // Intérieur d'une maison de joueur (meubles du propriétaire, en ligne ou non).
+  onHouse(p, id) {
+    if (typeof id !== 'string') return;
+    const o = this.server.housing.map.get(id);
+    if (!o) { p.send({ t: 'house_data', id, owner: null }); return; }
+    const host = this.server.online.get(o.pid);
+    const prof = host ? host.profile : this.server.db.profileById(o.pid);
+    const home = prof?.home?.place === id ? prof.home : { furniture: [] };
+    p.send({ t: 'house_data', id, owner: { id: o.pid, name: o.name }, home: { furniture: home.furniture, open: !!prof?.home?.open } });
+  }
+
   // Envoie la déco à jour aux visiteurs présents chez p.
   pushHome(host) {
+    const place = host.profile.home.place;
+    if (place && place !== 'studio' && HOUSING_BY_ID[place]?.kind !== 'appart') for (const q of this.players.values()) if (q !== host) this.onHouse(q, place);
     for (const q of this.players.values()) if (q.zone === `home:${host.id}` && q !== host) q.send({ t: 'home_data', host: host.id, name: host.name, home: host.profile.home });
   }
 
@@ -240,12 +264,15 @@ export class World {
   }
 
   allowZone(p, zone, x, z) {
-    const door = POI.homeDoor;
+    // entrées possibles : porte de la Résidence Les Mouettes, ou hall de l'immeuble de l'appartement
+    const entries = [POI.homeDoor];
+    for (const pr of p.profile.properties || []) { const h = HOUSING_BY_ID[pr.id]; if (h?.kind === 'appart') entries.push(BUILDING_BY_ID[h.building]); }
+    const nearEntry = (px, pz, r) => entries.some((e) => e && dist2d(px, pz, e.x, e.z) < r + (e.w ? Math.max(e.w, e.d) / 2 : 0));
     if (zone === 'world') {
       if (!p.zone.startsWith('home:')) return false;
-      return dist2d(x, z, door.x, door.z) < 8;
+      return nearEntry(x, z, 8) || [...Object.values(BUILDING_BY_ID)].some((b) => b.interior === 'lobby' && dist2d(x, z, b.x, b.z) < Math.max(b.w, b.d) / 2 + 6);
     }
-    if (zone === `home:${p.id}`) return p.zone === 'world' && dist2d(p.pos.x, p.pos.z, door.x, door.z) < 9;
+    if (zone === `home:${p.id}`) return p.zone === 'world' && nearEntry(p.pos.x, p.pos.z, 9);
     if (zone.startsWith('home:')) {
       const host = zone.slice(5);
       return p.visitAllowed === host && (p.zone === 'world' || p.zone.startsWith('home:'));
@@ -365,4 +392,17 @@ export class World {
     }
     this.broadcast({ t: 'event.end', ...r });
   }
+}
+
+// Qui habite / possède quel logement (unicité des maisons et appartements entre joueurs).
+export class HousingRegistry {
+  constructor(db) {
+    this.map = new Map(); // id du logement -> { pid, name }
+    try {
+      for (const prof of db.allProfiles?.() || []) for (const pr of prof.properties || []) if (pr.id !== 'studio') this.map.set(pr.id, { pid: prof.id, name: prof.name });
+    } catch { /* base vide */ }
+  }
+  owner(id, self) { const o = this.map.get(id); return o && o.pid !== self ? o.name : null; }
+  claim(id, p) { if (id !== 'studio') this.map.set(id, { pid: p.id, name: p.name }); }
+  release(id, pid) { if (this.map.get(id)?.pid === pid) this.map.delete(id); }
 }

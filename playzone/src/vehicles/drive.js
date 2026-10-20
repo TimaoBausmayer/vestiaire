@@ -58,7 +58,8 @@ export class DriveSim {
   remove() { for (const c of this.colliders) this.collision.remove(c); this.colliders = []; }
 
   place(x, z, yaw, y) {
-    this.pos.set(x, y ?? this.collision.supportAt(x, z, 50, 0.5, 0.5, this), z);
+    // on cherche le sol depuis 3 m au-dessus du terrain (pas sur le toit d'un auvent de station !)
+    this.pos.set(x, y ?? this.collision.supportAt(x, z, groundHeight(x, z) + 3, 0.5, 0.5, this), z);
     this.yaw = yaw; this.vx = this.vz = this.vf = 0; this.steer = 0;
     this.syncColliders();
   }

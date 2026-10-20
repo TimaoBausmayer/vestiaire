@@ -34,6 +34,7 @@ import { Social } from './net/social.js';
 import { TouchControls } from './ui/touch.js';
 import { GPS } from './ui/gps.js';
 import { Interiors } from './interiors/interiors.js';
+import { Bills } from './property/bills.js';
 import { Life } from './life/life.js';
 import { Basket } from './ui/shop.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
@@ -151,6 +152,7 @@ export class Game extends Emitter {
     this.sitting = this.life;
     this.basket = new Basket(this);
     this.interiors = this.addSystem(new Interiors(this));
+    this.bills = this.addSystem(new Bills(this));
     this.setProfile(this.net.profile);
     this.avatar.root.visible = true;
     this.player.teleport(POI.spawn.x, POI.spawn.z, POI.spawn.ry);

@@ -4,7 +4,8 @@ import { StaticBuilder, SHAPES } from '../core/static-builder.js';
 import { MATS, CUT } from '../core/materials.js';
 import { buildingFrame, isEnterable, groundStorey, INTERIOR_STYLE, facadeOpenings } from '../world/buildings.js';
 import { TEMPLATES, STAFF_LINES } from './templates.js';
-import { furnitureGeometry } from '../home/furniture.js';
+import { furnitureGeometry, furnitureFootprint } from '../home/furniture.js';
+import { FUN_LABEL, isHousePlace } from '../home/home.js';
 import { Avatar } from '../characters/avatar.js';
 import { CarVisual, vehicleGeometries } from '../vehicles/car-models.js';
 import { VEHICLES } from '../../shared/content/vehicles.js';
@@ -50,7 +51,38 @@ export class Interiors {
     this.inside = null;          // bâtiment où se trouve le joueur
     this.t = 0;
     this.camSaved = null;
+    this.houseData = new Map();  // en ligne : maisons d'autres joueurs { owner, home, at }
     this.buildDoors();
+    game.net.on?.('house_data', (m) => {
+      this.houseData.set(m.id, { ...m, at: performance.now() });
+      if (this.loaded.has(m.id)) this.reload(m.id);
+    });
+    // déco modifiée / déménagement : on reconstruit l'intérieur concerné
+    game.on('profile', (p) => {
+      const sig = JSON.stringify([p.home.place, p.home.furniture]);
+      if (sig === this.homeSig) return;
+      const prev = this.homePlace;
+      this.homeSig = sig; this.homePlace = p.home.place;
+      for (const id of new Set([prev, p.home.place])) if (id && this.loaded.has(id)) this.reload(id);
+    });
+  }
+
+  reload(id) {
+    const b = ENTERABLE.find((x) => x.id === id);
+    if (!b) return;
+    this.unload(id);
+    this.load(b);
+  }
+
+  // Une maison de joueur ? (la sienne, ou en ligne celle d'un autre : on demande ses meubles au serveur)
+  homeView(b) {
+    const g = this.game, p = g.profile;
+    if (b.kind !== 'house') return null;
+    if (p && p.home.place === b.id && isHousePlace(b.id)) return { furniture: p.home.furniture, owner: p.name, mine: true };
+    if (g.net.mode !== 'online') return null;
+    const d = this.houseData.get(b.id);
+    if (!d || performance.now() - d.at > 60_000) { if (!d?.pending) { this.houseData.set(b.id, { ...(d || {}), pending: true, at: d?.at || -1e9 }); g.net.send({ t: 'house', id: b.id }); } }
+    return d?.owner ? { furniture: d.home?.furniture || [], owner: d.owner.name, mine: false } : null;
   }
 
   // ---------------------------------------------------------------- portes (vantaux instanciés)
@@ -129,8 +161,10 @@ export class Interiors {
     const gH = groundStorey(b);
     const ops = b.openings || facadeOpenings(b, W);
     const door = ops.find((o) => o.door) || ops[0];
+    const view = this.homeView(b);
     const tt = {
-      b, F, gH, st, rand, door,
+      b, F, gH, st, rand, door, home: view,
+      footprint: furnitureFootprint, funLabel: (id) => FUN_LABEL[id],
       inner: { x1: -W / 2 + 0.4, x2: W / 2 - 0.4, z1: -D / 2 + 0.4, z2: D / 2 - 0.4 },
       box: (lx, y, lz, w, h, d, color, mat = 'main', ry = 0) => { const [x, z] = L(lx, lz); sb.box(x, y + 0.04, z, w, h, d, color, th + ry, mat); },
       cyl: (lx, y, lz, r, h, color, seg = 10, rx = 0) => { const [x, z] = L(lx, lz); sb.add(SHAPES.cyl(seg), { x, y: y + 0.04, z, sx: r * 2, sy: h, sz: r * 2, rx, ry: th, color }); },
@@ -162,7 +196,7 @@ export class Interiors {
       },
       pets: (list, lx, lz) => { list.forEach((sp, i) => { const [x, z] = L(lx + i * 2.6, lz); dyn.push({ type: 'animal', species: sp, x, z, yaw: th }); }); },
     };
-    (TEMPLATES[b.interior] || TEMPLATES.shop)(tt);
+    (view ? TEMPLATES.home : TEMPLATES[b.interior] || TEMPLATES.shop)(tt);
     const group = sb.build(MATS, { shadows: false });
     group.name = `interior-${b.id}`;
     for (const m of group.children) { m.receiveShadow = true; m.castShadow = false; }
@@ -270,7 +304,8 @@ export class Interiors {
       g.collision.camIgnore = b.bid;
       cam.inside = { pitch: 0.92, dist: Math.max(8, Math.min(13, Math.max(b.w, b.d) * 0.6)) };
       g.world.dayNight.interiorBoost = 1;
-      if (!prev) g.emit('building.enter', b);
+      if (prev) g.emit('building.exit', prev);
+      g.emit('building.enter', b);
       this.doors.forEach((d, i) => { if (d.b === b || d.b === prev) { d.forceUpdate = true; this.placeDoor(d, i); } });
       this.doorMesh.instanceMatrix.needsUpdate = true;
       g.hud.showPlace?.(b.name);

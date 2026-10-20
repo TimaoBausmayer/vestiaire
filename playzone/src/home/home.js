@@ -4,6 +4,11 @@ import { buildMergedGeometry } from '../core/static-builder.js';
 import { actorMaterial } from '../core/materials.js';
 import { furnitureGeometry, furnitureFootprint } from './furniture.js';
 import { h } from '../ui/dom.js';
+import { HOUSING_BY_ID, HOME_SIZES, homeSize } from '../../shared/property.js';
+import { buildingFrame } from '../world/buildings.js';
+
+// Maison "dans le monde" (on y entre vraiment) : le logement habité est-il une maison / ferme ?
+export const isHousePlace = (place) => ['maison', 'ferme'].includes(HOUSING_BY_ID[place]?.kind);
 
 // LOGEMENT : intérieur visitable, décoration (placer/tourner/retirer des meubles), meubles interactifs.
 // En ligne, on peut inviter des amis : ils entrent dans la même "zone" et voient la même déco.
@@ -22,6 +27,8 @@ const FUN = {
   cercueil: ['Étonnamment confortable. Ne le dis à personne.'],
 };
 
+export const FUN_LABEL = { tele: '📺 Allumer la télé', 'borne-arcade': '🕹️ Jouer à la borne', piano: '🎹 Jouer du piano', frigo: '🧊 Ouvrir le frigo', lit: '🛏️ Faire une sieste', 'boule-disco': '🪩 Allumer la boule disco', aquarium: '🐠 Regarder Gérard', 'nain-jardin': '🧙 Fixer le nain', trone: '👑 S\'asseoir sur le trône', 'statue-poulet': '🐔 Admirer la statue', cercueil: '⚰️ S\'allonger' };
+
 export class Home {
   constructor(game) {
     this.game = game;
@@ -34,19 +41,38 @@ export class Home {
     this.items = [];     // meubles posés { mesh, f, col }
     this.inside = null;  // { ownerId, ownerName, size }
     this.disco = false;
-    game.interactions.add({ x: POI.homeDoor.x, z: POI.homeDoor.z, r: 3.2, priority: 2, label: '🏠 Rentrer chez moi', action: () => this.enter() });
+    game.interactions.add({ x: POI.homeDoor.x, z: POI.homeDoor.z, r: 3.2, priority: 2, label: '🏠 Rentrer chez moi (studio)', enabled: () => (game.profile?.home.place || 'studio') === 'studio', action: () => this.enter() });
     this.exitInter = game.interactions.add({ zone: 'home', x: O.x, z: () => O.z + this.size().d / 2 - 1.2, r: 2.2, priority: 2, label: '🚪 Sortir', action: () => this.exit() });
+    // maison dans le monde : bouton Décorer quand on est chez soi
+    game.on('building.enter', (b) => { if (b.id === game.profile.home.place && isHousePlace(b.id)) this.enterHouse(b); });
+    game.on('building.exit', (b) => { if (this.houseB === b) this.leaveHouse(); });
     this.funInter = game.interactions.add({
       zone: 'home', r: 2.2, priority: 1,
       x: () => this.nearFun()?.mesh.position.x + O.x || 1e9, z: () => this.nearFun()?.mesh.position.z + O.z || 1e9,
       enabled: () => !!this.nearFun() && !this.ghost,
-      label: () => ({ tele: '📺 Allumer la télé', 'borne-arcade': '🕹️ Jouer à la borne', piano: '🎹 Jouer du piano', frigo: '🧊 Ouvrir le frigo', lit: '🛏️ Faire une sieste', 'boule-disco': '🪩 Allumer la boule disco', aquarium: '🐠 Regarder Gérard', 'nain-jardin': '🧙 Fixer le nain', trone: '👑 S\'asseoir sur le trône', 'statue-poulet': '🐔 Admirer la statue', cercueil: '⚰️ S\'allonger' }[this.nearFun()?.f.i] || 'Utiliser'),
+      label: () => FUN_LABEL[this.nearFun()?.f.i] || 'Utiliser',
       action: () => this.useFun(this.nearFun()),
     });
     game.on('profile', (p) => { if (this.inside && this.inside.ownerId === p.id) this.load(p.home); });
   }
 
-  size() { return HOME_INTERIOR.sizes[this.inside?.size || 'studio'] || HOME_INTERIOR.sizes.studio; }
+  size() { return this.houseB ? HOUSING_BY_ID[this.houseB.id].size : this.inside?.dims || HOME_SIZES.studio; }
+
+  enterHouse(b) {
+    this.houseB = b;
+    this.houseF = buildingFrame(b);
+    this.decoBtn?.remove();
+    this.decoBtn = this.game.hud.addButton('🛠️', 'Décorer', () => this.openDeco());
+    this.game.hud.track('home', { title: '🏠 Chez moi', text: 'Bouton 🛠️ pour décorer. Invite tes amis à passer !' });
+  }
+
+  leaveHouse() {
+    this.cancelGhost();
+    this.houseB = null;
+    this.decoBtn?.remove();
+    this.decoBtn = null;
+    this.game.hud.track('home', null);
+  }
 
   fade(fn) {
     const el = h('div', { style: { position: 'absolute', inset: '0', background: '#120d33', opacity: '0', transition: 'opacity .25s', zIndex: '40', pointerEvents: 'none' } });
@@ -56,14 +82,15 @@ export class Home {
   }
 
   // Entrer chez soi (ou chez un ami en ligne : ownerId, home, ownerName)
-  enter(ownerId, home, ownerName) {
+  enter(ownerId, home, ownerName, exitTo = null) {
     const g = this.game;
     const mine = !ownerId || ownerId === g.profile.id;
     const data = mine ? g.profile.home : home;
     g.sfx('door');
     this.fade(() => {
-      this.inside = { ownerId: mine ? g.profile.id : ownerId, ownerName: mine ? g.profile.name : ownerName, size: data.size, mine };
-      this.buildRoom(data.size);
+      const dims = homeSize({ home: data });
+      this.inside = { ownerId: mine ? g.profile.id : ownerId, ownerName: mine ? g.profile.name : ownerName, size: data.size, dims, mine, exitTo };
+      this.buildRoom(dims);
       this.load(data);
       this.group.visible = true;
       g.player.zone = `home:${this.inside.ownerId}`;
@@ -84,9 +111,10 @@ export class Home {
     this.cancelGhost();
     this.fade(() => {
       this.group.visible = false;
+      const to = this.inside?.exitTo || { x: POI.homeDoor.x, z: POI.homeDoor.z + 1 };
       this.inside = null;
       g.player.zone = 'world';
-      g.player.teleport(POI.homeDoor.x, POI.homeDoor.z + 1, Math.PI);
+      g.player.teleport(to.x, to.z, Math.PI);
       g.cam.snap(g.player.pos, 0);
       g.cam.pitch = 0.4; g.cam.dist = 9;
       g.world.static.visible = true;
@@ -97,15 +125,16 @@ export class Home {
     });
   }
 
-  buildRoom(size) {
-    if (this.builtSize === size) return;
-    this.builtSize = size;
+  buildRoom(dims) {
+    const key = `${dims.w}x${dims.d}`;
+    if (this.builtSize === key) return;
+    this.builtSize = key;
     for (const m of this.walls) this.group.remove(m);
     if (this.floor) this.group.remove(this.floor);
     for (const c of this.colliders) this.game.collision.remove(c);
     this.walls = []; this.colliders = [];
-    const S = HOME_INTERIOR.sizes[size];
-    const W = S.w, D = S.d;
+    const W = dims.w, D = dims.d;
+    const size = W > 16 ? 'appart' : 'studio';
     this.floor = new THREE.Mesh(buildMergedGeometry((sb) => {
       sb.box(0, -60, 0, 200, 59.9, 200, '#1d1640');
       for (let i = 0; i < W / 0.8; i++) sb.box(-W / 2 + 0.4 + i * 0.8, -0.1, 0, 0.78, 0.1, D, i % 2 ? '#c49a6c' : '#b88a5c');
@@ -147,7 +176,7 @@ export class Home {
 
   load(home) {
     const g = this.game;
-    if (home.size !== this.builtSize) { if (this.inside) this.inside.size = home.size; this.buildRoom(home.size); }
+    if (this.inside) { this.inside.dims = homeSize({ home }); this.buildRoom(this.inside.dims); }
     for (const it of this.items) { this.group.remove(it.mesh); if (it.col) g.collision.remove(it.col); }
     this.items = home.furniture.map((f, index) => {
       const mesh = new THREE.Mesh(furnitureGeometry(f.i), actorMaterial);
@@ -172,6 +201,9 @@ export class Home {
     }
     return best;
   }
+
+  // Meuble "amusant" d'une maison (point d'interaction posé par l'intérieur).
+  useFunItem(id) { this.useFun({ f: { i: id } }); }
 
   useFun(it) {
     if (!it) return;
@@ -205,7 +237,7 @@ export class Home {
     const g = this.game;
     const items = g.net.content.items;
     const m = g.ui.modal({
-      title: '🛠️ Décoration', sub: `Logement : ${g.profile.home.size === 'appart' ? 'grand appartement' : 'studio'} · ${g.profile.home.furniture.length}/60 meubles posés`,
+      title: '🛠️ Décoration', sub: `Logement : ${HOUSING_BY_ID[g.profile.home.place]?.name || 'studio'}${g.profile.home.place === 'studio' && g.profile.home.size === 'appart' ? ' (agrandi)' : ''} · ${g.profile.home.furniture.length}/60 meubles posés`,
       build: (b) => {
         const p = g.profile;
         const owned = Object.keys(p.inventory).filter((id) => items[id]?.furniture && p.inventory[id] > 0);
@@ -231,7 +263,7 @@ export class Home {
     const mat = actorMaterial.clone();
     mat.transparent = true; mat.opacity = 0.55;
     const mesh = new THREE.Mesh(furnitureGeometry(itemId), mat);
-    this.group.add(mesh);
+    (this.houseB ? g.engine.scene : this.group).add(mesh);
     this.ghost = { itemId, mesh, r: 0 };
     this.ghostBar = h('div.dialog-box', h('div', h('span.who', 'Placer le meuble'), h('span.role', 'déplace-toi pour le positionner')),
       h('div.choices', { style: { marginTop: '10px' } },
@@ -251,7 +283,13 @@ export class Home {
   ghostPos() {
     const p = this.game.player;
     const S = this.size();
-    const lx = p.pos.x - O.x + Math.sin(p.yaw) * 1.8, lz = p.pos.z - O.z + Math.cos(p.yaw) * 1.8;
+    const wx = p.pos.x + Math.sin(p.yaw) * 1.8, wz = p.pos.z + Math.cos(p.yaw) * 1.8;
+    let lx = wx - O.x, lz = wz - O.z;
+    if (this.houseB) {
+      // repère local de la maison (x le long de la façade, z vers la porte)
+      const b = this.houseB, th = this.houseF.th, dx = wx - b.x, dz = wz - b.z;
+      lx = dx * Math.cos(th) - dz * Math.sin(th); lz = dx * Math.sin(th) + dz * Math.cos(th);
+    }
     const snap = (v, lim) => Math.max(-lim, Math.min(lim, Math.round(v * 4) / 4));
     return { x: snap(lx, S.w / 2 - 0.6), z: snap(lz, S.d / 2 - 0.6) };
   }
@@ -266,13 +304,19 @@ export class Home {
 
   cancelGhost() {
     if (!this.ghost) return;
-    this.group.remove(this.ghost.mesh);
+    this.ghost.mesh.removeFromParent();
     this.ghost = null;
     this.ghostBar?.remove();
     this.offKey?.();
   }
 
   update(dt, t) {
+    if (this.houseB && this.ghost) {
+      const { x, z } = this.ghostPos();
+      const [wx, wz] = this.houseF.L(x, z);
+      this.ghost.mesh.position.set(wx, 0.05, wz);
+      this.ghost.mesh.rotation.y = this.houseF.th + this.ghost.r * Math.PI / 2;
+    }
     if (!this.inside) return;
     // murs "maison de poupée" : on masque ceux qui sont entre la caméra et le joueur
     const cam = this.game.engine.camera.position;
