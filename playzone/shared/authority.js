@@ -7,7 +7,7 @@ import {
 } from './world-layout.js';
 import { mulberry32, shuffle, randInt, pick } from './rng.js';
 import {
-  START_COINS, MAX_COINS, DAILY, MAX_PETS, levelFromXp, validName, activityFactor, recordActivity, minigameReward, todayKey,
+  START_COINS, START_CASH, MAX_COINS, DAILY, MAX_PETS, levelFromXp, validName, activityFactor, recordActivity, minigameReward, todayKey,
 } from './rules.js';
 import { sanitizeAppearance, DEFAULT_APPEARANCE, COLORS } from './appearance.js';
 import { JOB_BY_ID, jobLevel, FILLINGS, ABSURD_FILLINGS } from './content/jobs.js';
@@ -19,6 +19,7 @@ import { BUILDINGS } from './world-layout.js';
 import { defaultNeeds, applyNeeds, needsStatus } from './needs.js';
 import { ACTIVITIES, quizOfDay } from './activities.js';
 import { PROPERTY_HANDLERS, expireRentals } from './authority-property.js';
+import { BANK_HANDLERS } from './authority-bank.js';
 import { deliverySpot, homeSize } from './property.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
@@ -43,7 +44,7 @@ export class Authority {
     if (bad) throw new Error(bad);
     return this.migrate({
       v: 1, id, name: name.trim().replace(/\s+/g, ' '), createdAt: now,
-      coins: START_COINS, xp: 0, rep: 0,
+      coins: START_COINS, cash: START_CASH, xp: 0, rep: 0,
       appearance: sanitizeAppearance(appearance, this.content.items, new Set()),
     });
   }
@@ -60,6 +61,8 @@ export class Authority {
     p.properties ||= [{ id: 'studio', how: 'rent', since: p.createdAt || 0 }];
     p.bills ||= { at: 0, acc: 0, paid: 0 };
     p.debt ??= 0;
+    p.cash ??= 0;
+    p.savings ??= 0;
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
     p.minigames ||= {};
@@ -99,6 +102,14 @@ export class Authority {
   }
 
   owned(p) { return new Set(Object.keys(p.inventory).filter((k) => p.inventory[k] > 0)); }
+
+  // Paiement : carte bancaire (compte) par défaut, ou en espèces (portefeuille).
+  canPay(p, n, method) { return method === 'cash' ? (p.cash || 0) >= n : p.coins >= n; }
+  charge(p, n, method) {
+    n = Math.round(n);
+    if (method === 'cash') { p.cash = Math.max(0, (p.cash || 0) - n); p.stats.spent += n; return -n; }
+    return this.addCoins(p, -n);
+  }
 
   addCoins(p, n) {
     n = Math.round(n);
@@ -185,7 +196,7 @@ const HANDLERS = {
   },
 
   // ---------------------------------------------------------------- boutiques
-  'shop.buy'(ctx, { itemId }) {
+  'shop.buy'(ctx, { itemId, pay }) {
     const p = ctx.profile;
     const it = this.content.items[itemId];
     if (!it || !it.available || !it.shop) return err('Cet article n\'est pas en vente.');
@@ -193,14 +204,14 @@ const HANDLERS = {
     const lv = levelFromXp(p.xp);
     if (it.level && lv < it.level) return err(`Niveau ${it.level} requis.`);
     if (it.rep && p.rep < it.rep) return err(`${it.rep} points de réputation requis.`);
-    if (p.coins < it.price) return err('Pas assez de PlayCoins.');
+    if (!this.canPay(p, it.price, pay)) return err(pay === 'cash' ? 'Pas assez d\'argent liquide (distributeur ou banque).' : 'Pas assez de PlayCoins.');
     const max = it.max ?? (it.slot ? 1 : it.consumable ? 99 : 20);
     if (it.pet) {
       if (p.pets.length >= MAX_PETS) return err(`Tu as déjà ${MAX_PETS} animaux. Confie-en un à la ferme pour en adopter un autre.`);
       const pet = { id: ctx.newId(), species: it.pet, name: SPECIES[it.pet].name, food: 80, fedAt: ctx.now, joy: 80, joyAt: ctx.now, trainings: 0, tricks: [], collar: '#ff5a5f', petAt: 0 };
       p.pets.push(pet);
       if (!p.activePet) p.activePet = pet.id;
-      this.addCoins(p, -it.price);
+      this.charge(p, it.price, pay);
       return { ok: true, changed: true, data: { pet } };
     }
     if (it.vehicle) {
@@ -209,24 +220,24 @@ const HANDLERS = {
       const shopB = BUILDINGS.find((b) => b.shop === it.shop);
       const v = { id: ctx.newId(), model: it.vehicle, color: it.color || '#e63946', damage: 0, fuel: VEHICLES[it.vehicle]?.fuel ?? 0, km: 0, locked: true, park: shopB ? deliverySpot(shopB, p.vehicles.length) : null };
       p.vehicles.push(v);
-      this.addCoins(p, -it.price);
+      this.charge(p, it.price, pay);
       return { ok: true, changed: true, data: { vehicle: v } };
     }
     if (it.special === 'home-upgrade') {
       if (p.home.size === 'appart') return err('Ton logement est déjà agrandi.');
       if (p.home.place !== 'studio') return err('L\'agrandissement concerne le studio de la Résidence Les Mouettes.');
       p.home.size = 'appart';
-      this.addCoins(p, -it.price);
+      this.charge(p, it.price, pay);
       return { ok: true, changed: true, data: {} };
     }
     if ((p.inventory[itemId] || 0) >= max) return err('Tu en as déjà assez !');
     p.inventory[itemId] = (p.inventory[itemId] || 0) + 1;
-    this.addCoins(p, -it.price);
+    this.charge(p, it.price, pay);
     return { ok: true, changed: true, data: { count: p.inventory[itemId] } };
   },
 
   // Panier (supermarché) : plusieurs articles payés d'un coup à la caisse.
-  'shop.buyMany'(ctx, { items }) {
+  'shop.buyMany'(ctx, { items, pay }) {
     const p = ctx.profile;
     if (!Array.isArray(items) || !items.length || items.length > 30) return err('Panier invalide.');
     let total = 0;
@@ -239,9 +250,9 @@ const HANDLERS = {
       total += it.price * k;
       lines.push([id, k]);
     }
-    if (p.coins < total) return err(`Pas assez de PlayCoins (${total} PC).`);
+    if (!this.canPay(p, total, pay)) return err(pay === 'cash' ? `Pas assez de liquide (${total} PC).` : `Pas assez de PlayCoins (${total} PC).`);
     for (const [id, k] of lines) p.inventory[id] = (p.inventory[id] || 0) + k;
-    this.addCoins(p, -total);
+    this.charge(p, total, pay);
     return { ok: true, changed: true, data: { total } };
   },
 
@@ -730,7 +741,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS);
 
 // Termine une mission : paie (avec rendements décroissants), XP, statistiques.
 Authority.prototype.completeMission = function completeMission(ctx, m, pay, xp, notes, stats) {

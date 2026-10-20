@@ -1,5 +1,6 @@
 import { h } from '../ui/dom.js';
 import { RECIPES, canCook } from '../../shared/recipes.js';
+import { HOUR_MS } from '../world/daynight.js';
 
 // VIE À LA MAISON : cuisiner (cuisinière + ingrédients + mini-jeu de cuisson), se doucher (douche),
 // dormir (lit). Les effets sur les jauges sont décidés par l'autorité (home.use), qui vérifie qu'on
@@ -120,5 +121,12 @@ export async function sleep(g, seat) {
   requestAnimationFrame(() => { dim.style.opacity = '0.55'; });
   setTimeout(() => { dim.style.opacity = '0'; setTimeout(() => dim.remove(), 1300); }, 2600);
   g.emit('needs', res.needs);
+  // en solo, une nuit de sommeil fait passer directement au matin (7 h)
+  const dn = g.world.dayNight, hr = dn.hour;
+  if (g.net.mode === 'solo' && dn.forcedHour == null && (hr >= 21 || hr < 5)) {
+    dn.shift = (dn.shift || 0) + ((7 - hr + 24) % 24) * HOUR_MS;
+    try { localStorage.setItem('playzone.timeShift', String(dn.shift)); } catch { /* stockage indisponible */ }
+    setTimeout(() => g.ui.toast('☀️ Debout ! Il est 7 h du matin.', 'good', 3500), 2800);
+  }
   g.ui.toast(`😴 Bonne nuit de sommeil ! · ⚡ ${Math.round(res.needs.energie)}`, 'good', 3500);
 }

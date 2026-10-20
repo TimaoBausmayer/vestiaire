@@ -1,5 +1,6 @@
 // Étape 8 : deux navigateurs connectés au vrai serveur (comptes, visibilité, chat, invitation chez soi).
 import { launch, watchConsole, sleep } from './lib.js';
+import { START_COINS } from '../../shared/rules.js';
 import { startServer } from '../../server/index.js';
 import { mkdirSync, rmSync } from 'node:fs';
 mkdirSync('tests/e2e/out', { recursive: true });
@@ -67,7 +68,7 @@ const bpos = await B.evaluate(() => ({ x: window.playzone.player.pos.x, z: windo
 check(Math.hypot(bpos.x, bpos.z - 12) < 15, `téléportation de Bob refusée par le serveur (renvoyé en ${bpos.x.toFixed(1)}, ${bpos.z.toFixed(1)})`);
 // argent : vérifié côté serveur (bonus du jour)
 const coinsB = await B.evaluate(() => window.playzone.profile.coins);
-check(coinsB === 250, `Bob a 250 PC (200 de départ + 50 de bonus du jour validé par le serveur) : ${coinsB}`);
+check(coinsB === START_COINS + 50, `Bob a ${START_COINS + 50} PC (${START_COINS} de départ + 50 de bonus du jour validé par le serveur) : ${coinsB}`);
 // invitation chez Alice
 await walk(A, [[30, 0], [60, 0], [72, 12.5]]);
 await walk(B, [[30, 1], [60, 1], [71, 12.5]]);

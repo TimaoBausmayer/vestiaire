@@ -6,6 +6,7 @@ import { VEHICLES } from '../../shared/content/vehicles.js';
 import { dealerPanel, usedCarsPanel, rentalPanel, immoPanel, secondHandPanel, isSecondHand, scrapPanel } from '../property/panels.js';
 import { repairPanel } from '../vehicles/vehicles.js';
 import { HOUSING_BY_ID } from '../../shared/property.js';
+import { cashPanel } from '../property/bank.js';
 import { cookPanel, shower, sleep, showerFx } from '../life/home-life.js';
 
 // ACTIONS DES POINTS D'INTÉRIEUR : acheter, s'asseoir, dormir, parler, regarder la télé, jouer...
@@ -113,8 +114,11 @@ export async function runAction(game, action, { b, spot, staff }) {
       break;
     }
     case 'bank': {
-      const p = g.profile;
-      g.ui.dialog({ name: 'Votre conseiller·ère', role: 'Banque PlayCoins', text: `Solde : ${p.coins.toLocaleString('fr-FR')} PC. Gagné depuis le début : ${p.stats.earned.toLocaleString('fr-FR')} PC. Dépensé : ${p.stats.spent.toLocaleString('fr-FR')} PC. ${p.stats.spent > p.stats.earned * 0.8 ? 'Je vous conseille de lever le pied sur les chapeaux.' : 'Bravo, vous êtes un·e as de l\'épargne !'}`, choices: [{ label: 'Merci', ghost: true, action: (m) => m.close() }] });
+      g.ui.dialog({ name: 'Votre conseiller·ère', role: 'Banque PlayCoins', text: `Bonjour ! Compte : ${g.profile.coins.toLocaleString('fr-FR')} PC, livret : ${Math.round(g.profile.savings || 0).toLocaleString('fr-FR')} PC. Que puis-je pour vous ?`, choices: [
+        { label: '💵 Retirer / déposer des espèces', action: (m) => { m.close(); cashPanel(g, 'Guichet de la Banque PlayCoins'); } },
+        { label: '🐷 Livret et factures (appli Banque)', action: (m) => { m.close(); g.phone?.open('bank'); } },
+        { label: 'Au revoir', ghost: true, action: (m) => m.close() },
+      ] });
       break;
     }
     case 'vault': g.ui.toast('🔒 Le coffre-fort refuse de s\'ouvrir. Il dit qu\'il ne vous connaît pas assez.', '', 4000); break;

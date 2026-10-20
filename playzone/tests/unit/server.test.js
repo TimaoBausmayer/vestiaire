@@ -5,6 +5,7 @@ import WebSocket from 'ws';
 import { startServer } from '../../server/index.js';
 import { PROTOCOL_VERSION } from '../../shared/protocol.js';
 import { BUILDING_BY_ID } from '../../shared/world-layout.js';
+import { START_COINS } from '../../shared/rules.js';
 
 const srv = await startServer({ port: 0, dbFile: ':memory:', quiet: true, accountsPerIp: 100 });
 after(() => srv.close());
@@ -44,7 +45,7 @@ async function newPlayer(name) {
 
 test('création de compte, reconnexion avec le jeton, nom filtré', async () => {
   const a = await newPlayer('Alice');
-  assert.equal(a.welcome.profile.coins, 200);
+  assert.equal(a.welcome.profile.coins, START_COINS);
   const bad = client(); await bad.open(); bad.send({ t: 'hello', v: PROTOCOL_VERSION });
   await bad.wait((m) => m.t === 'welcome');
   bad.send({ t: 'create', name: 'connard', appearance: {} });
@@ -75,7 +76,7 @@ test('les récompenses passent par le serveur : achat refusé loin de la boutiqu
   const ok = await c.req('shop.buy', { itemId: 'casquette' });
   assert.equal(ok.ok, true, ok.error);
   const prof = await c.wait((m) => m.t === 'profile' && m.profile.inventory.casquette === 1);
-  assert.equal(prof.profile.coins, 140);
+  assert.equal(prof.profile.coins, START_COINS - 60);
   c.ws.close();
 });
 

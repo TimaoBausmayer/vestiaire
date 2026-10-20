@@ -35,6 +35,7 @@ import { TouchControls } from './ui/touch.js';
 import { GPS } from './ui/gps.js';
 import { Interiors } from './interiors/interiors.js';
 import { Bills } from './property/bills.js';
+import { Bank } from './property/bank.js';
 import { Life } from './life/life.js';
 import { Basket } from './ui/shop.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
@@ -153,6 +154,9 @@ export class Game extends Emitter {
     this.basket = new Basket(this);
     this.interiors = this.addSystem(new Interiors(this));
     this.bills = this.addSystem(new Bills(this));
+    // décalage d'horloge (nuits passées à dormir) : seulement en solo, l'heure en ligne est commune
+    try { this.world.dayNight.shift = this.net.mode === 'solo' ? +(localStorage.getItem('playzone.timeShift') || 0) || 0 : 0; } catch { /* stockage indisponible */ }
+    this.bank = new Bank(this);
     this.setProfile(this.net.profile);
     this.avatar.root.visible = true;
     this.player.teleport(POI.spawn.x, POI.spawn.z, POI.spawn.ry);

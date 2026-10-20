@@ -154,3 +154,14 @@ export function localInBuilding(b, x, z) {
   const th = ROT[b.facing] || 0, c = Math.cos(th), s = Math.sin(th), dx = x - b.x, dz = z - b.z;
   return { x: dx * c - dz * s, z: dx * s + dz * c };
 }
+
+// ------------------------------------------------------------------------------------ banque, liquide
+// Distributeurs de billets contre la façade de quelques bâtiments (retrait / dépôt d'espèces).
+const ATM_AT = ['banque', 'hyper', 'superette', 'cinema', 'tour', 'mairie', 'station-lumiere', 'station-pompe', 'station-navets', 'pizzeria', 'homard', 'bowling', 'hopital'];
+export const ATMS = ATM_AT.map((id) => BUILDING_BY_ID[id]).filter(Boolean).map((b) => {
+  const [fx, fz] = facingVector(b.facing);
+  const half = (fx !== 0 ? b.w : b.d) / 2, side = Math.min(3.4, (fx !== 0 ? b.d : b.w) / 2 - 0.9);
+  return { id: `atm-${b.id}`, name: `Distributeur — ${b.name}`, x: b.x + fx * (half + 0.35) - fz * side, z: b.z + fz * (half + 0.35) + fx * side, ry: Math.atan2(fx, fz) };
+});
+export const WITHDRAW_MAX = 2000;
+export const SAVINGS_RATE = 0.02 / 240;   // livret : 2 % par journée de jeu (4 h réelles), par minute jouée

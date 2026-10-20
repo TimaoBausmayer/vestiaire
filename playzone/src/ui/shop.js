@@ -18,6 +18,18 @@ const SHOPS = {
   station: { title: 'Boutique de la station', sub: 'Snacks et boissons pour la route.' },
 };
 export const FOOD_SHOPS = new Set(['bakery', 'cafe', 'cafe2', 'paillote', 'burger', 'pizzeria', 'tacos', 'homard', 'poisson', 'supermarket', 'superette', 'farm', 'station', 'cinema']);
+// Moyen de paiement choisi (carte bancaire ou espèces), mémorisé sur cet appareil.
+let payMethod = (() => { try { return localStorage.getItem('playzone.pay') === 'cash' ? 'cash' : 'card'; } catch { return 'card'; } })();
+export const getPay = () => payMethod;
+export function setPay(m) { payMethod = m; try { localStorage.setItem('playzone.pay', m); } catch { /* stockage indisponible */ } }
+export const funds = (p) => (payMethod === 'cash' ? p.cash || 0 : p.coins);
+export function payRow(game, refresh) {
+  const p = game.profile;
+  return h('div.pay-row', h('span', 'Payer :'),
+    h(`button.btn.small${payMethod === 'card' ? '' : '.ghost'}`, { onclick: () => { setPay('card'); refresh(); } }, `💳 Carte (${fmt(p.coins)})`),
+    h(`button.btn.small${payMethod === 'cash' ? '' : '.ghost'}`, { onclick: () => { setPay('cash'); refresh(); } }, `💵 Espèces (${fmt(p.cash || 0)})`));
+}
+
 export const soldIn = (it, shopId) => it.available && (it.shop === shopId || (it.also || []).includes(shopId));
 
 function priceTag(price) { return h('div.price', h('span.coin', { style: { width: '18px', height: '18px', fontSize: '8px', display: 'inline-grid', placeItems: 'center', borderRadius: '50%', background: '#ffd23f', color: '#7a4a00' } }, 'PC'), fmt(price)); }
@@ -43,7 +55,7 @@ export function openShop(game, shopId, building = null) {
 
   async function buy(it) {
     try {
-      await game.net.request('shop.buy', { itemId: it.id });
+      await game.net.request('shop.buy', { itemId: it.id, pay: payMethod });
       game.sfx('coin');
       game.ui.toast(`${it.emoji} ${it.name} : acheté !`, 'money');
       if (it.slot) {
@@ -94,17 +106,17 @@ export function openShop(game, shopId, building = null) {
         row.append(h('button.btn.small.teal', { onclick: () => game.net.request('avatar.update', { appearance: { ...p.appearance, [it.slot]: worn ? null : it.id } }).then(() => { trying = null; }) }, worn ? 'Retirer' : 'Porter'));
         row.append(h('button.btn.small.ghost', { onclick: () => sell(it) }, 'Revendre'));
       } else {
-        row.append(h('button.btn.small', { disabled: locked || p.coins < it.price, onclick: () => buy(it) }, 'Acheter'));
+        row.append(h('button.btn.small', { disabled: locked || funds(p) < it.price, onclick: () => buy(it) }, 'Acheter'));
         row.append(h('button.btn.small.ghost', { onclick: () => { trying = it.id; game.previewAppearance({ ...p.appearance, [it.slot]: it.id }); } }, 'Essayer'));
       }
     } else if (it.food) {
-      row.append(h('button.btn.small', { disabled: p.coins < it.price, onclick: () => buy(it) }, 'Acheter'));
-      if (!it.ingredient) row.append(h('button.btn.small.teal', { disabled: p.coins < it.price && !owned, onclick: async () => { if (owned || await buy(it)) eat(it); } }, owned ? `Manger (x${owned})` : 'Acheter et manger'));
+      row.append(h('button.btn.small', { disabled: funds(p) < it.price, onclick: () => buy(it) }, 'Acheter'));
+      if (!it.ingredient) row.append(h('button.btn.small.teal', { disabled: funds(p) < it.price && !owned, onclick: async () => { if (owned || await buy(it)) eat(it); } }, owned ? `Manger (x${owned})` : 'Acheter et manger'));
     } else if (it.furniture) {
-      row.append(h('button.btn.small', { disabled: locked || p.coins < it.price, onclick: () => buy(it) }, owned ? 'En racheter' : 'Acheter'));
+      row.append(h('button.btn.small', { disabled: locked || funds(p) < it.price, onclick: () => buy(it) }, owned ? 'En racheter' : 'Acheter'));
       if (owned) row.append(h('button.btn.small.ghost', { onclick: () => sell(it) }, 'Revendre'));
     } else {
-      row.append(h('button.btn.small', { disabled: locked || isOwned || p.coins < it.price, onclick: () => buy(it) }, isOwned ? 'Déjà à toi' : it.pet ? 'Adopter' : 'Acheter'));
+      row.append(h('button.btn.small', { disabled: locked || isOwned || funds(p) < it.price, onclick: () => buy(it) }, isOwned ? 'Déjà à toi' : it.pet ? 'Adopter' : 'Acheter'));
     }
     c.append(row);
     return c;
@@ -117,6 +129,7 @@ export function openShop(game, shopId, building = null) {
     if (shopId === 'clothes') list = items.filter((it) => it.slot === tab);
     if (shopId === 'pets') list = items.filter((it) => (tab === 'adopt' ? it.pet : !it.pet));
     const p = game.profile;
+    body.append(payRow(game, () => m.refresh()));
     if (shopId === 'pets' && tab === 'adopt') body.append(h('p.muted', `Tu as ${p.pets.length}/3 animaux. Chaque animal a besoin de croquettes, de câlins et d'un peu de dressage.`));
     if (shopId === 'pets' && tab === 'care') body.append(h('p.muted', `Dans ton sac : ${p.inventory.croquettes || 0} croquettes, ${p.inventory.friandise || 0} friandises.`));
     if (shopId === 'vehicles') body.append(h('p.muted', `Peintures en stock : ${p.inventory.peinture || 0}. Repeins tes véhicules depuis l'appli Garage du téléphone.`));
@@ -134,7 +147,7 @@ export class Basket {
     const g = this.game;
     if (!this.count) { g.ui.toast('Ton panier est vide. Va dans les rayons !', 'bad'); return; }
     try {
-      const r = await g.net.request('shop.buyMany', { items: [...this.items].map(([id, n]) => ({ id, n })) });
+      const r = await g.net.request('shop.buyMany', { items: [...this.items].map(([id, n]) => ({ id, n })), pay: payMethod });
       g.sfx('coin');
       g.ui.toast(`💳 Payé ${fmt(r.total)} PC. Les articles sont dans ton sac (téléphone > Sac).`, 'money', 4500);
       this.items.clear();

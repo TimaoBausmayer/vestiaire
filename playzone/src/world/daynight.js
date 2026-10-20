@@ -2,15 +2,18 @@ import * as THREE from 'three';
 import { MATS } from '../core/materials.js';
 
 // Cycle jour/nuit partagé : l'heure du jeu se calcule à partir de l'heure réelle (synchronisée avec
-// le serveur en ligne), donc tous les joueurs voient la même heure. Un cycle complet = 20 minutes,
-// dont 4 minutes de nuit.
+// le serveur en ligne), donc tous les joueurs voient la même heure.
+// Échelle : 10 minutes réelles = 1 heure de jeu (une journée complète dure 4 heures réelles).
+// En solo, dormir la nuit fait passer directement au matin (décalage d'horloge local).
 
-export const CYCLE_MS = 20 * 60 * 1000;
+export const HOUR_MS = 10 * 60 * 1000;
+export const CYCLE_MS = 24 * HOUR_MS;
+const DAYS = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
 
-export function gameHour(nowMs) {
-  const f = (nowMs % CYCLE_MS) / CYCLE_MS;
-  return f < 0.8 ? 7 + (f / 0.8) * 13 : 20 + ((f - 0.8) / 0.2) * 11; // 7h→20h le jour, 20h→7h la nuit
-}
+export function gameHour(nowMs) { return (7 + (nowMs % CYCLE_MS) / HOUR_MS) % 24; }
+// Jour de la semaine du jeu (0 = lundi).
+export function gameDay(nowMs) { return Math.floor((nowMs + 7 * HOUR_MS) / CYCLE_MS); }
+export const dayName = (nowMs) => DAYS[((gameDay(nowMs) % 7) + 7) % 7];
 
 export function formatHour(h) {
   const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60);
@@ -42,8 +45,10 @@ export class DayNight {
   }
 
   update(nowMs) {
-    const h = this.forcedHour ?? gameHour(nowMs) % 24;
+    const tNow = nowMs + (this.shift || 0);
+    const h = this.forcedHour ?? gameHour(tNow) % 24;
     this.hour = h;
+    this.day = dayName(tNow);
     let i = 0;
     while (i < KEYS.length - 2 && KEYS[i + 1].h <= h) i++;
     const a = KEYS[i], b = KEYS[i + 1];

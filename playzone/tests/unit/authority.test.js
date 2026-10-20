@@ -8,6 +8,7 @@ import { pieTargets, invasionChickenPos } from '../../shared/minigame-logic.js';
 import { EventDirector } from '../../shared/events-director.js';
 import { mulberry32 } from '../../shared/rng.js';
 import { censor, isClean, hasPersonalInfo } from '../../shared/chat-filter.js';
+import { START_COINS, START_CASH } from '../../shared/rules.js';
 
 const content = buildContent(Date.parse('2026-10-19T12:00:00Z'));
 const auth = new Authority(content);
@@ -21,7 +22,8 @@ test('création de profil et nom filtré', () => {
   assert.throws(() => auth.newProfile({ id: 'a', name: 'ab', appearance: {}, now: 0 }));
   assert.throws(() => auth.newProfile({ id: 'a', name: 'merde', appearance: {}, now: 0 }));
   const p = auth.newProfile({ id: 'a', name: 'Lulu', appearance: { hat: 'couronne' }, now: 0 });
-  assert.equal(p.coins, 200);
+  assert.equal(p.coins, START_COINS);
+  assert.equal(p.cash, START_CASH);
   assert.equal(p.appearance.hat, null, 'un chapeau non possédé est refusé');
 });
 
@@ -33,7 +35,7 @@ test('achat : position, argent, niveau, puis équipement', () => {
   assert.equal(auth.handle(ctx, 'shop.buy', { itemId: 'haut-de-forme' }).error, 'Niveau 3 requis.');
   const r = auth.handle(ctx, 'shop.buy', { itemId: 'casquette' });
   assert.ok(r.ok);
-  assert.equal(p.coins, 140);
+  assert.equal(p.coins, START_COINS - 60);
   assert.equal(auth.handle(ctx, 'shop.buy', { itemId: 'casquette' }).ok, false, 'pas deux fois le même chapeau');
   auth.handle(ctx, 'avatar.update', { appearance: { ...p.appearance, hat: 'casquette' } });
   assert.equal(p.appearance.hat, 'casquette');
@@ -58,7 +60,7 @@ test('livreur : le colis doit être récupéré puis livré devant la bonne port
   ctx.now += 30_000;
   const d = auth.handle(ctx, 'job.step', { missionId: m.id, action: 'deliver', stop: m.stops[0].id });
   assert.ok(d.ok && d.data.done);
-  assert.equal(p.coins, 200 + 35);
+  assert.equal(p.coins, START_COINS + 35);
   assert.equal(p.jobs.delivery.missions, 1);
   assert.equal(auth.handle(ctx, 'job.start', { jobId: 'delivery', missionId: 'tournee' }).ok, false, 'niveau 3 requis');
 });
@@ -138,7 +140,7 @@ test('événement invasion : on n\'attrape qu\'un poulet réellement proche', ()
   const ctx = mkctx(p, { x: POI.eventBoard.x, y: 0, z: POI.eventBoard.z });
   ctx.events = dir;
   assert.ok(auth.handle(ctx, 'event.trigger', { eventId: 'invasion' }).ok);
-  assert.equal(p.coins, 50);
+  assert.equal(p.coins, START_COINS - content.events.invasion.triggerPrice);
   const c = dir.current.chickens[0];
   ctx.now += (c.land + 2) * 1000;
   const cp = invasionChickenPos(c, (ctx.now - dir.current.startsAt) / 1000);

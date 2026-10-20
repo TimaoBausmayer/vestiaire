@@ -1,5 +1,6 @@
 // Étape 2 : écran titre -> création du personnage -> bonus du jour -> boutique -> achat -> équipement.
 import { staticServer, launch, watchConsole, sleep } from './lib.js';
+import { START_COINS } from '../../shared/rules.js';
 const { srv, url } = await staticServer();
 const { browser, context } = await launch();
 const page = await context.newPage();
@@ -43,7 +44,7 @@ await sleep(800);
 await page.screenshot({ path: 'tests/e2e/out/s2-equipped.png' });
 const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('playzone.save.v1')).appearance.hat);
 console.log('chapeau sauvegardé dans localStorage :', saved);
-const ok = p1.coins === 250 && p2.coins === 190 && p2.hat === 'casquette' && saved === 'casquette';
+const ok = p1.coins === START_COINS + 50 && p2.coins === START_COINS - 10 && p2.hat === 'casquette' && saved === 'casquette';
 console.log(ok ? 'OK' : 'ÉCHEC');
 console.log(errors.length ? errors.join('\n') : 'Aucune erreur console');
 await browser.close(); srv.close();

@@ -1,7 +1,8 @@
 // Règles d'économie et de progression (pures, partagées client/serveur).
 import { isClean } from './chat-filter.js';
 
-export const START_COINS = 200;
+export const START_COINS = 1500;   // sur le compte en banque
+export const START_CASH = 100;     // en liquide dans le portefeuille
 export const MAX_COINS = 10_000_000;
 export const MAX_LEVEL = 30;
 export const DAILY = { base: 50, perStreak: 15, max: 140 };

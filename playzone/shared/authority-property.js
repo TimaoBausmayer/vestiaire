@@ -7,7 +7,7 @@ import { levelFromXp } from './rules.js';
 import {
   FUEL_PRICE, TOW_FEE, REPAIR_SHOPS, SELL_SHOPS, repairCost, resaleValue, usedOffers, RENTALS, RENTAL_DURATIONS, rentalPrice,
   deliverySpot, HOUSING_BY_ID, DEPOSIT_RATE, LOAN_RATE, loanHourly, sellValue, hourlyBills, EVICT_DEBT, homeSize,
-  secondHandOffers, secondHandBuys, localInBuilding,
+  secondHandOffers, secondHandBuys, localInBuilding, SAVINGS_RATE,
 } from './property.js';
 import { HOME_INTERIOR } from './world-layout.js';
 import { applyNeeds, needsStatus } from './needs.js';
@@ -330,6 +330,8 @@ export const PROPERTY_HANDLERS = {
     const mins = Math.min(3, Math.max(0, (ctx.now - (b.at || ctx.now)) / 60_000));
     b.at = ctx.now;
     if (mins <= 0) return { ok: true, changed: false, data: { due: 0 } };
+    // intérêts du livret d'épargne
+    if (p.savings > 0) p.savings = Math.round((p.savings + p.savings * SAVINGS_RATE * mins) * 100) / 100;
     const bills = hourlyBills(p);
     b.acc = (b.acc || 0) + bills.total * mins / 60;
     let due = Math.floor(b.acc);

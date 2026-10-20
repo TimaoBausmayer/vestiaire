@@ -6,6 +6,7 @@ import { JOBS, jobLevel } from '../../shared/content/jobs.js';
 import { levelProgress } from '../../shared/rules.js';
 import { ROADMAP } from '../../shared/content/roadmap.js';
 import { garagePanel } from '../vehicles/vehicles.js';
+import { bankApp } from '../property/bank.js';
 import { openWardrobe } from './shop.js';
 import { formatHour } from '../world/daynight.js';
 
@@ -16,6 +17,7 @@ const APPS = [
   { id: 'missions', name: 'Missions', icon: '📋', bg: '#ffd23f' },
   { id: 'pets', name: 'Animaux', icon: '🐾', bg: '#ff9f1c' },
   { id: 'garage', name: 'Garage', icon: '🛵', bg: '#3d8ee8' },
+  { id: 'bank', name: 'Banque', icon: '🏦', bg: '#2a9d8f' },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'events', name: 'Événements', icon: '🎉', bg: '#ff5a5f' },
   { id: 'messages', name: 'Messages', icon: '💬', bg: '#5fd068' },
@@ -67,7 +69,7 @@ export class Phone {
   render() {
     const g = this.game;
     clear(this.status);
-    this.status.append(h('span', formatHour(g.world.dayNight.hour)), h('span', g.net.mode === 'solo' ? '📴 Solo' : '📶 En ligne'), h('span', `${fmt(g.profile.coins)} PC`));
+    this.status.append(h('span', `${g.world.dayNight.day || ''} ${formatHour(g.world.dayNight.hour)}`), h('span', g.net.mode === 'solo' ? '📴 Solo' : '📶 En ligne'), h('span', `${fmt(g.profile.coins)} PC`));
     clear(this.screen);
     if (!this.app) {
       this.screen.append(h('div', { style: { textAlign: 'center', margin: '18px 0 6px', fontWeight: '900', fontStyle: 'italic', fontSize: '22px' } }, 'PlayPhone'),
@@ -192,6 +194,8 @@ export class Phone {
   app_pets(b) { b.append(h('button.btn.block', { onclick: () => { this.close(); this.game.pets.openPanel(); } }, '🐾 Ouvrir la fiche de mes animaux')); b.append(h('p.muted', 'Astuce : approche-toi de ton animal et appuie sur E pour t\'en occuper.')); }
 
   app_garage(b) { garagePanel(this.game, b, () => this.render()); }
+
+  app_bank(b) { bankApp(this.game, b, () => this.render()); }
 
   app_bag(b) {
     const g = this.game, p = g.profile, items = g.net.content.items;

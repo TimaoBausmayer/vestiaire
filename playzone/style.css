@@ -314,3 +314,7 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
 .needs .need.low .nb > div { background: #e63946; }
 @keyframes needPulse { from { box-shadow: var(--shadow); } to { box-shadow: 0 0 0 3px rgba(230,57,70,.6); } }
 @media (max-width: 700px) { .needs .nb { width: 30px; } .needs .need { padding: 3px 7px; font-size: 11px; } }
+
+/* choix du paiement (carte / espèces) */
+.pay-row { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; flex-wrap: wrap; font-weight: 700; }
+.chip small.cash { color: #b7f5c6; font-size: 12px; font-weight: 700; margin-left: 2px; }

@@ -87,7 +87,7 @@ export class HUD {
   constructor(ui, game) {
     this.ui = ui;
     this.game = game;
-    this.money = h('div.chip.money', h('span.coin', 'PC'), this.moneyText = h('span', '0'));
+    this.money = h('div.chip.money', { title: 'Compte en banque (carte) · argent liquide' }, h('span.coin', 'PC'), this.moneyText = h('span', '0'), this.cashText = h('small.cash', ''));
     this.levelChip = h('div.chip', h('span', '⭐'), this.levelText = h('span', 'Niv. 1'), this.xpbar = h('div.xpbar', this.xpFill = h('div')));
     this.repChip = h('div.chip', h('span', '💬'), this.repText = h('span', '0'), h('small', 'réputation'));
     this.tl = h('div.hud-tl', this.money, this.levelChip, this.repChip);
@@ -117,6 +117,7 @@ export class HUD {
 
   setProfile(p, prev) {
     this.moneyText.textContent = fmt(p.coins);
+    this.cashText.textContent = `💵 ${fmt(p.cash || 0)}`;
     if (prev && p.coins !== prev.coins) {
       this.money.classList.remove('bump'); void this.money.offsetWidth; this.money.classList.add('bump');
     }
@@ -174,7 +175,7 @@ export class HUD {
         this._zt = setTimeout(() => this.zoneName.classList.remove('show'), 3500);
       }
     }
-    this.clock.textContent = `${g.world.dayNight.hour >= 20.5 || g.world.dayNight.hour < 6 ? '🌙' : '☀️'} ${formatHour(g.world.dayNight.hour)}`;
+    this.clock.textContent = `${g.world.dayNight.hour >= 20.5 || g.world.dayNight.hour < 6 ? '🌙' : '☀️'} ${g.world.dayNight.day || ''} ${formatHour(g.world.dayNight.hour)}`;
     // boussole vers l'objectif
     // la boussole suit l'itinéraire GPS (prochain virage) quand il y en a un
     const t0 = this.compassTarget;
