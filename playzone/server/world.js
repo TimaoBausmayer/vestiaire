@@ -9,6 +9,7 @@ import { censor, hasPersonalInfo } from '../shared/chat-filter.js';
 import { POI, MINIGAME_SPOTS, HOME_INTERIOR, BUILDING_BY_ID, inBounds, dist2d } from '../shared/world-layout.js';
 import { maxSpeedOf } from '../shared/content/vehicles.js';
 import { HOUSING_BY_ID } from '../shared/property.js';
+import { CompanyRegistry } from './companies.js';
 
 const POSES = new Set(['idle', 'carry', 'spray', 'wave', 'throw', 'celebrate', 'cook', 'pet', 'sit', 'hold-forward', 'dance', 'eat']);
 const newId = () => randomBytes(6).toString('hex');
@@ -60,6 +61,7 @@ export class GameServer {
     this.worlds = [];
     this.online = new Map(); // id -> Player
     this.housing = new HousingRegistry(db);
+    this.companies = new CompanyRegistry(this);
     this.timer = setInterval(() => this.tick(), 1000 / LIMITS.snapshotHz);
     this.contentTimer = setInterval(() => { this.content = buildContent(Date.now()); this.authority.setContent(this.content); }, 60_000);
   }
@@ -146,7 +148,7 @@ export class World {
       this._billAt = now;
       for (const p of this.players.values()) {
         const res = this.server.authority.handle(this.ctx(p), 'bills.tick', {});
-        if (res.ok && res.changed) { p.dirty = true; p.send({ t: 'profile', profile: p.profile }); if (res.data?.paid || res.data?.evicted) p.send({ t: 'bills', ...res.data }); }
+        if (res.ok && res.changed) { p.dirty = true; p.send({ t: 'profile', profile: p.profile }); if (res.data?.paid || res.data?.evicted || res.data?.bankrupt) p.send({ t: 'bills', ...res.data }); }
       }
     }
     // instantanés : seulement les joueurs de la même zone et assez proches (gestion d'intérêt)
@@ -167,7 +169,7 @@ export class World {
     const s = this.server;
     return {
       profile: p.profile, session: p.session, now: Date.now(), pos: p.pos, zone: p.zone, rand: Math.random, newId,
-      leaderboard: s.leaderboard, events: this.director, log: s.log, housing: s.housing,
+      leaderboard: s.leaderboard, events: this.director, log: s.log, housing: s.housing, companies: s.companies,
     };
   }
 

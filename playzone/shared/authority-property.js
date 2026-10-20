@@ -12,6 +12,7 @@ import {
 import { HOME_INTERIOR } from './world-layout.js';
 import { applyNeeds, needsStatus } from './needs.js';
 import { RECIPE_BY_ID, recipeEffect, canCook } from './recipes.js';
+import { companyTick } from './authority-business.js';
 import { DEFAULT_APPEARANCE } from './appearance.js';
 
 const err = (error) => ({ ok: false, error });
@@ -330,12 +331,13 @@ export const PROPERTY_HANDLERS = {
     const mins = Math.min(3, Math.max(0, (ctx.now - (b.at || ctx.now)) / 60_000));
     b.at = ctx.now;
     if (mins <= 0) return { ok: true, changed: false, data: { due: 0 } };
-    // intérêts du livret d'épargne
+    // intérêts du livret d'épargne, activité de l'entreprise du joueur
     if (p.savings > 0) p.savings = Math.round((p.savings + p.savings * SAVINGS_RATE * mins) * 100) / 100;
+    const co = companyTick(this, ctx, mins);
     const bills = hourlyBills(p);
     b.acc = (b.acc || 0) + bills.total * mins / 60;
     let due = Math.floor(b.acc);
-    if (due < 1) return { ok: true, changed: true, data: { due: 0 } };
+    if (due < 1) return { ok: true, changed: true, data: { due: 0, ...(co?.bankrupt ? { bankrupt: true } : {}) } };
     b.acc -= due;
     // crédits : la part des mensualités réduit le capital restant
     for (const pr of p.properties) {
@@ -348,7 +350,7 @@ export const PROPERTY_HANDLERS = {
     const paid = Math.min(due, p.coins);
     this.addCoins(p, -paid);
     b.paid = (b.paid || 0) + paid;
-    const data = { due, paid };
+    const data = { due, paid, ...(co?.bankrupt ? { bankrupt: true } : {}) };
     if (paid < due) {
       p.debt = (p.debt || 0) + (due - paid);
       data.debt = p.debt;

@@ -26,6 +26,10 @@ export class Bills {
     const g = this.game;
     if (!d) return;
     this.paidSince += d.paid || 0;
+    if (d.bankrupt) {
+      g.sfx('fail');
+      g.ui.toast('💥 FAILLITE ! Ton entreprise n\'a plus un sou : elle ferme. (Appli Business pour repartir de zéro.)', 'bad', 7000);
+    }
     if (d.evicted) {
       g.sfx('fail');
       g.ui.toast('📦 Loyers impayés : tu as été expulsé·e ! Retour au studio de la Résidence Les Mouettes (avec tes meubles et ta dette).', 'bad', 7000);

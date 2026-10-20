@@ -21,6 +21,7 @@ import { ACTIVITIES, quizOfDay } from './activities.js';
 import { PROPERTY_HANDLERS, expireRentals } from './authority-property.js';
 import { BANK_HANDLERS } from './authority-bank.js';
 import { CAREER_HANDLERS, careerOnPosition, defaultCareer } from './authority-careers.js';
+import { BUSINESS_HANDLERS } from './authority-business.js';
 import { deliverySpot, homeSize } from './property.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
@@ -744,7 +745,9 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS);
+// Liste des entreprises de joueurs où investir (en ligne).
+HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 
 // Termine une mission : paie (avec rendements décroissants), XP, statistiques.
 Authority.prototype.completeMission = function completeMission(ctx, m, pay, xp, notes, stats) {
