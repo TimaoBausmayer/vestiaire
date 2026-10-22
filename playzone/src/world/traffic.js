@@ -30,7 +30,7 @@ const DRIVERS = [
 const DRIVER_LINES = ['Pouet pouet !', 'On se pousse, oui ?', 'C\'est une route, pas un salon !', 'Je suis en retard pour ma sieste !', 'Le piéton est roi... mais pas trop.', 'Vous comptez camper là ?'];
 const CRASH_LINES = ['Ma carrosserie !', 'Vous avez votre permis à la tombola ?!', 'J\'appelle mon assureur... et ma maman !', 'Aïe aïe aïe, la peinture !', 'C\'était une voiture de location en plus !'];
 
-const SPEED = { main: 12.5, street: 9.5, country: 11.5 };
+const SPEED = { main: 12.5, street: 9.5, country: 11.5, highway: 24 };
 const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
 
 // Voie d'un tronçon dans un sens : du nœud `from` vers `to`, décalée à droite.
@@ -85,13 +85,15 @@ export class Traffic {
   // Place (ou replace) une voiture sur une voie au hasard, à bonne distance du joueur.
   spawn(i, initial = false) {
     const P = this.game.player?.pos || { x: 0, z: 0 };
-    let lane = null;
-    for (let k = 0; k < 40 && !lane; k++) {
-      const l = [...this.lanes.values()][Math.floor(this.rand() * this.lanes.size)];
-      const mx = (l.start.x + l.end.x) / 2, mz = (l.start.z + l.end.z) / 2;
-      const d = Math.hypot(mx - P.x, mz - P.z);
-      if (l.len < 8) continue;
-      if (initial ? d < 170 : d > 70 && d < 170) lane = l;
+    let lane = null, s0 = 0;
+    // voies proches du joueur (la carte est grande : on ne tire au sort que parmi celles-ci)
+    const near = [...this.lanes.values()].filter((l) => l.len >= 8 && Math.max(Math.min(l.start.x, l.end.x) - P.x, P.x - Math.max(l.start.x, l.end.x), Math.min(l.start.z, l.end.z) - P.z, P.z - Math.max(l.start.z, l.end.z)) < 170);
+    for (let k = 0; k < 40 && !lane && near.length; k++) {
+      const l = near[Math.floor(this.rand() * near.length)];
+      const s = this.rand() * l.len * 0.8;
+      const x = l.start.x + (l.end.x - l.start.x) * s / l.len, z = l.start.z + (l.end.z - l.start.z) * s / l.len;
+      const d = Math.hypot(x - P.x, z - P.z);
+      if (initial ? d < 170 : d > 70 && d < 170) { lane = l; s0 = s; }
     }
     if (!lane) return;
     let car = this.cars[i];
@@ -108,7 +110,7 @@ export class Traffic {
       car.offs = car.colliders.map((_, k) => (n === 1 ? 0 : -dims.L / 2 + dims.W / 2 + (k / (n - 1)) * (dims.L - dims.W)));
       this.cars[i] = car;
     }
-    car.seg = lane; car.s = this.rand() * lane.len * 0.8; car.next = null; car.speed = lane.speed * 0.6;
+    car.seg = lane; car.s = s0; car.next = null; car.speed = lane.speed * 0.6;
     car.max = (0.85 + this.rand() * 0.25) * (car.model === 'bus' || car.model === 'camion' || car.model === 'pompiers' ? 0.75 : 1);
     car.visual.clearDents(); car.damage = 0; car.visual.u.uDamage.value = 0;
     this.place(car);

@@ -171,7 +171,7 @@ export const LEISURE_HANDLERS = {
     if (!atKind(this, ctx, 'range')) return err('Les armes ne s\'utilisent qu\'au stand de tir.');
     if (!RANGE_WEAPONS[weapon]) return err('Arme inconnue.');
     if (p.justice?.jail) return err('Pas d\'arme en prison.');
-    const fee = compet ? RANGE.compet.fee : RANGE.fee;
+    const fee = compet ? RANGE.compet.fee : (p.inventory[`arme-${weapon}`] || 0) > 0 ? Math.ceil(RANGE.fee / 2) : RANGE.fee;
     if (compet && !liveOcc('tir-du-soir', calTime(ctx))) return err('La compétition a lieu chaque soir de 18 h à 20 h (heure du jeu) : regarde l\'Agenda du téléphone.');
     if (compet) {
       const recent = (p.activity['range:compet'] || []).filter((t) => ctx.now - t < 3600_000);

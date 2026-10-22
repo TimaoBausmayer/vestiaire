@@ -44,6 +44,8 @@ import { Crimes } from './police/crimes.js';
 import { maybeOfferTutorial } from './ui/tutorial.js';
 import { CalendarBoards } from './events/agenda.js';
 import { Karting } from './sports/karting.js';
+import { Football } from './sports/football.js';
+import { Wingfoil } from './sports/wingfoil.js';
 import { Markets } from './events/markets.js';
 import { Cour } from './minigames/cour.js';
 import { Life } from './life/life.js';
@@ -174,6 +176,8 @@ export class Game extends Emitter {
     this.calendarBoards = this.addSystem(new CalendarBoards(this));
     this.addSystem({ update: (dt) => this.range?.update(dt) }); // séance au stand de tir
     this.karting = this.addSystem(new Karting(this));
+    this.football = this.addSystem(new Football(this));
+    this.wingfoil = this.addSystem(new Wingfoil(this));
     this.markets = this.addSystem(new Markets(this));
     this.cour = this.addSystem(new Cour(this));
     setTimeout(() => maybeOfferTutorial(this), 1500);

@@ -84,6 +84,7 @@ export class Body {
     g.player.bodyNoSprint = fx.noSprint;
     g.player.bodyNoJump = fx.noJump;
     g.player.muscle = b.muscle;
+    g.player.endurance = b.endurance ?? 15;
     this.fill.style.width = `${Math.round(b.health)}%`;
     this.bar.classList.toggle('low', b.health < 25);
     this.bar.title = `Santé : ${Math.round(b.health)} / 100${b.injury ? ` · ${INJURIES[b.injury.kind].name}` : ''}`;

@@ -7,7 +7,7 @@ import { dealerPanel, usedCarsPanel, rentalPanel, immoPanel, secondHandPanel, is
 import { repairPanel } from '../vehicles/vehicles.js';
 import { HOUSING_BY_ID } from '../../shared/property.js';
 import { cashPanel } from '../property/bank.js';
-import { jobPanel, schoolPanel } from '../career/career.js';
+import { jobPanel, schoolPanel, poleEmploiPanel } from '../career/career.js';
 import { createCompanyPanel } from '../career/business.js';
 import { gymPassPanel, hairPanel, hospitalCarePanel } from '../life/body.js';
 import { policeDesk, prisonGuard, tryEscape } from '../police/panels.js';
@@ -43,7 +43,11 @@ export async function runAction(game, action, { b, spot, staff }) {
   switch (action) {
     case 'shop': {
       const s = b.shop;
-      if (s === 'cars-new') dealerPanel(g, b, () => openShop(g, s, b));
+      if (s === 'cars-new' || s === 'cars-luxe') dealerPanel(g, b, () => openShop(g, s, b));
+      else if (s === 'auto-ecole') policeDesk(g, true);
+      else if (s === 'foot-club') g.football?.desk();
+      else if (s === 'surf') g.wingfoil?.desk(b);
+      else if (s === 'pole-emploi') poleEmploiPanel(g);
       else if (s === 'cars-used') usedCarsPanel(g, b);
       else if (s === 'rental') rentalPanel(g, b);
       else if (s === 'immo') immoPanel(g, b);

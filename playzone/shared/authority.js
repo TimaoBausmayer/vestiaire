@@ -27,6 +27,9 @@ import { JUSTICE_HANDLERS } from './authority-justice.js';
 import { LEISURE_HANDLERS, defaultLeisure } from './authority-leisure.js';
 import { CALENDAR_HANDLERS, defaultCalendar, tournamentSubmit } from './authority-calendar.js';
 import { KARTING_HANDLERS, defaultKarting, kartOnPosition } from './authority-karting.js';
+import { SPORTS_HANDLERS } from './authority-sports.js';
+import { defaultFoot } from './sports.js';
+import { defaultWing } from './wingfoil.js';
 import { MARKET_HANDLERS } from './authority-market.js';
 import { COUR_HANDLERS } from './authority-cour.js';
 import { ADMIN_HANDLERS, adminTopUp } from './authority-admin.js';
@@ -87,6 +90,7 @@ export class Authority {
     p.casino = { ...defaultCasino(), ...(p.casino || {}) };
     p.calendar = { ...defaultCalendar(), ...(p.calendar || {}) };
     p.karting = { ...defaultKarting(), ...(p.karting || {}) };
+    { const df = defaultFoot(), f = p.sports?.foot || {}; p.sports = { ...(p.sports || {}), foot: { ...df, ...f, skills: { ...df.skills, ...(f.skills || {}) } }, wing: { ...defaultWing(), ...(p.sports?.wing || {}) } }; }
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
     p.minigames ||= {};
@@ -770,7 +774,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, SPORTS_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS);
 // Liste des entreprises de joueurs où investir (en ligne).
 HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 

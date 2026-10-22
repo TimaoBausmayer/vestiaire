@@ -230,3 +230,31 @@ export function workApp(g, b) {
   for (const job of [...JOBS].sort((a, x) => a.wage - x.wage)) b.append(h('div.d', { style: { padding: '2px 0' } }, `${job.name} — ${fmt(job.wage)} PC/h de jeu · ${stars(job.hard)}${job.needs ? ` · ${TRAININGS[job.needs].name}` : ''}`));
   if (c.history.length) { b.append(h('h4', { style: { marginTop: '12px' } }, 'Historique')); for (const x of c.history.slice(-6).reverse()) b.append(h('div.d', `${JOBS_BY_ID[x.id]?.name || x.id} — ${x.end}`)); }
 }
+
+// Pôle emploi : toutes les offres de la ville, candidature à distance (on va ensuite pointer sur place).
+export function poleEmploiPanel(g) {
+  let filter = 'all';
+  const m = g.ui.modal({
+    title: '💼 Pôle Emploi', sub: 'Toutes les offres de PLAYZONE. Postule d\'ici, puis va pointer sur ton lieu de travail (GPS).',
+    build: (body) => {
+      const c = g.profile.career;
+      body.append(h('div.row', { style: { gap: '6px', flexWrap: 'wrap', marginBottom: '8px' } },
+        [['all', 'Toutes'], ['ok', 'Accessibles'], ['diploma', 'Avec diplôme']].map(([k, l]) => h(`button.btn.small${filter === k ? '' : '.ghost'}`, { onclick: () => { filter = k; m.refresh(); } }, l))));
+      const offers = [];
+      for (const b of BUILDINGS) for (const job of jobsAt(b)) offers.push({ b, job, ok: !job.needs || c.diplomas.includes(job.needs) });
+      offers.sort((x, y) => y.job.wage - x.job.wage);
+      for (const { b, job, ok } of offers) {
+        if ((filter === 'ok' && !ok) || (filter === 'diploma' && !job.needs)) continue;
+        const mine = c.job && c.job.building === b.id && c.job.id === job.id;
+        body.append(h('div.list-item', h('span', { style: { fontSize: '22px' } }, mine ? '🪪' : '📄'),
+          h('div.grow', h('div.t', `${job.name} · ${b.name}`), h('div.d', `${fmt(job.wage)} PC / h de jeu · pénibilité ${stars(job.hard)} · ${job.needs ? `${ok ? '✅' : '❌'} ${TRAININGS[job.needs].name}` : 'sans diplôme'}`)),
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
+            h('button.btn.small', { disabled: !ok || mine, onclick: async () => {
+              if (c.job && !(await g.ui.confirm('Changer d\'emploi ?', `Tu quittes ton poste actuel (${JOBS_BY_ID[c.job.id].name}).`, 'Postuler'))) return;
+              try { await g.net.request('career.apply', { jobId: job.id, buildingId: b.id }); g.career.endShift(); g.sfx('levelup'); g.ui.toast(`🎉 Embauché·e : ${job.name} (${b.name}) ! Va pointer sur place.`, 'good', 5000); (g.hud.compassTarget = { x: b.door.x, z: b.door.z, label: b.name, manual: true }); m.refresh(); } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad', 4500); }
+            } }, mine ? 'Ton poste' : ok ? 'Postuler' : 'Diplôme requis'),
+            h('button.btn.small.ghost', { onclick: () => { (g.hud.compassTarget = { x: b.door.x, z: b.door.z, label: b.name, manual: true }); m.close(); } }, '📍 GPS'))));
+      }
+    },
+  });
+}

@@ -29,6 +29,13 @@ export const VEHICLES = {
   pickup: { name: 'Bûcheron Pick-up', cat: 'suv', kind: 'car', body: 'pickup', max: 24, acc: 10, turn: 1.55, grip: 0.88, fuel: 75, use: 0.1, price: 35000, level: 8, seats: 2 },
   fourgon: { name: 'Fourgon Pratique', cat: 'utilitaire', kind: 'car', body: 'van', max: 21, acc: 8, turn: 1.5, grip: 0.86, fuel: 70, use: 0.09, price: 24000, level: 6, seats: 3 },
   camion: { name: 'Malle-Poste (camionnette)', cat: 'utilitaire', kind: 'car', body: 'box', max: 19, acc: 7, turn: 1.4, grip: 0.85, fuel: 90, use: 0.12, price: 32000, level: 8, seats: 2 },
+  // --- voitures de luxe (Prestige Motors, Avenue de Prestige)
+  'gt-velours': { name: 'Bentaïga Velours GT', cat: 'sport', kind: 'car', body: 'coupe', paint: '#14213d', max: 35, acc: 16, turn: 1.9, grip: 0.96, fuel: 80, use: 0.12, price: 210000, level: 12, seats: 4 },
+  'suv-taureau': { name: 'Taureau Urus 4x4', cat: 'suv', kind: 'car', body: 'suv', paint: '#ffb703', max: 34, acc: 17, turn: 1.75, grip: 0.95, fuel: 85, use: 0.14, price: 240000, level: 12, seats: 5 },
+  'volt-plaid': { name: 'Volt-S Plaid (électrique)', cat: 'berline', kind: 'car', body: 'sedan', paint: '#e9ecef', max: 37, acc: 22, turn: 1.85, grip: 0.96, fuel: 90, use: 0.03, price: 130000, level: 10, seats: 5 },
+  'fantome': { name: 'Rolls-Pomme Fantôme', cat: 'berline', kind: 'car', body: 'sedan', paint: '#0b090a', max: 31, acc: 12, turn: 1.6, grip: 0.95, fuel: 100, use: 0.15, price: 380000, level: 14, seats: 5 },
+  'furioso': { name: 'Taureau Furioso V12', cat: 'sport', kind: 'car', body: 'sport', paint: '#e63946', max: 41, acc: 23, turn: 1.95, grip: 0.97, fuel: 90, use: 0.18, price: 450000, level: 15, seats: 2 },
+  'chiron-mamie': { name: 'Bugatti-Mamie Chiron', cat: 'sport', kind: 'car', body: 'sport', paint: '#1d3557', max: 46, acc: 26, turn: 1.95, grip: 0.98, fuel: 100, use: 0.22, price: 2500000, level: 18, seats: 2 },
   // --- véhicules de service (conduits par les PNJ ; certains volables...)
   taxi: { name: 'Taxi', cat: 'service', kind: 'car', body: 'sedan', livery: 'taxi', paint: '#ffd23f', max: 25, acc: 10, turn: 1.75, grip: 0.9, fuel: 55, use: 0.06, price: 0, seats: 5 },
   police: { name: 'Voiture de police', cat: 'service', kind: 'car', body: 'sedan', livery: 'police', paint: '#f4f4f4', siren: true, max: 33, acc: 15, turn: 1.9, grip: 0.95, fuel: 60, use: 0.08, price: 0, seats: 4 },
@@ -41,7 +48,7 @@ export const VEHICLES = {
 
 export const VEHICLE_IDS = Object.keys(VEHICLES);
 // Modèles qu'on croise dans la circulation (avec leur fréquence relative)
-export const TRAFFIC_MIX = [['citadine', 6], ['berline', 5], ['break', 3], ['suv', 3], ['pickup', 2], ['fourgon', 2], ['camion', 1], ['taxi', 2], ['sportive', 1], ['coupe', 1], ['voiturette', 1], ['bus', 1], ['glace', 0.5], ['police', 1.5], ['ambulance', 0.4], ['depanneuse', 0.4], ['moto', 1], ['scooter', 1]];
+export const TRAFFIC_MIX = [['citadine', 6], ['berline', 5], ['break', 3], ['suv', 3], ['pickup', 2], ['fourgon', 2], ['camion', 1], ['taxi', 2], ['sportive', 1], ['coupe', 1], ['voiturette', 1], ['bus', 1], ['glace', 0.5], ['police', 1.5], ['ambulance', 0.4], ['depanneuse', 0.4], ['moto', 1], ['scooter', 1], ['volt-plaid', 0.5], ['suv-taureau', 0.3], ['furioso', 0.25], ['gt-velours', 0.25]];
 
 // Vitesse max autorisée par le serveur pour un véhicule (marge comprise).
 export function maxSpeedOf(model) { return (VEHICLES[model]?.max ?? 20) * 1.12 + 2; }

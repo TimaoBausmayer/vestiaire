@@ -72,7 +72,8 @@ export const CAREER_HANDLERS = {
   'career.apply'(ctx, { jobId, buildingId }) {
     const p = ctx.profile, job = JOBS[jobId], b = BUILDING_BY_ID[buildingId];
     if (!job || !b || !worksAt(job, b)) return err('Ce poste n\'existe pas ici.');
-    if (!this.atBuilding(ctx, b, 1)) return err('Il faut venir sur place pour l\'entretien.');
+    // sur place, ou à distance depuis le Pôle emploi
+    if (!this.atBuilding(ctx, b, 1) && !this.atBuilding(ctx, BUILDING_BY_ID['pole-emploi'], 1)) return err('Il faut venir sur place pour l\'entretien (ou passer par le Pôle emploi).');
     if (job.needs && !p.career.diplomas.includes(job.needs)) return err(`Il faut le diplôme : ${TRAININGS[job.needs].name} (école).`);
     const recent = p.career.fired.find((f) => f.id === jobId && f.building === buildingId && ctx.now - f.at < 30 * 60_000);
     if (recent) return err('« Vous ? On vous a renvoyé il y a moins d\'une demi-heure ! » Revenez plus tard.');

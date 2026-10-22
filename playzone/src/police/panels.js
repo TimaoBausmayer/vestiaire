@@ -6,9 +6,9 @@ import { CRIMES, FINES, LICENCE, CODE_QUESTIONS, codeTest, CODE_PASS } from '../
 
 const fmt = (n) => Math.round(n).toLocaleString('fr-FR');
 
-export function policeDesk(g) {
+export function policeDesk(g, school = false) {
   const L = g.profile.justice.licence;
-  g.ui.dialog({ name: 'Agent·e d\'accueil', role: 'Commissariat Central', text: 'Bonjour ! Auto-école, dossier, plainte contre un pigeon... Que puis-je faire pour vous ?', choices: [
+  g.ui.dialog({ name: school ? 'Moniteur·rice' : 'Agent·e d\'accueil', role: school ? 'Auto-École Pas de Panique' : 'Commissariat Central', text: school ? 'Bienvenue à l\'auto-école ! Le code ici, puis l\'examen de conduite (départ devant le commissariat). Pas de panique !' : 'Bonjour ! Auto-école, dossier, plainte contre un pigeon... Que puis-je faire pour vous ?', choices: [
     { label: L.code ? '✅ Code obtenu' : `📝 Passer le code (${LICENCE.code} PC)`, action: (m) => { if (L.code) return; m.close(); codePanel(g); } },
     { label: L.permis ? '✅ Permis obtenu' : `🚗 Examen du permis (${LICENCE.permis} PC)`, action: async (m) => {
       if (L.permis) return;

@@ -147,7 +147,9 @@ export class NPCs {
   // Place un piéton sur un trottoir à bonne distance du joueur (ou n'importe où au départ).
   place(n, initial = false) {
     const P = this.game.player?.pos || { x: 0, z: 12 };
-    const E = ROAD_GRAPH.edges;
+    const N = ROAD_GRAPH.nodes;
+    const E = ROAD_GRAPH.edges.filter((e) => e.kind !== 'highway' && Math.max(Math.min(N[e.a].x, N[e.b].x) - P.x, P.x - Math.max(N[e.a].x, N[e.b].x), Math.min(N[e.a].z, N[e.b].z) - P.z, P.z - Math.max(N[e.a].z, N[e.b].z)) < 125);
+    if (!E.length) return false;
     for (let k = 0; k < 60; k++) {
       const e = E[Math.floor(Math.random() * E.length)];
       const a = ROAD_GRAPH.nodes[e.a], b = ROAD_GRAPH.nodes[e.b];
@@ -178,7 +180,7 @@ export class NPCs {
     const node = ROAD_GRAPH.nodes[n.toNode];
     const p = this.sidewalk(n.edge, node.x, node.z, n.side);
     if (Math.hypot(p.x - n.pos.x, p.z - n.pos.z) > 1.2) { n.target = p; return; }
-    const opts = node.edges.filter((id) => id !== n.edge.id);
+    const opts = node.edges.filter((id) => id !== n.edge.id && ROAD_GRAPH.edges[id].kind !== 'highway');
     const id = opts.length ? opts[Math.floor(Math.random() * opts.length)] : n.edge.id;
     n.edge = ROAD_GRAPH.edges[id];
     n.toNode = n.edge.a === node.id ? n.edge.b : n.edge.a;

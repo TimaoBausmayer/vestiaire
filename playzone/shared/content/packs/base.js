@@ -15,7 +15,14 @@ const NEW_CARS = [
   ['camion', '🚚', 'Il klaxonne comme un paquebot.'],
   ['coupe', '🏎️', 'Deux portes, zéro place pour vos courses.'],
   ['sportive', '🏎️', 'Accélère plus vite que vos économies ne disparaissent.'],
-].map(([id, emoji, desc]) => ({ id, name: VEHICLES[id].name, shop: id === 'velo' || id === 'moto' ? 'bikes' : 'cars-new', vehicle: id, price: VEHICLES[id].price, level: VEHICLES[id].level, emoji, desc, max: 1 }));
+  // Prestige Motors (concession de luxe)
+  ['volt-plaid', '⚡', 'Électrique, silencieuse, 0 à 100 avant d\'avoir fini d\'éternuer.'],
+  ['gt-velours', '🏎️', 'Sièges en velours, klaxon en harpe.'],
+  ['suv-taureau', '🚙', 'Un 4x4 qui ne monte jamais sur un chemin. Trop beau pour ça.'],
+  ['fantome', '🎩', 'Le chauffeur n\'est pas fourni. La classe, si.'],
+  ['furioso', '🐂', 'V12, portes en ciseaux, voisins jaloux.'],
+  ['chiron-mamie', '👵', 'La voiture la plus rapide de PLAYZONE. Mamie l\'a validée.'],
+].map(([id, emoji, desc]) => ({ id, name: VEHICLES[id].name, shop: id === 'velo' || id === 'moto' ? 'bikes' : VEHICLES[id].price >= 100000 ? 'cars-luxe' : 'cars-new', vehicle: id, price: VEHICLES[id].price, level: VEHICLES[id].level, emoji, desc, max: 1 }));
 
 export default {
   id: 'base',

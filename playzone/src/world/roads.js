@@ -41,7 +41,7 @@ export function buildRoads(sb, col, scene) {
   // --- chaussées
   for (const s of STREETS) {
     const [x1, z1, x2, z2] = streetRect(s);
-    sb.quad((x1 + x2) / 2, 0.03, (z1 + z2) / 2, x2 - x1, z2 - z1, s.kind === 'country' ? '#5c5a55' : PALETTE.road, 0, 'ground');
+    sb.quad((x1 + x2) / 2, 0.03, (z1 + z2) / 2, x2 - x1, z2 - z1, s.kind === 'country' ? '#5c5a55' : s.kind === 'highway' ? '#3f4247' : PALETTE.road, 0, 'ground');
   }
   // --- marquages au sol le long de chaque tronçon
   const line = '#f5f1e3';
@@ -56,7 +56,7 @@ export function buildRoads(sb, col, scene) {
       if (horiz) sb.quad(t + 1.5, 0.05, c, 3, 0.2, line, 0, 'ground'); else sb.quad(c, 0.05, t + 1.5, 0.2, 3, line, 0, 'ground');
     }
     // lignes de rive des grands axes
-    if (s.kind === 'main' && !OLD.has(s.id) && p1 - p0 > 2) {
+    if ((s.kind === 'main' || s.kind === 'highway') && !OLD.has(s.id) && p1 - p0 > 2) {
       for (const side of [-1, 1]) {
         const o = c + side * (s.w / 2 - 0.45);
         if (horiz) sb.quad((p0 + p1) / 2, 0.05, o, p1 - p0, 0.15, line, 0, 'ground'); else sb.quad(o, 0.05, (p0 + p1) / 2, 0.15, p1 - p0, line, 0, 'ground');
@@ -88,7 +88,7 @@ export function buildRoads(sb, col, scene) {
   const sw = 2.6;
   const lampSpots = [];
   for (const s of STREETS) {
-    if (s.kind === 'country' || OLD.has(s.id)) continue;
+    if (s.kind === 'country' || s.kind === 'highway' || OLD.has(s.id)) continue;
     const horiz = s.axis === 'h';
     const [a, b] = horiz ? [s.x1, s.x2] : [s.z1, s.z2];
     for (const side of [-1, 1]) {

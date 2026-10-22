@@ -56,7 +56,7 @@ await ev(() => window.playzone.debugStep(0.5)); await sleep(800);
 check(!(await prof()).justice.jail, 'libéré·e à la fin de la peine');
 // 4) vol d'une voiture garée et revente à la casse
 const car = await ev(() => { const g = window.playzone; const c = g.parked.cars.find((x) => !x.taken && !x.locked); g.player.teleport(c.x + 2, c.z, 0); g.debugStep(0.2); return c.model; });
-await ev(() => { const g = window.playzone; g.crimes.stealParked(g.parked.nearest(g.player.pos, 4)); });
+await ev(() => { const g = window.playzone; g.crimes.stealParked(g.parked.cars.find((x) => !x.taken && !x.locked)); });
 await sleep(500);
 check(await ev(() => window.playzone.vehicles.current?.owner === 'stolen'), `voiture volée (${car})`);
 await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const g = window.playzone; const y = BUILDING_BY_ID.casse.yard; g.vehicles.current.sim.place((y.x1 + y.x2) / 2, (y.z1 + y.z2) / 2, 0); g.debugStep(0.3); });

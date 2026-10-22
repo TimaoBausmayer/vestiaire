@@ -174,7 +174,7 @@ export const JUSTICE_HANDLERS = {
   // ---------------------------------------------------------------- code de la route et permis
   'licence.code'(ctx, { seed, answers }) {
     const p = ctx.profile, L = p.justice.licence;
-    if (!this.atBuilding(ctx, police(), 1)) return err('Le code se passe au commissariat (auto-école).');
+    if (!this.atBuilding(ctx, police(), 1) && !this.atBuilding(ctx, BUILDING_BY_ID['auto-ecole'], 1)) return err('Le code se passe à l\'auto-école (ou au commissariat).');
     if (L.code) return err('Tu as déjà le code !');
     if (p.coins < LICENCE.code) return err(`Il faut ${LICENCE.code} PC.`);
     const qs = codeTest(Number(seed) || 0);
@@ -186,7 +186,7 @@ export const JUSTICE_HANDLERS = {
   },
   'licence.examStart'(ctx) {
     const p = ctx.profile, L = p.justice.licence;
-    if (!this.atBuilding(ctx, police(), 2)) return err('L\'examen part du commissariat.');
+    if (!this.atBuilding(ctx, police(), 2) && !this.atBuilding(ctx, BUILDING_BY_ID['auto-ecole'], 2)) return err('L\'examen se demande à l\'auto-école (ou au commissariat).');
     if (!L.code) return err('Il faut d\'abord réussir le code.');
     if (L.permis) return err('Tu as déjà ton permis !');
     if (p.coins < LICENCE.permis) return err(`L'examen coûte ${LICENCE.permis} PC.`);

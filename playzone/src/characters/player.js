@@ -64,7 +64,7 @@ export class Player {
   }
 
   update(dt, input, camYaw) {
-    if (this.vehicle) return; // le véhicule gère le joueur
+    if (this.vehicle || this.external) return; // le véhicule (ou une glisse : wingfoil...) gère le joueur
     const p = this.pos, v = this.vel;
     const canMove = !this.frozen;
     // assis / allongé : on se lève dès qu'on bouge
@@ -101,7 +101,7 @@ export class Player {
     const m = this.muscle ?? 30;
     const wantSprint = input.sprint && !this.noSprint && !this.bodyNoSprint && mlen > 0.1 && !this.swimming;
     const sprinting = wantSprint && this.stamina > 0.02 && !(this.winded > 0);
-    this.stamina = Math.max(0, Math.min(1, (this.stamina ?? 1) + (sprinting ? -dt / (6 + m * 0.14) : dt * 0.22)));
+    this.stamina = Math.max(0, Math.min(1, (this.stamina ?? 1) + (sprinting ? -dt / (6 + m * 0.14 + (this.endurance ?? 15) * 0.12) : dt * 0.22)));
     if (this.stamina <= 0.02 && sprinting) this.winded = 1.5; // essoufflé·e : on doit marcher un instant
     this.winded = Math.max(0, (this.winded || 0) - dt);
     this.sprinting = sprinting;

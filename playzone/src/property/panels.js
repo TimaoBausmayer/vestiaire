@@ -6,6 +6,7 @@ import {
   loanHourly, sellValue, hourlyBills, secondHandOffers, secondHandBuys, SECOND_HAND,
 } from '../../shared/property.js';
 import { vehicleIcon, vehicleName } from '../vehicles/vehicles.js';
+import { testDrivePanel } from '../vehicles/testdrive.js';
 
 // PANNEAUX DES COMMERCES "PROPRIÉTÉ" : occasions, location, agence immobilière, dépôt-vente, casse.
 // Tout achat ou vente passe par l'autorité (validation de la position, de l'argent, de l'unicité).
@@ -42,6 +43,7 @@ function sellVehicles(g, body, refresh, factor = 1, label = 'Revendre') {
 export function dealerPanel(g, b, openNew) {
   g.ui.dialog({ name: 'Commercial·e', role: b.name, text: 'Bienvenue ! Vous voulez du neuf, ou on reprend votre vieille guimbarde ?', choices: [
     { label: '🚗 Voir les voitures neuves', action: (m) => { m.close(); openNew(); } },
+    { label: '🔑 Essai gratuit (3 min)', action: (m) => { m.close(); testDrivePanel(g, b, b.shop); } },
     { label: '💸 Faire reprendre un véhicule', action: (m) => { m.close(); const mm = g.ui.modal({ title: '💸 Reprise', sub: 'Prix selon le modèle, le kilométrage et les bosses.', build: (body) => sellVehicles(g, body, () => mm.refresh()) }); } },
     { label: 'Au revoir', ghost: true, action: (m) => m.close() },
   ] });

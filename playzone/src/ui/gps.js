@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { findRoute, BUILDINGS, BUILDING_BY_ID, MINIGAME_SPOTS, POI, PARKINGS, GAS_STATIONS, CITY_POI } from '../../shared/world-layout.js';
+import { findRoute, nearestRoadPoint, STREET_BY_ID, BUILDINGS, BUILDING_BY_ID, MINIGAME_SPOTS, POI, PARKINGS, GAS_STATIONS, CITY_POI } from '../../shared/world-layout.js';
 import { HOUSING_BY_ID } from '../../shared/property.js';
+import { PITCH } from '../../shared/sports.js';
 import { VEHICLES } from '../../shared/content/vehicles.js';
 
 // GPS : itinéraire le long des routes jusqu'à une destination (repère, boutique, mission...).
@@ -12,7 +13,7 @@ const CAT = {
   leisure: '🎡 Loisirs', job: '💼 Métiers', home: '🏠 Logement', other: '📍 Autres lieux',
 };
 const FOOD = new Set(['cafe', 'bakery', 'burger', 'pizzeria', 'tacos', 'homard', 'poisson', 'cafe2', 'paillote', 'superette', 'supermarket', 'farm', 'station']);
-const CARS = new Set(['vehicles', 'cars-new', 'cars-used', 'bikes', 'repair', 'rental', 'scrapyard']);
+const CARS = new Set(['vehicles', 'cars-new', 'cars-luxe', 'auto-ecole', 'cars-used', 'bikes', 'repair', 'rental', 'scrapyard']);
 
 // Liste des destinations proposées (chez moi, mes véhicules, bâtiments nommés, lieux de loisirs).
 export function destinations(profile = null) {
@@ -40,6 +41,8 @@ export function destinations(profile = null) {
   out.push({ id: 'circuit', name: 'Circuit Turbo-Mamie', cat: 'leisure', x: CITY_POI.circuit.x - 40, z: CITY_POI.circuit.z + CITY_POI.circuit.rz + 6 });
   out.push({ id: 'parc', name: 'Parc de loisirs (stands)', cat: 'leisure', x: POI.parkGate.x, z: POI.parkGate.z });
   out.push({ id: 'tartes', name: 'Stand de tartes', cat: 'leisure', x: MINIGAME_SPOTS.pieToss.x, z: MINIGAME_SPOTS.pieToss.z });
+  out.push({ id: 'stade', name: '⚽ Stade des Crampons (foot)', cat: 'leisure', x: PITCH.x, z: PITCH.z + PITCH.d / 2 + 14 });
+  out.push({ id: 'surf-spot', name: '🪁 Spot de wingfoil (Surf Shop)', cat: 'leisure', x: 430, z: 50 });
   out.push({ id: 'place', name: 'Grande Place', cat: 'other', x: 0, z: 12 });
   out.push({ id: 'plage', name: 'Plage des Orteils', cat: 'leisure', x: 0, z: 74 });
   for (const g of GAS_STATIONS) out.push({ id: `gaz-${g.id}`, name: `⛽ ${g.name}`, cat: 'cars', x: g.x, z: g.z });
@@ -84,6 +87,28 @@ export class GPS {
     let d = 0;
     for (let i = 1; i < this.route.length; i++) d += Math.hypot(this.route[i].x - this.route[i - 1].x, this.route[i].z - this.route[i - 1].z);
     return d;
+  }
+
+  // Guidage vocal-style : prochaine manœuvre { icon, text, dist } (virage, rue suivante, arrivée).
+  instruction() {
+    const r = this.route, P = this.game.player.pos;
+    if (!this.dest) return null;
+    if (!r || r.length < 3) return { icon: '🏁', text: `Destination : ${this.dest.label || 'à proximité'}`, dist: this.remaining() };
+    let d = Math.hypot(r[1].x - P.x, r[1].z - P.z);
+    for (let i = 1; i < r.length - 1; i++) {
+      const a = r[i - 1], b = r[i], c = r[i + 1];
+      const d1x = b.x - a.x, d1z = b.z - a.z, d2x = c.x - b.x, d2z = c.z - b.z;
+      const l1 = Math.hypot(d1x, d1z) || 1, l2 = Math.hypot(d2x, d2z) || 1;
+      const cross = (d1x * d2z - d1z * d2x) / (l1 * l2), dot = (d1x * d2x + d1z * d2z) / (l1 * l2);
+      if (dot < 0.8 && l2 > 3) {
+        const road = nearestRoadPoint((b.x + c.x) / 2, (b.z + c.z) / 2);
+        const name = road && road.dist < 10 ? STREET_BY_ID[road.edge.street]?.name : null;
+        const turn = dot < -0.5 ? ['⤵️', 'Fais demi-tour'] : cross > 0 ? ['➡️', 'Tourne à droite'] : ['⬅️', 'Tourne à gauche'];
+        return { icon: turn[0], text: `${turn[1]}${name ? ` sur ${name}` : ''}`, dist: d };
+      }
+      d += Math.hypot(c.x - b.x, c.z - b.z);
+    }
+    return { icon: '⬆️', text: `Continue tout droit jusqu'à ${this.dest.label || 'la destination'}`, dist: this.remaining() };
   }
 
   // Prochain point à viser (pour la boussole).

@@ -11,7 +11,7 @@ function noise(x, z) {
 export function buildTerrain() {
   const B = WORLD_BOUNDS;
   const sx = B.maxX - B.minX + 90, sz = B.maxZ - B.minZ + 90;
-  const geo = new THREE.PlaneGeometry(sx, sz, Math.round(sx / 3.5), Math.round(sz / 3.5)).rotateX(-Math.PI / 2);
+  const geo = new THREE.PlaneGeometry(sx, sz, Math.round(sx / 5), Math.round(sz / 5)).rotateX(-Math.PI / 2);
   geo.translate((B.minX + B.maxX) / 2, 0, (B.minZ + B.maxZ) / 2);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
@@ -30,9 +30,10 @@ export function buildTerrain() {
     // campagne plus verte, quartiers nord légèrement plus jaunes, forêt
     if (x < -136 && z < 56) c.lerp(new THREE.Color('#6fb14d'), 0.4);
     if (z < -340) c.lerp(new THREE.Color('#5fa045'), 0.5 + n * 0.2);
-    if (z > beachEdge && !(x > 140)) c.copy(sand).lerp(wet, Math.min(1, Math.max(0, (z - 86) / 6)));
-    else if (z > beachEdge - 2 && !(x > 140)) c.lerp(sand, (z - beachEdge + 2) / 2);
-    if (x > 140 && z > 56) c.set('#a9a59c');
+    if (z > beachEdge && !(x > 140 && x < 300)) c.copy(sand).lerp(wet, Math.min(1, Math.max(0, (z - 86) / 6)));
+    else if (z > beachEdge - 2 && !(x > 140 && x < 300)) c.lerp(sand, (z - beachEdge + 2) / 2);
+    if (x > 140 && x < 300 && z > 56) c.set('#a9a59c');
+    if (x < -300 && x > -840 && z < 50 && z > -430 && Math.sin(z * 1.4) > 0.55) c.lerp(new THREE.Color('#3e6b2a'), 0.55); // rangs de vigne
     if (x < -62 && x > -136 && z < -62 && z > -136) c.copy(forest).lerp(grassDark, 0.5 + n * 0.3);
     if (x < -150 && x > -300 && z < -140 && z > -335) c.lerp(new THREE.Color('#8f9a7a'), 0.45); // zone industrielle
     if (x < B.minX - 2 || x > B.maxX + 2) c.copy(sand).lerp(wet, 0.5);
@@ -92,7 +93,7 @@ export function buildWater() {
     foam: { value: new THREE.Color('#ffffff') }, light: { value: 1 },
   }]);
   const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, transparent: true, fog: true, depthWrite: false });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400, 70, 70).rotateX(-Math.PI / 2), mat);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3400, 2600, 85, 65).rotateX(-Math.PI / 2).translate(0, 0, -300), mat);
   mesh.position.y = WATER_LEVEL;
   mesh.renderOrder = 1;
   mesh.name = 'water';

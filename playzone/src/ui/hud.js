@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { h, clear, fmt } from './dom.js';
 import { BUILDINGS, ROADS, POND, zoneAt, WORLD_BOUNDS, POI, MINIGAME_SPOTS, PARKINGS, CITY_POI, PORT_QUAY } from '../../shared/world-layout.js';
 import { levelProgress } from '../../shared/rules.js';
+import { PITCH } from '../../shared/sports.js';
 import { formatHour } from '../world/daynight.js';
 
 // Affichage tête haute : argent, niveau, réputation, zone, horloge, mini-carte, missions, boussole.
@@ -23,8 +24,12 @@ export function drawMapBase(px = 2) {
   for (const [x1, z1, x2, z2] of [[-283, -63, -228, -14], [-212, -132, -150, -78], [-283, -132, -228, -78], [-212, 10, -150, 50]]) rect(x1, z1, x2, z2, '#b08850');
   rect(B.minX, 64, 140, B.maxZ, '#f2d59b');               // plages
   rect(B.minX, 93, 140, B.maxZ, '#2e9fd6');                // mer
-  rect(140, 56, B.maxX, PORT_QUAY.z, '#b3aea4');          // quai du port
-  rect(140, PORT_QUAY.z, B.maxX, B.maxZ, '#2e9fd6');
+  rect(140, 56, 300, PORT_QUAY.z, '#b3aea4');          // quai du port
+  rect(140, PORT_QUAY.z, 300, B.maxZ, '#2e9fd6');
+  rect(300, 64, B.maxX, B.maxZ, '#f2d59b'); rect(300, 93, B.maxX, B.maxZ, '#2e9fd6'); // plages de la Côte des Villas
+  rect(-840, -430, -300, 50, '#7fae55');                   // vignobles
+  rect(-900, -1000, 900, -880, '#6aa84f');                 // abords de l'autoroute
+  rect(PITCH.x - PITCH.w / 2, PITCH.z - PITCH.d / 2, PITCH.x + PITCH.w / 2, PITCH.z + PITCH.d / 2, '#3f9a3a'); // stade
   g.fillStyle = '#2e9fd6'; g.beginPath(); g.arc(X(POND.x), Y(POND.z), POND.r * px, 0, 7); g.fill();
   rect(-24, -24, 24, 24, '#e8d5b5');                       // place
   g.fillStyle = '#e9d8a6'; g.beginPath(); g.arc(X(CITY_POI.arena.x), Y(CITY_POI.arena.z), CITY_POI.arena.r * px, 0, 7); g.fill();
@@ -58,7 +63,7 @@ export function drawRoute(g, toScreen, route, scale = 1) {
   g.restore();
 }
 
-const SHOP_ICON = { clothes: '👕', furniture: '🛋️', pets: '🐾', vehicles: '🛵', cafe: '☕', bakery: '🥖', burger: '🍔', pizzeria: '🍕', tacos: '🌮', homard: '🦞', poisson: '🐟', cafe2: '☕', paillote: '🍹', immo: '🏡', electronics: '📺', 'cars-new': '🚗', 'cars-used': '🚙', bikes: '🏍️', repair: '🔧', 'furniture-used': '🪑', 'pet-acc': '🦴', supermarket: '🛒', superette: '🛒', 'clothes-used': '🧥', depot: '♻️', brocante: '🏺', station: '⛽', rental: '🔑', scrapyard: '🔩', farm: '🥕' };
+const SHOP_ICON = { clothes: '👕', furniture: '🛋️', pets: '🐾', vehicles: '🛵', cafe: '☕', bakery: '🥖', burger: '🍔', pizzeria: '🍕', tacos: '🌮', homard: '🦞', poisson: '🐟', cafe2: '☕', paillote: '🍹', immo: '🏡', electronics: '📺', 'cars-new': '🚗', 'cars-luxe': '🏎️', hightech: '🖥️', armurerie: '🎯', 'auto-ecole': '🚦', 'pole-emploi': '💼', 'foot-club': '⚽', surf: '🪁', 'cars-used': '🚙', bikes: '🏍️', repair: '🔧', 'furniture-used': '🪑', 'pet-acc': '🦴', supermarket: '🛒', superette: '🛒', 'clothes-used': '🧥', depot: '♻️', brocante: '🏺', station: '⛽', rental: '🔑', scrapyard: '🔩', farm: '🥕' };
 const SERVICE_ICON = { police: '👮', hospital: '🏥', mairie: '🏛️', bank: '🏦', school: '🏫', prison: '⛓️', cinema: '🎬', bowling: '🎳', arcade: '🕹️', gym: '💪', office: '🏢' };
 const MAP_ICONS = [
   ...BUILDINGS.filter((b) => b.kind === 'shop' || b.kind === 'job' || b.kind === 'home' || b.kind === 'service' || b.kind === 'home-buy').map((b) => ({ x: b.door.x, z: b.door.z, icon: { delivery: '📦', firefighter: '🚒', cook: '🍔' }[b.job] || SHOP_ICON[b.shop] || SERVICE_ICON[b.interior] || '🏠' })),
@@ -96,7 +101,7 @@ export class HUD {
     this.clock = h('div.clock', '12:00');
     this.zoneEl = h('div.hud-zone', this.zoneName, this.clock);
     this.tr = h('div.hud-tr');
-    this.compass = h('div.compass', this.compassArrow = h('div.arrow'), this.compassDist = h('div.dist'));
+    this.compass = h('div.compass', this.compassArrow = h('div.arrow'), this.compassDist = h('div.dist'), this.compassTurn = h('div.turn'));
     this.mapCanvas = h('canvas', { width: 336, height: 336 });
     this.minimap = h('div.minimap', { title: 'Carte', onclick: () => game.phone?.open('map') }, this.mapCanvas);
     this.eventBanner = h('div.event-banner.hidden');
@@ -197,7 +202,13 @@ export class HUD {
       const camF = g.cam.yaw;
       const ang = Math.atan2(dx, dz) - (camF + Math.PI);
       this.compassArrow.style.transform = `rotate(${-ang * 180 / Math.PI}deg)`;
-      this.compassDist.textContent = `${t.label ? `${t.label} · ` : ''}${Math.round(d)} m`;
+      const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1).replace('.', ',')} km` : `${Math.round(m / 10) * 10} m`);
+      const ins = t0 && g.gps?.dest ? g.gps.instruction() : null;
+      const speed = g.vehicles?.driving ? Math.max(8, Math.abs(g.vehicles.current?.speed || 0)) : 4.5;
+      const eta = Math.max(1, Math.round(d / speed / 60));
+      this.compassDist.textContent = `${t.label ? `${t.label} · ` : ''}${km(d)} · ${eta} min`;
+      this.compassTurn.textContent = ins ? `${ins.icon} Dans ${km(ins.dist)} : ${ins.text}` : '';
+      this.compassTurn.style.display = ins ? '' : 'none';
     } else this.compass.classList.remove('show');
     // mini-carte (10 fois par seconde)
     this._mm += dt;

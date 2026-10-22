@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PITCH_RECT } from '../../shared/sports.js';
 import { BUILDINGS, ROADS, PARKINGS, GAS_STATIONS, CITY_POI, WORLD_BOUNDS, STREETS, PORT_QUAY } from '../../shared/world-layout.js';
 import { BUILDING_BY_ID } from '../../shared/world-layout.js';
 import { mulberry32 } from '../../shared/rng.js';
@@ -18,6 +19,7 @@ const busy = [];
 for (const r of ROADS) busy.push([r[0] - 3, r[1] - 3, r[2] + 3, r[3] + 3]);
 for (const b of BUILDINGS) busy.push([b.x - b.w / 2 - 2.5, b.z - b.d / 2 - 2.5, b.x + b.w / 2 + 2.5, b.z + b.d / 2 + 4.5]);
 for (const p of PARKINGS) busy.push([p.x1 - 1, p.z1 - 1, p.x2 + 1, p.z2 + 1]);
+busy.push(PITCH_RECT);
 for (const g of GAS_STATIONS) busy.push([g.x - g.w / 2 - 3, g.z - g.d / 2 - 3, g.x + g.w / 2 + 3, g.z + g.d / 2 + 3]);
 for (const b of BUILDINGS) { const l = b.lot || b.yard || b.wall; if (l) busy.push([l.x1 - 1, l.z1 - 1, l.x2 + 1, l.z2 + 1]); }
 export function block(x1, z1, x2, z2) { busy.push([Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2)]); }
@@ -281,8 +283,15 @@ export function buildCityProps(sb, col, scene, world) {
   for (let i = 0; i < 60; i++) { const x = R(140, 298), z = R(-134, 54); if (isFree(x, z, 1.2)) tree(sb, col, x, z, 'round', R(0.85, 1.1)); }
 
   // ---------- collines au-delà de la limite nord, falaises est/ouest et limites invisibles
-  for (let i = 0; i < 26; i++) {
-    const x = -320 + i * 26 + R(-6, 6);
+  // ---------- grande carte : forêts et bosquets des nouveaux quartiers, vignes, haies le long de l'autoroute
+  for (let i = 0; i < 520; i++) {
+    const x = R(-895, 895), z = R(-995, 55);
+    if (x > -300 && x < 300 && z > -520) continue;
+    if (isFree(x, z, 2)) tree(sb, col, x, z, i % 3 ? 'round' : 'pine', R(0.9, 1.3));
+  }
+  for (let z = -425; z < 45; z += 9) for (let x = -830; x < -310; x += 26) if (isFree(x, z, 1) && isFree(x + 18, z, 1)) sb.box(x + 9, 0, z, 18, 0.9, 0.5, '#3e6b2a');
+  for (let i = 0; i < Math.round((WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX) / 26) + 2; i++) {
+    const x = WORLD_BOUNDS.minX - 20 + i * 26 + R(-6, 6);
     sb.blob(x, -8, WORLD_BOUNDS.minZ - 30 - R(0, 30), R(30, 50), i % 2 ? '#6aa84f' : '#5b9a45', 0.6);
   }
   const B = WORLD_BOUNDS;

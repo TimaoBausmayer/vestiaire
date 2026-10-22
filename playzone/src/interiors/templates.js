@@ -237,7 +237,7 @@ export const TEMPLATES = {
   showroom(t) {
     const I = t.inner;
     lightsAround(t);
-    const models = t.b.shop === 'cars-new' ? ['sportive', 'suv', 'berline', 'coupe', 'citadine'] : ['berline', 'citadine', 'pickup'];
+    const models = t.b.shop === 'cars-luxe' ? ['chiron-mamie', 'furioso', 'fantome', 'suv-taureau', 'gt-velours', 'volt-plaid', 'sportive', 'coupe', 'chiron-mamie'] : t.b.shop === 'cars-new' ? ['sportive', 'suv', 'berline', 'coupe', 'citadine'] : ['berline', 'citadine', 'pickup'];
     const n = Math.min(models.length, Math.floor((I.x2 - I.x1) / 7));
     for (let i = 0; i < n; i++) {
       const x = I.x1 + 4 + i * ((I.x2 - I.x1 - 8) / Math.max(1, n - 1));
@@ -329,7 +329,7 @@ export const TEMPLATES = {
     t.furn('bureau', dx, dz, 0); t.solid(dx, dz, 1.8, 1, 1);
     t.staff(dx, dz - 0.9, 0, t.b.shop === 'scrapyard' ? 'ferrailleur' : 'agent');
     t.furn('chaise', dx - 0.5, dz + 0.9, Math.PI); t.furn('chaise', dx + 0.5, dz + 0.9, Math.PI);
-    const labels = { immo: '🏡 Voir les annonces immobilières', rental: '🔑 Louer un véhicule', 'cars-used': '🚙 Voir les voitures d\'occasion', scrapyard: '🔩 Vendre une épave / pièces détachées' };
+    const labels = { 'foot-club': '⚽ Club de foot : inscription gratuite, entraînements, matchs', 'auto-ecole': '🚦 Code et examen du permis', 'pole-emploi': '💼 Consulter les offres d\'emploi', immo: '🏡 Voir les annonces immobilières', rental: '🔑 Louer un véhicule', 'cars-used': '🚙 Voir les voitures d\'occasion', scrapyard: '🔩 Vendre une épave / pièces détachées' };
     t.spot(dx, dz + 1.5, { label: labels[t.b.shop] || '💬 Parler à l\'agent', action: t.b.shop ? 'shop' : 'talk', r: 2.2, priority: 2 });
     for (let x = I.x1 + 1; x < I.x2 - 1; x += 1.8) poster(t, x, I.z1 + 0.1, 0, PRODUCT_COLORS[Math.floor(x + 20) % 8], 1.3, 0.9);
     plant(t, I.x1 + 0.6, I.z2 - 0.6); plant(t, I.x2 - 0.6, I.z2 - 0.6);

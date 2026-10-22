@@ -84,6 +84,20 @@ export default {
     { id: 'ordinateur', name: 'Ordinateur de bureau', shop: 'electronics', furniture: true, price: 900, emoji: '💻', desc: 'Affiche 47 onglets ouverts en permanence.' },
     { id: 'tele-geante', name: 'Télé géante', shop: 'electronics', furniture: true, price: 1500, emoji: '📺', desc: 'Tellement grande qu\'on voit les pores des présentateurs.', level: 4 },
     { id: 'radio', name: 'Radio vintage', shop: 'electronics', furniture: true, price: 120, emoji: '📻', desc: 'Ne capte qu\'une station : "Radio Poulet".' },
+    // ---------- MégaTech (high-tech) : à installer chez soi
+    { id: 'pc-gamer', name: 'PC gamer RGB', shop: 'hightech', furniture: true, price: 2400, emoji: '🖥️', desc: '240 images par seconde, 3 arcs-en-ciel par seconde.' },
+    { id: 'tele-8k', name: 'Télé 8K incurvée', shop: 'hightech', furniture: true, price: 4200, emoji: '📺', desc: 'On voit les pensées des présentateurs.', level: 6 },
+    { id: 'casque-vr', name: 'Casque de réalité virtuelle', shop: 'hightech', furniture: true, price: 650, emoji: '🥽', desc: 'Pour visiter PLAYZONE... dans PLAYZONE.' },
+    { id: 'drone', name: 'Drone caméra', shop: 'hightech', furniture: true, price: 1100, emoji: '🛸', desc: 'Les pigeons le prennent pour un chef.' },
+    { id: 'enceinte-dj', name: 'Platines de DJ', shop: 'hightech', furniture: true, price: 1800, emoji: '🎛️', desc: 'Pour les soirées chez toi. Les voisins dansent (de colère).' },
+    { id: 'robot-aspi', name: 'Robot aspirateur', shop: 'hightech', furniture: true, price: 380, emoji: '🤖', desc: 'Il a peur des chaussettes.' },
+    { id: 'console-pro', name: 'Console nouvelle génération', shop: 'hightech', furniture: true, price: 600, emoji: '🎮', desc: 'Introuvable partout. Sauf ici.', also: ['electronics'] },
+    // ---------- Surf Shop : wingfoil (aile + planche + foil)
+    { id: 'wingfoil', name: 'Wingfoil complet (aile 5 m², planche, foil)', shop: 'surf', special: true, price: 1800, emoji: '🪁', desc: 'Pour voler au-dessus de l\'eau quand il y a du vent (10 nœuds minimum).', max: 1 },
+    // ---------- Armurerie : matériel de tir, utilisable UNIQUEMENT au stand de tir (séance à moitié prix)
+    { id: 'arme-pistolet', name: 'Pistolet de tir sportif (licence)', shop: 'armurerie', special: true, price: 1500, emoji: '🔫', desc: 'Reste au coffre du stand de tir. Séances au pistolet à moitié prix.', max: 1, level: 3 },
+    { id: 'arme-carabine', name: 'Carabine .22 à lunette (licence)', shop: 'armurerie', special: true, price: 2600, emoji: '🎯', desc: 'Reste au coffre du stand de tir. Séances à la carabine à moitié prix.', max: 1, level: 5 },
+    { id: 'casque-tir', name: 'Casque antibruit', shop: 'armurerie', slot: 'hat', price: 90, emoji: '🎧', desc: 'Protège les oreilles. Et des conversations ennuyeuses.' },
     // ---------- Meubles Mous : cuisine et salle de bain (pour cuisiner et se doucher chez soi)
     { id: 'cuisiniere', name: 'Cuisinière', shop: 'furniture', furniture: true, price: 350, emoji: '🍳', desc: 'Pour cuisiner des pâtes, des omelettes... ou des catastrophes.' },
     { id: 'douche', name: 'Douche à l\'italienne', shop: 'furniture', furniture: true, price: 400, emoji: '🚿', desc: 'Chante sous la douche : c\'est obligatoire.' },

@@ -4,8 +4,8 @@
 // Le centre historique (-128..128) est complété par la grande ville décrite dans city.js.
 import { BOUNDS, STREETS, streetRect, CITY_ZONES, CITY_BUILDINGS, CITY_POI, PARKINGS, GAS_STATIONS } from './city.js';
 
-export { STREETS, ROAD_GRAPH, findRoute, nearestRoadPoint, nearestNode, PARKINGS, GAS_STATIONS, CITY_POI } from './city.js';
-export const WORLD_BOUNDS = BOUNDS;     // la carte va de -300 à 300 (X) et de -420 à 140 (Z)
+export { STREETS, STREET_BY_ID, ROAD_GRAPH, findRoute, nearestRoadPoint, nearestNode, PARKINGS, GAS_STATIONS, CITY_POI } from './city.js';
+export const WORLD_BOUNDS = BOUNDS;     // la carte va de -900 à 900 (X) et de -1000 à 140 (Z)
 export const WORLD_HALF = 128;          // demi-taille du centre historique (ancien plan)
 export const WATER_LEVEL = -0.35;       // niveau de la mer et de l'étang
 export const SEA_SLOPE_START = 90;      // au sud de ce Z, le sol descend dans la mer
@@ -21,7 +21,7 @@ export function inBounds(x, z, margin = 0) {
 // Hauteur du sol (le terrain est plat sauf la mer, le port et l'étang).
 export function groundHeight(x, z) {
   let h = 0;
-  if (x > PORT_QUAY.x && z > 56) { if (z > PORT_QUAY.z) h = -4.5; }
+  if (x > PORT_QUAY.x && x < 300 && z > 56) { if (z > PORT_QUAY.z) h = -4.5; }
   else if (z > SEA_SLOPE_START) h = -Math.min(4.5, (z - SEA_SLOPE_START) * 0.2);
   // côtes est et ouest : l'île plonge dans la mer
   const edge = Math.max(-x + BOUNDS.minX, x - BOUNDS.maxX);

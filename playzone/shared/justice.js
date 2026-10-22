@@ -21,7 +21,7 @@ export const FINES = {
   'feu-rouge': { name: 'Feu rouge grillé', amount: 135, points: 4 },
   'sans-permis': { name: 'Conduite sans permis', amount: 750, points: 0 },
 };
-export const SPEED_LIMIT = { main: 50, street: 50, country: 80 };   // km/h
+export const SPEED_LIMIT = { main: 50, street: 50, country: 80, highway: 130 };   // km/h
 export const LICENCE = { code: 30, permis: 900, points: 12 };
 
 export function defaultJustice() {

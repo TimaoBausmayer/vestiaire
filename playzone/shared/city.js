@@ -4,7 +4,7 @@
 // industrielle, campagne, plage sauvage, parc de loisirs, circuit et prison.
 // Repère : X vers l'est, Z vers le sud. Unité ≈ 1 m.
 
-export const BOUNDS = { minX: -300, maxX: 300, minZ: -500, maxZ: 140 };
+export const BOUNDS = { minX: -900, maxX: 900, minZ: -1000, maxZ: 240 };
 
 // ---------------------------------------------------------------------------------------------
 // RUES : segments horizontaux (h : z fixe, de x1 à x2) ou verticaux (v : x fixe, de z1 à z2).
@@ -46,6 +46,25 @@ export const STREETS = [
   { id: 'ouest-nord', name: 'Route de l\'Ouest', axis: 'v', x: -290, z1: -430, z2: -335, w: 8, kind: 'main' },
   { id: 'periph-o-nord', name: 'Boulevard Périphérique Ouest', axis: 'v', x: -140, z1: -430, z2: -335, w: 9, kind: 'main' },
   { id: 'periph-e-nord', name: 'Boulevard Périphérique Est', axis: 'v', x: 140, z1: -430, z2: -335, w: 9, kind: 'main' },
+  // --- GRANDE CARTE : autoroute en anneau (nord, ouest, est), corniche prolongée et nouveaux quartiers
+  { id: 'a1-nord', name: 'Autoroute A1 du Soleil', axis: 'h', z: -940, x1: -840, x2: 840, w: 16, kind: 'highway' },
+  { id: 'a1-ouest', name: 'Autoroute A1 du Soleil', axis: 'v', x: -840, z1: -940, z2: 60, w: 16, kind: 'highway' },
+  { id: 'a1-est', name: 'Autoroute A1 du Soleil', axis: 'v', x: 840, z1: -940, z2: 60, w: 16, kind: 'highway' },
+  { id: 'corniche-o', name: 'Route de la Corniche', axis: 'h', z: 60, x1: -840, x2: -290, w: 8, kind: 'main' },
+  { id: 'corniche-e', name: 'Route de la Corniche', axis: 'h', z: 60, x1: 290, x2: 840, w: 8, kind: 'main' },
+  { id: 'nationale-o', name: 'Route Nationale 7', axis: 'h', z: -140, x1: -840, x2: -290, w: 9, kind: 'main' },
+  { id: 'nationale-e', name: 'Route Nationale 7', axis: 'h', z: -140, x1: 290, x2: 840, w: 10, kind: 'main' },
+  { id: 'prestige', name: 'Avenue de Prestige', axis: 'h', z: -335, x1: 290, x2: 840, w: 9, kind: 'main' },
+  { id: 'vignes', name: 'Route des Vignes', axis: 'h', z: -335, x1: -840, x2: -290, w: 7, kind: 'country' },
+  { id: 'paillettes-e', name: 'Boulevard des Paillettes', axis: 'h', z: -430, x1: 140, x2: 840, w: 10, kind: 'main' },
+  { id: 'paillettes-o', name: 'Route des Collines', axis: 'h', z: -430, x1: -840, x2: -290, w: 8, kind: 'country' },
+  { id: 'hauts', name: 'Avenue des Hauts', axis: 'h', z: -700, x1: -840, x2: 840, w: 9, kind: 'main' },
+  { id: 'vignobles', name: 'Route des Vignobles', axis: 'v', x: -560, z1: -940, z2: 60, w: 7, kind: 'country' },
+  { id: 'emploi', name: 'Boulevard de l\'Emploi', axis: 'v', x: 560, z1: -940, z2: 60, w: 9, kind: 'main' },
+  { id: 'ouest-haut', name: 'Route de l\'Ouest', axis: 'v', x: -290, z1: -940, z2: -430, w: 8, kind: 'main' },
+  { id: 'periph-o-haut', name: 'Boulevard Périphérique Ouest', axis: 'v', x: -140, z1: -940, z2: -430, w: 9, kind: 'main' },
+  { id: 'periph-e-haut', name: 'Boulevard Périphérique Est', axis: 'v', x: 140, z1: -940, z2: -430, w: 9, kind: 'main' },
+  { id: 'est-haut', name: 'Route de l\'Est', axis: 'v', x: 290, z1: -940, z2: -430, w: 8, kind: 'main' },
 ];
 export const STREET_BY_ID = Object.fromEntries(STREETS.map((s) => [s.id, s]));
 
@@ -93,7 +112,7 @@ export const ROAD_GRAPH = (() => {
   for (const n of nodes) {
     n.degree = n.edges.length;
     const mains = [...n.streets].filter((id) => STREET_BY_ID[id].kind === 'main').length;
-    n.light = n.degree >= 3 && mains >= 1 && n.streets.size >= 2;
+    n.light = n.degree >= 3 && mains >= 1 && n.streets.size >= 2 && ![...n.streets].some((id) => STREET_BY_ID[id].kind === 'highway');
   }
   return { nodes, edges };
 })();
@@ -163,7 +182,12 @@ export const CITY_ZONES = [
   { id: 'prison', name: 'Prison de la Pomme Pourrie', rect: [-300, -420, -136, -335] },
   { id: 'loisirs', name: 'Parc des Loisirs Fous', rect: [-136, -420, 136, -335] },
   { id: 'circuit', name: 'Circuit Turbo-Mamie', rect: [136, -420, 300, -335] },
-  { id: 'paillettes', name: 'Quartier des Paillettes', rect: [-300, -500, 300, -420] },
+  { id: 'paillettes', name: 'Quartier des Paillettes', rect: [-300, -520, 300, -420] },
+  { id: 'prestige', name: 'Avenue de Prestige (luxe, emploi, auto-école)', rect: [300, -430, 900, -140] },
+  { id: 'villas', name: 'Côte des Villas', rect: [300, -140, 900, 140] },
+  { id: 'vignobles', name: 'Vignobles du Pinard', rect: [-900, -430, -300, 140] },
+  { id: 'hauts', name: 'Les Hauts de PLAYZONE', rect: [-900, -880, 900, -430] },
+  { id: 'autoroute', name: 'Autoroute A1 du Soleil', rect: [-900, -1000, 900, -880] },
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -172,6 +196,7 @@ export const CITY_ZONES = [
 // style (rendu), color, roof (flat | gable), roofColor, sign, floors, interior (modèle d'intérieur visitable),
 // shop (catalogue vendu), district.
 const B = [];
+const HOUSE_COLORS0 = ['#f4d35e', '#ee964b', '#83c5be', '#e5989b', '#b5e48c', '#a2d2ff', '#ffc8dd', '#cdb4db'];
 const add = (o) => { B.push({ roof: 'flat', floors: 1, ...o }); };
 
 // --- Quartier Lumière (affaires)
@@ -240,6 +265,47 @@ add({ id: 'circuit-stand', name: 'Karting du Circuit Turbo-Mamie', kind: 'servic
 add({ id: 'casino', name: 'Casino Royal Pomme', kind: 'service', interior: 'casino', x: 0, z: -452, w: 40, d: 28, h: 12, facing: 'S', style: 'cinema', color: '#1b1446', roofColor: '#d4a017', sign: 'CASINO ROYAL POMME', neon: true, district: 'paillettes' });
 add({ id: 'stand-tir', name: 'Stand de tir Dédé la Gâchette', kind: 'service', interior: 'range', x: -60, z: -453, w: 26, d: 30, h: 7, facing: 'S', style: 'warehouse', color: '#6b705c', roofColor: '#3a3a3a', sign: 'STAND DE TIR', district: 'paillettes' });
 
+// --- Avenue de Prestige : concession de luxe, auto-école, Pôle emploi, armurerie, high-tech
+add({ id: 'concession-luxe', name: 'Prestige Motors (concession de luxe)', kind: 'shop', shop: 'cars-luxe', interior: 'showroom', x: 372, z: -175, w: 72, d: 38, h: 11, facing: 'S', style: 'showroom', color: '#111318', roofColor: '#d4a017', sign: 'PRESTIGE MOTORS', neon: true, district: 'prestige' });
+add({ id: 'auto-ecole', name: 'Auto-École Pas de Panique', kind: 'shop', shop: 'auto-ecole', interior: 'agency', x: 450, z: -166, w: 24, d: 18, h: 7, facing: 'S', color: '#ffffff', roofColor: '#e63946', sign: 'AUTO-ÉCOLE PAS DE PANIQUE', awning: '#e63946', district: 'prestige' });
+add({ id: 'pole-emploi', name: 'Pôle Emploi (France Boulot)', kind: 'shop', shop: 'pole-emploi', interior: 'agency', x: 512, z: -166, w: 32, d: 18, h: 9, floors: 2, facing: 'S', color: '#dfe7fd', roofColor: '#1d3557', sign: 'PÔLE EMPLOI', district: 'prestige' });
+add({ id: 'armurerie', name: 'Armurerie Le Chasseur Distrait', kind: 'shop', shop: 'armurerie', interior: 'shop', x: 336, z: -310, w: 24, d: 16, h: 7, facing: 'N', color: '#4a4e3a', roofColor: '#1b1b1b', sign: 'ARMURERIE', district: 'prestige' });
+add({ id: 'hightech', name: 'MégaTech (high-tech)', kind: 'shop', shop: 'hightech', interior: 'shop', x: 420, z: -305, w: 60, d: 28, h: 10, facing: 'N', style: 'big-box', color: '#0b132b', roofColor: '#00b4d8', sign: 'MÉGATECH', neon: true, district: 'prestige' });
+add({ id: 'station-a1', name: 'Aire de l\'Autoroute du Soleil', kind: 'shop', shop: 'station', interior: 'minimarket', x: 0, z: -905, w: 14, d: 9, h: 4.5, facing: 'N', style: 'station', color: '#f4f1ea', roofColor: '#1d3557', sign: 'AIRE DU SOLEIL', district: 'autoroute', gas: { x: 0, z: -922, w: 16, d: 12 } });
+add({ id: 'station-prestige', name: 'Station Prestige', kind: 'shop', shop: 'station', interior: 'minimarket', x: 620, z: -300, w: 14, d: 9, h: 4.5, facing: 'N', style: 'station', color: '#f4f1ea', roofColor: '#d4a017', sign: 'STATION PRESTIGE', district: 'prestige', gas: { x: 620, z: -318, w: 16, d: 12 } });
+
+// --- Stade des Crampons (football) : club-house au bord du boulevard des Paillettes, terrain au nord
+add({ id: 'club-foot', name: 'Club-house du Stade des Crampons', kind: 'shop', shop: 'foot-club', interior: 'agency', x: 450, z: -470, w: 24, d: 12, h: 7, facing: 'S', color: '#2a9d3a', roofColor: '#ffffff', sign: 'STADE DES CRAMPONS · FOOT', district: 'hauts' });
+
+// --- Surf Shop (wingfoil) sur la corniche, face à la mer
+add({ id: 'surf-shop', name: 'Surf Shop Vent Debout', kind: 'shop', shop: 'surf', interior: 'shop', x: 430, z: 38, w: 16, d: 12, h: 6, facing: 'S', roof: 'gable', style: 'hut', color: '#90e0ef', roofColor: '#ff9f1c', sign: 'SURF SHOP · WINGFOIL', district: 'villas' });
+
+// --- Côte des Villas : grandes villas face à la mer (à visiter)
+const VILLA_COLORS = ['#ffffff', '#f4f1ea', '#e9f5db', '#fde2e4', '#e2ece9', '#fff1e6'];
+[340, 400, 460, 520, 610, 670, 730, 790].forEach((x, i) => {
+  add({ id: `villa-cote${i + 1}`, name: `Villa des Embruns ${i + 1}`, kind: 'house', interior: 'house', x, z: -112, w: 18, d: 14, h: 8, floors: 2, facing: 'N', roof: i % 2 ? 'flat' : 'gable', color: VILLA_COLORS[i % 6], roofColor: '#264653', district: 'villas' });
+  add({ id: `villa-mer${i + 1}`, name: `Villa Pieds-dans-l'eau ${i + 1}`, kind: 'house', interior: 'house', x, z: 38, w: 18, d: 14, h: 8, floors: 2, facing: 'S', roof: i % 2 ? 'gable' : 'flat', color: VILLA_COLORS[(i + 3) % 6], roofColor: '#3d5a80', district: 'villas' });
+});
+
+// --- Vignobles du Pinard (campagne ouest)
+for (const [i, [x, z]] of [[-700, -60], [-420, -230], [-700, -380], [-420, 20]].entries()) {
+  add({ id: `domaine${i + 1}`, name: ['Domaine du Pinard', 'Château Piquette', 'Mas des Grappes', 'Ferme du Bouchon'][i], kind: 'house', interior: 'house', x, z, w: 14, d: 11, h: 7, facing: 'E', roof: 'gable', color: '#efe3c2', roofColor: '#7a4b2a', district: 'vignobles' });
+  add({ id: `chai${i + 1}`, name: `Chai ${i + 1}`, kind: 'decor', interior: 'barn', x: x + 30, z: z - 24, w: 20, d: 14, h: 8, facing: 'E', roof: 'gable', style: 'barn', color: '#9c2a24', roofColor: '#4a2620', barn: true, district: 'vignobles' });
+}
+
+// --- Les Hauts de PLAYZONE : lotissement le long de l'avenue des Hauts
+{
+  const roadsX = [-840, -560, -290, -140, 140, 290, 560, 840];
+  let k = 0;
+  for (let x = -810; x <= 810; x += 44) {
+    if (roadsX.some((r) => Math.abs(r - x) < 16)) continue;
+    for (const [z, facing] of [[-714, 'S'], [-686, 'N']]) {
+      k++;
+      add({ id: `maison-h${k}`, name: `${k} avenue des Hauts`, kind: 'house', interior: 'house', x, z, w: 11, d: 10, h: 5.5, facing, roof: 'gable', color: HOUSE_COLORS0[k % HOUSE_COLORS0.length], roofColor: ['#8c3b2f', '#3d5a80', '#6b4226', '#2a6f4e'][k % 4], district: 'hauts' });
+    }
+  }
+}
+
 // --- Campagne des Navets
 add({ id: 'ferme-navets', name: 'Maison de la Ferme des Navets', kind: 'house', interior: 'house', x: -265, z: -25, w: 12, d: 10, h: 6, facing: 'E', roof: 'gable', color: '#efe3c2', roofColor: '#7a4b2a', district: 'campagne' });
 add({ id: 'grange-navets', name: 'Grange des Navets', kind: 'decor', interior: 'barn', x: -245, z: -48, w: 20, d: 16, h: 9, facing: 'E', roof: 'gable', style: 'barn', color: '#9c2a24', roofColor: '#4a2620', barn: true, district: 'campagne' });
@@ -291,6 +357,8 @@ export const PARKINGS = [
   { id: 'p-bowling', name: 'Parking des Loisirs', x1: 60, z1: -355, x2: 130, z2: -343, rows: 'x' },
   { id: 'p-tilleuls', name: 'Parking des Tilleuls', x1: 80, z1: -183, x2: 130, z2: -175, rows: 'x' },
   { id: 'p-port', name: 'Parking du Port', x1: 150, z1: 66, x2: 168, z2: 96, rows: 'z' },
+  { id: 'p-prestige', name: 'Parking Prestige', x1: 460, z1: -326, x2: 540, z2: -314, rows: 'x' },
+  { id: 'p-luxe', name: 'Parking de Prestige Motors', x1: 300, z1: -228, x2: 440, z2: -210, rows: 'x' },
 ];
 
 // Stations-service (pompes) : position de l'auvent.

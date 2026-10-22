@@ -395,6 +395,7 @@ export class Vehicles {
         // autre véhicule percuté : il prend aussi
         const other = hit.collider?.vehicle || hit.collider?.car;
         if (other) g.emit('vehicle.bump', { by: v, other, sev, hit });
+        if (v === this.current && !v.sim.broken && v.sim.damage > 0.5 && !v.warnedDmg) { v.warnedDmg = true; g.ui.toast(`⚠️ Véhicule abîmé (${Math.round(v.sim.damage * 100)} %) : il roule moins vite et glisse. Fais-le réparer dans un garage (Piston Fou, Clé à Molette).`, 'bad', 5500); }
         if (v.sim.broken && v === this.current) g.ui.toast('💥 Ton véhicule est en panne ! Appelle la dépanneuse (appli Garage) et fais-le réparer dans un garage.', 'bad', 5000);
       }
     }
