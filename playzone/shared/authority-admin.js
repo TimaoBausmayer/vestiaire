@@ -1,10 +1,10 @@
-// AUTORITÉ — MODE ADMIN : un code tapé au guichet spécial de la mairie donne tous les pouvoirs.
+// AUTORITÉ — MODE ADMIN : un code tapé dans l'appli Carte du téléphone (ou au guichet de la mairie)
+// donne tous les pouvoirs, partout, même en prison.
 // En solo, le code ci-dessous suffit. En ligne, le serveur n'accepte un code que s'il a été configuré
 // (variable d'environnement PLAYZONE_ADMIN_CODE) : un joueur ne peut pas s'en servir pour tricher.
-import { BUILDING_BY_ID } from './world-layout.js';
 import { MAX_COINS, levelFromXp, xpForLevel, MAX_LEVEL } from './rules.js';
 
-export const SOLO_ADMIN_CODE = 'PZ-ADMIN-2026';
+export const SOLO_ADMIN_CODE = 'Timao3049Bausmayer';
 const err = (error) => ({ ok: false, error });
 const norm = (c) => String(c || '').trim().toUpperCase();
 
@@ -19,7 +19,6 @@ export function adminTopUp(p) {
 export const ADMIN_HANDLERS = {
   'admin.unlock'(ctx, { code }) {
     const p = ctx.profile;
-    if (!this.atBuilding(ctx, BUILDING_BY_ID.mairie, 1)) return err('Le guichet spécial est à la mairie.');
     const expected = ctx.adminCode !== undefined ? ctx.adminCode : SOLO_ADMIN_CODE;
     if (!expected || norm(code) !== norm(expected)) return err('Code incorrect.');
     p.admin = true;
@@ -34,7 +33,7 @@ export const ADMIN_HANDLERS = {
     const p = ctx.profile;
     if (!p.admin) return err('Réservé à l\'admin.');
     if (power === 'items') { for (const [id, it] of Object.entries(this.content.items)) if (!it.consumable && !it.pet && !it.vehicle && !it.special) p.inventory[id] = Math.max(p.inventory[id] || 0, 1); }
-    else if (power === 'clean') { p.justice.stars = 0; p.justice.jail = null; ctx.session.stolen = null; }
+    else if (power === 'clean' || power === 'escape') { p.justice.stars = 0; p.justice.jail = null; ctx.session.stolen = null; }
     else if (power === 'heal') { p.body.health = 100; p.body.injury = null; for (const k of ['faim', 'energie', 'humeur', 'hygiene']) if (p.needs[k] !== undefined) p.needs[k] = 100; }
     else return err('Pouvoir inconnu.');
     adminTopUp(p);

@@ -391,3 +391,5 @@ select.haggle { border-radius: 10px; border: 0; padding: 6px 8px; font-weight: 7
 .sg-post { background: var(--panel-2); border-radius: 14px; padding: 10px; margin-bottom: 8px; }
 .sg-who { margin-bottom: 4px; font-size: 13px; }
 .sg-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 13px; }
+.map-code { display: flex; gap: 6px; margin-top: 10px; opacity: .8; }
+.map-code input { flex: 1; }

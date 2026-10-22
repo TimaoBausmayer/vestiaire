@@ -5,7 +5,7 @@ import { HOUR_MS } from '../../shared/clock.js';
 // MODE ADMIN : guichet de la mairie (code) et appli « Admin » du téléphone (pouvoirs, téléportation).
 
 export function adminKiosk(g) {
-  if (g.profile.admin) { g.ui.toast('👑 Mode admin déjà actif : ouvre l\'appli Admin du téléphone.', 'good'); g.phone?.open('admin'); return; }
+  if (g.profile.admin) { g.phone?.open('admin'); return; }
   let code = '';
   const m = g.ui.modal({
     title: '🔐 Guichet spécial', sub: 'Entre le code d\'accès.',
@@ -28,11 +28,22 @@ export function adminKiosk(g) {
 
 export function adminApp(g, b, phone) {
   if (!g.profile.admin) { b.append(h('p', 'Le mode admin s\'active avec un code au guichet spécial de la mairie.')); return; }
-  const power = async (p, msg) => { try { await g.net.request('admin.power', { power: p }); g.sfx('success'); g.ui.toast(msg, 'good'); if (p === 'clean') { g.police?.clearUnits?.(); g.police?.renderStars?.(); } phone.render(); } catch (e) { g.ui.toast(e.message, 'bad'); } };
+  const power = async (p, msg) => {
+    const jailed = !!g.profile.justice?.jail;
+    try {
+      await g.net.request('admin.power', { power: p }); g.sfx('success'); g.ui.toast(msg, 'good');
+      if (p === 'clean' || p === 'escape') {
+        g.police?.clearUnits?.(); g.police?.renderStars?.();
+        if (jailed) { const { BUILDING_BY_ID } = await import('../../shared/world-layout.js'); const pol = BUILDING_BY_ID.police; g.player.teleport(pol.door.x, pol.door.z + 3, 0); phone.close(); return; }
+      }
+      phone.render();
+    } catch (e) { g.ui.toast(e.message, 'bad'); }
+  };
   b.append(h('p', `👑 Admin · ${fmt(g.profile.coins)} PC (illimité)`));
   b.append(h('div.list',
     h('button.btn.block', { onclick: () => power('items', '🎁 Tous les vêtements et meubles sont dans ton sac.') }, '🎁 Tout débloquer (vêtements, meubles)'),
-    h('button.btn.block', { onclick: () => power('clean', '😇 Casier propre : plus recherché·e, sorti·e de prison.') }, '😇 Effacer les recherches / sortir de prison'),
+    g.profile.justice?.jail ? h('button.btn.block', { onclick: () => power('escape', '🔓 Évadé·e (mode admin) : te voilà dehors, sans étoiles.') }, '🔓 Sortir de prison tout de suite') : null,
+    h('button.btn.block', { onclick: () => power('clean', '😇 Casier propre : plus recherché·e.') }, '😇 Effacer les recherches'),
     h('button.btn.block', { onclick: () => power('heal', '❤️ Santé et besoins au maximum.') }, '❤️ Soigner et remplir les besoins'),
     g.net.mode === 'solo' ? h('button.btn.block', { onclick: () => { const dn = g.world.dayNight; dn.shift = (dn.shift || 0) + 2 * HOUR_MS; try { localStorage.setItem('playzone.timeShift', String(dn.shift)); } catch { /* rien */ } g.ui.toast('⏩ +2 heures de jeu'); } }, '⏩ Avancer l\'heure (+2 h de jeu)') : null,
     h('button.btn.block.ghost', { onclick: async () => { await g.net.request('admin.lock', {}); phone.render(); } }, 'Désactiver le mode admin')));

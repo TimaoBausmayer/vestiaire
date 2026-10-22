@@ -110,6 +110,15 @@ export class Phone {
   // ------------------------------------------------------------------ applis
   app_map(b) {
     const g = this.game;
+    // champ « code » discret en bas de la carte (mode admin)
+    setTimeout(() => {
+      if (!this.el || this.app !== 'map') return;
+      let code = '';
+      b.append(h('div.map-code', h('input.input', { type: 'password', placeholder: 'Code…', autocomplete: 'off', oninput: (e) => { code = e.target.value; }, onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); } }), h('button.btn.small.ghost', { onclick: () => go() }, 'OK')));
+      const go = async () => {
+        try { await g.net.request('admin.unlock', { code }); g.sfx('levelup'); g.ui.toast('👑 Mode admin activé ! Appli Admin dans le téléphone.', 'good', 5000); this.go('admin'); } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+      };
+    }, 0);
     const B = WORLD_BOUNDS, MW = B.maxX - B.minX, MH = B.maxZ - B.minZ;
     const c = h('canvas', { width: 600, height: 600 });
     // vue : centre (monde) + zoom (pixels par mètre)

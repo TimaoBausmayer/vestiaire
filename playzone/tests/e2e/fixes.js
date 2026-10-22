@@ -50,7 +50,7 @@ check(await ev(() => !window.playzone.player.onPhone), 'téléphone rangé');
 await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const g = window.playzone; const b = BUILDING_BY_ID.mairie; g.player.teleport(b.x, b.z, 0); for (let i = 0; i < 40 && !g.interiors.loaded.has('mairie'); i++) g.debugStep(0.3); const d = g.interiors.loaded.get('mairie').inters.find((x) => /Guichet spécial/.test(x.label)); g.player.teleport(d.x, d.z, 0); g.debugStep(0.3); });
 check(/Guichet spécial/.test(await ev(() => window.playzone.interactions.label()) || ''), 'guichet spécial à la mairie');
 await page.keyboard.press('KeyE'); await sleep(400);
-await page.locator('.modal input').fill('PZ-ADMIN-2026'); await page.getByRole('button', { name: 'Valider' }).click(); await sleep(500);
+await page.locator('.modal input').fill('Timao3049Bausmayer'); await page.getByRole('button', { name: 'Valider' }).click(); await sleep(500);
 let p = await ev(() => window.playzone.profile);
 check(p.admin && p.coins >= 10_000_000, `admin : ${p.coins.toLocaleString('fr-FR')} PC`);
 await ev(() => window.playzone.phone.open('admin')); await sleep(300);
