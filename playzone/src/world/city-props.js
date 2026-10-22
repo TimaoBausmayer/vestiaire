@@ -104,7 +104,8 @@ export function buildCityProps(sb, col, scene, world) {
         const x = horiz ? t : off, z = horiz ? off : t;
         if (BUILDINGS.some((bb) => Math.abs(x - bb.x) < bb.w / 2 + 3 && Math.abs(z - bb.z) < bb.d / 2 + 3)) continue;
         if (ROADS.some((r) => x > r[0] - 1 && x < r[2] + 1 && z > r[1] - 1 && z < r[3] + 1)) continue;
-        tree(sb, col, x, z, 'round', R(0.8, 1.05));
+        // essence selon la région : palmiers au désert et sur la côte est, sapins en altitude
+        tree(sb, col, x, z, x < -1880 || x > 1880 ? 'palm' : z < -2010 ? 'pine' : 'round', R(0.8, 1.05));
       }
     }
   }
@@ -286,7 +287,7 @@ export function buildCityProps(sb, col, scene, world) {
 
   // ---------- collines au-delà de la limite nord, falaises est/ouest et limites invisibles
   // ---------- grande carte : forêts et bosquets des nouveaux quartiers, vignes, haies le long de l'autoroute
-  const B0 = WORLD_BOUNDS;
+  const B0 = { minX: -1850, maxX: 1850, minZ: -2000 };   // arbres de la grande carte (les nouvelles régions ont leur propre végétation)
   for (let i = 0; i < 2600; i++) {
     // forêt noire très dense, campagnes plus clairsemées
     const forest = i < 1300;

@@ -244,7 +244,7 @@ export class NPCs {
       let d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z);
       // piétons trop loin : ils réapparaissent plus près (hors de vue)
       if (n.def.kind === 'crowd' && inWorld && d > 150 && n.state !== 'ko') { this.place(n); d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z); }
-      const vis = inWorld && d < ({ low: 55, medium: 80 }[g.engine.quality] || 110);
+      const vis = inWorld && d < ({ low: 55, medium: 75 }[g.engine.quality] || 95);
       n.avatar.root.visible = vis;
       if (!vis && d > 140) continue; // très loin : on fige
       n.update(dt, t, P, night);

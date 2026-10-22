@@ -89,7 +89,9 @@ export class DayNight {
       this._sunCol.copy(e.sun.color).multiplyScalar(sun);
       e.updateEnvironment(this.top, this.hor, this._ground, e.sunOffset, this._sunCol);
     }
-    MATS.glow.color.setScalar(0.45 + 0.55 * this.night);
+    // néons et ampoules : plus intenses avec le post-traitement (ils « bavent » joliment la nuit)
+    MATS.glow.color.setScalar((0.45 + 0.55 * this.night) * (e.post ? 1 + this.night * 0.9 : 1));
+    u.cloudLight.value = 0.25 + light * 0.75;
     if (this.water) this.water.material.uniforms.light.value = 0.45 + 0.55 * light;
   }
 }

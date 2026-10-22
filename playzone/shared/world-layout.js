@@ -5,7 +5,7 @@
 import { BOUNDS, STREETS, streetRect, CITY_ZONES, CITY_BUILDINGS, CITY_POI, PARKINGS, GAS_STATIONS } from './city.js';
 
 export { STREETS, STREET_BY_ID, ROAD_GRAPH, findRoute, nearestRoadPoint, nearestNode, PARKINGS, GAS_STATIONS, CITY_POI } from './city.js';
-export const WORLD_BOUNDS = BOUNDS;     // la carte va de -1850 à 1850 (X) et de -2000 à 400 (Z)
+export const WORLD_BOUNDS = BOUNDS;     // la carte va de -3000 à 3000 (X) et de -3400 à 400 (Z)
 export const WORLD_HALF = 128;          // demi-taille du centre historique (ancien plan)
 export const WATER_LEVEL = -0.35;       // niveau de la mer et de l'étang
 export const SEA_SLOPE_START = 90;      // au sud de ce Z, le sol descend dans la mer
@@ -28,6 +28,8 @@ export function groundHeight(x, z) {
   // côtes est et ouest : l'île plonge dans la mer
   const edge = Math.max(-x + BOUNDS.minX, x - BOUNDS.maxX);
   if (edge > 0) h = Math.min(h, -Math.min(4.5, edge * 0.35));
+  // Massif des Géants : la montagne se dresse au nord de l'autoroute A4 (jusqu'à ~170 m)
+  if (z < -2960) h = Math.max(h, mountainHeight(x, z));
   const dl = Math.hypot(x - LAKE.x, (z - LAKE.z) * 1.3);
   if (dl < LAKE.r) h = Math.min(h, -Math.min(4.5, (LAKE.r - dl) * 0.12));
   const d = Math.hypot(x - POND.x, z - POND.z);
@@ -36,6 +38,13 @@ export function groundHeight(x, z) {
     h = d < 1.6 ? 0.15 : Math.min(h, -Math.min(2.2, (POND.r - d) * 0.55));
   }
   return h;
+}
+
+export function mountainHeight(x, z) {
+  const t = -2960 - z;
+  if (t <= 0) return 0;
+  const ridge = 0.72 + 0.2 * Math.sin(x * 0.0031 + 1.3) + 0.12 * Math.sin(x * 0.0113 + z * 0.006) + 0.06 * Math.sin(x * 0.041 - z * 0.027);
+  return t * 0.36 * ridge * Math.min(1, t / 60);   // pied adouci sur les 60 premiers mètres
 }
 
 export function isWater(x, z) {

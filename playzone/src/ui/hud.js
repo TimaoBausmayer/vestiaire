@@ -10,7 +10,7 @@ import { formatHour } from '../world/daynight.js';
 
 // Carte de fond pré-dessinée (sert à la mini-carte et à la carte du téléphone). px pixels par mètre.
 export const MAP = WORLD_BOUNDS;
-export const MAP_PX = 1;   // pixels par mètre de l'image de la carte (grande carte : 1)
+export const MAP_PX = 0.5;   // pixels par mètre de l'image de la carte (carte géante : 0,5)
 export function drawMapBase(px = 2) {
   const B = WORLD_BOUNDS;
   const c = document.createElement('canvas');
@@ -31,6 +31,10 @@ export function drawMapBase(px = 2) {
   rect(300, 64, B.maxX, B.maxZ, '#f2d59b'); rect(300, 93, B.maxX, B.maxZ, '#2e9fd6'); // plages de la Côte des Villas
   rect(-840, -430, -300, 50, '#7fae55');                   // vignobles
   rect(-900, -1000, 900, -880, '#6aa84f');                 // abords de l'autoroute
+  rect(-3000, -2950, 3000, -2000, '#9fcf7a');               // hauts plateaux
+  rect(-3000, -3400, 3000, -2950, '#8d8f8a'); rect(-3000, -3400, 3000, -3150, '#eef2f6');   // massif enneigé
+  rect(-3000, -2000, -1850, 400, '#e2bf85');                // désert des Sablons
+  rect(1850, -2000, 3000, 400, '#6cc46b'); rect(2930, -2000, 3000, 400, '#f2d59b');   // côte des Palmiers et plage
   rect(-1850, -1900, -420, -1000, '#3f7a35');               // forêt noire
   rect(-420, -1570, 420, -1230, '#b9c4a6');                 // Nordville
   rect(900, -1750, 1750, -1300, '#a7d27f'); rect(900, -1575, 1750, -1525, '#5a5e6a');   // aéroport et piste

@@ -20,11 +20,14 @@ function buildTorso(sb, a, w, extra) {
   sb.add(B.sphere(12), { y: 0.06, sx: 0.5 * w, sy: 0.28, sz: 0.36, color: a.bottomColor });
   if (a.bottom === 'jupe') sb.add(B.cone(12), { y: -0.32, sx: 0.78 * w, sy: 0.5, sz: 0.62, rx: Math.PI, color: a.bottomColor });
   // buste
-  sb.add(B.cyl(18), { y: 0.06, sx: 0.54 * w, sy: 0.42, sz: 0.38, color: tc });
-  sb.add(B.sphere(18), { y: 0.48, sx: 0.62 * w, sy: 0.3, sz: 0.4, color: tc });
+  // buste en V : taille fine, poitrine et épaules plus larges, dos légèrement arrondi
+  sb.add(B.frustum(22, 0.82), { y: 0.06, sx: 0.56 * w, sy: 0.42, sz: 0.38, color: tc });
+  sb.add(B.sphere(22), { y: 0.47, sx: 0.64 * w, sy: 0.3, sz: 0.41, color: tc });
+  sb.add(B.sphere(16), { y: 0.36, z: 0.04, sx: 0.54 * w, sy: 0.26, sz: 0.36, color: tc });
+  sb.add(B.sphere(14), { y: 0.36, z: -0.05, sx: 0.5 * w, sy: 0.3, sz: 0.32, color: tc });
   sb.add(B.cyl(12), { y: 0.04, sx: 0.55 * w, sy: 0.07, sz: 0.39, color: '#2b2d42' }); // ceinture
   sb.add(B.box(), { y: 0.045, z: 0.19, sx: 0.08, sy: 0.06, sz: 0.03, color: '#ffd23f' });
-  sb.add(B.cyl(12), { y: 0.55, sx: 0.16, sy: 0.12, sz: 0.16, color: a.skin }); // cou
+  sb.add(B.frustum(14, 1.15), { y: 0.52, sx: 0.17, sy: 0.16, sz: 0.17, color: a.skin }); // cou
   if (top === 'tshirt' || top === 'sweat' || top === 'debardeur') sb.add(B.cyl(14), { y: 0.6, sx: 0.22, sy: 0.035, sz: 0.2, color: darker(tc, 0.8) });   // col
   if (top !== 'torse') sb.add(B.cyl(14), { y: 0.13, sx: 0.555 * w, sy: 0.03, sz: 0.385, color: darker(tc, 0.88) });   // ourlet du haut
   if (top === 'debardeur') { sb.add(B.box(), { y: 0.5, x: 0.17 * w, z: 0.01, sx: 0.08, sy: 0.12, sz: 0.36, color: tc }); }
@@ -117,9 +120,13 @@ function buildHead(sb, a, extra) {
       if (a.eyes === 'endormi') sb.add(B.box(), { x: sx, y: ey + 0.03, z: ez + 0.02, sx: 0.13, sy: 0.04, sz: 0.03, color: s });
     }
     if (a.eyes === 'serieux') sb.add(B.box(), { x: sx, y: ey + 0.1, z: ez + 0.02, sx: 0.12, sy: 0.03, sz: 0.02, rz: sx > 0 ? 0.25 : -0.25, color: darker(a.hairColor, 0.8) });
-    else sb.add(B.box(), { x: sx, y: ey + 0.11, z: ez + 0.0, sx: 0.1, sy: 0.022, sz: 0.02, rz: sx > 0 ? -0.15 : 0.15, color: darker(a.hairColor, 0.8) });
+    else sb.add(B.sphere(10), { x: sx * 1.05, y: ey + 0.105, z: ez + 0.005, sx: 0.13, sy: 0.032, sz: 0.04, rz: sx > 0 ? -0.18 : 0.18, color: darker(a.hairColor, 0.8) });   // sourcil arrondi
   }
-  sb.add(B.sphere(8), { y: 0.26, z: 0.29, sx: 0.07, sy: 0.07, sz: 0.07, color: darker(s, 0.92) }); // nez
+  sb.add(B.sphere(10), { y: 0.29, z: 0.27, sx: 0.05, sy: 0.12, sz: 0.06, rx: -0.3, color: s });   // arête du nez
+  sb.add(B.sphere(10), { y: 0.245, z: 0.29, sx: 0.08, sy: 0.06, sz: 0.07, color: darker(s, 0.94) }); // bout du nez
+  for (const nx of [-0.022, 0.022]) sb.add(B.sphere(6), { x: nx, y: 0.228, z: 0.305, sx: 0.018, sy: 0.012, sz: 0.012, color: darker(s, 0.6) });   // narines
+  sb.add(B.sphere(10), { y: 0.155, z: 0.255, sx: 0.09, sy: 0.03, sz: 0.03, color: darker(s, 0.85) });   // lèvre inférieure
+  sb.add(B.sphere(10), { y: 0.1, z: 0.22, sx: 0.14, sy: 0.08, sz: 0.08, color: s });   // menton
   // bouche : sourire arrondi (petits segments en arc) et lèvre inférieure
   for (let i = 0; i < 9; i++) { const t = (i - 4) / 4; sb.add(B.sphere(8), { x: t * 0.07, y: 0.17 + t * t * 0.02, z: 0.263 - t * t * 0.012, sx: 0.034, sy: 0.02, sz: 0.018, color: '#7a2e2e' }); }
   sb.add(B.sphere(6), { x: -0.17, y: 0.22, z: 0.22, sx: 0.08, sy: 0.04, sz: 0.03, color: '#ff9aa2' });
@@ -133,7 +140,7 @@ function buildHead(sb, a, extra) {
   switch (a.hair) {
     case 'court':
       cap(0.63, 0.66, 0.62, -0.3);
-      if (!hairUnderHat) for (let i = 0; i < 6; i++) sb.add(B.sphere(8), { x: -0.18 + i * 0.072, y: 0.53 - Math.abs(i - 2.5) * 0.01, z: 0.17, sx: 0.1, sy: 0.06, sz: 0.09, rx: 0.5, color: hc });   // petite frange
+      if (!hairUnderHat) { sb.add(B.sphere(16), { y: 0.5, z: 0.16, sx: 0.54, sy: 0.13, sz: 0.24, rx: 0.35, color: hc }); sb.add(B.sphere(12), { x: 0.1, y: 0.49, z: 0.22, sx: 0.22, sy: 0.08, sz: 0.12, rx: 0.5, rz: -0.25, color: hc }); }   // frange lisse et mèche
       break;
     case 'meche':
       cap(0.63, 0.68, 0.62, -0.25);
@@ -254,26 +261,31 @@ function buildArm(sb, a, extra) {
   const long = ['sweat', 'chemise', 'costume', 'uniforme-pompier', 'raye', 'veste-luxe'].includes(top);
   const bare = top === 'debardeur' || top === 'torse';
   const m = 1 + (extra.strong || 0) * 0.45 + Math.max(0, extra.fat || 0) * 0.3;
-  sb.add(B.sphere(12), { y: -0.02, sx: 0.21 * m, sy: 0.21, sz: 0.21 * m, color: bare ? a.skin : tc });   // épaule
-  sb.add(B.cyl(12), { y: -0.3, sx: 0.17 * m, sy: 0.3, sz: 0.17 * m, color: bare ? a.skin : tc });
+  sb.add(B.sphere(14), { y: -0.03, sx: 0.195 * m, sy: 0.2, sz: 0.2 * m, color: bare ? a.skin : tc });   // épaule
+  sb.add(B.frustum(14, 0.82), { y: -0.44, sx: 0.18 * m, sy: 0.42, sz: 0.18 * m, color: bare ? a.skin : tc });   // biceps
   if (!bare && !long) sb.add(B.cyl(12), { y: -0.17, sx: 0.185 * m, sy: 0.05, sz: 0.185 * m, color: darker(tc, 0.85) });   // ourlet de manche courte
   sb.add(B.sphere(10), { y: -0.44, sx: 0.155 * m, sy: 0.12, sz: 0.155 * m, color: long ? tc : a.skin });   // coude
-  sb.add(B.cyl(12), { y: -0.56, sx: 0.145 * m, sy: 0.24, sz: 0.145 * m, color: long ? tc : a.skin });
+  sb.add(B.frustum(14, 0.78), { y: -0.66, sx: 0.15 * m, sy: 0.22, sz: 0.15 * m, color: long ? tc : a.skin });   // avant-bras
   if (long) sb.add(B.cyl(12), { y: -0.66, sx: 0.155 * m, sy: 0.05, sz: 0.155 * m, color: darker(tc, 0.82) });   // poignet de manche
   if (top === 'uniforme-pompier') sb.add(B.cyl(8), { y: -0.45, sx: 0.16, sy: 0.04, sz: 0.16, color: '#ffe14d' });
-  // main + pouce
-  sb.add(B.sphere(12), { y: -0.73, sx: 0.15, sy: 0.17, sz: 0.12, color: a.skin });
-  sb.add(B.sphere(8), { y: -0.7, z: 0.07, x: 0.02, sx: 0.06, sy: 0.09, sz: 0.06, rx: 0.4, color: a.skin });
+  // main : paume, quatre doigts légèrement repliés, pouce
+  sb.add(B.sphere(14), { y: -0.71, sx: 0.14, sy: 0.13, sz: 0.1, color: a.skin });
+  for (let i = 0; i < 4; i++) {
+    const fx = -0.045 + i * 0.03, len = i === 0 || i === 3 ? 0.075 : 0.09;
+    sb.add(B.sphere(8), { x: fx, y: -0.79, z: 0.012, sx: 0.032, sy: len, sz: 0.034, rx: 0.25, color: a.skin });
+  }
+  sb.add(B.sphere(8), { y: -0.71, z: 0.06, x: 0.04, sx: 0.04, sy: 0.08, sz: 0.04, rx: 0.5, rz: -0.3, color: a.skin });
 }
 
 // ---------- Jambe (pivot à la hanche)
 function buildLeg(sb, a) {
   const short = a.bottom === 'short';
   const skirt = a.bottom === 'jupe';
-  sb.add(B.cyl(12), { y: -0.42, sx: 0.23, sy: 0.42, sz: 0.23, color: skirt ? a.skin : a.bottomColor });
+  sb.add(B.frustum(16, 0.8), { y: -0.57, sx: 0.25, sy: 0.57, sz: 0.25, color: skirt ? a.skin : a.bottomColor });   // cuisse
   sb.add(B.sphere(10), { y: -0.6, z: 0.01, sx: 0.2, sy: 0.12, sz: 0.2, color: short || skirt ? a.skin : a.bottomColor });   // genou
-  sb.add(B.cyl(12), { y: -0.76, sx: 0.19, sy: 0.36, sz: 0.19, color: short || skirt ? a.skin : a.bottomColor });
-  if (short) sb.add(B.cyl(12), { y: -0.6, sx: 0.235, sy: 0.04, sz: 0.235, color: darker(a.bottomColor, 0.85) });   // ourlet du short
+  sb.add(B.frustum(14, 0.72), { y: -0.84, sx: 0.2, sy: 0.24, sz: 0.2, color: short || skirt ? a.skin : a.bottomColor });   // mollet
+  if (!short && !skirt) sb.add(B.cyl(12), { y: -0.82, sx: 0.185, sy: 0.04, sz: 0.185, color: darker(a.bottomColor, 0.85) });   // bas du pantalon
+  if (short) sb.add(B.cyl(12), { y: -0.57, sx: 0.235, sy: 0.04, sz: 0.235, color: darker(a.bottomColor, 0.85) });   // ourlet du short
   if (!skirt && a.bottom === 'jean') { sb.add(B.box(), { x: 0.115, y: -0.45, sx: 0.006, sy: 0.6, sz: 0.04, color: darker(a.bottomColor, 0.8) }); sb.add(B.box(), { y: -0.2, z: -0.11, sx: 0.12, sy: 0.12, sz: 0.01, color: darker(a.bottomColor, 0.85) }); }   // couture + poche
   const f = a.feet;
   if (f === 'bottes-cuir' || f === 'bottes-pluie') {
@@ -291,11 +303,22 @@ function buildLeg(sb, a) {
     const lux = f === 'baskets-luxe', white = f === 'baskets-blanches';
     const sc = lux || white ? '#f8f9fa' : a.shoes;
     sb.add(B.sphere(12), { y: -0.84, z: 0.08, sx: 0.23, sy: 0.15, sz: 0.38, color: sc });                  // chaussure arrondie
-    sb.add(B.box(), { y: -0.905, z: 0.06, sx: 0.24, sy: 0.04, sz: 0.38, color: lux ? '#fca311' : '#f4f1ea' });   // semelle
+    sb.add(B.sphere(14), { y: -0.895, z: 0.07, sx: 0.245, sy: 0.07, sz: 0.4, color: lux ? '#fca311' : '#e9e4d8' });   // semelle arrondie
     for (let i = 0; i < 3; i++) sb.add(B.box(), { y: -0.775 + i * 0.012, z: 0.13 + i * 0.035, sx: 0.1, sy: 0.012, sz: 0.012, color: lux || white ? '#d0d4da' : '#ffffff' });   // lacets
     if (lux) sb.add(B.box(), { x: 0.115, y: -0.83, z: 0.02, sx: 0.01, sy: 0.05, sz: 0.16, color: '#fca311' });
   }
 }
+
+// Découpe un membre en deux à l'articulation (coude, genou) : la partie basse est recentrée sur
+// l'articulation pour pouvoir plier. La rotule appartient aux deux parties (pas de trou en pliant).
+function splitLimb(build, cutY) {
+  const parts = [];
+  build({ add: (shape, o) => parts.push([shape, o]) });
+  const upper = buildMergedGeometry((sb) => { for (const [sh, o] of parts) if (o.y > cutY - 0.025) sb.add(sh, o); });
+  const lower = buildMergedGeometry((sb) => { for (const [sh, o] of parts) if (o.y < cutY + 0.025) sb.add(sh, { ...o, y: o.y - cutY }); });
+  return [upper, lower];
+}
+const ELBOW = -0.44, KNEE = -0.6;
 
 export class Avatar {
   constructor(appearance = DEFAULT_APPEARANCE, extra = {}) {
@@ -307,6 +330,10 @@ export class Avatar {
     this.armL = new THREE.Group(); this.armR = new THREE.Group();
     this.legL = new THREE.Group(); this.legR = new THREE.Group();
     this.hips.add(this.armL, this.armR, this.legL, this.legR);
+    // avant-bras et tibias articulés (coudes, genoux)
+    this.foreL = new THREE.Group(); this.foreR = new THREE.Group(); this.shinL = new THREE.Group(); this.shinR = new THREE.Group();
+    this.foreL.position.y = this.foreR.position.y = ELBOW; this.shinL.position.y = this.shinR.position.y = KNEE;
+    this.armL.add(this.foreL); this.armR.add(this.foreR); this.legL.add(this.shinL); this.legR.add(this.shinR);
     this.phase = 0;
     this.time = Math.random() * 10;
     this.meshes = [];
@@ -330,19 +357,19 @@ export class Avatar {
     };
     add(this.hips, buildMergedGeometry((sb) => buildTorso(sb, a, w, extra)));
     add(this.neck, buildMergedGeometry((sb) => buildHead(sb, a, extra)));
-    const armGeo = buildMergedGeometry((sb) => buildArm(sb, a, extra));
-    add(this.armL, armGeo); add(this.armR, armGeo.clone());
-    const legGeo = buildMergedGeometry((sb) => buildLeg(sb, a));
-    add(this.legL, legGeo); add(this.legR, legGeo.clone());
+    const [armUp, armLow] = splitLimb((sb) => buildArm(sb, a, extra), ELBOW);
+    add(this.armL, armUp); add(this.armR, armUp.clone()); add(this.foreL, armLow); add(this.foreR, armLow.clone());
+    const [legUp, legLow] = splitLimb((sb) => buildLeg(sb, a), KNEE);
+    add(this.legL, legUp); add(this.legR, legUp.clone()); add(this.shinL, legLow); add(this.shinR, legLow.clone());
     this.armL.position.set(0.33 * w + 0.07, 0.5, 0); this.armR.position.set(-(0.33 * w + 0.07), 0.5, 0);
     this.legL.position.set(0.13 * w, 0, 0); this.legR.position.set(-0.13 * w, 0, 0);
     this.root.scale.setScalar(a.height || 1);
   }
 
   hold(obj) {
-    if (this.held) this.armR.remove(this.held);
+    if (this.held) this.foreR.remove(this.held);
     this.held = obj;
-    if (obj) { obj.position.set(0, -0.7, 0.12); this.armR.add(obj); }
+    if (obj) { obj.position.set(0, -0.7 - ELBOW, 0.12); this.foreR.add(obj); }
   }
 
   // m = { speed (m/s), grounded, swimming, vy, pose, dance }
@@ -396,7 +423,7 @@ export class Avatar {
     } else {
       const amp = moving ? 0.55 + run * 0.4 : 0;
       set(L, Math.sin(ph) * amp, 0, 0); set(R, -Math.sin(ph) * amp, 0, 0);
-      set(AL, -Math.sin(ph) * amp * 0.9, 0, 0.08 + run * 0.1); set(AR, Math.sin(ph) * amp * 0.9, 0, -0.08 - run * 0.1);
+      set(AL, -Math.sin(ph) * amp * 0.7, 0, 0.08 + run * 0.1); set(AR, Math.sin(ph) * amp * 0.7, 0, -0.08 - run * 0.1);
       bob = moving ? Math.abs(Math.sin(ph)) * (0.05 + run * 0.06) : Math.sin(t * 2) * 0.01;
       lean = run * 0.18;
       if (!moving) { set(AL, Math.sin(t * 1.5) * 0.04, 0, 0.1); set(AR, -Math.sin(t * 1.5) * 0.04, 0, -0.1); headY = Math.sin(t * 0.4) * 0.25; }
@@ -415,6 +442,35 @@ export class Avatar {
     else if (pose === 'kick') { set(R, -1.75, 0, 0); set(L, 0.3, 0, 0); set(AL, -0.6, 0, 0.7); set(AR, -0.2, 0, -0.7); lean = -0.2; }
     else if (pose === 'slide') { set(L, -1.55, 0, 0.12); set(R, -1.25, 0, -0.12); set(AL, -0.2, 0, 1.3); set(AR, -0.2, 0, -1.3); bodyRotX = -1.05; bodyY = -0.5; }
     else if (pose === 'down') { set(L, -0.2, 0, 0.3); set(R, 0.1, 0, -0.3); set(AL, 0, 0, 2.2); set(AR, 0, 0, -2.2); bodyRotX = -1.45; bodyY = -0.62; headX = 0.3; }
+
+    // coudes (avant-bras : négatif = plié vers l'avant) et genoux (tibias : positif = plié vers l'arrière)
+    let eL = -0.14, eR = -0.14, kL = 0.04, kR = 0.04;
+    if (m.swimming) { eL = eR = -0.3; kL = 0.25 + Math.max(0, Math.sin(t * 9)) * 0.4; kR = 0.25 + Math.max(0, -Math.sin(t * 9)) * 0.4; }
+    else if (pose === 'sit' || pose === 'sit-eat') { kL = kR = 1.45; eL = eR = -0.5; }
+    else if (pose === 'pedal') { kL = 1.5 + Math.sin(t * 8) * 0.45; kR = 1.5 - Math.sin(t * 8) * 0.45; eL = eR = -0.3; }
+    else if (pose === 'bench') { kL = kR = 1.3; eL = eR = -0.6 - Math.sin(t * 2.6) * 0.5; }
+    else if (pose === 'pushup') { kL = kR = 0; const pp = Math.sin(t * 3) * 0.5 + 0.5; eL = eR = -0.2 - pp * 0.8; }
+    else if (pose === 'dance') { kL = 0.2 + Math.max(0, Math.sin(t * 7.5)) * 0.5; kR = 0.2 + Math.max(0, -Math.sin(t * 7.5)) * 0.5; eL = eR = -0.6; }
+    else if (!m.grounded) { kL = 0.95; kR = 0.35; eL = eR = -0.5; }
+    else if (moving) {
+      const amp = 0.55 + run * 0.4;
+      kL = (0.1 + Math.max(0, -Math.sin(ph + 0.9))) * amp * (1.2 + run * 0.9);
+      kR = (0.1 + Math.max(0, Math.sin(ph + 0.9))) * amp * (1.2 + run * 0.9);
+      eL = eR = -(0.2 + run * 0.9);
+    }
+    if (pose === 'kick') { kR = 0.15; kL = 0.35; eL = eR = -0.4; }
+    else if (pose === 'slide') { kL = 0.15; kR = 0.5; eL = eR = -0.2; }
+    else if (pose === 'down') { kL = 0.3; kR = 0.9; eL = eR = -0.3; }
+    else if (pose === 'carry') { eL = eR = -0.45; }
+    else if (pose === 'spray' || pose === 'hold-forward') { eL = eR = -0.15; }
+    else if (pose === 'wave') { eR = -0.55 + Math.sin(t * 10) * 0.25; }
+    else if (pose === 'eat' || pose === 'sit-eat') { eR = -1.0; }
+    else if (pose === 'phone') { eR = -0.9; eL = -1.2; }
+    else if (pose === 'cook') { eL = eR = -0.7; }
+    else if (pose === 'celebrate') { eL = eR = -0.2; }
+    else if (pose === 'throw') { eR = -0.6; }
+    set(this.foreL.rotation, eL, 0, 0); set(this.foreR.rotation, eR, 0, 0);
+    set(this.shinL.rotation, kL, 0, 0); set(this.shinR.rotation, kR, 0, 0);
 
     this.body.position.y += ((bob + bodyY) - this.body.position.y) * Math.min(1, k * 3);
     this.body.rotation.x += ((lean + bodyRotX) - this.body.rotation.x) * k * 1.5;

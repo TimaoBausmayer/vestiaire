@@ -30,9 +30,62 @@ export function withCut(mat, key, extra) {
   return mat;
 }
 
+// Grain de surface procédural (position dans le monde) : variations douces + petit grain, qui
+// donnent de la matière à l'herbe, au bitume, aux façades sans aucune texture à charger.
+// L'effet s'estompe au loin pour ne pas scintiller.
+const DETAIL_V_HEAD = 'varying vec3 vPzW;\n';
+const DETAIL_V_BODY = `#include <project_vertex>
+  vec4 pzW = vec4(transformed, 1.0);
+  #ifdef USE_INSTANCING
+    pzW = instanceMatrix * pzW;
+  #endif
+  vPzW = (modelMatrix * pzW).xyz;`;
+const DETAIL_F_HEAD = `varying vec3 vPzW;
+float pzH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float pzN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(pzH(i), pzH(i + vec2(1.0, 0.0)), f.x), mix(pzH(i + vec2(0.0, 1.0)), pzH(i + vec2(1.0, 1.0)), f.x), f.y); }
+`;
+function withDetail(mat, strength, ground) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    prev?.call(mat, sh, r);
+    sh.vertexShader = DETAIL_V_HEAD + sh.vertexShader.replace('#include <project_vertex>', DETAIL_V_BODY);
+    sh.fragmentShader = DETAIL_F_HEAD + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+  {
+    vec3 wp = vPzW;
+    // projection selon la face : sol (xz) ou murs (xy / zy)
+    vec2 q = wp.xz;
+    vec3 nW = normalize(cross(dFdx(wp), dFdy(wp)));
+    if (abs(nW.y) < 0.6) q = abs(nW.x) > abs(nW.z) ? wp.zy : wp.xy;
+    float fade = 1.0 - smoothstep(25.0, 140.0, distance(cameraPosition, wp));
+    float macro = pzN(q * 0.045) * 0.6 + pzN(q * 0.13) * 0.4;
+    float micro = pzN(q * 2.3) * 0.55 + pzN(q * 7.1) * 0.45;
+    float d = (macro - 0.5) * ${ground ? '0.42' : '0.08'} + (micro - 0.5) * ${strength.toFixed(3)} * fade;
+    diffuseColor.rgb *= 1.0 + d;
+    ${ground ? '// brins d\'herbe plus clairs, éparpillés\n    float blade = step(0.83, pzN(q * 11.0)) * fade * step(0.0, diffuseColor.g - diffuseColor.r);\n    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.12, 1.2, 0.95), blade * 0.6);' : ''}
+  }`);
+  };
+  return mat;
+}
+
+// Personnages et objets mobiles : léger liseré de lumière sur les contours (lisibilité, aspect « film »).
+function withRim(mat) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    prev?.call(mat, sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `
+  {
+    float rim = pow(1.0 - clamp(dot(normalize(vViewPosition) * -1.0, normal), 0.0, 1.0), 3.0);
+    outgoingLight += diffuseColor.rgb * rim * 0.35 + vec3(0.9, 0.95, 1.0) * rim * 0.08;
+  }
+#include <opaque_fragment>`);
+  };
+  return mat;
+}
+
 export const MATS = {
-  main: withCut(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), 'pz-main'),
-  ground: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0 }),
+  main: withCut(withDetail(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), 0.07, false), 'pz-main'),
+  ground: withDetail(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0 }), 0.16, true),
   // Vitres : sombres et réfléchissantes le jour, éclairées (teinte des sommets) la nuit.
   windows: withCut(new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x3a4a60, roughness: 0.08, metalness: 0.6, emissive: 0xffffff, emissiveIntensity: 0 }), 'pz-windows',
     (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;'); }),
@@ -43,7 +96,7 @@ export const MATS = {
 };
 
 // Matériau pour objets mobiles individuels (personnages, animaux...).
-export const actorMaterial = MATS.main;
+export const actorMaterial = withCut(withRim(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0 })), 'pz-actor');
 
 // Matériau uni (une couleur), même rendu que le décor.
 export function solidMaterial(color, opts = {}) {

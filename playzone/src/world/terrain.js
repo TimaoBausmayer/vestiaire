@@ -14,11 +14,16 @@ export function buildTerrain() {
   g.name = 'terrain';
   const I = { x0: -945, x1: 945, z0: -1045, z1: 285 };
   const X0 = B.minX - 45, X1 = B.maxX + 45, Z0 = B.minZ - 45, Z1 = B.maxZ + 45;
+  const M = { x0: -1896, x1: 1896, z0: -2048, z1: Z1 };   // ancienne grande carte (12 m)
   g.add(terrainPatch(I.x0, I.x1, I.z0, I.z1, 5));
-  g.add(terrainPatch(X0, X1, Z0, I.z0, 12));          // nord
-  g.add(terrainPatch(X0, X1, I.z1, Z1, 12));          // sud (mer)
-  g.add(terrainPatch(X0, I.x0, I.z0, I.z1, 12));      // ouest
-  g.add(terrainPatch(I.x1, X1, I.z0, I.z1, 12));      // est
+  g.add(terrainPatch(M.x0, M.x1, M.z0, I.z0, 12));        // nord
+  g.add(terrainPatch(M.x0, M.x1, I.z1, M.z1, 12));        // sud (mer)
+  g.add(terrainPatch(M.x0, I.x0, I.z0, I.z1, 12));        // ouest
+  g.add(terrainPatch(I.x1, M.x1, I.z0, I.z1, 12));        // est
+  // carte géante (16 m) : massif au nord, désert à l'ouest, côte des Palmiers à l'est
+  g.add(terrainPatch(X0, X1, Z0, M.z0, 16));
+  g.add(terrainPatch(X0, M.x0, M.z0, Z1, 16));
+  g.add(terrainPatch(M.x1, X1, M.z0, Z1, 16));
   return g;
 }
 
@@ -69,6 +74,11 @@ function terrainPatch(px0, px1, pz0, pz1, step) {
     if ((x < -900 || x > 900) && z > -1000 && z < 50) { const f = Math.floor(x / 60) * 7 + Math.floor(z / 45) * 13; const k = ((f % 5) + 5) % 5; if (k === 1) c.set('#c9b458'); else if (k === 2) c.copy(dirt).lerp(grassDark, Math.sin(x * 1.7) > 0.2 ? 0.5 : 0); else if (k === 3) c.set('#8fbf4f'); }
     const dLake = Math.hypot(x - LAKE.x, (z - LAKE.z) * 1.3);
     if (dLake > LAKE.r - 2 && dLake < LAKE.r + 8) c.lerp(sand, 0.6);
+    // carte géante : désert ocre et canyons, côte tropicale, alpages, roche et neiges éternelles
+    if (x < -1880) { const dn = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.03) * 2); c.copy(sand).lerp(new THREE.Color('#d9a066'), 0.35 + dn * 0.3); if (Math.sin(x * 0.011) * Math.sin(z * 0.013) > 0.55) c.lerp(new THREE.Color('#b5523b'), 0.45); }
+    if (x > 1880) { c.copy(grass).lerp(new THREE.Color('#3fae5a'), 0.45 + n * 0.2); if (x > 2930) c.copy(sand).lerp(wet, Math.min(1, (x - 2960) / 30)); }
+    if (z < -2010 && z > -2960) c.lerp(new THREE.Color('#8fc46a'), 0.35 + n * 0.15);
+    if (h > 3) { c.copy(new THREE.Color('#7d7f7d')).lerp(new THREE.Color('#5e6b4f'), Math.max(0, 0.6 - h / 60) + n * 0.1); if (h > 55 + n * 12) c.set('#f4f7fb'); }
     // sous l'eau
     if (h < WATER_LEVEL) c.copy(wet).multiplyScalar(0.85);
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
@@ -134,7 +144,7 @@ export function buildWater() {
     foam: { value: new THREE.Color('#ffffff') }, light: { value: 1 },
   }]);
   const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, transparent: true, fog: true, depthWrite: false });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(4400, 3400, 110, 85).rotateX(-Math.PI / 2).translate(0, 0, -800), mat);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(7400, 5400, 185, 135).rotateX(-Math.PI / 2).translate(0, 0, -1300), mat);
   mesh.position.y = WATER_LEVEL;
   mesh.renderOrder = 1;
   mesh.name = 'water';

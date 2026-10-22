@@ -46,6 +46,9 @@ export function destinations(profile = null) {
   out.push({ id: 'ski', name: '⛷️ Station de ski du Mont-Pinard', cat: 'leisure', x: SKI.hut.x, z: SKI.hut.z + 4 });
   out.push({ id: 'piste-athle', name: '🏃 Piste d\'athlétisme (Stade des Crampons)', cat: 'leisure', x: PITCH.x, z: PITCH.z + PITCH.d / 2 + 14 });
   out.push({ id: 'surf-spot', name: '🪁🚤 Wingfoil et jet ski (Surf Shop)', cat: 'leisure', x: 430, z: 50 });
+  out.push({ id: 'sablons', name: '🌵 Les Sablons (désert)', cat: 'other', x: -2400, z: -700 });
+  out.push({ id: 'palmeraie', name: '🌴 La Palmeraie (station balnéaire)', cat: 'leisure', x: 2600, z: -300 });
+  out.push({ id: 'alpe', name: '🏔️ Glacier-sur-Alpe', cat: 'leisure', x: 0, z: -2350 });
   out.push({ id: 'nordville', name: '🏙️ Nordville (centre)', cat: 'other', x: 0 + 20, z: -1400 });
   out.push({ id: 'lac', name: '🐸 Lac des Grenouilles', cat: 'leisure', x: -1100, z: -1240 });
   out.push({ id: 'marmottes', name: '🏡 Village des Marmottes', cat: 'other', x: -1350, z: -300 });

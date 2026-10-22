@@ -4,7 +4,7 @@
 // industrielle, campagne, plage sauvage, parc de loisirs, circuit et prison.
 // Repère : X vers l'est, Z vers le sud. Unité ≈ 1 m.
 
-export const BOUNDS = { minX: -1850, maxX: 1850, minZ: -2000, maxZ: 400 };
+export const BOUNDS = { minX: -3000, maxX: 3000, minZ: -3400, maxZ: 400 };
 
 // ---------------------------------------------------------------------------------------------
 // RUES : segments horizontaux (h : z fixe, de x1 à x2) ou verticaux (v : x fixe, de z1 à z2).
@@ -92,6 +92,21 @@ export const STREETS = [
   { id: 'marmottes-h', name: 'Rue du Fromage', axis: 'h', z: -420, x1: -1500, x2: -1200, w: 7, kind: 'street' },
   { id: 'rd14', name: 'Route du Grand-Large', axis: 'h', z: -300, x1: 840, x2: 1800, w: 8, kind: 'country' },
   { id: 'port-gl', name: 'Quai du Grand-Large', axis: 'v', x: 1400, z1: -300, z2: 60, w: 9, kind: 'main' },
+  // --- CARTE GÉANTE : anneau A4, désert des Sablons, Palmeraie, Glacier-sur-Alpe
+  { id: 'a4-nord', name: 'Autoroute A4 des Géants', axis: 'h', z: -2900, x1: -2900, x2: 2900, w: 16, kind: 'highway' },
+  { id: 'a4-ouest', name: 'Autoroute A4 des Géants', axis: 'v', x: -2900, z1: -2900, z2: 60, w: 16, kind: 'highway' },
+  { id: 'a4-est', name: 'Autoroute A4 des Géants', axis: 'v', x: 2900, z1: -2900, z2: 60, w: 16, kind: 'highway' },
+  { id: 'a3-nord', name: 'Autoroute A3 du Nord', axis: 'v', x: 0, z1: -2900, z2: -1900, w: 16, kind: 'highway' },
+  { id: 'corniche-o4', name: 'Route de la Corniche', axis: 'h', z: 60, x1: -2900, x2: -1800, w: 8, kind: 'main' },
+  { id: 'corniche-e4', name: 'Route de la Corniche', axis: 'h', z: 60, x1: 1800, x2: 2900, w: 8, kind: 'main' },
+  { id: 'rd-sablons', name: 'Route du Désert', axis: 'h', z: -700, x1: -2900, x2: -1800, w: 9, kind: 'country' },
+  { id: 'sablons-v', name: 'Rue Principale des Sablons', axis: 'v', x: -2400, z1: -1000, z2: -400, w: 9, kind: 'street' },
+  { id: 'rd-palmiers', name: 'Route des Palmiers', axis: 'h', z: -600, x1: 1800, x2: 2900, w: 9, kind: 'country' },
+  { id: 'palmeraie-v', name: 'Boulevard de la Palmeraie', axis: 'v', x: 2600, z1: -1000, z2: 60, w: 10, kind: 'main' },
+  { id: 'palmeraie-h', name: 'Allée des Cocotiers', axis: 'h', z: -300, x1: 2300, x2: 2900, w: 8, kind: 'street' },
+  { id: 'alpe-h', name: 'Grande Rue de Glacier-sur-Alpe', axis: 'h', z: -2350, x1: -700, x2: 700, w: 10, kind: 'main' },
+  { id: 'alpe-v1', name: 'Chemin des Edelweiss', axis: 'v', x: -350, z1: -2600, z2: -2350, w: 8, kind: 'street' },
+  { id: 'alpe-v2', name: 'Chemin des Chamois', axis: 'v', x: 350, z1: -2600, z2: -2350, w: 8, kind: 'street' },
 ];
 export const STREET_BY_ID = Object.fromEntries(STREETS.map((s) => [s.id, s]));
 
@@ -224,6 +239,13 @@ export const CITY_ZONES = [
   { id: 'grand-large', name: 'Port Grand-Large', rect: [1150, -320, 1650, 400] },
   { id: 'campagne-est', name: 'Plaines de l\'Est', rect: [900, -1300, 1850, 400] },
   { id: 'grand-nord', name: 'Le Grand Nord', rect: [-1850, -2000, 1850, -1000] },
+  { id: 'sablons', name: 'Les Sablons', rect: [-2560, -1020, -2240, -380] },
+  { id: 'palmeraie', name: 'La Palmeraie', rect: [2280, -1020, 2920, 80] },
+  { id: 'alpe', name: 'Glacier-sur-Alpe', rect: [-720, -2640, 720, -2080] },
+  { id: 'massif', name: 'Massif des Géants', rect: [-3000, -3400, 3000, -2950] },
+  { id: 'desert', name: 'Désert des Sablons', rect: [-3000, -2000, -1850, 400] },
+  { id: 'cote-palmiers', name: 'Côte des Palmiers', rect: [1850, -2000, 3000, 400] },
+  { id: 'hauts-plateaux', name: 'Hauts Plateaux', rect: [-3000, -2950, 3000, -2000] },
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -399,6 +421,61 @@ add({ id: 'capitainerie-gl', name: 'Capitainerie du Grand-Large', kind: 'decor',
 add({ id: 'yacht-club', name: 'Yacht Club du Grand-Large', kind: 'shop', shop: 'homard', interior: 'restaurant', x: 1370, z: -40, w: 18, d: 14, h: 8, facing: 'E', color: '#ffffff', roofColor: '#1d3557', sign: 'YACHT CLUB', neon: true, district: 'grand-large' });
 add({ id: 'hotel-gl', name: 'Hôtel Grand-Large', kind: 'decor', interior: 'lobby', x: 1370, z: -160, w: 24, d: 20, h: 24, floors: 7, facing: 'E', style: 'apartment', color: '#e2ece9', roofColor: '#0077b6', sign: 'HÔTEL GRAND-LARGE', district: 'grand-large' });
 add({ id: 'station-a2', name: 'Aire des Sommets (A2)', kind: 'shop', shop: 'station', interior: 'minimarket', x: 40, z: -1865, w: 14, d: 9, h: 4.5, facing: 'N', style: 'station', color: '#f4f1ea', roofColor: '#d00000', sign: 'AIRE DES SOMMETS', district: 'grand-nord', gas: { x: 40, z: -1882, w: 16, d: 12 } });
+
+// --- LES SABLONS (désert) : petite ville de western le long de la rue principale
+{
+  const SB = [
+    ['sb-saloon', 'Saloon du Cactus Assoiffé', 'shop', 'cafe2', 'cafe', -2425, -940, 18, 14, 'E', '#c08552', '#5c3d2e', 'SALOON'],
+    ['sb-epicerie', 'Bazar des Sablons', 'shop', 'superette', 'supermarket', -2375, -940, 16, 12, 'W', '#e9c46a', '#9c6644', 'BAZAR'],
+    ['sb-garage', 'Garage du Coyote', 'shop', 'repair', 'workshop', -2425, -860, 22, 16, 'E', '#adb5bd', '#6c584c', 'GARAGE DU COYOTE'],
+    ['sb-sherif', 'Bureau du Shérif', 'decor', null, 'office', -2375, -860, 16, 12, 'W', '#ddb892', '#7f5539', 'SHÉRIF'],
+    ['sb-motel', 'Motel Mirage', 'decor', null, 'lobby', -2425, -560, 30, 14, 'E', '#ffafcc', '#3d405b', 'MOTEL MIRAGE'],
+    ['sb-tacos', 'Tacos du Désert', 'shop', 'tacos', 'fastfood', -2375, -560, 14, 12, 'W', '#ffd166', '#ef476f', 'TACOS'],
+    ['sb-brocante', 'Brocante de la Ruée vers l\'Or', 'shop', 'brocante', 'shop', -2425, -480, 18, 12, 'E', '#b08968', '#582f0e', 'BROCANTE'],
+  ]
+  for (const [id, name, kind, shop, interior, x, z, w, d, facing, color, roofColor, sign] of SB) add({ id, name, kind, ...(shop ? { shop } : {}), interior, x, z, w, d, h: 7, facing, color, roofColor, sign, district: 'sablons' });
+  add({ id: 'sb-station', name: 'Station du Désert', kind: 'shop', shop: 'station', interior: 'minimarket', x: -2150, z: -735, w: 14, d: 9, h: 4.5, facing: 'N', style: 'station', color: '#f4f1ea', roofColor: '#e76f51', sign: 'STATION DU DÉSERT', district: 'sablons', gas: { x: -2150, z: -722, w: 16, d: 10 } });
+  let q = 0;
+  for (const z of [-780, -740, -660, -620]) for (const [x, facing] of [[-2425, 'E'], [-2375, 'W']]) { q++; add({ id: `maison-sb${q}`, name: `${q} rue Principale des Sablons`, kind: 'house', interior: 'house', x, z, w: 12, d: 11, h: 5, facing, color: ['#e9c46a', '#f4a261', '#e76f51', '#ddb892'][q % 4], roofColor: '#7f5539', district: 'sablons' }); }
+  add({ id: 'ranch', name: 'Ranch du Grand Canyon', kind: 'shop', shop: 'farm', interior: 'barn', x: -2650, z: -1300, w: 30, d: 20, h: 9, facing: 'S', style: 'barn', color: '#9b2226', roofColor: '#3a2a1e', sign: 'RANCH', district: 'desert' });
+}
+
+// --- LA PALMERAIE : station balnéaire de luxe sur la côte est
+{
+  const PM = [
+    ['pm-hotel1', 'Palace des Cocotiers', 'decor', null, 'lobby', 2565, -880, 30, 24, 'E', 'apartment', '#ffffff', '#2a9d8f', 'PALACE DES COCOTIERS', 36, 10],
+    ['pm-hotel2', 'Hôtel Lagon Bleu', 'decor', null, 'lobby', 2637, -880, 30, 24, 'W', 'apartment', '#caf0f8', '#0077b6', 'HÔTEL LAGON BLEU', 30, 9],
+    ['pm-casino', 'Casino des Palmiers', 'service', null, 'casino', 2565, -760, 30, 24, 'E', null, '#ffd166', '#7209b7', 'CASINO', 10, 1],
+    ['pm-surf', 'Surf Shack de la Palmeraie', 'shop', 'surf', 'shop', 2637, -760, 18, 14, 'W', null, '#90e0ef', '#ff6b6b', 'SURF SHACK', 7, 1],
+    ['pm-resto', 'Langouste Royale', 'shop', 'homard', 'restaurant', 2565, -160, 22, 16, 'E', null, '#ffe5d9', '#9d0208', 'LANGOUSTE ROYALE', 8, 1],
+    ['pm-paillote', 'Paillote Tiki', 'shop', 'paillote', 'cafe', 2637, -160, 16, 12, 'W', 'hut', '#e9c46a', '#8d5a2b', 'TIKI', 6, 1],
+    ['pm-bijoux', 'Joaillerie des Îles', 'shop', 'bijoux', 'shop', 2565, -60, 16, 12, 'E', null, '#fefae0', '#c9a227', 'JOAILLERIE', 7, 1],
+    ['pm-immo', 'Agence Palmeraie Prestige', 'shop', 'immo', 'agency', 2637, -60, 16, 12, 'W', null, '#e2ece9', '#264653', 'IMMOBILIER', 7, 1],
+  ]
+  for (const [id, name, kind, shop, interior, x, z, w, d, facing, style, color, roofColor, sign, h, floors] of PM) add({ id, name, kind, ...(shop ? { shop } : {}), interior, x, z, w, d, h, floors, facing, ...(style ? { style } : {}), color, roofColor, sign, neon: kind !== 'decor', district: 'palmeraie' });
+  let v = 0;
+  for (let x = 2330; x <= 2870; x += 45) {
+    if (Math.abs(x - 2600) < 30) continue;
+    for (const [z, facing] of [[-265, 'N'], [-335, 'S']]) { v++; add({ id: `villa-pm${v}`, name: `Villa ${v} allée des Cocotiers`, kind: 'house', interior: 'house', x, z, w: 16, d: 13, h: 7, facing, color: ['#ffffff', '#fefae0', '#e0fbfc', '#ffe5ec'][v % 4], roofColor: ['#2a9d8f', '#e76f51', '#264653'][v % 3], district: 'palmeraie' }); }
+  }
+}
+
+// --- GLACIER-SUR-ALPE : village de montagne (chalets, fondue, location de skis)
+{
+  const AL = [
+    ['al-fondue', 'La Fondue qui Fond', 'shop', 'bakery', 'restaurant', -120, -2375, 20, 14, 'S', '#a0703c', '#3a2a1e', 'FONDUE'],
+    ['al-skis', 'Glisse & Raclette (location de skis)', 'shop', 'sport', 'shop', 120, -2375, 20, 14, 'S', '#bc6c25', '#283618', 'LOCATION DE SKIS'],
+    ['al-hotel', 'Hôtel du Mont Géant', 'decor', null, 'lobby', -240, -2325, 30, 20, 'N', '#dda15e', '#283618', 'HÔTEL DU MONT GÉANT'],
+    ['al-superette', 'Épicerie des Cimes', 'shop', 'superette', 'supermarket', 240, -2325, 18, 14, 'N', '#fefae0', '#9b2226', 'ÉPICERIE DES CIMES'],
+  ]
+  for (const [id, name, kind, shop, interior, x, z, w, d, facing, color, roofColor, sign] of AL) add({ id, name, kind, ...(shop ? { shop } : {}), interior, x, z, w, d, h: 9, facing, roof: 'gable', color, roofColor, sign, district: 'alpe' });
+  let c = 0;
+  for (let x = -660; x <= 660; x += 40) {
+    if (Math.abs(x) < 300 || Math.abs(Math.abs(x) - 350) < 22) continue;
+    for (const [z, facing] of [[-2375, 'S'], [-2325, 'N']]) { c++; add({ id: `chalet-al${c}`, name: `Chalet ${c} Grande Rue`, kind: 'house', interior: 'house', x, z, w: 13, d: 11, h: 7, facing, roof: 'gable', color: ['#a0703c', '#8d5a2b', '#bc6c25'][c % 3], roofColor: '#3a2a1e', district: 'alpe' }); }
+  }
+  add({ id: 'station-a4', name: 'Aire des Géants (A4)', kind: 'shop', shop: 'station', interior: 'minimarket', x: 40, z: -2865, w: 14, d: 9, h: 4.5, facing: 'N', style: 'station', color: '#f4f1ea', roofColor: '#0077b6', sign: 'AIRE DES GÉANTS', district: 'hauts-plateaux', gas: { x: 40, z: -2882, w: 16, d: 12 } });
+}
 
 // --- Campagne des Navets
 add({ id: 'ferme-navets', name: 'Maison de la Ferme des Navets', kind: 'house', interior: 'house', x: -265, z: -25, w: 12, d: 10, h: 6, facing: 'E', roof: 'gable', color: '#efe3c2', roofColor: '#7a4b2a', district: 'campagne' });

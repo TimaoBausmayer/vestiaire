@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PostFX } from './postfx.js';
 
 // Moteur : rendu WebGL, scène, caméra, lumières, ciel et boucle de jeu. Gère la qualité graphique
 // (ombres, résolution) pour rester fluide sur les petites machines et les téléphones.
@@ -12,15 +13,28 @@ void main() {
 }`;
 const SKY_FRAG = /* glsl */`
 uniform vec3 topColor; uniform vec3 horizonColor; uniform vec3 bottomColor;
-uniform vec3 sunDir; uniform vec3 sunColor; uniform float starAmount;
+uniform vec3 sunDir; uniform vec3 sunColor; uniform float starAmount; uniform float time; uniform float cloudLight;
 varying vec3 vDir;
 float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453); }
+float h2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h2(i), h2(i + vec2(1.0, 0.0)), f.x), mix(h2(i + vec2(0.0, 1.0)), h2(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 p) { float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * n2(p); p = p * 2.03 + 17.1; a *= 0.5; } return v; }
 void main() {
   vec3 d = normalize(vDir);
   float h = d.y;
   vec3 col = h > 0.0 ? mix(horizonColor, topColor, pow(min(h * 1.6, 1.0), 0.7)) : mix(horizonColor, bottomColor, min(-h * 4.0, 1.0));
   float s = max(dot(d, normalize(sunDir)), 0.0);
-  col += sunColor * (smoothstep(0.9975, 0.999, s) * 1.2 + pow(s, 24.0) * 0.25);
+  col += sunColor * (smoothstep(0.9975, 0.999, s) * 3.0 + pow(s, 24.0) * 0.3 + pow(s, 4.0) * 0.08);
+  // nuages : couche plane projetée sur la voûte, qui dérive avec le vent
+  if (h > 0.0) {
+    vec2 uv = d.xz / (h + 0.12) * 1.6 + vec2(time * 0.006, time * 0.002);
+    float c = fbm(uv);
+    float cov = smoothstep(0.5, 0.78, c) * smoothstep(0.0, 0.18, h);
+    float shade = 0.75 + 0.25 * fbm(uv * 2.0 + 3.0);
+    vec3 cloud = mix(horizonColor, vec3(1.0), 0.65) * shade * cloudLight + sunColor * pow(s, 6.0) * 0.35;
+    col = mix(col, cloud, cov * 0.85);
+  }
   if (starAmount > 0.0 && h > 0.05) {
     vec3 q = floor(d * 220.0);
     float st = step(0.9965, hash(q));
@@ -94,10 +108,10 @@ export class Engine {
     this.skyUniforms = {
       topColor: { value: new THREE.Color(0x3d8ee8) }, horizonColor: { value: new THREE.Color(0xbfe3f5) },
       bottomColor: { value: new THREE.Color(0x8fb7c9) }, sunDir: { value: new THREE.Vector3(0.4, 0.8, 0.3) },
-      sunColor: { value: new THREE.Color(0xfff3c4) }, starAmount: { value: 0 },
+      sunColor: { value: new THREE.Color(0xfff3c4) }, starAmount: { value: 0 }, time: { value: 0 }, cloudLight: { value: 1 },
     };
     this.sky = new THREE.Mesh(
-      new THREE.SphereGeometry(500, 24, 12),
+      new THREE.SphereGeometry(500, 32, 16),
       new THREE.ShaderMaterial({ uniforms: this.skyUniforms, vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false }),
     );
     this.sky.frustumCulled = false;
@@ -121,15 +135,19 @@ export class Engine {
     this.renderer.shadowMap.type = q === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     if (q === 'low' && this.scene.environment) { this.envRT?.dispose(); this.envRT = null; this.scene.environment = null; }
     this.envDirty = true;
-    const size = q === 'high' ? 2048 : 1024;
+    const size = q === 'high' ? 4096 : 2048;
     if (this.sun.shadow.mapSize.x !== size) {
       this.sun.shadow.mapSize.set(size, size);
       this.sun.shadow.map?.dispose();
       this.sun.shadow.map = null;
     }
     this.sun.castShadow = q !== 'low';
-    this.scene.fog.far = q === 'low' ? 170 : 230;
-    this.camera.far = q === 'low' ? 400 : 700;
+    // grande carte : on voit loin (brume plus lointaine) en qualité haute
+    this.scene.fog.near = q === 'high' ? 110 : 70;
+    this.scene.fog.far = q === 'low' ? 170 : q === 'medium' ? 260 : 340;
+    this.camera.far = q === 'low' ? 400 : q === 'medium' ? 800 : 1200;
+    // post-traitement (halo, étalonnage, vignetage) hors qualité basse
+    if (q === 'low' || this.noPost) { this.post?.dispose(); this.post = null; } else if (!this.post) this.post = new PostFX(this.renderer);
     this.camera.updateProjectionMatrix();
     // Les matériaux doivent être recompilés quand on active/désactive les ombres.
     this.scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
@@ -189,7 +207,8 @@ export class Engine {
       for (const fn of this.updaters) {
         try { fn(dt, this.time); } catch (e) { console.error(e); }
       }
-      this.renderer.render(this.scene, this.camera);
+      this.skyUniforms.time.value = this.time;
+      if (this.post) this.post.render(this.scene, this.camera); else this.renderer.render(this.scene, this.camera);
     };
     requestAnimationFrame(loop);
   }

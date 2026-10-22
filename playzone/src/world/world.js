@@ -6,10 +6,12 @@ import { buildBuildings } from './buildings.js';
 import { buildProps } from './props.js';
 import { buildRoads } from './roads.js';
 import { buildCityProps } from './city-props.js';
-import { buildExpansionProps } from './expansion-props.js';
+import { buildExpansionProps, buildGiantProps } from './expansion-props.js';
 import { SignAtlas } from './signs.js';
 import { DayNight } from './daynight.js';
 import { mulberry32 } from '../../shared/rng.js';
+
+const _box = new THREE.Box3(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 
 // Assemble le monde : terrain, eau, bâtiments, décor fusionné, éléments animés (grande roue, nuages).
 
@@ -40,6 +42,7 @@ export class World {
     buildProps(sb, collision, scene);
     buildCityProps(sb, collision, scene, this);
     buildExpansionProps(sb, collision);
+    buildGiantProps(sb, collision);
     for (const fn of this.contributors) fn(sb, collision, scene);
     this.static = sb.build(MATS, { shadows: true });
     scene.add(this.static);
@@ -123,6 +126,24 @@ export class World {
     for (const m of this.static.children) {
       const bs = m.geometry.boundingSphere;
       m.visible = camPos.distanceTo(bs.center) - bs.radius < far;
+    }
+    // grands ensembles animés (domaine skiable, stade, parcours de course) : chaque élément est masqué
+    // au-delà du brouillard (rayon estimé une fois, position suivie pour les objets mobiles)
+    for (const root of this.scene.children) {
+      if (root.name !== 'ski' && root.name !== 'stade' && root.name !== 'courses') continue;
+      for (const c of root.children) {
+        if (c.userData.cullR === undefined) {
+          const box = _box.setFromObject(c);
+          c.userData.cullR = box.isEmpty() ? 0 : box.getSize(_v).length() / 2;
+          c.userData.cullC = box.isEmpty() ? null : box.getCenter(new THREE.Vector3()).sub(c.getWorldPosition(_v2));
+          c.userData.cullOn = c.visible;
+        }
+        if (!c.userData.cullC) continue;
+        if (c.visible !== c.userData.cullShown) c.userData.cullOn = c.visible;   // visibilité changée par le jeu
+        if (!c.userData.cullOn) continue;
+        c.getWorldPosition(_v2).add(c.userData.cullC);
+        c.visible = c.userData.cullShown = camPos.distanceTo(_v2) - c.userData.cullR < far;
+      }
     }
   }
 

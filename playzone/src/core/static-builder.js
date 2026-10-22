@@ -53,6 +53,8 @@ export const SHAPES = {
   plane: () => base('plane', () => new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)),
   torus: () => base('torus', () => new THREE.TorusGeometry(0.5, 0.08, 6, 20)),
   ring: () => base('ring', () => new THREE.TorusGeometry(0.5, 0.18, 8, 18).rotateX(Math.PI / 2)),
+  // tronc de cône (haut 0.5, bas 0.5 * ratio) : buste, mollets, avant-bras
+  frustum: (seg = 16, ratio = 0.8) => base(`fru${seg}_${ratio}`, () => new THREE.CylinderGeometry(0.5, 0.5 * ratio, 1, seg).translate(0, 0.5, 0)),
   hemi: (seg = 12) => base(`hemi${seg}`, () => new THREE.SphereGeometry(0.5, seg, seg / 2, 0, Math.PI * 2, 0, Math.PI / 2)),
 };
 
