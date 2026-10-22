@@ -68,6 +68,25 @@ export class Football {
     }
     // panneau du club
     const sign = new THREE.Mesh(new THREE.BoxGeometry(12, 2, 0.2), mat('#2a9d3a')); sign.position.set(PITCH.x, 5.6, PITCH.z + W + 16.5); root.add(sign);
+    // tableau d'affichage (texture mise à jour pendant les matchs)
+    this.board = document.createElement('canvas'); this.board.width = 512; this.board.height = 192;
+    this.boardTex = new THREE.CanvasTexture(this.board);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(10, 3.75), new THREE.MeshBasicMaterial({ map: this.boardTex, toneMapped: false }));
+    scr.position.set(PITCH.x - L - 9, 7, PITCH.z); scr.rotation.y = Math.PI / 2; root.add(scr);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4.3, 10.6), mat('#14141c')); frame.position.set(PITCH.x - L - 9.25, 7, PITCH.z); root.add(frame);
+    for (const dz of [-3.5, 3.5]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5, 0.3), mat('#6c757d')); leg.position.set(PITCH.x - L - 9.3, 2.5, PITCH.z + dz); root.add(leg); }
+    this.drawBoard('STADE', 'DES CRAMPONS', '');
+    // supporters dans la tribune (ils se lèvent et applaudissent aux buts)
+    this.fans = [];
+    const fr = mulberry32(99);
+    for (let r = 0; r < 4; r++) for (let i = 0; i < 9; i++) {
+      if (fr() < 0.35) continue;
+      const av = new Avatar({ ...DEFAULT_APPEARANCE, skin: SKINS[Math.floor(fr() * 8)], hair: HAIR_STYLES[Math.floor(fr() * HAIR_STYLES.length)], hairColor: HAIR_COLORS[Math.floor(fr() * 7)], top: 'tshirt', topColor: fr() < 0.6 ? KIT[0][0] : KIT[1][0], hat: null }, {});
+      av.root.position.set(PITCH.x - 22 + i * 5.3 + fr() * 1.5, 0.5 + r * 0.5, PITCH.z + W + 10.2 + r * 1.2);
+      av.root.rotation.y = Math.PI; av.root.scale.setScalar(0.9);
+      root.add(av.root); this.fans.push({ av, ph: fr() * 6 });
+    }
+    this.cheer = 0;
     g.engine.scene.add(root);
     // ballon (caché hors activité)
     const c = document.createElement('canvas'); c.width = 64; c.height = 32;
@@ -80,6 +99,15 @@ export class Football {
   }
 
   get active() { return !!this.s; }
+
+  drawBoard(a, b, c) {
+    const x = this.board.getContext('2d');
+    x.fillStyle = '#0b0b10'; x.fillRect(0, 0, 512, 192);
+    x.fillStyle = '#ffd23f'; x.font = 'bold 54px sans-serif'; x.textAlign = 'center'; x.fillText(a, 256, 70);
+    x.fillStyle = '#ffffff'; x.font = 'bold 40px sans-serif'; x.fillText(b, 256, 125);
+    x.fillStyle = '#2ec4b6'; x.font = 'bold 30px sans-serif'; x.fillText(c, 256, 172);
+    this.boardTex.needsUpdate = true;
+  }
 
   // ------------------------------------------------------------------------------ club-house
   desk() {
@@ -368,7 +396,14 @@ export class Football {
   // ------------------------------------------------------------------------------ boucle
   update(dt) {
     const s = this.s, g = this.g;
+    // supporters : ils bougent un peu, se lèvent aux buts (seulement si on est près du stade)
+    const P0 = g.player.pos;
+    if (Math.abs(P0.x - PITCH.x) < 120 && Math.abs(P0.z - PITCH.z) < 100) {
+      this.cheer = Math.max(0, this.cheer - dt);
+      for (const f of this.fans) { f.ph += dt; f.av.update(dt, { speed: 0, grounded: true, pose: this.cheer > 0 || (s && s.mode === 'match' && Math.sin(f.ph * 0.7) > 0.95) ? 'celebrate' : 'sit' }); }
+    }
     if (!s) return;
+    if (s.mode === 'match') { s.boardT = (s.boardT || 0) - dt; if (s.boardT <= 0) { s.boardT = 1; const left = Math.max(0, (s.until - g.now()) / 1000); this.drawBoard(`${s.score[0]}  -  ${s.score[1]}`, `TOI · ${s.opponent}`, `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`); } }
     const me = this.me(), I = g.input;
     // sortie du terrain = abandon
     if (Math.abs(me.pos.x - PITCH.x) > L + 25 || Math.abs(me.pos.z - PITCH.z) > W + 25 || g.player.zone !== 'world') { this.stop(true); return; }
@@ -470,6 +505,7 @@ export class Football {
     const s = this.s, g = this.g;
     if (s.mode === 'drill') { if (s.drill === 'tirs') { s.score++; g.sfx('success'); g.ui.toast(`⚽ BUT ! (${s.score})`, 'good', 1200); setTimeout(() => this.s === s && this.nextShot(), 900); s.ball.vel.set(0, 0, 0); s.ball.pos.set(PITCH.x - L - 1, R, PITCH.z); s.shotAt = 0; } return; }
     s.score[team]++;
+    this.cheer = 3.5;
     const scorer = s.ball.last;
     if (team === 0 && scorer && !scorer.ai) s.myGoals++;
     g.sfx(team === 0 ? 'success' : 'fail');
@@ -679,5 +715,6 @@ export class Football {
     g.player.speedBonus = s.speedBonus ?? 1;
     g.player.noJump = false; g.player.external = false;
     g.hud.track('foot', null);
+    this.drawBoard('STADE', 'DES CRAMPONS', s.mode === 'match' ? `Dernier score : ${s.score[0]} - ${s.score[1]}` : '');
   }
 }

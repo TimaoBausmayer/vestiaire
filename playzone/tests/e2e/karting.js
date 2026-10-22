@@ -79,7 +79,10 @@ await ev(() => { const g = window.playzone; g.cam.dist = 12; g.cam.pitch = 0.6; 
 await sleep(300);
 await page.screenshot({ path: 'tests/e2e/out/kart-course.png' });
 await drive(3, 16);
-await sleep(1200);
+// quelques pas de jeu pour que la ligne d'arrivée soit traitée (les images sont lentes en rendu logiciel)
+await ev(() => window.playzone.debugStep(0.5));
+await page.waitForFunction(() => !window.playzone.karting.s, null, { timeout: 15000 }).catch(() => {});
+await sleep(600);
 p = await prof();
 const res = await page.locator('.modal').last().textContent().catch(() => '');
 check(p.karting.races === 1 && /PNJ/.test(res), `course terminée : ${p.karting.history.at(-1)?.place}e place sur ${p.karting.history.at(-1)?.of}`);

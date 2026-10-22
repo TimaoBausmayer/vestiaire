@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { h, clear } from './dom.js';
 import {
-  SKINS, HAIR_STYLES, HAIR_LABELS, HAIR_COLORS, EYES, EYE_LABELS, BODIES, COLORS, BASE_TOPS, BASE_BOTTOMS, TOP_LABELS, BOTTOM_LABELS, DEFAULT_APPEARANCE,
+  SKINS, HAIR_STYLES, HAIR_LABELS, HAIR_COLORS, EYE_COLORS, EYES, EYE_LABELS, BODIES, COLORS, BASE_TOPS, BASE_BOTTOMS, TOP_LABELS, BOTTOM_LABELS, DEFAULT_APPEARANCE,
 } from '../../shared/appearance.js';
 import { validName } from '../../shared/rules.js';
 
@@ -74,6 +74,7 @@ export function openCreator(game, opts) {
       else {
         body.append(field('Coiffure', opts2('hair', HAIR_STYLES, HAIR_LABELS)));
         body.append(field('Couleur', swatches('hairColor', HAIR_COLORS)));
+        body.append(field('Couleur des yeux', swatches('eyeColor', EYE_COLORS)));
       }
     } else if (tab === 'tenue') {
       const tops = [...BASE_TOPS, ...(opts.extraTops || [])];

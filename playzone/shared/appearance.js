@@ -4,6 +4,7 @@
 export const SKINS = ['#ffe0c4', '#f6cfa3', '#f1c27d', '#e0ac69', '#c68642', '#a86b3c', '#8d5524', '#5c3a1e', '#9fd8a8', '#a9c1ff'];
 export const HAIR_STYLES = ['court', 'herisse', 'long', 'chignon', 'afro', 'crete', 'couettes', 'meche', 'chauve'];
 export const HAIR_LABELS = { court: 'Court', herisse: 'Hérissé', long: 'Long', chignon: 'Chignon', afro: 'Afro', crete: 'Crête', couettes: 'Couettes', meche: 'Mèche', chauve: 'Chauve' };
+export const EYE_COLORS = ['#5b3a1e', '#3b2412', '#2f6f9f', '#3f8f5a', '#7a8a99', '#8a5a2b', '#14141c'];
 export const HAIR_COLORS = ['#1f1611', '#4a2f1b', '#8a5a2b', '#d9a441', '#f2e2b1', '#b5452f', '#e8e8e8', '#ff5ab4', '#3fa7ff', '#5fd068'];
 export const EYES = ['rond', 'joyeux', 'serieux', 'endormi'];
 export const EYE_LABELS = { rond: 'Curieux', joyeux: 'Joyeux', serieux: 'Sérieux', endormi: 'Endormi' };
@@ -15,7 +16,7 @@ export const TOP_LABELS = { tshirt: 'T-shirt', sweat: 'Sweat', debardeur: 'Déba
 export const BOTTOM_LABELS = { jean: 'Pantalon', short: 'Short' };
 
 export const DEFAULT_APPEARANCE = {
-  skin: '#f1c27d', hair: 'court', hairColor: '#4a2f1b', eyes: 'rond', body: 'moyen', height: 1,
+  skin: '#f1c27d', hair: 'court', hairColor: '#4a2f1b', eyeColor: '#5b3a1e', eyes: 'rond', body: 'moyen', height: 1,
   top: 'tshirt', topColor: '#ff5a5f', bottom: 'jean', bottomColor: '#3d8ee8', shoes: '#2b2d42',
   hat: null, glasses: null, back: null, feet: null,
 };
@@ -29,6 +30,7 @@ export function sanitizeAppearance(app, catalog, owned) {
   if (SKINS.includes(app.skin)) a.skin = app.skin;
   if (HAIR_STYLES.includes(app.hair)) a.hair = app.hair;
   if (HAIR_COLORS.includes(app.hairColor)) a.hairColor = app.hairColor;
+  if (EYE_COLORS.includes(app.eyeColor)) a.eyeColor = app.eyeColor;
   if (EYES.includes(app.eyes)) a.eyes = app.eyes;
   if (BODIES.includes(app.body)) a.body = app.body;
   if (typeof app.height === 'number' && app.height >= 0.9 && app.height <= 1.1) a.height = Math.round(app.height * 100) / 100;

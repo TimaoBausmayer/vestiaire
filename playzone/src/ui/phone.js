@@ -96,17 +96,28 @@ export class Phone {
   render() {
     const g = this.game;
     clear(this.status);
-    this.status.append(h('span', `${g.world.dayNight.day || ''} ${formatHour(g.world.dayNight.hour)}`), h('span', g.net.mode === 'solo' ? '📴 Solo' : '📶 En ligne'), h('span', `${fmt(g.profile.coins)} PC`));
+    // barre d'état façon smartphone : heure, Dynamic Island, réseau, wifi, batterie
+    const online = g.net.mode !== 'solo';
+    const bat = Math.max(8, Math.round(100 - ((g.now() / 60000) % 90)));
+    this.status.append(h('span.ps-time', formatHour(g.world.dayNight.hour)), h('span.ps-island'),
+      h('span.ps-right', h('span.ps-bars', [1, 2, 3, 4].map((k) => h(`i${online || k < 3 ? '.on' : ''}`))), h('span.ps-wifi', online ? '📶' : '✈️'), h('span.ps-bat', h('i', { style: { width: `${bat}%` } }), h('b', String(bat)))));
     clear(this.screen);
+    this.el.classList.toggle('home', !this.app);
     if (!this.app) {
-      this.screen.append(h('div', { style: { textAlign: 'center', margin: '18px 0 6px', fontWeight: '900', fontStyle: 'italic', fontSize: '22px' } }, 'PlayPhone'),
-        h('div.phone-apps', APPS.filter((a) => !a.hidden && (!a.admin || this.game.profile.admin)).map((a) => h('button.app-icon', { onclick: () => this.go(a.id) }, h('span.ic', { style: { background: a.bg } }, a.icon), a.name, this.badges[a.id] ? h('span.dot', String(this.badges[a.id])) : null))),
-        h('button.btn.block.ghost.code-space', { onclick: () => this.go('code') }, '🔐 Espace code'));
+      const day = g.world.dayNight.day || '', hr = formatHour(g.world.dayNight.hour);
+      const icon = (a) => h('button.app-icon', { onclick: () => this.go(a.id) }, h('span.ic', { style: { background: `linear-gradient(160deg, ${a.bg}, ${a.bg}cc)` } }, a.icon), h('span.nm', a.name), this.badges[a.id] ? h('span.dot', String(this.badges[a.id])) : null);
+      const dockIds = ['map', 'bank', 'social', 'urgences'];
+      const apps = APPS.filter((a) => !a.hidden && (!a.admin || this.game.profile.admin));
+      this.screen.append(
+        h('div.ph-widget', h('div.big', hr), h('div.sub', `${day} · ${fmt(g.profile.coins)} PC · ${online ? 'En ligne' : 'Solo'}`)),
+        h('div.phone-apps', apps.filter((a) => !dockIds.includes(a.id)).map(icon)),
+        h('button.code-space', { onclick: () => this.go('code') }, '🔐 Espace code'),
+        h('div.ph-dock', apps.filter((a) => dockIds.includes(a.id)).map(icon)));
       return;
     }
     const app = APPS.find((a) => a.id === this.app);
     const body = h('div');
-    this.screen.append(h('div.phone-bar', { style: { margin: '0 -16px 12px', position: 'sticky', top: '-8px', zIndex: 2, background: '#21195a' } }, h('button.close-x', { onclick: () => this.go(null) }, '‹'), h('h3', `${app.icon} ${app.name}`)), body);
+    this.screen.append(h('div.phone-bar', { style: { margin: '-52px -16px 12px', paddingTop: '54px', position: 'sticky', top: '-52px', zIndex: 2 } }, h('button.close-x', { onclick: () => this.go(null) }, '‹'), h('h3', `${app.icon} ${app.name}`)), body);
     this[`app_${this.app}`]?.(body);
   }
 

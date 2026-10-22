@@ -419,8 +419,9 @@ export const TEMPLATES = {
       t.seat(x, I.z1 + 1.25, Math.PI, 0.55);
     }
     t.staff(I.x1 + 2.5, I.z1 + 2.2, Math.PI, 'coiffeur');
-    t.box(I.x2 - 1.2, 0, I.z2 - 2, 1.4, 1.0, 0.6, '#ffafcc'); t.solid(I.x2 - 1.2, I.z2 - 2, 1.4, 0.6, 1.1);
-    t.spot(I.x2 - 1.2, I.z2 - 1.1, { label: '✂️ Coiffeur : coupe et couleur', action: 'hair', r: 1.8, priority: 2 });
+    // comptoir au fond de la salle, loin du panneau des emplois près de l'entrée
+    t.box(I.x2 - 1.2, 0, I.z1 + 2.4, 1.4, 1.0, 0.6, '#ffafcc'); t.solid(I.x2 - 1.2, I.z1 + 2.4, 1.4, 0.6, 1.1);
+    t.spot(I.x2 - 1.2, I.z1 + 3.3, { label: '✂️ Coiffeur : coupe et couleur', action: 'hair', r: 1.8, priority: 2 });
     plant(t, I.x2 - 0.6, I.z1 + 0.6);
   },
 
