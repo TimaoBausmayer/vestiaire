@@ -117,7 +117,7 @@ export class Player {
 
     // saut
     this.coyote = this.grounded ? 0.12 : Math.max(0, this.coyote - dt);
-    if (canMove && input.pressed('Space') && this.coyote > 0 && !this.swimming && !this.bodyNoJump) {
+    if (canMove && !this.noJump && input.pressed('Space') && this.coyote > 0 && !this.swimming && !this.bodyNoJump) {
       v.y = 8.6;
       this.grounded = false;
       this.coyote = 0;

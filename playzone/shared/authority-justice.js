@@ -3,7 +3,7 @@
 // travail et évasion, code de la route et permis. Fonctions appelées avec `this` = l'Authority.
 import { BUILDING_BY_ID, BUILDINGS } from './world-layout.js';
 import { VEHICLES } from './content/vehicles.js';
-import { CRIMES, FINES, MAX_STARS, sentence, loseTime, LICENCE, CODE_QUESTIONS, codeTest, CODE_PASS, EXAM_ROUTE, EXAM_MIN_SECONDS, EXAM_MAX_ERRORS } from './justice.js';
+import { CRIMES, FINES, BOUNTY, BOUNTY_COOLDOWN, ASSIST, MAX_STARS, sentence, loseTime, LICENCE, CODE_QUESTIONS, codeTest, CODE_PASS, EXAM_ROUTE, EXAM_MIN_SECONDS, EXAM_MAX_ERRORS } from './justice.js';
 
 const err = (error) => ({ ok: false, error });
 // Téléportation décidée par l'autorité : la position validée suit (sinon l'anti-triche la refuserait).
@@ -29,7 +29,7 @@ export const JUSTICE_HANDLERS = {
   // Délit constaté côté client (coups, vol de voiture, piéton renversé, sans permis...).
   'crime.report'(ctx, { type, witnessed, model }) {
     const p = ctx.profile, c = CRIMES[type];
-    if (!c || ['braquage', 'evasion', 'recel', 'vol-tire'].includes(type)) return err('Délit inconnu.');
+    if (!c || ['braquage', 'evasion', 'recel', 'vol-tire', 'infraction'].includes(type)) return err('Délit inconnu.');
     if (p.justice.jail) return err('Tu es en prison.');
     if (type === 'vol-voiture' && VEHICLES[model]) ctx.session.stolen = { model, at: ctx.now };
     addCrime(p, type, ctx.now, !!witnessed);
@@ -96,18 +96,34 @@ export const JUSTICE_HANDLERS = {
     const key = `fine:${type}`;
     if (ctx.now - (p.cooldowns[key] || 0) < 20_000) return { ok: true, changed: false, data: { skipped: true } };
     p.cooldowns[key] = ctx.now;
-    const paid = Math.min(f.amount, p.coins);
-    this.addCoins(p, -paid);
-    if (paid < f.amount) p.debt = (p.debt || 0) + (f.amount - paid);
-    j.fines.push({ type, amount: f.amount, at: ctx.now });
-    if (j.fines.length > 20) j.fines.shift();
-    let suspended = false;
-    if (f.points && j.licence.permis) {
-      j.points = Math.max(0, j.points - f.points);
-      if (j.points === 0) { j.licence.permis = false; suspended = true; }
-    }
-    if (type === 'sans-permis') addCrime(p, 'sans-permis', ctx.now);
-    return { ok: true, changed: true, data: { amount: f.amount, points: j.points, suspended, stars: j.stars } };
+    // l'amende n'est PAS payée tout de suite : elle tombe seulement si la police t'attrape.
+    // Si tu la sèmes, tu touches une prime à la place.
+    j.pending = [...(j.pending || []), { type, amount: f.amount, points: f.points || 0, at: ctx.now }].slice(-10);
+    addCrime(p, type === 'sans-permis' ? 'sans-permis' : 'infraction', ctx.now);
+    return { ok: true, changed: true, data: { pending: true, amount: f.amount, total: j.pending.reduce((s, x) => s + x.amount, 0), stars: j.stars } };
+  },
+
+  // Aide à la police : arrêter un fuyard (voiture), attraper un voleur à la tire. Récompense plafonnée.
+  'police.assist'(ctx, { kind }) {
+    const p = ctx.profile, amount = ASSIST[kind];
+    if (!amount || kind === 'cooldown') return err('Inconnu.');
+    if (p.justice.stars) return err('La police ne récompense pas les personnes recherchées !');
+    if (ctx.now - (p.cooldowns['police:assist'] || 0) < ASSIST.cooldown) return { ok: true, changed: false, data: { amount: 0, thanks: true } };
+    p.cooldowns['police:assist'] = ctx.now;
+    p.cash = (p.cash || 0) + amount;
+    p.rep = (p.rep || 0) + 3;
+    return { ok: true, changed: true, data: { amount } };
+  },
+  // Appel d'urgence (112) : police, pompiers, ambulance. L'ambulance soigne (gratuit si blessé·e).
+  'emergency.call'(ctx, { service, real }) {
+    const p = ctx.profile;
+    if (!['police', 'pompiers', 'ambulance'].includes(service)) return err('Service inconnu.');
+    if (ctx.now - (p.cooldowns[`call:${service}`] || 0) < 20_000) return err('Ligne occupée : rappelle dans quelques secondes.');
+    p.cooldowns[`call:${service}`] = ctx.now;
+    const data = { service };
+    if (service === 'ambulance' && (p.body.health < 70 || p.body.injury)) { p.body.health = Math.max(p.body.health, 80); p.body.injury = null; data.healed = true; }
+    if (real && service === 'pompiers') { p.rep = (p.rep || 0) + 2; data.thanks = true; }
+    return { ok: true, changed: true, data };
   },
 
   // On a semé la police (pas vu depuis assez longtemps).
@@ -116,8 +132,13 @@ export const JUSTICE_HANDLERS = {
     if (!j.stars) return { ok: true, changed: false, data: {} };
     if (ctx.now - j.lastCrimeAt < loseTime(j.stars) * 1000 - 2000) return err('La police te cherche encore.');
     for (const c of j.crimes) j.record.push({ ...c, end: 'impuni' });
-    j.crimes = []; j.stars = 0;
-    return { ok: true, changed: true, data: {} };
+    const stars = j.stars, p = ctx.profile;
+    const dropped = (j.pending || []).reduce((s, x) => s + x.amount, 0);
+    j.crimes = []; j.stars = 0; j.pending = [];
+    // prime d'évasion (en liquide), pas plus d'une toutes les 4 minutes
+    let bounty = 0;
+    if (ctx.now - (p.cooldowns['police:bounty'] || 0) > BOUNTY_COOLDOWN) { bounty = BOUNTY[Math.min(5, stars)] || 0; p.cooldowns['police:bounty'] = ctx.now; p.cash = (p.cash || 0) + bounty; }
+    return { ok: true, changed: true, data: { bounty, dropped } };
   },
 
   // Arrestation : prison (minutes réelles selon le barème), argent liquide saisi.
@@ -125,6 +146,7 @@ export const JUSTICE_HANDLERS = {
     const p = ctx.profile;
     const res = arrest(this, p, ctx.now);
     if (!res) return err('Personne ne te recherche.');
+    if (res.fineOnly) return { ok: true, changed: true, data: res };
     ctx.session.stolen = null; ctx.session.robbery = null; ctx.session.shift = null;
     moveTo(ctx, res.at);
     return { ok: true, changed: true, data: res };
@@ -138,6 +160,22 @@ export const JUSTICE_HANDLERS = {
     p.justice.jail = null;
     moveTo(ctx, PRISON_GATE);
     return { ok: true, changed: true, data: { at: PRISON_GATE } };
+  },
+  // Glisser un billet au gardien : l'admin sort toujours (gratuitement) ; les autres paient en liquide
+  // (100 PC par minute restante) et peuvent se faire prendre (60 % de réussite, sinon +2 min et billet perdu).
+  'jail.bribe'(ctx) {
+    const p = ctx.profile, jl = p.justice.jail;
+    if (!jl) return err('Tu n\'es pas en prison.');
+    const left = Math.max(1, Math.ceil((jl.until - ctx.now) / 60_000));
+    if (p.admin) { p.justice.jail = null; p.justice.stars = 0; moveTo(ctx, PRISON_GATE); return { ok: true, changed: true, data: { freed: true, at: PRISON_GATE, cost: 0, admin: true } }; }
+    const cost = left * 100;
+    if ((p.cash || 0) < cost) return err(`« Un billet ? Il en faut au moins ${cost} PC en liquide... »`);
+    if (ctx.now - (p.cooldowns['jail:bribe'] || 0) < 60_000) return err('Le gardien te surveille de près. Attends un peu.');
+    p.cooldowns['jail:bribe'] = ctx.now;
+    p.cash -= cost;
+    if (ctx.rand() < 0.6) { p.justice.jail = null; moveTo(ctx, PRISON_GATE); return { ok: true, changed: true, data: { freed: true, at: PRISON_GATE, cost } }; }
+    jl.until += 2 * 60_000;
+    return { ok: true, changed: true, data: { freed: false, cost } };
   },
   'jail.work'(ctx) {
     const p = ctx.profile, jl = p.justice.jail;
@@ -222,9 +260,26 @@ export const JUSTICE_HANDLERS = {
 export function arrest(self, p, now) {
   const j = p.justice;
   if (!j.stars && !j.crimes.length) return null;
-  const minutes = Math.max(2, sentence(j.crimes));
-  const seized = Math.round(p.cash || 0);
-  p.cash = 0; j.loot = 0;
+  // amendes en attente : payées maintenant (et points retirés)
+  let fined = 0, suspended = false;
+  for (const f of j.pending || []) {
+    fined += f.amount;
+    j.fines.push({ type: f.type, amount: f.amount, at: now });
+    if (f.points && j.licence.permis) { j.points = Math.max(0, j.points - f.points); if (j.points === 0) { j.licence.permis = false; suspended = true; } }
+  }
+  if (j.fines.length > 20) j.fines.splice(0, j.fines.length - 20);
+  if (fined) { const paid = Math.min(fined, p.coins); self.addCoins(p, -paid); if (paid < fined) p.debt = (p.debt || 0) + (fined - paid); }
+  j.pending = [];
+  const minutes = sentence(j.crimes);
+  // simple contrôle routier : amendes, pas de prison
+  if (!minutes) {
+    for (const c of j.crimes) j.record.push({ ...c, end: 'amende' });
+    j.crimes = []; j.stars = 0;
+    return { minutes: 0, fineOnly: true, fined, suspended, points: j.points, crimes: [] };
+  }
+  // seul l'argent volé (butin) est saisi
+  const seized = Math.min(Math.round(p.cash || 0), Math.round(j.loot || 0));
+  p.cash = Math.max(0, (p.cash || 0) - seized); j.loot = 0;
   for (const c of j.crimes) j.record.push({ ...c, end: 'condamné' });
   if (j.record.length > 40) j.record.splice(0, j.record.length - 40);
   j.jail = { since: now, until: now + minutes * 60_000, minutes, crimes: j.crimes.map((c) => c.type) };
@@ -233,7 +288,7 @@ export function arrest(self, p, now) {
   let fired = false;
   if (p.career?.job?.id === 'policier') { p.career.history.push({ id: 'policier', building: p.career.job.building, from: p.career.job.since, to: now, end: 'renvoi (condamnation)' }); p.career.job = null; fired = true; }
   p.record = j.record.filter((c) => c.end === 'condamné').map((c) => c.type);
-  return { minutes, seized, at: PRISON_CELL, crimes: j.jail.crimes, fired };
+  return { minutes, seized, fined, suspended, at: PRISON_CELL, crimes: j.jail.crimes, fired };
 }
 
 export { BUILDINGS };

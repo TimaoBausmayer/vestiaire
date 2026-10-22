@@ -398,3 +398,5 @@ select.haggle { border-radius: 10px; border: 0; padding: 6px 8px; font-weight: 7
 /* football : boutons d'action */
 .foot-btns { position: absolute; right: calc(14px + var(--safe-r, 0px)); bottom: calc(190px + var(--safe-b, 0px)); display: flex; flex-direction: column; gap: 8px; pointer-events: auto; z-index: 5; }
 .foot-btns button { font: 800 14px/1 inherit; padding: 10px 14px; border-radius: 99px; border: 2px solid rgba(255,255,255,.7); background: rgba(20,30,60,.75); color: #fff; touch-action: none; }
+
+.code-space { margin-top: 14px; font-weight: 800; }

@@ -68,6 +68,14 @@ export function prisonGuard(g) {
   }
   const left = Math.max(0, Math.ceil((jl.until - g.now()) / 60000));
   g.ui.dialog({ name: 'Gardien·ne', role: 'Prison de la Pomme Pourrie', text: `Encore ${left} minute(s) à tirer. Tu peux travailler à la laverie (remise de peine)... et ne pense même pas à t'évader.`, choices: [
+    { label: g.profile.admin ? '💵 Glisser un billet au gardien (admin : ça marche toujours)' : `💵 Glisser un billet au gardien (${left * 100} PC en liquide, risqué)`, action: async (m) => {
+      try {
+        const r = await g.net.request('jail.bribe', {});
+        m.close();
+        if (r.freed) { g.player.teleport(r.at.x, r.at.z, Math.PI); g.sfx('cash'); g.ui.toast(r.admin ? '💵 « Oh, c\'est vous, patron ! La porte est par là. Bonne journée ! »' : `💵 Le gardien empoche ${r.cost} PC et regarde ailleurs... Tu es dehors !`, 'good', 5000); }
+        else { g.sfx('fail'); g.ui.toast(`🚨 « Tentative de corruption ?! » Billet confisqué (${r.cost} PC) et +2 minutes.`, 'bad', 5000); }
+      } catch (e) { m.show(e.message, [{ label: 'OK', ghost: true, action: (x) => x.close() }]); }
+    } },
     { label: '🧺 Travailler à la laverie (+6 PC, -15 s de peine)', action: async (m) => { try { await g.net.request('jail.work', {}); g.sfx('coin'); g.player.setPose('cook', 2); m.close(); g.ui.toast('🧺 Une machine de linge pliée. Le gardien hoche la tête.', 'good'); } catch (e) { m.show(e.message, [{ label: 'OK', ghost: true, action: (x) => x.close() }]); } } },
     { label: 'Au revoir', ghost: true, action: (m) => m.close() },
   ] });

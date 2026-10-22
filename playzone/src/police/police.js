@@ -49,6 +49,7 @@ class PoliceUnit {
     // agent à pied : il court vers le joueur
     if (this.officer) {
       const o = this.officer;
+      if (o.stun > 0) { o.stun -= dt; o.av.update(dt, { speed: 0, grounded: true, pose: 'down' }); this.catchT = 0; this.driveCar(dt, 0, 0, true); return; }
       const dx = g.player.pos.x - o.pos.x, dz = g.player.pos.z - o.pos.z, d = Math.hypot(dx, dz);
       if (g.vehicles.current || d > 45) { this.recallOfficer(); return; }
       const sp = 8.2;
@@ -185,8 +186,9 @@ export class Police {
     try {
       const r = await g.net.request('police.fine', { type });
       if (r.skipped) return;
-      g.sfx('beep');
-      g.ui.toast(`🧾 ${FINES[type].name} : ${r.amount} PC d'amende${FINES[type].points ? ` et -${FINES[type].points} point(s) (reste ${r.points}/12)` : ''}.${r.suspended ? ' PERMIS SUSPENDU !' : ''}`, 'bad', 5000);
+      g.sfx('whistle');
+      this.seenAt = g.now();
+      g.ui.toast(`🚨 ${FINES[type].name} : la police veut t'arrêter ! Amende de ${r.amount} PC${FINES[type].points ? ` et -${FINES[type].points} point(s)` : ''} SI elle t'attrape (en attente : ${r.total} PC). Sème-la pour toucher une prime !`, 'bad', 6000);
       this.renderStars();
     } catch { /* hors ligne */ }
   }
@@ -210,9 +212,14 @@ export class Police {
     const g = this.game;
     this.clearUnits();
     g.sfx('fail');
+    if (r.fineOnly) {
+      g.ui.dialog({ name: 'L\'agent·e', role: 'Contrôle routier', text: `Contrôle ! Amendes à payer : ${r.fined} PC${r.points !== undefined ? `. Points restants : ${r.points}/12` : ''}.${r.suspended ? ' Votre permis est SUSPENDU.' : ''} Vous pouvez repartir... doucement.`, choices: [{ label: '😤 D\'accord', ghost: true, action: (m) => m.close() }] });
+      this.renderStars();
+      return;
+    }
     if (r.at) g.player.teleport(r.at.x, r.at.z, Math.PI);
     g.cam.snap?.(g.player.pos, 0);
-    g.ui.dialog({ name: 'Le juge', role: 'Tribunal de PLAYZONE', text: `${why} Délits : ${r.crimes.map((c) => CRIMES[c]?.name || c).join(', ')}. Peine : ${r.minutes} minutes de prison (temps réel).${r.seized ? ` Argent liquide saisi : ${r.seized} PC.` : ''}${r.fired ? ' Et vous êtes renvoyé·e de la police !' : ''}`, choices: [{ label: '⛓️ D\'accord...', ghost: true, action: (m) => m.close() }] });
+    g.ui.dialog({ name: 'Le juge', role: 'Tribunal de PLAYZONE', text: `${why} Délits : ${r.crimes.map((c) => CRIMES[c]?.name || c).join(', ')}. Peine : ${r.minutes} minutes de prison (temps réel).${r.fined ? ` Amendes payées : ${r.fined} PC.` : ''}${r.seized ? ` Butin saisi : ${r.seized} PC.` : ''}${r.fired ? ' Et vous êtes renvoyé·e de la police !' : ''}`, choices: [{ label: '⛓️ D\'accord...', ghost: true, action: (m) => m.close() }] });
     this.renderStars();
   }
 
@@ -372,7 +379,7 @@ export class Police {
     this.wantedTxt.textContent = unseen > 2 ? `Cache-toi ! Encore ${Math.max(0, Math.ceil(need - unseen))} s sans être vu·e` : 'La police te poursuit !';
     if (unseen > need && !this.losing) {
       this.losing = true;
-      g.net.request('police.lose', {}).then(() => { g.sfx('success'); g.ui.toast('😎 Tu as semé la police. Pour cette fois...', 'good', 4000); this.clearUnits(); this.renderStars(); }).catch(() => {}).finally(() => { this.losing = false; });
+      g.net.request('police.lose', {}).then((r) => { g.sfx('success'); g.ui.toast(`😎 Tu as semé la police !${r.bounty ? ` Prime d'évasion : +${r.bounty} PC (liquide).` : ''}${r.dropped ? ` Amendes évitées : ${r.dropped} PC.` : ''}`, 'good', 5000); this.clearUnits(); this.renderStars(); }).catch(() => {}).finally(() => { this.losing = false; });
     }
     // sirène
     const near = this.units.reduce((m, u) => Math.min(m, Math.hypot(u.v.pos.x - P.x, u.v.pos.z - P.z)), 999);

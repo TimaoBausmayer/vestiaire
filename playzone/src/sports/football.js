@@ -7,13 +7,15 @@ import { mulberry32 } from '../../shared/rng.js';
 
 // FOOTBALL : Stade des Crampons (terrain, buts, tribunes, projecteurs), club-house (inscription
 // gratuite, entraînements gratuits, matchs), ballon physique, coéquipiers et adversaires PNJ.
-// Commandes : déplacements habituels (Maj = sprint), F = tirer (maintenir pour plus de puissance),
-// R = passe, Q = tacle. Boutons à l'écran sur mobile.
+// Commandes (touches côte à côte, main droite) : J = tirer (maintenir pour charger la frappe),
+// K = passe à un coéquipier, L = tacle glissé, Espace = dribble (crochet + accélération).
+// Déplacements habituels, Maj = sprint. Anciennes touches F / R / Q aussi. Boutons à l'écran sur mobile.
 
 const L = PITCH.w / 2, W = PITCH.d / 2, R = 0.22;
 const fwd = (yaw) => ({ x: Math.sin(yaw), z: Math.cos(yaw) });
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
 const req = async (g, t, p) => { try { return await g.net.request(t, p); } catch (e) { g.ui.toast(e.message, 'bad', 4500); g.sfx('error'); return null; } };
 const KIT = [['#1d4ed8', '#ffffff'], ['#e63946', '#14141c']];
 const NAMES = ['Kylian Mbappou', 'Zizou Junior', 'Momo Lahaut', 'Titi Henri-Pas', 'Gégé la Frappe', 'Ronaldinho Patate', 'Messi-Mignon', 'Lulu Crampon', 'Nono Panenka', 'Didi Grinta', 'Benz Tomate', 'Ribéry Mou', 'Jojo Ciseau', 'Karim Volée', 'Paulo Petit-Pont', 'Sergio Tacle'];
@@ -98,7 +100,7 @@ export class Football {
           for (const [k, n] of Object.entries(FOOT_SKILLS)) body.append(bar(n, f.skills[k]));
           body.append(bar('Endurance (corps)', g.profile.body.endurance ?? 15));
           body.append(h('p.muted', `${f.matches} matchs · ${f.wins} V / ${f.draws} N / ${f.losses} D · ${f.goals} buts · ${f.trophies} 🏆 · ${f.trainings} entraînements`));
-          body.append(h('p.muted', 'Commandes : Maj = sprint · F = tirer (maintiens pour frapper plus fort) · R = passe · Q = tacle.'));
+          body.append(h('p.muted', 'Commandes : J = tirer (maintiens pour frapper plus fort) · K = passe · L = tacle glissé · Espace = dribble · Maj = sprint.'));
         } else if (tab === 'train') {
           for (const [id, d] of Object.entries(DRILLS)) body.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, d.icon),
             h('div.grow', h('div.t', `${d.name} · gratuit`), h('div.d', `${d.desc} Fait progresser : ${FOOT_SKILLS[d.skill]} + endurance.`)),
@@ -179,7 +181,7 @@ export class Football {
     this.kickoff(0);
     if (kind === 'organise' && g.net.mode !== 'solo') g.net.chat?.(`📣 ${g.profile.name} organise un match de foot au Stade des Crampons ! Venez voir !`);
     g.sfx('whistle');
-    g.ui.toast(`⚽ ${M.name} contre ${r.opponent} ! F = tirer · R = passe · Q = tacle · Maj = sprint`, 'event', 6000);
+    g.ui.toast(`⚽ ${M.name} contre ${r.opponent} ! J = tirer · K = passe · L = tacle · Espace = dribble · Maj = sprint`, 'event', 6000);
   }
 
   async startDrill(drill) {
@@ -222,10 +224,12 @@ export class Football {
     this.ball.visible = true;
     // vitesse : la compétence aide un peu à courir plus vite pendant l'activité
     g.player.speedBonus = (g.player.speedBonus || 1) * (1 + (g.profile.sports.foot.skills.vitesse || 10) / 400);
+    g.player.noJump = true;   // Espace = dribble pendant le foot
     this.buttons = h('div.foot-btns',
-      h('button', { onpointerdown: (e) => { e.preventDefault(); this.shoot(0.6); } }, '⚽ Tir'),
-      h('button', { onpointerdown: (e) => { e.preventDefault(); this.pass(); } }, '➡️ Passe'),
-      h('button', { onpointerdown: (e) => { e.preventDefault(); this.tackle(); } }, '🦵 Tacle'));
+      h('button', { onpointerdown: (e) => { e.preventDefault(); this.shoot(0.75); } }, '⚽ Tir (J)'),
+      h('button', { onpointerdown: (e) => { e.preventDefault(); this.pass(); } }, '➡️ Passe (K)'),
+      h('button', { onpointerdown: (e) => { e.preventDefault(); this.tackle(); } }, '🦵 Tacle (L)'),
+      h('button', { onpointerdown: (e) => { e.preventDefault(); this.dribble(); } }, '💨 Dribble (Espace)'));
     g.ui.root.append(this.buttons);
   }
 
@@ -261,7 +265,7 @@ export class Football {
     s.pause = 1.2;
   }
 
-  giveBall(a) { const b = this.s.ball; b.owner = a; b.last = a; b.lastTeam = a.team; a.kickCd = 0.3; }
+  giveBall(a) { const b = this.s.ball; b.owner = a; b.last = a; b.lastTeam = a.team; b.target = null; a.kickCd = 0.3; }
 
   // ------------------------------------------------------------------------------ gestes du joueur
   kickBall(a, dx, dz, speed, lift = 0) {
@@ -287,7 +291,9 @@ export class Football {
     if (s.drill === 'tirs') { dx = -L + PITCH.x - me.pos.x; dz = tz - me.pos.z; } else if (facing < 0.5) { dx = f.x; dz = f.z; }
     const err = (1 - skill / 110) * 0.22 * (Math.random() * 2 - 1) + (P > 0.9 ? (Math.random() - 0.5) * 0.12 : 0);
     const a = Math.atan2(dx, dz) + err;
-    this.kickBall(me, Math.sin(a), Math.cos(a), 15 + P * 13 + skill * 0.04, 1.5 + P * 4.5 + Math.random() * 1.5);
+    // une vraie frappe : jusqu'à ~130 km/h, un peu d'élévation selon la puissance
+    this.kickBall(me, Math.sin(a), Math.cos(a), 21 + P * 15 + skill * 0.06, 1 + P * 3.6 + Math.random() * 1.2);
+    g.player.setPose('kick', 0.35); g.sfx('shot');
     if (s.drill === 'tirs') s.shotAt = g.now();
   }
 
@@ -308,17 +314,55 @@ export class Football {
     let dx = f.x, dz = f.z, d = 14;
     if (best) { d = Math.hypot(best.pos.x - me.pos.x, best.pos.z - me.pos.z); dx = best.pos.x + (best.vel?.x || 0) * 0.4 - me.pos.x; dz = best.pos.z + (best.vel?.z || 0) * 0.4 - me.pos.z; }
     const a = Math.atan2(dx, dz) + (1 - skill / 110) * 0.16 * (Math.random() * 2 - 1);
-    this.kickBall(me, Math.sin(a), Math.cos(a), clamp(7 + d * 0.55, 8, 22), d > 22 ? 3 : 0.4);
+    this.kickBall(me, Math.sin(a), Math.cos(a), clamp(9 + d * 0.6, 10, 24), d > 24 ? 3 : 0.3);
+    s.ball.target = best;   // le coéquipier vient chercher le ballon
+    g.player.setPose('kick', 0.3);
+    if (best) g.labels.bubble(best.av.root, 'À moi !', 900);
   }
 
+  // Tacle glissé : on glisse au sol dans la direction du regard ; le porteur touché perd le ballon et tombe.
   tackle() {
     const s = this.s, me = s && this.me(), g = this.g;
-    if (!s || s.mode !== 'match' || me.tackleCd > 0) return;
-    me.tackleCd = 1.0;
+    if (!s || s.mode !== 'match' || me.tackleCd > 0 || s.slide || s.ball.owner === me) return;
+    me.tackleCd = 1.2;
+    const f = fwd(me.yaw);
+    s.slide = { t: 0.7, vx: f.x * 10, vz: f.z * 10, hit: false };
+    g.player.external = true;
+    g.sfx('whoosh');
+  }
+
+  slideUpdate(dt) {
+    const s = this.s, g = this.g, sl = s.slide, P = g.player, me = this.me();
+    sl.t -= dt;
+    const k = Math.max(0, sl.t / 0.7);
+    P.pos.x = clamp(P.pos.x + sl.vx * k * dt, PITCH.x - L - 6, PITCH.x + L + 6); P.pos.z = clamp(P.pos.z + sl.vz * k * dt, PITCH.z - W - 6, PITCH.z + W + 6);
+    P.vel.set(sl.vx * k, 0, sl.vz * k);
+    P.avatar.root.position.set(P.pos.x, 0, P.pos.z); P.avatar.root.rotation.set(0, P.yaw, 0);
+    P.avatar.update(dt, { speed: 0, grounded: true, pose: 'slide' });
+    if (Math.random() < dt * 20) g.fx.emit({ x: P.pos.x, y: 0.1, z: P.pos.z, n: 2, colors: ['#4ea64a', '#7a5230'], speed: 1.5, gravity: 6, life: 0.4, size: 0.1 });
     const o = s.ball.owner;
-    if (!o || o.team === 0 || Math.hypot(o.pos.x - me.pos.x, o.pos.z - me.pos.z) > 2.2) { g.ui.toast('Tacle dans le vide !', '', 900); return; }
-    const chance = 0.45 + (g.profile.sports.foot.skills.dribble - o.str * 100) / 250;
-    if (Math.random() < chance) { this.giveBall(me); g.sfx('pop'); g.ui.toast('🦵 Ballon récupéré !', 'good', 1000); } else { o.kickCd = 0; g.ui.toast('Raté : il t\'a dribblé !', 'bad', 900); }
+    if (!sl.hit && o && o.team === 1 && Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z) < 1.6) {
+      sl.hit = true;
+      const chance = 0.55 + (g.profile.sports.foot.skills.dribble - o.str * 100) / 220;
+      if (Math.random() < chance) {
+        o.downT = 1.3; o.kickCd = 1.3;
+        this.kickBall(me, sl.vx, sl.vz, 4, 0.5);   // le ballon part devant
+        g.sfx('bump'); g.ui.toast('🦵 Tacle réussi ! Il est par terre.', 'good', 1100);
+      } else g.ui.toast('Raté : il a sauté par-dessus ton tacle !', 'bad', 1000);
+    }
+    if (sl.t <= 0) { s.slide = null; P.external = false; }
+  }
+
+  // Dribble : crochet + petite accélération, le ballon poussé un peu plus loin ; les tacles ratent plus souvent.
+  dribble() {
+    const s = this.s, me = s && this.me(), g = this.g;
+    if (!s || s.ball.owner !== me || (me.dribbleCd || 0) > 0) return;
+    me.dribbleCd = 1.1; me.dribbleT = 0.7;
+    const side = Math.random() < 0.5 ? -1 : 1, f = fwd(me.yaw);
+    g.player.teleport(me.pos.x + f.z * side * 0.9, me.pos.z - f.x * side * 0.9, me.yaw + side * 0.35);
+    g.player.vel.set(f.x * 7, 0, f.z * 7);
+    g.sfx('whoosh');
+    g.labels.bubble(g.player.avatar.root, pickOne(['Crochet !', 'Petit pont !', 'Roulette !', 'Passement de jambes !']), 900);
   }
 
   // ------------------------------------------------------------------------------ boucle
@@ -329,10 +373,13 @@ export class Football {
     // sortie du terrain = abandon
     if (Math.abs(me.pos.x - PITCH.x) > L + 25 || Math.abs(me.pos.z - PITCH.z) > W + 25 || g.player.zone !== 'world') { this.stop(true); return; }
     // commandes clavier
-    if (I.keys.has('KeyF')) s.charge += dt; else if (s.charge > 0) this.shoot();
-    if (I.pressed('KeyR')) this.pass();
-    if (I.pressed('KeyQ')) this.tackle();
-    for (const a of [me, ...s.actors]) { a.kickCd = Math.max(0, (a.kickCd || 0) - dt); a.tackleCd = Math.max(0, (a.tackleCd || 0) - dt); }
+    if (I.keys.has('KeyJ') || I.keys.has('KeyF')) s.charge += dt; else if (s.charge > 0) this.shoot();
+    if (I.pressed('KeyK') || I.pressed('KeyR')) this.pass();
+    if (I.pressed('KeyL') || I.pressed('KeyQ')) this.tackle();
+    if (I.pressed('Space')) this.dribble();
+    for (const a of [me, ...s.actors]) { a.kickCd = Math.max(0, (a.kickCd || 0) - dt); a.tackleCd = Math.max(0, (a.tackleCd || 0) - dt); a.dribbleCd = Math.max(0, (a.dribbleCd || 0) - dt); a.dribbleT = Math.max(0, (a.dribbleT || 0) - dt); }
+    if (s.slide) this.slideUpdate(dt);
+    if (s.down > 0) { s.down -= dt; g.player.avatar.root.position.copy(me.pos); g.player.avatar.update(dt, { speed: 0, grounded: true, pose: 'down' }); if (s.down <= 0) g.player.external = false; }
     if (s.pause > 0) { s.pause -= dt; for (const a of s.actors) this.animate(a, dt, 0); this.syncBall(); if (s.ball.owner) this.carry(s.ball.owner, dt); this.hud(dt); return; }
     if (s.mode === 'match') for (const a of s.actors) this.think(a, dt);
     else for (const a of s.actors) this.drillActor(a, dt);
@@ -345,7 +392,7 @@ export class Football {
   carry(a, dt) {
     const b = this.s.ball, f = fwd(a.yaw);
     const sp = Math.hypot(a.vel?.x || 0, a.vel?.z || 0);
-    const k = 0.62 + sp * 0.05;
+    const k = 0.62 + sp * 0.05 + ((a.dribbleT || 0) > 0 ? 0.6 : 0);
     b.pos.set(a.pos.x + f.x * k, R, a.pos.z + f.z * k);
     b.vel.set(a.vel?.x || 0, 0, a.vel?.z || 0);
     this.ball.rotation.x += sp * dt * 3;
@@ -400,8 +447,15 @@ export class Football {
       if (a.team === o.team || a.tackleCd > 0 || a.role === 'gk') continue;
       if (Math.hypot(a.pos.x - o.pos.x, a.pos.z - o.pos.z) > 1.3) continue;
       a.tackleCd = 1.4 - a.str * 0.6;
+      a.slideT = 0.55;   // tacle glissé visible
       const dribble = o.ai ? o.str * 100 : g.profile.sports.foot.skills.dribble;
-      if (Math.random() < 0.3 + a.str * 0.4 - dribble / 300) { this.giveBall(a); o.kickCd = 0.8; if (!o.ai) g.ui.toast('😵 Ballon perdu !', 'bad', 900); return; }
+      const immune = (o.dribbleT || 0) > 0 ? 0.25 : 0;
+      if (Math.random() < 0.3 + a.str * 0.4 - dribble / 300 - immune) {
+        this.giveBall(a); o.kickCd = 0.8;
+        if (!o.ai) { g.ui.toast('😵 Tacle ! Tu es par terre.', 'bad', 1000); this.s.down = 0.9; g.player.external = true; g.sfx('bump'); }
+        else o.downT = 1.0;
+        return;
+      }
     }
   }
 
@@ -445,6 +499,10 @@ export class Football {
     const speed = 5.2 + a.str * 2.6;
     let tx = a.home.x, tz = a.home.z, run = 0.75;
     if (a.celebrate > 0) { a.celebrate -= dt; this.animate(a, dt, 0, 'celebrate'); return; }
+    if (a.downT > 0) { a.downT -= dt; this.animate(a, dt, 0, 'down'); return; }
+    if (a.slideT > 0) { a.slideT -= dt; const f = fwd(a.yaw); a.pos.x += f.x * 7 * dt; a.pos.z += f.z * 7 * dt; this.animate(a, dt, 0, 'slide'); return; }
+    // passe reçue : le coéquipier visé vient chercher le ballon
+    if (!b.owner && b.target === a) { this.steer(a, b.pos.x + b.vel.x * 0.25, b.pos.z + b.vel.z * 0.25, 7 + a.str * 2, dt); return; }
     if (b.owner === a) {
       a.holdT = (a.holdT || 0) - dt;
       if (a.role === 'gk') { if (a.holdT > 0) { this.animate(a, dt, 0); return; } const t = this.bestMate(a); if (t) this.aiKick(a, t.pos.x - a.pos.x, t.pos.z - a.pos.z, 18, 4); else this.aiKick(a, d, 0, 20, 6); return; }
@@ -619,6 +677,7 @@ export class Football {
     this.cones.clear();
     this.buttons?.remove();
     g.player.speedBonus = s.speedBonus ?? 1;
+    g.player.noJump = false; g.player.external = false;
     g.hud.track('foot', null);
   }
 }

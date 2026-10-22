@@ -106,6 +106,18 @@ export class Crimes {
     if (this.hitCd > 0) return;
     this.hitCd = 0.8;
     g.player.setPose('throw', 0.5);
+    // voleur PNJ : on aide la police
+    if (g.emergencies?.punchTarget(P)) return;
+    // frapper un policier : il tombe (et ça coûte cher)
+    for (const u of g.police.units) {
+      const o = u.officer;
+      if (o && !(o.stun > 0) && Math.hypot(o.pos.x - P.x, o.pos.z - P.z) < 2) {
+        o.stun = 3; g.sfx('bump');
+        g.labels.bubble(o.av.root, 'Outrage et rébellion ! Renforts !', 2500);
+        g.police.crime('agression-policier', true);
+        return;
+      }
+    }
     let target = null, bd = 1.9;
     for (const n of g.npcs?.list || []) { const d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z); if (d < bd && n.state !== 'ko') { bd = d; target = n; } }
     if (!target) { g.sfx('throw'); return; }

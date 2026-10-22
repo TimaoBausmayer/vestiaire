@@ -33,8 +33,10 @@ const APPS = [
   { id: 'papers', name: 'Papiers', icon: '🪪', bg: '#1d3557' },
   { id: 'help', name: 'Aide', icon: '📘', bg: '#4ea8de' },
   { id: 'social', name: 'PlayGram', icon: '📸', bg: '#ff3fa4' },
+  { id: 'urgences', name: 'Urgences', icon: '🚨', bg: '#d62828' },
   { id: 'admin', name: 'Admin', icon: '👑', bg: '#d4a017', admin: true },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
+  { id: 'code', name: 'Espace code', icon: '🔐', bg: '#2b2d42', hidden: true },
   { id: 'events', name: 'Agenda', icon: '📅', bg: '#ff5a5f' },
   { id: 'messages', name: 'Messages', icon: '💬', bg: '#5fd068' },
   { id: 'friends', name: 'Joueurs', icon: '👥', bg: '#8b5cf6' },
@@ -98,7 +100,8 @@ export class Phone {
     clear(this.screen);
     if (!this.app) {
       this.screen.append(h('div', { style: { textAlign: 'center', margin: '18px 0 6px', fontWeight: '900', fontStyle: 'italic', fontSize: '22px' } }, 'PlayPhone'),
-        h('div.phone-apps', APPS.filter((a) => !a.admin || this.game.profile.admin).map((a) => h('button.app-icon', { onclick: () => this.go(a.id) }, h('span.ic', { style: { background: a.bg } }, a.icon), a.name, this.badges[a.id] ? h('span.dot', String(this.badges[a.id])) : null))));
+        h('div.phone-apps', APPS.filter((a) => !a.hidden && (!a.admin || this.game.profile.admin)).map((a) => h('button.app-icon', { onclick: () => this.go(a.id) }, h('span.ic', { style: { background: a.bg } }, a.icon), a.name, this.badges[a.id] ? h('span.dot', String(this.badges[a.id])) : null))),
+        h('button.btn.block.ghost.code-space', { onclick: () => this.go('code') }, '🔐 Espace code'));
       return;
     }
     const app = APPS.find((a) => a.id === this.app);
@@ -242,6 +245,21 @@ export class Phone {
   app_help(b) { helpApp(this.game, b); }
   app_social(b) { socialApp(this.game, b, this); }
   app_admin(b) { adminApp(this.game, b, this); }
+  app_urgences(b) { this.game.emergencies?.app(b, this); }
+
+  // Espace code : on tape un code secret (mode admin...).
+  app_code(b) {
+    const g = this.game;
+    if (g.profile.admin) b.append(h('p', '👑 Le mode admin est déjà activé.'), h('button.btn.block', { onclick: () => this.go('admin') }, 'Ouvrir l\'appli Admin'));
+    let code = '';
+    const go = async () => {
+      try { await g.net.request('admin.unlock', { code }); g.sfx('levelup'); g.ui.toast('👑 Code accepté : mode admin activé !', 'good', 5000); this.go('admin'); }
+      catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+    };
+    const inp = h('input.input', { type: 'password', placeholder: 'Entre ton code', autocomplete: 'off', oninput: (e) => { code = e.target.value; }, onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); } });
+    b.append(h('p.muted', 'Tape ton code secret puis valide.'), inp, h('button.btn.block', { style: { marginTop: '8px' }, onclick: go }, 'Valider'));
+    setTimeout(() => inp.focus(), 60);
+  }
 
   app_bag(b) {
     const g = this.game, p = g.profile, items = g.net.content.items;

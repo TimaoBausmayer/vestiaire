@@ -15,10 +15,11 @@ const at = (b) => ({ x: b.x, y: 0, z: b.z });
 const mk = (p, pos, now = NOW, session = {}, seed = 1) => ({ profile: p, session, now, pos: pos ? { ...pos } : null, zone: 'world', rand: mulberry32(seed), newId: () => 'x' });
 const prof = (id) => { const p = auth.newProfile({ id, name: 'Voyou', appearance: {}, now: 0 }); p.coins = 50_000; return p; };
 
-test('barème : coups = 10 minutes de prison', () => {
-  assert.equal(CRIMES.coups.jail, 10);
-  assert.equal(sentence([{ type: 'coups' }, { type: 'vol-voiture' }]), 25);
-  assert.equal(sentence(new Array(20).fill({ type: 'braquage' })), 60, 'plafonné');
+test('barème : peines courtes (vol de voiture = 3 min)', () => {
+  assert.equal(CRIMES.coups.jail, 2);
+  assert.equal(CRIMES['vol-voiture'].jail, 3);
+  assert.equal(sentence([{ type: 'coups' }, { type: 'vol-voiture' }]), 5);
+  assert.equal(sentence(new Array(20).fill({ type: 'braquage' })), 12, 'plafonné');
 });
 
 test('délit vu par des témoins → étoiles ; semer la police', () => {
@@ -28,28 +29,29 @@ test('délit vu par des témoins → étoiles ; semer la police', () => {
   auth.handle(mk(p, null), 'crime.report', { type: 'vol-voiture', witnessed: true, model: 'berline' });
   assert.equal(p.justice.stars, 2);
   assert.equal(auth.handle(mk(p, null, NOW + 5000), 'police.lose', {}).ok, false, 'trop tôt');
-  assert.ok(auth.handle(mk(p, null, NOW + loseTime(2) * 1000 + 1000), 'police.lose', {}).ok);
+  const lost = auth.handle(mk(p, null, NOW + loseTime(2) * 1000 + 1000), 'police.lose', {});
+  assert.ok(lost.ok && lost.data.bounty === 150 && p.cash >= 150, 'prime d\'évasion en liquide');
   assert.equal(p.justice.stars, 0);
   assert.equal(p.justice.record.at(-1).end, 'impuni');
   assert.equal(auth.handle(mk(p, null), 'crime.report', { type: 'braquage', witnessed: true }).ok, false, 'le braquage ne se déclare pas');
 });
 
-test('arrestation → prison en minutes réelles, liquide saisi, libération, évasion', () => {
+test('arrestation → prison en minutes réelles, butin saisi, libération, évasion', () => {
   const p = prof('j2');
-  p.cash = 340;
+  p.cash = 340; p.justice.loot = 100;
   auth.handle(mk(p, null), 'crime.report', { type: 'coups', witnessed: true });
   const ctx = mk(p, { x: 0, y: 0, z: 0 });
   const r = auth.handle(ctx, 'police.arrest', {});
   assert.ok(r.ok);
-  assert.equal(r.data.minutes, 10);
-  assert.equal(r.data.seized, 340);
-  assert.equal(p.cash, 0);
+  assert.equal(r.data.minutes, 2);
+  assert.equal(r.data.seized, 100, 'seul le butin est saisi');
+  assert.equal(p.cash, 240);
   assert.ok(inPrison(ctx.pos), 'la position validée suit le joueur en cellule');
   assert.equal(auth.handle(mk(p, null, NOW + 60_000), 'jail.release', {}).ok, false, 'pas avant la fin');
   // laverie : remise de peine
   const w = auth.handle(mk(p, null, NOW + 61_000), 'jail.work', {});
-  assert.ok(w.ok && p.justice.jail.until === NOW + 10 * 60_000 - 15_000);
-  assert.ok(auth.handle(mk(p, null, NOW + 10 * 60_000), 'jail.release', {}).ok);
+  assert.ok(w.ok && p.justice.jail.until === NOW + 2 * 60_000 - 15_000);
+  assert.ok(auth.handle(mk(p, null, NOW + 2 * 60_000), 'jail.release', {}).ok);
   // évasion (plusieurs essais avec un générateur qui finit par réussir)
   auth.handle(mk(p, null, NOW + 11 * 60_000), 'crime.report', { type: 'coups', witnessed: true });
   auth.handle(mk(p, null, NOW + 11 * 60_000), 'police.arrest', {});
@@ -94,8 +96,15 @@ test('amendes, points, permis suspendu ; code et examen', () => {
   auth.handle(mk(p, at(pol), NOW, s), 'licence.examStart', {});
   assert.ok(auth.handle(mk(p, at(pol), NOW + 60_000, s), 'licence.examEnd', { checkpoints: EXAM_ROUTE.length, errors: 1 }).data.passed);
   assert.ok(p.justice.licence.permis && p.justice.points === 12);
-  // feux rouges : 4 points chacun → permis suspendu au 3e
+  // feux rouges : l'amende n'est due que si la police t'attrape
+  const c0 = p.coins;
   for (let k = 0; k < 3; k++) auth.handle(mk(p, null, NOW + k * 30_000), 'police.fine', { type: 'feu-rouge' });
+  assert.equal(p.justice.points, 12, 'pas encore retiré');
+  assert.equal(p.coins, c0, 'rien payé tant qu\'on n\'est pas attrapé·e');
+  assert.equal(p.justice.pending.length, 3);
+  const r = auth.handle(mk(p, { x: 0, y: 0, z: 0 }, NOW + 100_000), 'police.arrest', {});
+  assert.ok(r.data.fineOnly && !p.justice.jail, 'contrôle routier : amendes, pas de prison');
+  assert.equal(p.coins, c0 - 3 * 135);
   assert.equal(p.justice.points, 0);
   assert.equal(p.justice.licence.permis, false, 'permis suspendu');
 });
@@ -107,4 +116,21 @@ test('un policier condamné perd son poste', () => {
   const r = auth.handle(mk(p, null), 'police.arrest', {});
   assert.ok(r.data.fired && !p.career.job);
   assert.match(auth.handle(mk(p, at(BUILDING_BY_ID.police)), 'career.apply', { jobId: 'policier', buildingId: 'police' }).error, /Casier|diplôme/);
+});
+
+test('prison : l\'admin donne un billet au gardien et sort tout de suite', () => {
+  const p = prof('j6');
+  p.admin = true;
+  auth.handle(mk(p, null), 'crime.report', { type: 'vol-voiture', witnessed: true, model: 'berline' });
+  auth.handle(mk(p, { x: 0, y: 0, z: 0 }), 'police.arrest', {});
+  assert.ok(p.justice.jail);
+  const r = auth.handle(mk(p, { x: 0, y: 0, z: 0 }, NOW + 1000), 'jail.bribe', {});
+  assert.ok(r.ok && r.data.freed && r.data.cost === 0 && !p.justice.jail);
+  // un joueur normal paie en liquide (et peut échouer)
+  const q = prof('j7');
+  q.cash = 1000;
+  auth.handle(mk(q, null), 'crime.report', { type: 'vol-voiture', witnessed: true, model: 'berline' });
+  auth.handle(mk(q, { x: 0, y: 0, z: 0 }), 'police.arrest', {});
+  const b = auth.handle(mk(q, { x: 0, y: 0, z: 0 }, NOW + 1000), 'jail.bribe', {});
+  assert.ok(b.ok && b.data.cost === 300 && q.cash === 700);
 });

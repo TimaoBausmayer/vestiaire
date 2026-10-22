@@ -28,7 +28,7 @@ check(p.justice.stars >= 1 && await ev(() => !document.querySelector('.wanted').
 // 2) la police arrive (après le délai d'appel du témoin, ≈ 30 s)
 await ev(() => { const g = window.playzone; g.player.teleport(100, 0.5, 0); g.debugStep(0.5); });
 check(await ev(() => window.playzone.police.units.length === 0 && /arrivée dans/.test(document.querySelector('.wanted').textContent)), 'la police est prévenue mais pas encore là');
-await ev(() => { const g = window.playzone; g.police.dispatchAt = g.now() - 1; for (let i = 0; i < 40; i++) g.debugStep(0.25); });
+await ev(() => { const g = window.playzone; g.police.dispatchAt = g.now() - 1; g.police.spawnT = 0; for (let i = 0; i < 40; i++) g.debugStep(0.25); });
 const units = await ev(() => window.playzone.police.units.length);
 check(units >= 1, `voitures de police en route (${units})`);
 await ev(() => { const g = window.playzone; const u = g.police.units[0]; g.cam.yaw = Math.atan2(u.v.pos.x - g.player.pos.x, u.v.pos.z - g.player.pos.z) + Math.PI; g.cam.dist = 14; g.cam.pitch = 0.35; g.debugStep(0.2); });
@@ -38,7 +38,7 @@ await page.screenshot({ path: 'tests/e2e/out/pol-poursuite.png' });
 await ev(() => window.playzone.police.arrestMe('Arrêté·e !'));
 await sleep(900);
 p = await prof();
-check(!!p.justice.jail && p.justice.jail.minutes >= 10 && p.cash === 0, `en prison pour ${p.justice.jail?.minutes} min (liquide saisi)`);
+check(!!p.justice.jail && p.justice.jail.minutes >= 2 && p.justice.jail.minutes <= 12, `en prison pour ${p.justice.jail?.minutes} min (peine courte)`);
 await page.screenshot({ path: 'tests/e2e/out/pol-juge.png' });
 await page.locator('.dialog-box button').first().click();
 const inJail = await ev(async () => { const { inPrison } = await import('/shared/authority-justice.js'); return inPrison(window.playzone.player.pos); });
@@ -87,7 +87,7 @@ await page.locator('.dialog-box button').first().click().catch(() => {});
 const fine0 = (await prof()).justice.fines.length;
 await ev(async () => { const { RADARS } = await import('/shared/justice.js'); const { WorldVehicle } = await import('/src/vehicles/vehicles.js'); const g = window.playzone; const r = RADARS[0]; const v = new WorldVehicle(g, { model: 'berline', x: r.x - 20, z: r.z + 2, yaw: Math.PI / 2, owner: 'stolen' }); g.vehicles.list.push(v); g.vehicles.enter(v); v.sim.place(r.x - 2, r.z + 2, Math.PI / 2); v.sim.vx = 25; v.sim.vf = 25; g.police.radarCd = 0; g.debugStep(0.05); });
 await sleep(700);
-check((await prof()).justice.fines.length > fine0, 'flashé·e par le radar : amende');
+check((await prof()).justice.pending?.length > 0, 'flashé·e par le radar : amende en attente (payée seulement si attrapé·e)');
 // 7) tutoriel
 await ev(() => window.playzone.phone.open('help')); await sleep(300);
 await page.locator('.list-item', { hasText: 'Police et justice' }).click(); await sleep(400);

@@ -4,18 +4,20 @@
 export const MAX_STARS = 5;
 // Barème : minutes de prison réelles, étoiles ajoutées.
 export const CRIMES = {
-  coups: { name: 'Coups et blessures', stars: 1, jail: 10 },
-  'vol-tire': { name: 'Vol à la tire', stars: 1, jail: 8 },
-  'vol-voiture': { name: 'Vol de voiture', stars: 2, jail: 15 },
-  pieton: { name: 'Piéton renversé', stars: 2, jail: 12 },
-  'grand-exces': { name: 'Grand excès de vitesse', stars: 1, jail: 5 },
-  'sans-permis': { name: 'Conduite sans permis', stars: 1, jail: 5 },
-  recel: { name: 'Recel de voiture volée', stars: 1, jail: 6 },
-  braquage: { name: 'Braquage de banque', stars: 4, jail: 30 },
-  evasion: { name: 'Évasion', stars: 3, jail: 15 },
-  refus: { name: 'Refus d\'obtempérer', stars: 1, jail: 5 },
+  coups: { name: 'Coups et blessures', stars: 1, jail: 2 },
+  'vol-tire': { name: 'Vol à la tire', stars: 1, jail: 2 },
+  'vol-voiture': { name: 'Vol de voiture', stars: 2, jail: 3 },
+  pieton: { name: 'Piéton renversé', stars: 2, jail: 3 },
+  'grand-exces': { name: 'Grand excès de vitesse', stars: 1, jail: 1 },
+  'sans-permis': { name: 'Conduite sans permis', stars: 1, jail: 1 },
+  recel: { name: 'Recel de voiture volée', stars: 1, jail: 2 },
+  braquage: { name: 'Braquage de banque', stars: 4, jail: 8 },
+  evasion: { name: 'Évasion', stars: 3, jail: 4 },
+  refus: { name: 'Refus d\'obtempérer', stars: 1, jail: 1 },
+  infraction: { name: 'Infraction au code de la route', stars: 1, jail: 0 },
+  'agression-policier': { name: 'Agression d\'un policier', stars: 2, jail: 3 },
 };
-export const MAX_JAIL = 60;   // minutes au maximum par condamnation
+export const MAX_JAIL = 12;   // minutes au maximum par condamnation (peines courtes : on revient vite au jeu)
 export const FINES = {
   vitesse: { name: 'Excès de vitesse (radar)', amount: 90, points: 1 },
   'feu-rouge': { name: 'Feu rouge grillé', amount: 135, points: 4 },
@@ -23,6 +25,11 @@ export const FINES = {
 };
 export const SPEED_LIMIT = { main: 50, street: 50, country: 80, highway: 130 };   // km/h
 export const LICENCE = { code: 30, permis: 900, points: 12 };
+// Prime quand on sème la police (argent liquide), selon le niveau de recherche. Pas plus d'une toutes les 4 min.
+export const BOUNTY = [0, 60, 150, 300, 500, 800];
+export const BOUNTY_COOLDOWN = 4 * 60_000;
+// Aide à la police (arrêter un fuyard, attraper un voleur) : récompense.
+export const ASSIST = { chase: 150, thief: 80, cooldown: 3 * 60_000 };
 
 export function defaultJustice() {
   return { stars: 0, crimes: [], record: [], fines: [], points: LICENCE.points, licence: { code: false, permis: false }, jail: null, lastCrimeAt: 0, arrests: 0 };
@@ -34,7 +41,7 @@ export function sentence(crimes) {
   return Math.min(MAX_JAIL, mins);
 }
 // Temps sans être vu par la police pour la semer (secondes), selon les étoiles.
-export const loseTime = (stars) => 20 + stars * 8;
+export const loseTime = (stars) => 10 + stars * 4;   // se cacher peu de temps suffit
 
 // Code de la route : 10 questions tirées parmi celles-ci, 8 bonnes réponses pour réussir.
 export const CODE_QUESTIONS = [
