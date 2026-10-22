@@ -45,7 +45,7 @@ export function destinations(profile = null) {
   out.push({ id: 'stade', name: '⚽ Stade des Crampons (foot)', cat: 'leisure', x: PITCH.x, z: PITCH.z + PITCH.d / 2 + 14 });
   out.push({ id: 'ski', name: '⛷️ Station de ski du Mont-Pinard', cat: 'leisure', x: SKI.hut.x, z: SKI.hut.z + 4 });
   out.push({ id: 'piste-athle', name: '🏃 Piste d\'athlétisme (Stade des Crampons)', cat: 'leisure', x: PITCH.x, z: PITCH.z + PITCH.d / 2 + 14 });
-  out.push({ id: 'surf-spot', name: '🪁 Spot de wingfoil (Surf Shop)', cat: 'leisure', x: 430, z: 50 });
+  out.push({ id: 'surf-spot', name: '🪁🚤 Wingfoil et jet ski (Surf Shop)', cat: 'leisure', x: 430, z: 50 });
   out.push({ id: 'place', name: 'Grande Place', cat: 'other', x: 0, z: 12 });
   out.push({ id: 'plage', name: 'Plage des Orteils', cat: 'leisure', x: 0, z: 74 });
   for (const g of GAS_STATIONS) out.push({ id: `gaz-${g.id}`, name: `⛽ ${g.name}`, cat: 'cars', x: g.x, z: g.z });

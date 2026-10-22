@@ -172,7 +172,7 @@ Object.assign(SPORTS_HANDLERS, {
     if (p.justice?.jail) return err('Pas depuis la prison !');
     const d = discOf(p, disc);
     let trial = false;
-    if (D.member && !memberOf(d, ctx.now)) {
+    if (D.member && !memberOf(d, ctx.now) && !(D.item && (p.inventory[D.item] || 0) > 0)) {
       if (d.trial) return err(`Ton essai gratuit est passé : prends ${D.day ? `un forfait journée (${D.day} PC) ou ` : ''}l'adhésion « ${D.member.name} » (${D.member.price} PC).`);
       d.trial = true; trial = true;
     }
@@ -233,7 +233,7 @@ Object.assign(SPORTS_HANDLERS, {
     // progression : la compétence du sport et l'endurance montent en pratiquant
     const g = (1.2 + M.laps * 0.4) * (M.npcs ? 1.3 : 1) * (1 - d.skill / 125);
     d.skill = Math.min(100, Math.round((d.skill + g) * 10) / 10);
-    const endu = { foot: 2.6, bike: 2.0, ski: 0.9, f1: 0.4 }[D.how];
+    const endu = { foot: 2.6, bike: 2.0, ski: 0.9, f1: 0.4, jet: 0.5 }[D.how] || 0.3;
     p.body.endurance = Math.min(100, (p.body.endurance ?? 15) + endu);
     if (D.how === 'foot' || D.how === 'bike') p.body.muscle = Math.min(100, p.body.muscle + endu * 0.25);
     p.rep = (p.rep || 0) + (rank === 1 ? 2 : 0);

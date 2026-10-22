@@ -48,6 +48,7 @@ import { Football } from './sports/football.js';
 import { Wingfoil } from './sports/wingfoil.js';
 import { Races } from './sports/races.js';
 import { Ski } from './sports/ski.js';
+import { Jetski } from './sports/jetski.js';
 import { Emergencies } from './world/emergencies.js';
 import { Markets } from './events/markets.js';
 import { Cour } from './minigames/cour.js';
@@ -183,6 +184,7 @@ export class Game extends Emitter {
     this.wingfoil = this.addSystem(new Wingfoil(this));
     this.races = this.addSystem(new Races(this));
     this.ski = this.addSystem(new Ski(this));
+    this.jetski = this.addSystem(new Jetski(this));
     this.emergencies = this.addSystem(new Emergencies(this));
     this.markets = this.addSystem(new Markets(this));
     this.cour = this.addSystem(new Cour(this));

@@ -62,7 +62,7 @@ export class Emergencies {
     this.waterMat = new THREE.MeshBasicMaterial({ color: '#9bd5ff', transparent: true, opacity: 0.55 });
   }
 
-  get busy() { const g = this.g; return !!(g.races?.s || g.football?.s || g.ski?.s || g.wingfoil?.s || g.karting?.s || g.profile?.justice?.jail || g.player.zone !== 'world'); }
+  get busy() { const g = this.g; return !!(g.races?.s || g.football?.s || g.ski?.s || g.wingfoil?.s || g.jetski?.s || g.karting?.s || g.profile?.justice?.jail || g.player.zone !== 'world'); }
 
   // ------------------------------------------------------------------------------ incendies
   startFire(b = null) {

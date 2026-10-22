@@ -66,7 +66,7 @@ varying vec3 vWorld;
 #include <fog_pars_vertex>
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
-  wp.y += sin(wp.x * 0.15 + time * 1.2) * 0.07 + cos(wp.z * 0.21 + time * 0.9) * 0.07;
+  wp.y += sin(wp.x * 0.15 + time * 1.2) * 0.08 + cos(wp.z * 0.21 + time * 0.9) * 0.08 + sin((wp.x + wp.z) * 0.4 + time * 2.0) * 0.03;
   vWorld = wp.xyz;
   vec4 mvPosition = viewMatrix * wp;
   gl_Position = projectionMatrix * mvPosition;
@@ -76,13 +76,33 @@ const WATER_FRAG = /* glsl */`
 uniform float time; uniform vec3 deep; uniform vec3 shallow; uniform vec3 foam; uniform float light;
 varying vec3 vWorld;
 #include <fog_pars_fragment>
+// relief de vagues (somme de sinus) : sert à calculer une normale pour les reflets
+float hgt(vec2 p) {
+  return sin(p.x * 0.35 + time * 1.5 + sin(p.y * 0.25 + time)) * 0.12
+       + sin(p.y * 0.52 - time * 1.9 + p.x * 0.17) * 0.08
+       + sin((p.x + p.y) * 1.3 + time * 2.6) * 0.025
+       + sin((p.x - p.y) * 1.9 - time * 3.1) * 0.018;
+}
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
 void main() {
-  float w = sin(vWorld.x * 0.35 + time * 1.5 + sin(vWorld.z * 0.25 + time)) * 0.5 + 0.5;
-  float s = sin(vWorld.x * 0.55 + vWorld.z * 0.42 + time * 1.7 + sin(vWorld.z * 0.13 + vWorld.x * 0.05) * 3.0) * 0.5 + 0.5;
-  float stripes = smoothstep(0.93, 0.985, s);
-  vec3 col = mix(deep, shallow, w * 0.4);
-  col = mix(col, foam, stripes * 0.45);
-  gl_FragColor = vec4(col * light, 0.86);
+  vec2 p = vWorld.xz;
+  float e = 0.15;
+  vec3 n = normalize(vec3(hgt(p - vec2(e, 0.0)) - hgt(p + vec2(e, 0.0)), 2.0 * e, hgt(p - vec2(0.0, e)) - hgt(p + vec2(0.0, e))));
+  vec3 v = normalize(cameraPosition - vWorld);
+  float fres = pow(1.0 - max(dot(n, v), 0.0), 4.0);
+  vec3 sky = vec3(0.62, 0.80, 0.95);
+  float w = noise(p * 0.05 + time * 0.03);
+  vec3 col = mix(deep, shallow, 0.25 + w * 0.35);
+  col = mix(col, sky, fres * 0.55);
+  vec3 sunDir = normalize(vec3(0.35, 0.8, 0.45));
+  float spec = pow(max(dot(reflect(-v, n), sunDir), 0.0), 120.0);
+  col += vec3(1.0, 0.97, 0.88) * spec * 1.4 * light;
+  // écume : petites crêtes blanches éparses qui bougent avec les vagues
+  float fm = noise(p * 0.35 + vec2(time * 0.4, time * 0.25)) * noise(p * 1.1 - vec2(time * 0.3, 0.0));
+  col = mix(col, foam, smoothstep(0.55, 0.8, fm) * 0.5);
+  gl_FragColor = vec4(col * light, 0.88);
   #include <colorspace_fragment>
   #include <fog_fragment>
 }`;

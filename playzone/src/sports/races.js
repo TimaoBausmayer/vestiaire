@@ -109,9 +109,9 @@ export class Races {
         for (const [id, M] of Object.entries(D.modes)) {
           body.append(h('div.list-item', h('span', { style: { fontSize: '22px' } }, M.npcs ? '🏁' : '⏱️'),
             h('div.grow', h('div.t', M.name), h('div.d', `${M.npcs ? `${M.npcs + 1} participants · prix ${M.prizes.join(' / ')} PC` : 'Chronométré, sans adversaire'}${M.fee ? ` · inscription ${M.fee} PC` : ''} · record ${fmtTime(d.best[id])}`)),
-            h('button.btn.small', { onclick: () => { m.close(); D.how === 'ski' ? g.ski.go(id) : this.start(disc, id); } }, 'Y aller')));
+            h('button.btn.small', { onclick: () => { m.close(); D.how === 'ski' ? g.ski.go(id) : D.how === 'jet' ? g.jetski.go(id) : this.start(disc, id); } }, 'Y aller')));
         }
-        body.append(h('p.muted', D.how === 'foot' ? 'Maj = sprint. Ton endurance décide combien de temps tu tiens à fond.' : D.how === 'bike' ? 'Le club te prête un vélo de course. Attention aux voitures sur la boucle !' : D.how === 'f1' ? 'Attends l\'extinction des 5 feux rouges. Les qualifications décident de ta place sur la grille du Grand Prix.' : 'A / D pour tourner, Avant = position de recherche de vitesse, Arrière = chasse-neige.'));
+        body.append(h('p.muted', D.how === 'foot' ? 'Maj = sprint. Ton endurance décide combien de temps tu tiens à fond.' : D.how === 'bike' ? 'Le club te prête un vélo de course. Attention aux voitures sur la boucle !' : D.how === 'f1' ? 'Attends l\'extinction des 5 feux rouges. Les qualifications décident de ta place sur la grille du Grand Prix.' : D.how === 'jet' ? 'Avant = gaz, Arrière = frein / marche arrière, gauche / droite = virer, Espace = saut sur la vague (rotations en l\'air). Si tu possèdes un jet ski, pas besoin d\'abonnement.' : 'A / D pour tourner, Avant = position de recherche de vitesse, Arrière = chasse-neige.'));
       },
     });
   }

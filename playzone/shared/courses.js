@@ -17,6 +17,7 @@ export const ATHLE = { cx: PITCH.x, cz: PITCH.z, hx: PITCH.w / 2 + 6, hz: PITCH.
 export const ROUTES = {
   piste: { name: 'Piste d\'athlétisme du Stade des Crampons', pts: roundedRect(ATHLE.cx, ATHLE.cz, ATHLE.hx, ATHLE.hz, ATHLE.r).reverse(), width: ATHLE.w },
   hauts: { name: 'Boucle cycliste des Hauts', width: 9, pts: [{ x: 450, z: -430 }, { x: 140, z: -430 }, { x: 140, z: -700 }, { x: 560, z: -700 }, { x: 560, z: -430 }] },
+  bouees: { name: 'Parcours de bouées de la Côte des Villas', width: 14, pts: [{ x: 360, z: 128 }, { x: 520, z: 128 }, { x: 572, z: 165 }, { x: 520, z: 205 }, { x: 440, z: 185 }, { x: 360, z: 208 }, { x: 318, z: 168 }] },
   f1: { name: 'Circuit de l\'Académie F1', width: 13, pts: [{ x: 640, z: -748 }, { x: 790, z: -748 }, { x: 806, z: -762 }, { x: 806, z: -792 }, { x: 790, z: -806 }, { x: 735, z: -812 }, { x: 722, z: -826 }, { x: 735, z: -840 }, { x: 790, z: -846 }, { x: 806, z: -862 }, { x: 806, z: -888 }, { x: 790, z: -902 }, { x: 640, z: -902 }, { x: 622, z: -886 }, { x: 622, z: -764 }] },
 };
 // longueurs cumulées
@@ -47,7 +48,7 @@ export function distToRoute(r, x, z) {
   }
   return best;
 }
-export const GATE_R = { piste: 7, hauts: 12, f1: 16 };
+export const GATE_R = { piste: 7, hauts: 12, f1: 16, bouees: 14 };
 
 // ------------------------------------------------------------------------------ station de ski du Mont-Pinard
 // 5 pistes côte à côte qui descendent du nord (sommet) vers le sud (front de neige) : verte, bleue,
@@ -129,6 +130,15 @@ export const DISC = {
       essais: { name: 'Essais libres (3 tours)', laps: 3, npcs: 0, fee: 0, prizes: [] },
       qualif: { name: 'Qualifications (meilleur tour = place sur la grille)', laps: 3, npcs: 0, fee: 0, prizes: [], qualif: true },
       course: { name: 'Grand Prix de PLAYZONE (5 tours, 10 voitures)', laps: 5, npcs: 9, fee: 200, prizes: [8000, 4000, 2000] },
+    },
+  },
+  jetski: {
+    name: 'Jet ski', icon: '🚤', place: 'surf-shop', route: 'bouees', how: 'jet', ref: 15, vmax: 30, item: 'jetski',
+    member: { name: 'Abonnement Jet Club (ou achète ton jet ski)', price: 300, days: 7 },
+    modes: {
+      balade: { name: 'Balade libre en mer (5 min)', laps: 0, npcs: 0, fee: 0, prizes: [], free: 300 },
+      bouees: { name: 'Parcours de bouées chronométré (2 tours)', laps: 2, npcs: 0, fee: 0, prizes: [] },
+      course: { name: 'Course de jet ski (3 tours, 6 pilotes PNJ)', laps: 3, npcs: 6, fee: 30, prizes: [500, 250, 120] },
     },
   },
   ski: {

@@ -3,6 +3,7 @@ import { h } from '../ui/dom.js';
 import { groundHeight, WATER_LEVEL, BUILDING_BY_ID } from '../../shared/world-layout.js';
 import { windAt, windLabel, forecast, MIN_WIND, SURF_SPOT, WING, maxJump } from '../../shared/wingfoil.js';
 import { calNow } from '../events/agenda.js';
+import { Wake } from './wake.js';
 
 // WINGFOIL : on tient l'aile, le vent pousse, la planche décolle sur son foil au-dessus de l'eau.
 // Commandes : gauche/droite = tourner, avant = border l'aile (plus de puissance), arrière = choquer,
@@ -20,20 +21,41 @@ export class Wingfoil {
     this.rig = this.buildRig();
     this.rig.visible = false;
     g.engine.scene.add(this.rig);
+    this.wake = new Wake(g.engine.scene, { width: 0.9, y: WATER_LEVEL + 0.04 });
+    // filets de vent : traits blancs qui filent dans le sens du vent autour du rider
+    this.streaks = [];
+    const sm = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.35, depthWrite: false });
+    for (let i = 0; i < 26; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 3 + Math.random() * 3), sm); l.visible = false; g.engine.scene.add(l); this.streaks.push({ m: l, x: 0, y: 0, z: 0 }); }
   }
 
   buildRig() {
     const root = new THREE.Group();
-    const m = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5, ...o });
-    const board = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, 1.5), m('#f4f1ea')); board.position.y = 0; root.add(board);
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.125, 1.5), m('#ff9f1c')); root.add(stripe);
-    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.85, 0.12), m('#2b2d42')); mast.position.set(0, -0.48, 0.1); root.add(mast);
-    const foil = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.22), m('#2b2d42')); foil.position.set(0, -0.9, 0.25); root.add(foil);
-    // l'aile gonflable, tenue devant le rider
-    const wing = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), m('#ff3fa4', { side: THREE.DoubleSide, transparent: true, opacity: 0.92 }));
-    wing.scale.set(1.6, 0.55, 0.9); wing.rotation.set(-Math.PI / 2.4, 0, 0); wing.position.set(0, 2.0, 0.75);
+    const m = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, ...o });
+    // planche effilée (pont blanc, rails colorés, pad antidérapant)
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.28, -0.75); shape.lineTo(0.28, -0.75); shape.quadraticCurveTo(0.33, 0.2, 0.18, 0.62); shape.quadraticCurveTo(0, 0.85, -0.18, 0.62); shape.quadraticCurveTo(-0.33, 0.2, -0.28, -0.75);
+    const boardG = new THREE.ExtrudeGeometry(shape, { depth: 0.1, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2 }).rotateX(-Math.PI / 2);
+    const board = new THREE.Mesh(boardG, m('#f7f7f2')); board.position.y = -0.05; root.add(board);
+    const rail = new THREE.Mesh(boardG, m('#ff9f1c')); rail.scale.set(1.04, 0.5, 1.02); rail.position.y = -0.07; root.add(rail);
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.7), m('#2b2d42', { roughness: 0.9 })); pad.position.set(0, 0.09, -0.25); root.add(pad);
+    // foil : mât, fuselage, aile avant (grande), stabilisateur
+    const carbon = m('#1b1b1f', { roughness: 0.3, metalness: 0.3 });
+    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.85, 0.13), carbon); mast.position.set(0, -0.48, 0.05); root.add(mast);
+    const fus = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.02, 0.9, 8).rotateX(Math.PI / 2), carbon); fus.position.set(0, -0.9, 0.08); root.add(fus);
+    const fw = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 6), carbon); fw.scale.set(0.42, 0.012, 0.09); fw.position.set(0, -0.9, 0.5); root.add(fw);
+    const st = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 4), carbon); st.scale.set(0.16, 0.01, 0.05); st.position.set(0, -0.9, -0.36); root.add(st);
+    // l'aile gonflable : bord d'attaque (boudin), voilure, latte centrale avec poignées, fenêtre
+    const wing = new THREE.Group();
+    const lead = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.075, 8, 32, Math.PI), m('#ff3fa4'));
+    wing.add(lead);
+    const canopy = new THREE.Mesh(new THREE.CircleGeometry(1.35, 32, 0, Math.PI), m('#ffd6ec', { side: THREE.DoubleSide, transparent: true, opacity: 0.9, roughness: 0.6 }));
+    wing.add(canopy);
+    const win = new THREE.Mesh(new THREE.CircleGeometry(0.28, 16), m('#bfe9ff', { side: THREE.DoubleSide, transparent: true, opacity: 0.55, roughness: 0.1 })); win.position.set(0.55, 0.45, 0.01); wing.add(win);
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 1.35, 8), m('#ff3fa4')); strut.position.set(0, 0.675, 0.02); wing.add(strut);
+    for (const yy of [0.35, 0.85]) { const hd = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 6, 12), m('#14141c')); hd.position.set(0, yy, 0.08); hd.rotation.y = Math.PI / 2; wing.add(hd); }
+    // tenue à bout de bras, de côté (comme une voile), légèrement inclinée
+    wing.rotation.set(-0.35, Math.PI / 2, 0, 'YXZ'); wing.position.set(0.15, 1.15, 0.45);
     root.add(wing);
-    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.8, 6), m('#14141c')); strut.rotation.x = Math.PI / 2.4; strut.position.set(0, 1.75, 0.7); root.add(strut);
     this.wingMesh = wing;
     return root;
   }
@@ -48,7 +70,8 @@ export class Wingfoil {
       own ? { label: '🪁 Aller à l\'eau avec mon wingfoil', action: (m) => { m.close(); this.start('own'); } } : null,
       !own && !W.trial ? { label: '🎁 Essai gratuit', action: (m) => { m.close(); this.start('trial'); } } : null,
       !own ? { label: `🪁 Louer pour une session (${WING.rental} PC)`, action: (m) => { m.close(); this.start('rent'); } } : null,
-      { label: '🛒 Boutique (acheter un wingfoil)', action: (m) => { m.close(); import('../ui/shop.js').then(({ openShop }) => openShop(g, 'surf', b)); } },
+      { label: '🚤 Jet ski (essai gratuit, abonnement ou achat)', action: (m) => { m.close(); g.races?.desk('jetski'); } },
+      { label: '🛒 Boutique (wingfoil, jet ski)', action: (m) => { m.close(); import('../ui/shop.js').then(({ openShop }) => openShop(g, 'surf', b)); } },
       { label: `🏆 Mes records (saut ${W.best || 0} m, ${W.bestPoints || 0} pts)`, action: (m) => m.show(`Sessions : ${W.sessions || 0} · sauts : ${W.jumps || 0} · niveau de glisse : ${Math.round(W.skill || 5)}/100. Conseils : vent de travers = vitesse max ; en vol, Espace pour sauter, tourne en l'air pour des rotations !`, [{ label: 'OK', ghost: true, action: (x) => x.close() }]) },
       { label: 'Au revoir', ghost: true, action: (m) => m.close() },
     ].filter(Boolean) });
@@ -120,10 +143,19 @@ export class Wingfoil {
       if (groundHeight(s.x, s.z) > WATER_LEVEL - 0.3) { this.stop('Retour à la plage !'); return; }
     }
     const y = WATER_LEVEL + 0.15 + foilH + Math.max(0, s.y);
-    this.rig.position.set(s.x, y, s.z);
+    this.rig.position.set(s.x, y + (foilH < 0.1 && s.y <= 0 ? Math.sin(g.now() / 400 + s.x) * 0.06 : 0), s.z);
+    this.wake.update(dt);
+    if (s.speed > 2 && s.y <= 0) this.wake.push(s.x - Math.sin(s.yaw) * 0.8, s.z - Math.cos(s.yaw) * 0.8, s.yaw, foilH > 0.1 ? 0.45 : Math.min(1, s.speed / 8));
+    // vent visible
+    const wd = w.dir + Math.PI, wx = Math.sin(wd), wz = Math.cos(wd), wsp = 4 + w.kts * 0.6;
+    for (const st of this.streaks) {
+      if (!st.m.visible || Math.hypot(st.x - s.x, st.z - s.z) > 30) { st.x = s.x + (Math.random() - 0.5) * 50 - wx * 20; st.z = s.z + (Math.random() - 0.5) * 50 - wz * 20; st.y = WATER_LEVEL + 0.8 + Math.random() * 4; st.m.visible = true; }
+      st.x += wx * wsp * dt; st.z += wz * wsp * dt;
+      st.m.position.set(st.x, st.y, st.z); st.m.rotation.y = wd;
+    }
     this.rig.rotation.set(s.y > 0 ? -0.15 : -0.04 * s.speed / 10, s.yaw, s.y > 0 ? 0 : -I.move.x * 0.25);
     // l'aile s'oriente avec le vent
-    this.wingMesh.rotation.z = clamp(wrap(w.dir - s.yaw) * 0.3, -0.8, 0.8);
+    this.wingMesh.rotation.y = Math.PI / 2 + clamp(wrap(w.dir - s.yaw) * 0.35, -0.7, 0.7);
     // le rider
     P.pos.set(s.x, y + 0.06, s.z); P.vel.set(Math.sin(s.yaw) * s.speed, 0, Math.cos(s.yaw) * s.speed); P.yaw = s.yaw; P.grounded = true; P.swimming = s.crashed > 0; P.speed = s.speed;
     const av = P.avatar.root;
@@ -163,6 +195,8 @@ export class Wingfoil {
     if (!s) return;
     this.s = null;
     this.rig.visible = false;
+    this.wake.clear();
+    for (const st of this.streaks) st.m.visible = false;
     this.buttons?.remove();
     g.hud.track('wing', null);
     const P = g.player;

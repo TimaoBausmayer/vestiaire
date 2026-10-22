@@ -5,7 +5,7 @@ const { srv, url } = await staticServer();
 const { browser, context } = await launch();
 const page = await context.newPage();
 const errors = watchConsole(page);
-await page.addInitScript(() => localStorage.setItem('playzone.save.v1', JSON.stringify({ v: 1, id: 'solo-w', name: 'Kéké', createdAt: 0, coins: 5000, xp: 500, rep: 0, appearance: {} })));
+await page.addInitScript(() => localStorage.setItem('playzone.save.v1', JSON.stringify({ v: 1, id: 'solo-w', name: 'Kéké', createdAt: 0, coins: 15000, xp: 3000, rep: 0, appearance: {} })));
 await page.goto(url + 'index.html?heure=15&auto=solo&qualite=medium');
 for (let i = 0; i < 40 && !(await page.evaluate(() => !!window.playzone?.player)); i++) await sleep(500);
 await sleep(1500);
@@ -54,6 +54,38 @@ const e2 = await ev(async () => { try { await window.playzone.net.request('wing.
 check(/essai gratuit est déjà utilisé/.test(e2), 'un seul essai gratuit');
 await ev(async () => { await window.playzone.net.request('shop.buy', { itemId: 'wingfoil' }); });
 check(((await prof()).inventory.wingfoil || 0) === 1, 'wingfoil acheté (1 800 PC)');
+
+// 4) jet ski : essai gratuit, parcours de bouées, course contre des PNJ (avec son propre jet ski)
+await toShop();
+await ev(() => window.playzone.jetski.start('bouees')); await sleep(500);
+check(await ev(() => !!window.playzone.jetski.s && window.playzone.jetski.rig.visible), 'jet ski à l\'eau (essai gratuit)');
+await ev(() => { const s = window.playzone.jetski.s; s.go -= 4000; s.lapStart -= 4000; window.playzone.net.session.race.go -= 4000; });
+await page.keyboard.down('KeyW');
+await ev(() => { for (let i = 0; i < 35; i++) window.playzone.debugStep(0.05); });
+await page.keyboard.up('KeyW');
+const jsp = await ev(() => { const s = window.playzone.jetski.s; return Math.hypot(s.vx, s.vz); });
+check(jsp > 8, `jet ski : ${Math.round(jsp * 3.6)} km/h`);
+await ev(() => { const g = window.playzone; g.cam.dist = 8; g.cam.pitch = 0.25; g.debugStep(0.1); });
+await sleep(300);
+await page.screenshot({ path: 'tests/e2e/out/jetski.png' });
+await ev(async () => {
+  const g = window.playzone, J = g.jetski, s = J.s, { ROUTES } = await import('/shared/courses.js'); const R = ROUTES.bouees;
+  s.go -= 120000; s.lapStart -= 120000; g.net.session.race.go -= 120000;
+  let guard = 0;
+  while (J.s && guard++ < 100) { const gt = R.gates[s.next]; s.x = gt.x; s.z = gt.z; g.debugStep(0.05); }
+  await new Promise((r) => setTimeout(r, 800));
+});
+const pj = await prof();
+check(pj.sports.jetski?.best?.bouees > 0, `parcours de bouées : ${pj.sports.jetski?.best?.bouees} s`);
+await ev(() => { const g = window.playzone; for (const m of [...g.ui.stack]) m.close(); });
+await ev(async () => { await window.playzone.net.request('shop.buy', { itemId: 'jetski' }); });
+await toShop();
+await ev(() => window.playzone.jetski.start('course')); await sleep(500);
+check(await ev(() => window.playzone.jetski.s?.npcs.length === 6), 'course : 6 jet skis PNJ (sans abonnement grâce à son jet ski)');
+await ev(() => { for (let i = 0; i < 80; i++) window.playzone.debugStep(0.05); });
+await sleep(200);
+await page.screenshot({ path: 'tests/e2e/out/jetski-course.png' });
+await ev(() => window.playzone.jetski.stop(true)); await sleep(300);
 
 console.log(ok ? 'OK' : 'ÉCHEC');
 console.log(errors.filter((e) => !/404/.test(e)).join('\n') || 'Aucune erreur console');

@@ -93,6 +93,7 @@ export default {
     { id: 'robot-aspi', name: 'Robot aspirateur', shop: 'hightech', furniture: true, price: 380, emoji: '🤖', desc: 'Il a peur des chaussettes.' },
     { id: 'console-pro', name: 'Console nouvelle génération', shop: 'hightech', furniture: true, price: 600, emoji: '🎮', desc: 'Introuvable partout. Sauf ici.', also: ['electronics'] },
     // ---------- Surf Shop : wingfoil (aile + planche + foil)
+    { id: 'jetski', name: 'Jet ski Turbo-Mouette 1600', shop: 'surf', special: true, price: 9500, emoji: '🚤', desc: 'À toi pour toujours : balades et courses sans abonnement.', max: 1, level: 4 },
     { id: 'wingfoil', name: 'Wingfoil complet (aile 5 m², planche, foil)', shop: 'surf', special: true, price: 1800, emoji: '🪁', desc: 'Pour voler au-dessus de l\'eau quand il y a du vent (10 nœuds minimum).', max: 1 },
     // ---------- Armurerie : matériel de tir, utilisable UNIQUEMENT au stand de tir (séance à moitié prix)
     { id: 'arme-pistolet', name: 'Pistolet de tir sportif (licence)', shop: 'armurerie', special: true, price: 1500, emoji: '🔫', desc: 'Reste au coffre du stand de tir. Séances au pistolet à moitié prix.', max: 1, level: 3 },

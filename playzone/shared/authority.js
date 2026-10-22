@@ -91,7 +91,7 @@ export class Authority {
     p.casino = { ...defaultCasino(), ...(p.casino || {}) };
     p.calendar = { ...defaultCalendar(), ...(p.calendar || {}) };
     p.karting = { ...defaultKarting(), ...(p.karting || {}) };
-    { const df = defaultFoot(), f = p.sports?.foot || {}; p.sports = { ...(p.sports || {}), foot: { ...df, ...f, skills: { ...df.skills, ...(f.skills || {}) } }, wing: { ...defaultWing(), ...(p.sports?.wing || {}) } }; for (const k of ['course', 'velo', 'f1', 'ski']) p.sports[k] = { ...defaultDisc(), ...(p.sports[k] || {}) }; }
+    { const df = defaultFoot(), f = p.sports?.foot || {}; p.sports = { ...(p.sports || {}), foot: { ...df, ...f, skills: { ...df.skills, ...(f.skills || {}) } }, wing: { ...defaultWing(), ...(p.sports?.wing || {}) } }; for (const k of ['course', 'velo', 'f1', 'ski', 'jetski']) p.sports[k] = { ...defaultDisc(), ...(p.sports[k] || {}) }; }
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
     p.minigames ||= {};
