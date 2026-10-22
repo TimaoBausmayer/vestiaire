@@ -25,9 +25,26 @@ class NPC {
     this.label = mgr.game.labels.add(this.avatar.root, h('div.wlabel', def.name, h('div.tag', def.role)), 2.45, 14);
   }
 
+  // Renversé (coup de poing, voiture) : au sol quelques secondes, puis se relève furieux.
+  knock(fromX, fromZ) {
+    this.state = 'ko'; this.timer = 3.5;
+    this.yaw = Math.atan2(fromX - this.pos.x, fromZ - this.pos.z);
+    this.say(pick(['Aïe !!!', 'Mais ça va pas ?!', 'Au secours, police !', 'Mon dentier !', 'Je vais le dire à ma mère !']), 2500);
+  }
+
   update(dt, t, P, night) {
     const d = this.def;
     this.timer -= dt; this.bumpCd -= dt; this.talkCd -= dt;
+    if (this.state === 'ko') {
+      const r = this.avatar.root;
+      r.rotation.order = 'YXZ';
+      r.position.copy(this.pos);
+      r.rotation.set(this.timer > 0.4 ? -Math.PI / 2 : 0, this.yaw, 0);
+      r.position.y = (this.def.y ?? groundHeight(this.pos.x, this.pos.z)) + (this.timer > 0.4 ? 0.25 : 0);
+      this.avatar.update(dt, { speed: 0, grounded: true, pose: 'idle' });
+      if (this.timer <= 0) { r.rotation.set(0, this.yaw, 0); this.state = 'react'; this.timer = 2; this.say(pick(['J\'appelle la police !', 'Vous allez avoir de mes nouvelles !', 'Espèce de malotru !']), 2500); }
+      return;
+    }
     const dPlayer = Math.hypot(P.x - this.pos.x, P.z - this.pos.z);
     let pose = 'idle', moving = false;
     // bousculade

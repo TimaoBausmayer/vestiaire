@@ -34,13 +34,15 @@ export function staticServer(port = 0) {
   });
 }
 
-export async function launch({ width = 1280, height = 720, mobile = false } = {}) {
+export async function launch({ width = 1280, height = 720, mobile = false, tuto = false } = {}) {
   const { chromium } = loadPlaywright();
   const browser = await chromium.launch({
     executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
   });
   const context = await browser.newContext({ viewport: { width, height }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1 });
+  // la proposition de tutoriel (première visite) bloquerait les scénarios : on la marque comme vue
+  if (!tuto) await context.addInitScript(() => { try { localStorage.setItem('playzone.tutoSeen', '1'); } catch { /* rien */ } });
   return { browser, context };
 }
 

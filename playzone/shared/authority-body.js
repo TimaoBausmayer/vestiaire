@@ -52,7 +52,9 @@ export const BODY_HANDLERS = {
     p.body.health = 60; p.body.injury = null; p.body.hospitalAt = ctx.now;
     applyNeeds(p.needs, ctx.now, { energie: 20 });
     const h = BUILDING_BY_ID.hopital || BUILDINGS.find((b) => b.interior === 'hospital');
-    return { ok: true, changed: true, data: { bill, paid, at: h ? { x: h.door.x, z: h.door.z } : null } };
+    const at = h ? { x: h.door.x, z: h.door.z } : null;
+    if (ctx.pos && at) { ctx.pos.x = at.x; ctx.pos.z = at.z; } // téléportation décidée par l'autorité
+    return { ok: true, changed: true, data: { bill, paid, at } };
   },
 
   'hospital.treat'(ctx) {

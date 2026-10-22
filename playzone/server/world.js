@@ -11,6 +11,7 @@ import { maxSpeedOf } from '../shared/content/vehicles.js';
 import { HOUSING_BY_ID } from '../shared/property.js';
 import { CompanyRegistry } from './companies.js';
 import { bodyEffects } from '../shared/body.js';
+import { arrest, inPrison, PRISON_CELL } from '../shared/authority-justice.js';
 
 // Silhouette publique (poids, muscles, torse nu) pour les autres joueurs.
 function physiqueOf(p) {
@@ -52,7 +53,7 @@ export class Player {
     const p = this.profile;
     const pet = p.pets.find((x) => x.id === p.activePet);
     return {
-      id: this.id, name: p.name, tag: this.tag, appearance: p.appearance, zone: this.zone, duty: this.duty, phy: physiqueOf(p),
+      id: this.id, name: p.name, tag: this.tag, appearance: p.appearance, zone: this.zone, duty: this.duty, phy: physiqueOf(p), stars: p.justice?.stars || 0,
       pet: pet ? { id: pet.id, species: pet.species, name: pet.name, collar: pet.collar, tricks: pet.tricks } : null,
       level: p.xp, titles: p.titles,
     };
@@ -178,6 +179,7 @@ export class World {
     return {
       profile: p.profile, session: p.session, now: Date.now(), pos: p.pos, zone: p.zone, rand: Math.random, newId,
       leaderboard: s.leaderboard, events: this.director, log: s.log, housing: s.housing, companies: s.companies,
+      players: { arrest: (targetId, copPos) => this.arrestPlayer(p, targetId, copPos) },
     };
   }
 
@@ -207,8 +209,25 @@ export class World {
     if (res.changed) { p.dirty = true; p.send({ t: 'profile', profile: p.profile }); }
     // effets visibles par les autres joueurs
     p.duty = p.session.mission?.job || null;
-    if (m.type === 'avatar.update' || m.type.startsWith('pet.') || /^(body|gym|hair|company)\./.test(m.type) || p.duty !== before) this.broadcast({ t: 'pupdate', ...p.publicInfo() }, p);
+    if (m.type === 'avatar.update' || m.type.startsWith('pet.') || /^(body|gym|hair|company|crime|police|jail)\./.test(m.type) || p.duty !== before) this.broadcast({ t: 'pupdate', ...p.publicInfo() }, p);
     if (m.type.startsWith('home.') || m.type === 'shop.buy') this.pushHome(p);
+  }
+
+  // Un policier (joueur) arrête un joueur recherché tout proche.
+  arrestPlayer(cop, targetId, copPos) {
+    const t = this.players.get(targetId);
+    if (!t || t === cop) return { ok: false, error: 'Personne à arrêter ici.' };
+    if (dist2d(t.pos.x, t.pos.z, copPos.x, copPos.z) > 3.5) return { ok: false, error: 'Trop loin : approche-toi.' };
+    const stars = t.profile.justice?.stars || 0;
+    if (!stars) return { ok: false, error: `${t.name} n'est pas recherché·e.` };
+    const res = arrest(this.server.authority, t.profile, Date.now());
+    t.session.stolen = null; t.session.robbery = null; t.session.shift = null;
+    t.dirty = true;
+    t.pos = { x: PRISON_CELL.x, y: 0, z: PRISON_CELL.z };
+    t.send({ t: 'profile', profile: t.profile });
+    t.send({ t: 'arrested', by: cop.name, ...res });
+    this.broadcast({ t: 'sys', text: `🚔 ${cop.name} a arrêté ${t.name} (${res.minutes} min de prison).` });
+    return { ok: true, stars, name: t.name, minutes: res.minutes };
   }
 
   // Intérieur d'une maison de joueur (meubles du propriétaire, en ligne ou non).
@@ -262,8 +281,9 @@ export class World {
       }
       p.credit -= extra;
     }
-    // limites de la zone
+    // limites de la zone ; un prisonnier reste dans l'enceinte de la prison
     if (zone === 'world' && !inBounds(x, z, 6)) { this.correct(p); return; }
+    if (zone === 'world' && p.profile.justice?.jail && !inPrison({ x, z })) { p.pos = { x: PRISON_CELL.x, y: 0, z: PRISON_CELL.z }; this.correct(p); return; }
     if (zone.startsWith('home:') && (Math.abs(x - HOME_INTERIOR.origin.x) > 12 || Math.abs(z - HOME_INTERIOR.origin.z) > 9)) { this.correct(p); return; }
     p.pos = { x, y, z };
     p.state = {

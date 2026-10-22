@@ -588,7 +588,12 @@ export const TEMPLATES = {
     }
     for (let x = I.x1 + 3; x < I.x2 - 3; x += 4) tableSet(t, x, I.z2 - 4, 4, false, '#adb5bd');
     t.staff(I.x2 - 2, I.z2 - 2, Math.PI, 'gardien');
-    t.spot(I.x2 - 2, I.z2 - 1, { label: '💂 Parler au gardien', action: 'prison', r: 1.8, priority: 2 });
+    t.spot(I.x2 - 2, I.z2 - 1, { label: '💂 Parler au gardien (laverie, temps restant)', action: 'prison', r: 1.8, priority: 2 });
+    // laverie et... une cuillère
+    for (let k = 0; k < 3; k++) { t.box(I.x1 + 1 + k * 1.1, 0, I.z2 - 0.7, 0.9, 1, 0.8, '#e9ecef'); t.cyl(I.x1 + 1 + k * 1.1, 0.5, I.z2 - 0.28, 0.25, 0.04, '#495057', 12, Math.PI / 2); }
+    t.solid(I.x1 + 2.1, I.z2 - 0.7, 3.4, 0.8, 1);
+    poster(t, I.x2 - 0.1, (I.z1 + I.z2) / 2, -Math.PI / 2, '#ff70a6', 1.1, 1.4); // le poster qui cache le trou...
+    t.spot(I.x2 - 1, (I.z1 + I.z2) / 2, { label: '🥄 Creuser derrière le poster (tenter de s\'évader)', action: 'jailescape', r: 1.4 });
   },
 
   barn(t) {

@@ -405,7 +405,7 @@ export class Vehicles {
     const night = g.world?.dayNight?.night || 0;
     const camPos = g.engine.camera.position;
     for (const v of this.list) {
-      if (v !== this.current) {
+      if (v !== this.current && !v.ai) {
         // véhicule libre : il finit de rouler puis s'endort
         if (v.sim.speed > 0.05 || v.sleep < 1) {
           const hits = v.sim.update(dt, { throttle: 0, steer: 0, handbrake: v.sim.speed < 3 });

@@ -320,3 +320,9 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
 /* choix du paiement (carte / espèces) */
 .pay-row { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; flex-wrap: wrap; font-weight: 700; }
 .chip small.cash { color: #b7f5c6; font-size: 12px; font-weight: 700; margin-left: 2px; }
+
+/* recherché par la police */
+.wanted { position: absolute; top: calc(92px + var(--safe-t)); left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; z-index: 6; }
+.wanted .stars { font-size: 30px; letter-spacing: 3px; color: #ffd23f; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.wanted .txt { font-weight: 800; font-size: 13px; background: rgba(230,57,70,.85); border-radius: 999px; padding: 3px 12px; display: inline-block; }
+.wanted.blink .stars { animation: needPulse .6s infinite alternate; }

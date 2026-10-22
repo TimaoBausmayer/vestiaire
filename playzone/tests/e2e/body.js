@@ -5,7 +5,7 @@ const { srv, url } = await staticServer();
 const { browser, context } = await launch();
 const page = await context.newPage();
 const errors = watchConsole(page);
-await page.addInitScript(() => localStorage.setItem('playzone.save.v1', JSON.stringify({ v: 1, id: 'solo-s', name: 'Musclor', createdAt: 0, coins: 20000, xp: 3000, rep: 0, appearance: {}, inventory: { 'baskets-luxe': 1 }, body: { muscle: 70, weight: 74 } })));
+await page.addInitScript(() => localStorage.setItem('playzone.save.v1', JSON.stringify({ v: 1, justice: { licence: { code: true, permis: true } }, id: 'solo-s', name: 'Musclor', createdAt: 0, coins: 20000, xp: 3000, rep: 0, appearance: {}, inventory: { 'baskets-luxe': 1 }, body: { muscle: 70, weight: 74 } })));
 await page.goto(url + 'index.html?heure=11&auto=solo&qualite=medium');
 await sleep(4500);
 const ev = (fn, arg) => page.evaluate(fn, arg);

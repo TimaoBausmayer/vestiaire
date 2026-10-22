@@ -10,6 +10,7 @@ import { cashPanel } from '../property/bank.js';
 import { jobPanel, schoolPanel } from '../career/career.js';
 import { createCompanyPanel } from '../career/business.js';
 import { gymPassPanel, hairPanel, hospitalCarePanel } from '../life/body.js';
+import { policeDesk, prisonGuard, tryEscape } from '../police/panels.js';
 import { cookPanel, shower, sleep, showerFx } from '../life/home-life.js';
 
 // ACTIONS DES POINTS D'INTÉRIEUR : acheter, s'asseoir, dormir, parler, regarder la télé, jouer...
@@ -110,15 +111,7 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'cook': cookPanel(g); break;
     case 'shower': shower(g); break;
     case 'sleep': sleep(g, spot.seat); break;
-    case 'police': {
-      const m = g.ui.dialog({ name: 'Accueil', role: 'Commissariat Central', text: 'Bonjour ! Que puis-je faire pour vous ?', choices: [
-        { label: '🐦 Signaler un pigeon voleur', action: (mm) => mm.show('Encore un ! Nous avons ouvert une cellule spéciale "pigeons". Elle est vide : ils s\'envolent.', [{ label: 'Merci', ghost: true, action: (x) => x.close() }]) },
-        { label: '💸 Mes amendes', action: (mm) => { mm.close(); g.police?.openFines?.() || g.ui.toast('Aucune amende à payer. Vous êtes un modèle de vertu (pour l\'instant).', 'good'); } },
-        { label: 'Au revoir', ghost: true, action: (mm) => mm.close() },
-      ] });
-      void m;
-      break;
-    }
+    case 'police': policeDesk(g); break;
     case 'hospital': {
       const r = await activity(g, 'hospital', b);
       if (r) { g.ui.dialog({ name: 'Dr Bobo', role: 'Hôpital Saint-Bobo', text: pick(DIAG), choices: [{ label: 'Merci docteur', ghost: true, action: (m) => m.close() }] }); needsToast(g, r, '🩺 Consultation terminée'); }
@@ -132,7 +125,7 @@ export async function runAction(game, action, { b, spot, staff }) {
       ] });
       break;
     }
-    case 'vault': g.ui.toast('🔒 Le coffre-fort refuse de s\'ouvrir. Il dit qu\'il ne vous connaît pas assez.', '', 4000); break;
+    case 'vault': g.crimes?.robBank(); break;
     case 'mairie': {
       const r = await activity(g, 'mairie', b);
       if (r) { g.ui.dialog({ name: 'Le Maire', role: 'Mairie', text: 'Votre réclamation "les pigeons me regardent bizarrement" a été enregistrée sous le numéro 4 812 007. Vous recevez le titre officiel de Râleur !', choices: [{ label: '😤 Merci !', ghost: true, action: (m) => m.close() }] }); g.reward({ coins: 0 }); if (r.title) g.ui.toast(`🏅 Nouveau titre : ${r.title}`, 'good', 4500); }
@@ -187,7 +180,8 @@ export async function runAction(game, action, { b, spot, staff }) {
       } })) });
       break;
     }
-    case 'prison': g.police?.guardDialog?.(b) || g.ui.dialog({ name: 'Gardien·ne', role: 'Prison de la Pomme Pourrie', text: 'Visite libre de 9 h à 18 h. Interdiction de cacher des limes dans les gâteaux.', choices: [{ label: 'Au revoir', ghost: true, action: (m) => m.close() }] }); break;
+    case 'prison': prisonGuard(g); break;
+    case 'jailescape': if (g.profile.justice.jail) tryEscape(g); else g.ui.toast('Tu n\'es pas prisonnier·ère... pourquoi creuser ?', '', 2500); break;
     case 'car': carDialog(g, spot.model); break;
     case 'repair': repairPanel(g, b); break;
     default: g.ui.toast('...', '', 1000);

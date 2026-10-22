@@ -10,6 +10,8 @@ import { bankApp } from '../property/bank.js';
 import { workApp } from '../career/career.js';
 import { businessApp } from '../career/business.js';
 import { healthApp } from '../life/body.js';
+import { papersApp } from '../police/panels.js';
+import { helpApp } from './tutorial.js';
 import { openWardrobe } from './shop.js';
 import { formatHour } from '../world/daynight.js';
 
@@ -24,6 +26,8 @@ const APPS = [
   { id: 'work', name: 'Travail', icon: '💼', bg: '#6c757d' },
   { id: 'business', name: 'Business', icon: '📈', bg: '#14213d' },
   { id: 'health', name: 'Santé', icon: '❤️', bg: '#ff4d6d' },
+  { id: 'papers', name: 'Papiers', icon: '🪪', bg: '#1d3557' },
+  { id: 'help', name: 'Aide', icon: '📘', bg: '#4ea8de' },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'events', name: 'Événements', icon: '🎉', bg: '#ff5a5f' },
   { id: 'messages', name: 'Messages', icon: '💬', bg: '#5fd068' },
@@ -208,6 +212,10 @@ export class Phone {
   app_business(b) { businessApp(this.game, b, () => this.render()); }
 
   app_health(b) { healthApp(this.game, b); }
+
+  app_papers(b) { papersApp(this.game, b); }
+
+  app_help(b) { helpApp(this.game, b); }
 
   app_bag(b) {
     const g = this.game, p = g.profile, items = g.net.content.items;

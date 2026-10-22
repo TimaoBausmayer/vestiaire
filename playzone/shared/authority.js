@@ -23,6 +23,8 @@ import { BANK_HANDLERS } from './authority-bank.js';
 import { CAREER_HANDLERS, careerOnPosition, defaultCareer } from './authority-careers.js';
 import { BUSINESS_HANDLERS } from './authority-business.js';
 import { BODY_HANDLERS } from './authority-body.js';
+import { JUSTICE_HANDLERS } from './authority-justice.js';
+import { defaultJustice } from './justice.js';
 import { defaultBody, eatWeight } from './body.js';
 import { deliverySpot, homeSize } from './property.js';
 
@@ -71,6 +73,7 @@ export class Authority {
     p.savings ??= 0;
     p.career ||= defaultCareer();
     p.body = { ...defaultBody(), ...(p.body || {}) };
+    p.justice = { ...defaultJustice(), ...(p.justice || {}) };
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
     p.minigames ||= {};
@@ -751,7 +754,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS);
 // Liste des entreprises de joueurs où investir (en ligne).
 HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 

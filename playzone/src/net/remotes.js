@@ -32,7 +32,7 @@ class Remote {
     const i = this.info;
     this.name = i.name;
     this.labelEl.textContent = '';
-    this.labelEl.append(`${i.name}`, h('span.tag', ` #${i.tag}`), h('div.tag', `Niv. ${levelFromXp(i.level || 0)}${i.duty ? ` · ${JOB_BY_ID[i.duty]?.name}` : ''}`));
+    this.labelEl.append(`${i.stars ? `${'★'.repeat(i.stars)} ` : ''}${i.name}`, h('span.tag', ` #${i.tag}`), h('div.tag', `Niv. ${levelFromXp(i.level || 0)}${i.duty ? ` · ${JOB_BY_ID[i.duty]?.name || i.duty}` : ''}`));
     const key = JSON.stringify([i.appearance, i.duty, i.phy]);
     if (key !== this.appKey) { this.appKey = key; this.avatar.setAppearance(i.appearance, { ...(i.phy || {}), ...uniformOf(i.duty) }); }
     const petKey = i.pet ? JSON.stringify(i.pet) : null;

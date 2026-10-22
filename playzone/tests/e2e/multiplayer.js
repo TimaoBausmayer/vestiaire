@@ -9,6 +9,7 @@ const srv = await startServer({ port: 0, dbFile: 'tests/e2e/out/mp.db', quiet: f
 const url = `http://127.0.0.1:${srv.port}/index.html?heure=12&qualite=low`;
 const { browser, context: ctxA } = await launch();
 const ctxB = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+await ctxB.addInitScript(() => { try { localStorage.setItem('playzone.tutoSeen', '1'); } catch { /* rien */ } });
 const A = await ctxA.newPage(), B = await ctxB.newPage();
 const errA = watchConsole(A, 'A'), errB = watchConsole(B, 'B');
 let ok = true;

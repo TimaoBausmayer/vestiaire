@@ -6,7 +6,7 @@ const { browser, context } = await launch();
 const page = await context.newPage();
 const errors = watchConsole(page);
 await page.addInitScript(() => localStorage.setItem('playzone.save.v1', JSON.stringify({
-  v: 1, id: 'solo-l', name: 'Cuistot', createdAt: 0, coins: 50000, xp: 3000, rep: 0, appearance: {},
+  v: 1, justice: { licence: { code: true, permis: true } }, id: 'solo-l', name: 'Cuistot', createdAt: 0, coins: 50000, xp: 3000, rep: 0, appearance: {},
   inventory: { oeufs: 3, legumes: 2, cuisiniere: 1, douche: 1, lit: 1 },
   properties: [{ id: 'maison-t3', how: 'rent', since: 0 }],
   home: { size: 'studio', place: 'maison-t3', furniture: [{ i: 'cuisiniere', x: 2.5, z: -3, r: 0 }, { i: 'douche', x: -3.4, z: -3.4, r: 0 }, { i: 'lit', x: -2.5, z: 1.5, r: 0 }] },
