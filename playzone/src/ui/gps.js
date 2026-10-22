@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { findRoute, nearestRoadPoint, STREET_BY_ID, BUILDINGS, BUILDING_BY_ID, MINIGAME_SPOTS, POI, PARKINGS, GAS_STATIONS, CITY_POI } from '../../shared/world-layout.js';
 import { HOUSING_BY_ID } from '../../shared/property.js';
 import { PITCH } from '../../shared/sports.js';
+import { SKI } from '../../shared/courses.js';
 import { VEHICLES } from '../../shared/content/vehicles.js';
 
 // GPS : itinéraire le long des routes jusqu'à une destination (repère, boutique, mission...).
@@ -42,6 +43,8 @@ export function destinations(profile = null) {
   out.push({ id: 'parc', name: 'Parc de loisirs (stands)', cat: 'leisure', x: POI.parkGate.x, z: POI.parkGate.z });
   out.push({ id: 'tartes', name: 'Stand de tartes', cat: 'leisure', x: MINIGAME_SPOTS.pieToss.x, z: MINIGAME_SPOTS.pieToss.z });
   out.push({ id: 'stade', name: '⚽ Stade des Crampons (foot)', cat: 'leisure', x: PITCH.x, z: PITCH.z + PITCH.d / 2 + 14 });
+  out.push({ id: 'ski', name: '⛷️ Station de ski du Mont-Pinard', cat: 'leisure', x: SKI.hut.x, z: SKI.hut.z + 4 });
+  out.push({ id: 'piste-athle', name: '🏃 Piste d\'athlétisme (Stade des Crampons)', cat: 'leisure', x: PITCH.x, z: PITCH.z + PITCH.d / 2 + 14 });
   out.push({ id: 'surf-spot', name: '🪁 Spot de wingfoil (Surf Shop)', cat: 'leisure', x: 430, z: 50 });
   out.push({ id: 'place', name: 'Grande Place', cat: 'other', x: 0, z: 12 });
   out.push({ id: 'plage', name: 'Plage des Orteils', cat: 'leisure', x: 0, z: 74 });

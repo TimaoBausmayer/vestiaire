@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PITCH_RECT } from '../../shared/sports.js';
+import { SKI } from '../../shared/courses.js';
 import { BUILDINGS, ROADS, PARKINGS, GAS_STATIONS, CITY_POI, WORLD_BOUNDS, STREETS, PORT_QUAY } from '../../shared/world-layout.js';
 import { BUILDING_BY_ID } from '../../shared/world-layout.js';
 import { mulberry32 } from '../../shared/rng.js';
@@ -19,7 +20,7 @@ const busy = [];
 for (const r of ROADS) busy.push([r[0] - 3, r[1] - 3, r[2] + 3, r[3] + 3]);
 for (const b of BUILDINGS) busy.push([b.x - b.w / 2 - 2.5, b.z - b.d / 2 - 2.5, b.x + b.w / 2 + 2.5, b.z + b.d / 2 + 4.5]);
 for (const p of PARKINGS) busy.push([p.x1 - 1, p.z1 - 1, p.x2 + 1, p.z2 + 1]);
-busy.push(PITCH_RECT);
+busy.push(PITCH_RECT, [SKI.x1 - 30, SKI.top - 22, SKI.x2 + 30, SKI.hut.z + 2], [600, -912, 830, -726]);
 for (const g of GAS_STATIONS) busy.push([g.x - g.w / 2 - 3, g.z - g.d / 2 - 3, g.x + g.w / 2 + 3, g.z + g.d / 2 + 3]);
 for (const b of BUILDINGS) { const l = b.lot || b.yard || b.wall; if (l) busy.push([l.x1 - 1, l.z1 - 1, l.x2 + 1, l.z2 + 1]); }
 export function block(x1, z1, x2, z2) { busy.push([Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2)]); }

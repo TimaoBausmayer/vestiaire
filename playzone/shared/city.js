@@ -277,6 +277,9 @@ add({ id: 'station-prestige', name: 'Station Prestige', kind: 'shop', shop: 'sta
 // --- Stade des Crampons (football) : club-house au bord du boulevard des Paillettes, terrain au nord
 add({ id: 'club-foot', name: 'Club-house du Stade des Crampons', kind: 'shop', shop: 'foot-club', interior: 'agency', x: 450, z: -470, w: 24, d: 12, h: 7, facing: 'S', color: '#2a9d3a', roofColor: '#ffffff', sign: 'STADE DES CRAMPONS · FOOT', district: 'hauts' });
 
+// --- Académie F1 : paddock au bord du boulevard de l'Emploi, circuit à l'est
+add({ id: 'f1-paddock', name: 'Paddock de l\'Académie F1', kind: 'shop', shop: 'f1', interior: 'agency', x: 585, z: -775, w: 20, d: 16, h: 8, facing: 'W', color: '#d00000', roofColor: '#14141c', sign: 'ACADÉMIE F1', neon: true, district: 'hauts' });
+
 // --- Surf Shop (wingfoil) sur la corniche, face à la mer
 add({ id: 'surf-shop', name: 'Surf Shop Vent Debout', kind: 'shop', shop: 'surf', interior: 'shop', x: 430, z: 38, w: 16, d: 12, h: 6, facing: 'S', roof: 'gable', style: 'hut', color: '#90e0ef', roofColor: '#ff9f1c', sign: 'SURF SHOP · WINGFOIL', district: 'villas' });
 

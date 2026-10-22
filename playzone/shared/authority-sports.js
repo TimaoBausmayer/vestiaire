@@ -136,3 +136,102 @@ Object.assign(SPORTS_HANDLERS, {
   },
   'wing.end'(ctx) { ctx.session.wing = null; return { ok: true, changed: false, data: {} }; },
 });
+
+// ------------------------------------------------------------------------------ course à pied, vélo, F1, ski
+import { DISC, ROUTES, SKI, discLen, npcField, defaultDisc } from './courses.js';
+import { CYCLE_MS } from './clock.js';
+const SKI_HUT = { x: SKI.hut.x, z: SKI.hut.z };
+function atDiscPlace(self, ctx, disc) {
+  const D = DISC[disc];
+  if (D.place === 'ski-hut') return self.near(ctx, SKI_HUT.x, SKI_HUT.z, 14);
+  const st = ROUTES[D.route]?.pts[0];
+  return self.atBuilding(ctx, BUILDING_BY_ID[D.place], 4) || (st && self.near(ctx, st.x, st.z, 45));
+}
+const memberOf = (d, now) => (d.member && d.member.until > now ? d.member : null);
+export function discOf(p, disc) { p.sports[disc] = { ...defaultDisc(), ...(p.sports[disc] || {}) }; return p.sports[disc]; }
+
+Object.assign(SPORTS_HANDLERS, {
+  'sport.member'(ctx, { disc, kind }) {
+    const p = ctx.profile, D = DISC[disc];
+    if (!D || !D.member) return err('Pas d\'adhésion pour ce sport : c\'est gratuit !');
+    if (!atDiscPlace(this, ctx, disc)) return err('L\'adhésion se prend sur place.');
+    const d = discOf(p, disc);
+    const day = kind === 'day' && D.day;
+    const price = day ? D.day : D.member.price;
+    if (p.coins < price) return err(`Il faut ${price} PC.`);
+    this.addCoins(p, -price);
+    const base = Math.max(ctx.now, d.member?.until || 0);
+    d.member = { kind: day ? 'jour' : 'saison', until: base + (day ? 1 : D.member.days) * CYCLE_MS };
+    return { ok: true, changed: true, data: { until: d.member.until, price } };
+  },
+  'sport.start'(ctx, { disc, mode }) {
+    const p = ctx.profile, D = DISC[disc], M = D?.modes[mode];
+    if (!M) return err('Épreuve inconnue.');
+    if (!atDiscPlace(this, ctx, disc)) return err('Ça se lance depuis le club (accueil).');
+    if (p.body.injury) return err('Tu es blessé·e : repos d\'abord.');
+    if (p.justice?.jail) return err('Pas depuis la prison !');
+    const d = discOf(p, disc);
+    let trial = false;
+    if (D.member && !memberOf(d, ctx.now)) {
+      if (d.trial) return err(`Ton essai gratuit est passé : prends ${D.day ? `un forfait journée (${D.day} PC) ou ` : ''}l'adhésion « ${D.member.name} » (${D.member.price} PC).`);
+      d.trial = true; trial = true;
+    }
+    const fee = trial ? 0 : M.fee;
+    if (p.coins < fee) return err(`Inscription : ${fee} PC.`);
+    if (fee) this.addCoins(p, -fee);
+    const seed = randInt(ctx.rand, 1, 2 ** 31 - 2);
+    const field = npcField(disc, mode, seed, d.skill);
+    ctx.session.race = { disc, mode, at: ctx.now, go: ctx.now + 3000, field };
+    d.sessions++;
+    return { ok: true, changed: true, data: { seed, field, trial, fee, laps: M.laps, go: ctx.now + 3000, grid: mode === 'course' ? d.grid : null } };
+  },
+  'sport.finish'(ctx, { time, laps, gates, abandon }) {
+    const p = ctx.profile, s = ctx.session.race;
+    if (!s) return err('Aucune épreuve en cours.');
+    ctx.session.race = null;
+    const D = DISC[s.disc], M = D.modes[s.mode], d = discOf(p, s.disc);
+    if (abandon) return { ok: true, changed: true, data: { abandon: true } };
+    const elapsed = (ctx.now - s.go) / 1000;
+    time = Math.min(Number(time) || 0, elapsed + 1);
+    const minT = discLen(s.disc, s.mode) / D.vmax;
+    if (!(time >= minT)) return err('Temps impossible : course non validée.');
+    // arrivée : il faut être sur la ligne (bas de la piste pour le ski)
+    if (ctx.pos) {
+      const fin = D.how === 'ski' ? { x: (SKI.x1 + SKI.x2) / 2, z: SKI.bottom } : ROUTES[D.route].pts[0];
+      const tol = D.how === 'ski' ? 120 : 45;
+      if (Math.hypot(ctx.pos.x - fin.x, ctx.pos.z - fin.z) > tol) return err('Tu n\'es pas sur la ligne d\'arrivée.');
+    }
+    // ski : portes manquées = +5 s chacune
+    const missed = M.gates ? Math.max(0, 10 - Math.max(0, Math.min(10, Math.floor(Number(gates) || 0)))) : 0;
+    const total = Math.round((time + missed * 5) * 100) / 100;
+    const minLap = D.route ? ROUTES[D.route].len / D.vmax : 0;
+    const lapTimes = Array.isArray(laps) ? laps.map(Number).filter((x) => x >= minLap) : [];
+    const bestLap = lapTimes.length ? Math.min(...lapTimes) : null;
+    let rank = null, prize = 0, grid = null;
+    if (M.npcs) {
+      rank = 1 + s.field.filter((n) => n.total < total).length;
+      prize = M.prizes[rank - 1] || 0;
+      d.races++; if (rank === 1) d.wins++; if (rank <= 3) d.podiums++;
+      d.grid = null;
+    }
+    if (M.qualif && bestLap) {
+      // grille : on compare au meilleur tour typique des pilotes PNJ de ton niveau
+      const field = npcField(s.disc, 'course', 7, d.skill);
+      grid = 1 + field.filter((n) => n.total / 5 * 0.985 < bestLap).length;
+      d.grid = grid;
+    }
+    if (prize) this.addCoins(p, prize);
+    const key = s.mode;
+    const prev = d.best[key];
+    const record = prev == null || total < prev;
+    if (record) d.best[key] = total;
+    // progression : la compétence du sport et l'endurance montent en pratiquant
+    const g = (1.2 + M.laps * 0.4) * (M.npcs ? 1.3 : 1) * (1 - d.skill / 125);
+    d.skill = Math.min(100, Math.round((d.skill + g) * 10) / 10);
+    const endu = { foot: 2.6, bike: 2.0, ski: 0.9, f1: 0.4 }[D.how];
+    p.body.endurance = Math.min(100, (p.body.endurance ?? 15) + endu);
+    if (D.how === 'foot' || D.how === 'bike') p.body.muscle = Math.min(100, p.body.muscle + endu * 0.25);
+    p.rep = (p.rep || 0) + (rank === 1 ? 2 : 0);
+    return { ok: true, changed: true, data: { total, missed, rank, of: M.npcs + 1, prize, record, best: d.best[key], skill: d.skill, endurance: Math.round(p.body.endurance), grid, bestLap } };
+  },
+});

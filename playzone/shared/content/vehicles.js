@@ -29,6 +29,9 @@ export const VEHICLES = {
   pickup: { name: 'Bûcheron Pick-up', cat: 'suv', kind: 'car', body: 'pickup', max: 24, acc: 10, turn: 1.55, grip: 0.88, fuel: 75, use: 0.1, price: 35000, level: 8, seats: 2 },
   fourgon: { name: 'Fourgon Pratique', cat: 'utilitaire', kind: 'car', body: 'van', max: 21, acc: 8, turn: 1.5, grip: 0.86, fuel: 70, use: 0.09, price: 24000, level: 6, seats: 3 },
   camion: { name: 'Malle-Poste (camionnette)', cat: 'utilitaire', kind: 'car', body: 'box', max: 19, acc: 7, turn: 1.4, grip: 0.85, fuel: 90, use: 0.12, price: 32000, level: 8, seats: 2 },
+  // --- sports : vélo de course du Vélo Club, monoplace de l'Académie F1 (prêtés, restent sur leur parcours)
+  'velo-course': { name: 'Vélo de course carbone', cat: 'moto', kind: 'bike', paint: '#e63946', max: 15, acc: 6.5, turn: 2.4, grip: 0.95, fuel: 0, price: 0, seats: 1 },
+  f1: { name: 'Monoplace F1 PLAYZONE', cat: 'kart', kind: 'f1', paint: '#d00000', max: 64, acc: 24, turn: 2.0, grip: 0.995, fuel: 0, price: 0, seats: 1 },
   // --- voitures de luxe (Prestige Motors, Avenue de Prestige)
   'gt-velours': { name: 'Bentaïga Velours GT', cat: 'sport', kind: 'car', body: 'coupe', paint: '#14213d', max: 35, acc: 16, turn: 1.9, grip: 0.96, fuel: 80, use: 0.12, price: 210000, level: 12, seats: 4 },
   'suv-taureau': { name: 'Taureau Urus 4x4', cat: 'suv', kind: 'car', body: 'suv', paint: '#ffb703', max: 34, acc: 17, turn: 1.75, grip: 0.95, fuel: 85, use: 0.14, price: 240000, level: 12, seats: 5 },

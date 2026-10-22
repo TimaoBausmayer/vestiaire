@@ -8,7 +8,7 @@ import { buildContent } from '../shared/content/registry.js';
 import { LIMITS, SPEED } from '../shared/protocol.js';
 import { censor, hasPersonalInfo } from '../shared/chat-filter.js';
 import { POI, MINIGAME_SPOTS, HOME_INTERIOR, BUILDING_BY_ID, inBounds, dist2d } from '../shared/world-layout.js';
-import { maxSpeedOf } from '../shared/content/vehicles.js';
+import { maxSpeedOf, VEHICLES } from '../shared/content/vehicles.js';
 import { HOUSING_BY_ID } from '../shared/property.js';
 import { CompanyRegistry } from './companies.js';
 import { bodyEffects } from '../shared/body.js';
@@ -273,7 +273,8 @@ export class World {
       return;
     }
     // vitesse : distance autorisée + crédit (gigue réseau, petits sauts autorisés)
-    const vehicle = typeof s.v === 'string' ? p.profile.vehicles.find((v) => v.model === s.v) : null;
+    // véhicule possédé, ou prêté / emprunté (kart, monoplace, vélo du club, essai, voiture volée...) : plafond du modèle
+    const vehicle = typeof s.v === 'string' ? (p.profile.vehicles.find((v) => v.model === s.v) || (VEHICLES[s.v] ? { model: s.v } : null)) : null;
     const max = vehicle ? maxSpeedOf(vehicle.model) : SPEED.foot;
     p.credit = Math.min(SPEED.creditMax, p.credit + SPEED.creditRefill * dt);
     const d = dist2d(p.pos.x, p.pos.z, x, z);

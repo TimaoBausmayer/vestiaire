@@ -44,7 +44,7 @@ export class DriveSim {
   get speed() { return Math.hypot(this.vx, this.vz); }
   get forward() { return tmp.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
 
-  maxSpeed() { return this.spec.max * (1 - this.damage * 0.4); }
+  maxSpeed() { return this.spec.max * (this.boost || 1) * (1 - this.damage * 0.4); }
   get broken() { return this.damage >= 1; }
   get outOfFuel() { return this.spec.fuel > 0 && this.fuel <= 0; }
 

@@ -4,7 +4,7 @@
 
 // Stade des Crampons (Les Hauts, au nord de l'Avenue de Prestige). Longueur le long de X.
 export const PITCH = { x: 450, z: -560, w: 64, d: 40, goalW: 7.3, goalH: 2.44, box: 12 };
-export const PITCH_RECT = [PITCH.x - PITCH.w / 2 - 8, PITCH.z - PITCH.d / 2 - 8, PITCH.x + PITCH.w / 2 + 8, PITCH.z + PITCH.d / 2 + 14];
+export const PITCH_RECT = [PITCH.x - PITCH.w / 2 - 16, PITCH.z - PITCH.d / 2 - 12, PITCH.x + PITCH.w / 2 + 16, PITCH.z + PITCH.d / 2 + 22];
 export const inPitch = (x, z, m = 0) => Math.abs(x - PITCH.x) <= PITCH.w / 2 + m && Math.abs(z - PITCH.z) <= PITCH.d / 2 + m;
 
 export const FOOT_SKILLS = { tir: 'Tir', dribble: 'Dribble', passe: 'Passe', vitesse: 'Vitesse' };

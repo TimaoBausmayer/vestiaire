@@ -55,17 +55,17 @@ export class Football {
     const seat = mat('#c9ced6'), seatB = mat('#1d4ed8');
     for (let r = 0; r < 5; r++) {
       const st = new THREE.Mesh(new THREE.BoxGeometry(50, 0.5, 1.2), r % 2 ? seat : seatB);
-      st.position.set(PITCH.x, 0.25 + r * 0.5, PITCH.z + W + 4 + r * 1.2); st.castShadow = true; root.add(st);
-      g.collision.addBox(PITCH.x - 25, 0, PITCH.z + W + 3.4 + r * 1.2, PITCH.x + 25, 0.5 + r * 0.5, PITCH.z + W + 4.6 + r * 1.2);
+      st.position.set(PITCH.x, 0.25 + r * 0.5, PITCH.z + W + 10 + r * 1.2); st.castShadow = true; root.add(st);
+      g.collision.addBox(PITCH.x - 25, 0, PITCH.z + W + 9.4 + r * 1.2, PITCH.x + 25, 0.5 + r * 0.5, PITCH.z + W + 10.6 + r * 1.2);
     }
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      const x = PITCH.x + sx * (L + 4), z = PITCH.z + sz * (W + 3);
+      const x = PITCH.x + sx * (L + 13), z = PITCH.z + sz * (W + 10);
       const m = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 14, 8), mat('#6c757d')); m.position.set(x, 7, z); root.add(m);
       const lamp = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1, 0.4), new THREE.MeshStandardMaterial({ color: '#fffbe6', emissive: '#fff4c2', emissiveIntensity: 0.8 })); lamp.position.set(x, 14, z); root.add(lamp);
       g.collision.addCyl(x, z, 0.3, 0, 14);
     }
     // panneau du club
-    const sign = new THREE.Mesh(new THREE.BoxGeometry(12, 2, 0.2), mat('#2a9d3a')); sign.position.set(PITCH.x, 4.8, PITCH.z + W + 10.6); root.add(sign);
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(12, 2, 0.2), mat('#2a9d3a')); sign.position.set(PITCH.x, 5.6, PITCH.z + W + 16.5); root.add(sign);
     g.engine.scene.add(root);
     // ballon (caché hors activité)
     const c = document.createElement('canvas'); c.width = 64; c.height = 32;

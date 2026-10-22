@@ -45,7 +45,8 @@ export async function runAction(game, action, { b, spot, staff }) {
       const s = b.shop;
       if (s === 'cars-new' || s === 'cars-luxe') dealerPanel(g, b, () => openShop(g, s, b));
       else if (s === 'auto-ecole') policeDesk(g, true);
-      else if (s === 'foot-club') g.football?.desk();
+      else if (s === 'foot-club') g.races?.clubDesk();
+      else if (s === 'f1') g.races?.desk('f1');
       else if (s === 'surf') g.wingfoil?.desk(b);
       else if (s === 'pole-emploi') poleEmploiPanel(g);
       else if (s === 'cars-used') usedCarsPanel(g, b);

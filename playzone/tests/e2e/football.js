@@ -16,9 +16,10 @@ const prof = () => ev(() => window.playzone.profile);
 const step = (n, dt = 0.1) => ev(([n, dt]) => { for (let i = 0; i < n; i++) window.playzone.debugStep(dt); }, [n, dt]);
 
 // 1) club-house
-await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const g = window.playzone; const b = BUILDING_BY_ID['club-foot']; g.player.teleport(b.x, b.z, 0); for (let i = 0; i < 40 && !g.interiors.loaded.has('club-foot'); i++) g.debugStep(0.3); const d = g.interiors.loaded.get('club-foot').inters.find((x) => /Club de foot/.test(typeof x.label === 'function' ? x.label() : x.label)); g.player.teleport(d.x, d.z, 0); g.debugStep(0.3); });
-check(/Club de foot/.test(await ev(() => window.playzone.interactions.label()) || ''), 'accueil du club de foot');
+await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const g = window.playzone; const b = BUILDING_BY_ID['club-foot']; g.player.teleport(b.x, b.z, 0); for (let i = 0; i < 40 && !g.interiors.loaded.has('club-foot'); i++) g.debugStep(0.3); const d = g.interiors.loaded.get('club-foot').inters.find((x) => /Maison des Sports/.test(typeof x.label === 'function' ? x.label() : x.label)); g.player.teleport(d.x, d.z, 0); g.debugStep(0.3); });
+check(/Maison des Sports/.test(await ev(() => window.playzone.interactions.label()) || ''), 'accueil de la Maison des Sports');
 await page.keyboard.press('KeyE'); await sleep(400);
+await page.getByText('Football (club gratuit)').click(); await sleep(400);
 await page.locator('.modal .opt', { hasText: 'Matchs' }).click(); await sleep(300);
 check(await page.getByText('(essai gratuit)').count() > 0, 'match amical d\'essai gratuit avant inscription');
 await page.locator('.modal .opt', { hasText: 'Mon club' }).click(); await sleep(300);
@@ -36,7 +37,7 @@ await page.screenshot({ path: 'tests/e2e/out/foot-tirs.png' });
 let goals = 0;
 for (let k = 0; k < 10 && (await ev(() => !!window.playzone.football.s)); k++) {
   // le joueur va au ballon puis frappe
-  await ev(() => { const g = window.playzone, f = g.football, b = f.s.ball; g.player.teleport(b.pos.x + 0.6, b.pos.z, -Math.PI / 2); g.debugStep(0.1); g.debugStep(0.1); if (f.s.ball.owner !== f.me()) f.giveBall(f.me()); f.shoot(0.6); });
+  await ev(() => { const g = window.playzone, f = g.football; if (!f.s) return; const b = f.s.ball; g.player.teleport(b.pos.x + 0.6, b.pos.z, -Math.PI / 2); g.debugStep(0.1); g.debugStep(0.1); if (f.s.ball.owner !== f.me()) f.giveBall(f.me()); f.shoot(0.6); });
   await step(40);
   goals = await ev(() => window.playzone.football.s?.score ?? -1);
 }

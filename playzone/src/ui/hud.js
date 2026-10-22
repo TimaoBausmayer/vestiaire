@@ -3,6 +3,7 @@ import { h, clear, fmt } from './dom.js';
 import { BUILDINGS, ROADS, POND, zoneAt, WORLD_BOUNDS, POI, MINIGAME_SPOTS, PARKINGS, CITY_POI, PORT_QUAY } from '../../shared/world-layout.js';
 import { levelProgress } from '../../shared/rules.js';
 import { PITCH } from '../../shared/sports.js';
+import { SKI, ROUTES } from '../../shared/courses.js';
 import { formatHour } from '../world/daynight.js';
 
 // Affichage tête haute : argent, niveau, réputation, zone, horloge, mini-carte, missions, boussole.
@@ -30,6 +31,8 @@ export function drawMapBase(px = 2) {
   rect(-840, -430, -300, 50, '#7fae55');                   // vignobles
   rect(-900, -1000, 900, -880, '#6aa84f');                 // abords de l'autoroute
   rect(PITCH.x - PITCH.w / 2, PITCH.z - PITCH.d / 2, PITCH.x + PITCH.w / 2, PITCH.z + PITCH.d / 2, '#3f9a3a'); // stade
+  rect(SKI.x1, SKI.top, SKI.x2, SKI.bottom, '#f4f8fb'); rect(SKI.x1 - 26, SKI.top, SKI.x1, SKI.bottom, '#c9d2d8'); rect(SKI.x2, SKI.top, SKI.x2 + 26, SKI.bottom, '#c9d2d8'); // station de ski
+  g.strokeStyle = '#3a3d42'; g.lineWidth = 13 * px; g.beginPath(); ROUTES.f1.pts.forEach((p, i) => (i ? g.lineTo(X(p.x), Y(p.z)) : g.moveTo(X(p.x), Y(p.z)))); g.closePath(); g.stroke(); // circuit F1
   g.fillStyle = '#2e9fd6'; g.beginPath(); g.arc(X(POND.x), Y(POND.z), POND.r * px, 0, 7); g.fill();
   rect(-24, -24, 24, 24, '#e8d5b5');                       // place
   g.fillStyle = '#e9d8a6'; g.beginPath(); g.arc(X(CITY_POI.arena.x), Y(CITY_POI.arena.z), CITY_POI.arena.r * px, 0, 7); g.fill();
@@ -63,7 +66,7 @@ export function drawRoute(g, toScreen, route, scale = 1) {
   g.restore();
 }
 
-const SHOP_ICON = { clothes: '👕', furniture: '🛋️', pets: '🐾', vehicles: '🛵', cafe: '☕', bakery: '🥖', burger: '🍔', pizzeria: '🍕', tacos: '🌮', homard: '🦞', poisson: '🐟', cafe2: '☕', paillote: '🍹', immo: '🏡', electronics: '📺', 'cars-new': '🚗', 'cars-luxe': '🏎️', hightech: '🖥️', armurerie: '🎯', 'auto-ecole': '🚦', 'pole-emploi': '💼', 'foot-club': '⚽', surf: '🪁', 'cars-used': '🚙', bikes: '🏍️', repair: '🔧', 'furniture-used': '🪑', 'pet-acc': '🦴', supermarket: '🛒', superette: '🛒', 'clothes-used': '🧥', depot: '♻️', brocante: '🏺', station: '⛽', rental: '🔑', scrapyard: '🔩', farm: '🥕' };
+const SHOP_ICON = { clothes: '👕', furniture: '🛋️', pets: '🐾', vehicles: '🛵', cafe: '☕', bakery: '🥖', burger: '🍔', pizzeria: '🍕', tacos: '🌮', homard: '🦞', poisson: '🐟', cafe2: '☕', paillote: '🍹', immo: '🏡', electronics: '📺', 'cars-new': '🚗', 'cars-luxe': '🏎️', hightech: '🖥️', armurerie: '🎯', 'auto-ecole': '🚦', 'pole-emploi': '💼', 'foot-club': '⚽', f1: '🏎️', surf: '🪁', 'cars-used': '🚙', bikes: '🏍️', repair: '🔧', 'furniture-used': '🪑', 'pet-acc': '🦴', supermarket: '🛒', superette: '🛒', 'clothes-used': '🧥', depot: '♻️', brocante: '🏺', station: '⛽', rental: '🔑', scrapyard: '🔩', farm: '🥕' };
 const SERVICE_ICON = { police: '👮', hospital: '🏥', mairie: '🏛️', bank: '🏦', school: '🏫', prison: '⛓️', cinema: '🎬', bowling: '🎳', arcade: '🕹️', gym: '💪', office: '🏢' };
 const MAP_ICONS = [
   ...BUILDINGS.filter((b) => b.kind === 'shop' || b.kind === 'job' || b.kind === 'home' || b.kind === 'service' || b.kind === 'home-buy').map((b) => ({ x: b.door.x, z: b.door.z, icon: { delivery: '📦', firefighter: '🚒', cook: '🍔' }[b.job] || SHOP_ICON[b.shop] || SERVICE_ICON[b.interior] || '🏠' })),

@@ -327,6 +327,7 @@ export function seatOf(model) {
     board: { x: 0, y: 0.18, z: -0.1, s: 1, pose: 'hold-forward' },
     caddie: { x: 0, y: 0.62, z: -0.05, s: 1, pose: 'sit' },
     kart: { x: 0, y: 0.22, z: -0.25, s: 1, pose: 'sit' },
+    f1: { x: 0, y: 0.18, z: -0.35, s: 1, pose: 'sit' },
     bike: { x: 0, y: 0.62, z: -0.2, s: 1, pose: 'sit' },
     scooter: { x: 0, y: 0.6, z: -0.25, s: 1, pose: 'sit' },
     moto: { x: 0, y: 0.68, z: -0.2, s: 1, pose: 'sit' },
@@ -337,7 +338,7 @@ export function seatOf(model) {
 export function dimsOf(model) {
   const spec = VEHICLES[model];
   if (spec?.kind === 'car') { const b = BODIES[spec.body]; return { L: b.L, W: b.W, r: b.r, zF: b.zF, zR: b.zR, track: b.track }; }
-  return { board: { L: 1.1, W: 0.4, r: 0.11, zF: 0.5, zR: -0.45, track: 0 }, caddie: { L: 1.3, W: 0.8, r: 0.08, zF: 0.4, zR: -0.4, track: 0.3 }, kart: { L: 1.9, W: 1.3, r: 0.14, zF: 0.62, zR: -0.6, track: 0.55 }, bike: { L: 1.8, W: 0.6, r: 0.34, zF: 0.62, zR: -0.55, track: 0 }, scooter: { L: 1.8, W: 0.7, r: 0.25, zF: 0.62, zR: -0.55, track: 0 }, moto: { L: 2.1, W: 0.8, r: 0.32, zF: 0.75, zR: -0.68, track: 0 } }[spec?.kind] || { L: 2, W: 1, r: 0.3, zF: 0.6, zR: -0.6, track: 0.5 };
+  return { board: { L: 1.1, W: 0.4, r: 0.11, zF: 0.5, zR: -0.45, track: 0 }, caddie: { L: 1.3, W: 0.8, r: 0.08, zF: 0.4, zR: -0.4, track: 0.3 }, kart: { L: 1.9, W: 1.3, r: 0.14, zF: 0.62, zR: -0.6, track: 0.55 }, f1: { L: 4.6, W: 1.9, r: 0.33, zF: 1.55, zR: -1.45, track: 0.8 }, bike: { L: 1.8, W: 0.6, r: 0.34, zF: 0.62, zR: -0.55, track: 0 }, scooter: { L: 1.8, W: 0.7, r: 0.25, zF: 0.62, zR: -0.55, track: 0 }, moto: { L: 2.1, W: 0.8, r: 0.32, zF: 0.75, zR: -0.68, track: 0 } }[spec?.kind] || { L: 2, W: 1, r: 0.3, zF: 0.6, zR: -0.6, track: 0.5 };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -584,6 +585,26 @@ function buildSmall(cb, model) {
     for (const [x, z] of [[-0.3, -0.4], [0.3, -0.4], [-0.3, 0.4], [0.3, 0.4]]) { cb.box(x, 0.24, z, 0.03, 0.25, 0.03, m, M.chrome); addWheel(cb, x, 0.08, z, 0.08, 0.05, z > 0 ? 2 : 1, 'steel'); }
     cb.add(P.cone(10), { y: 0.55, z: -0.72, sx: 0.28, sy: 0.4, sz: 0.28, rx: -Math.PI / 2, color: '#ff9f1c', mat: M.chrome });
     cb.add(P.cyl(10), { y: 0.55, z: -0.95, sx: 0.2, sy: 0.05, sz: 0.2, rx: Math.PI / 2, color: '#ffd23f', mat: M.amber });
+    return;
+  }
+  if (spec.kind === 'f1') {
+    // monoplace : nez effilé, aileron avant et arrière, pontons, halo, gros pneus, numéro
+    const col = '#ffffff';
+    cb.rbox(0, 0.3, 0.2, 0.62, 0.34, 2.6, col, M.paint);                                  // coque
+    cb.rbox(0, 0.24, 1.75, 0.32, 0.18, 1.0, col, M.paint, { rx: 0.06 });                  // nez
+    cb.rbox(0, 0.1, 2.25, 1.75, 0.04, 0.32, '#14141c', M.trim);                            // aileron avant
+    for (const sx of [-1, 1]) cb.rbox(sx * 0.86, 0.17, 2.25, 0.04, 0.18, 0.4, col, M.paint);
+    for (const sx of [-1, 1]) cb.rbox(sx * 0.55, 0.3, -0.25, 0.42, 0.3, 1.5, col, M.paint); // pontons
+    cb.rbox(0, 0.55, -0.85, 0.42, 0.5, 1.0, col, M.paint, { rx: -0.12 });                 // capot moteur / prise d'air
+    cb.rbox(0, 0.62, -0.15, 0.36, 0.08, 0.6, '#14141c', M.interior);                       // cockpit
+    cb.add(P.cyl(10), { y: 0.82, z: 0.15, sx: 0.36, sy: 0.04, sz: 0.36, rx: Math.PI / 2, color: '#2b2d33', mat: M.trim }); // halo
+    cb.rbox(0, 0.68, 0.35, 0.05, 0.3, 0.05, '#2b2d33', M.trim);
+    cb.rbox(0, 0.92, -1.75, 1.2, 0.06, 0.38, '#14141c', M.trim);                           // aileron arrière
+    for (const sx of [-1, 1]) cb.rbox(sx * 0.6, 0.72, -1.75, 0.04, 0.42, 0.42, col, M.paint);
+    cb.rbox(0, 0.42, -1.95, 0.5, 0.1, 0.06, '#b3121f', M.tail);                            // feu de pluie
+    cb.rbox(0, 0.52, 0.9, 0.26, 0.16, 0.02, '#ffffff', M.paint);                           // numéro
+    addWheel(cb, -0.82, 0.33, 1.55, 0.33, 0.34, 2, 'sport', '#1b1b1f'); addWheel(cb, 0.82, 0.33, 1.55, 0.33, 0.34, 2, 'sport', '#1b1b1f');
+    addWheel(cb, -0.84, 0.36, -1.45, 0.36, 0.44, 1, 'sport', '#1b1b1f'); addWheel(cb, 0.84, 0.36, -1.45, 0.36, 0.44, 1, 'sport', '#1b1b1f');
     return;
   }
   if (spec.kind === 'kart') {

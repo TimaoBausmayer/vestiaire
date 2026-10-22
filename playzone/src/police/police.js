@@ -247,7 +247,7 @@ export class Police {
     // police qui voit un grand excès de vitesse, un feu rouge, l'absence de permis
     const cop = this.nearbyCop(P, 45);
     if (cop && kmh > limit + 30 && this.speedCd <= 0) { this.speedCd = 20; this.crime('grand-exces', true); }
-    if (cop && this.licenceCd <= 0 && !['bike', 'board', 'caddie', 'scooter', 'kart'].includes(v.spec.kind) && !this.j.licence.permis && v.owner !== 'exam') {
+    if (cop && this.licenceCd <= 0 && !['bike', 'board', 'caddie', 'scooter', 'kart', 'f1'].includes(v.spec.kind) && !this.j.licence.permis && v.owner !== 'exam') {
       this.licenceCd = 60;
       this.fine('sans-permis');
     }
