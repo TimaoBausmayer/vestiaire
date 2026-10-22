@@ -30,7 +30,14 @@ check(await page.getByText('Prévisions').count() > 0, 'le moniteur donne le ven
 await page.getByText('Essai gratuit').first().click(); await sleep(800);
 check(await ev(() => !!window.playzone.wingfoil.s), `essai gratuit sur l'eau (vent ${kts} nds)`);
 // prendre le vent de travers et accélérer
-await ev(() => { const g = window.playzone, s = g.wingfoil.s; s.yaw = s.wind.dir + Math.PI / 2; });
+// travers au vent, du côté du large (selon la direction du vent du jour, l'autre bord mène à la plage)
+await ev(async () => {
+  const { groundHeight, WATER_LEVEL } = await import('/shared/world-layout.js');
+  const g = window.playzone, s = g.wingfoil.s;
+  const deep = (yaw) => { let ok = 0; for (let d = 10; d <= 110; d += 10) { const x = s.x + Math.sin(yaw) * d, z = s.z + Math.cos(yaw) * d; if (groundHeight(x, z) < WATER_LEVEL - 1 && z < 230 && Math.abs(x) < 890) ok++; } return ok; };
+  const a = s.wind.dir + Math.PI / 2, b = s.wind.dir - Math.PI / 2;
+  s.yaw = deep(a) >= deep(b) ? a : b;
+});
 await page.keyboard.down('KeyW'); await step(120); await page.keyboard.up('KeyW');
 const sp = await ev(() => window.playzone.wingfoil.s.speed);
 check(sp > 6.5, `sur le foil : ${(sp * 3.6).toFixed(0)} km/h`);

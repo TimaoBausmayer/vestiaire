@@ -45,12 +45,13 @@ for (let k = 0; k < 6; k++) {
 }
 const stoppedAtLights = await ev(async () => {
   const { lightState } = await import('/src/world/traffic.js');
+  const { ROAD_GRAPH } = await import('/shared/city.js');   // importé avant la boucle : pas d'attente entre le test du segment et son usage
   const g = window.playzone; const t = g.now() / 1000; let n = 0, viol = 0;
   for (let k = 0; k < 40; k++) {
     g.debugStep(0.25);
     for (const c of g.traffic.cars) {
       if (!c || !c.seg || c.seg.turn || !c.seg.light || c.seg.to === undefined) continue;
-      const st = lightState((await import('/shared/city.js')).ROAD_GRAPH.nodes[c.seg.to], g.now() / 1000, c.seg.axis);
+      const st = lightState(ROAD_GRAPH.nodes[c.seg.to], g.now() / 1000, c.seg.axis);
       if (st === 'R' && c.seg.len - c.s < 3 && c.speed < 0.5) n++;
     }
   }
