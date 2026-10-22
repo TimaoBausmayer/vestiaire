@@ -138,7 +138,7 @@ Object.assign(SPORTS_HANDLERS, {
 });
 
 // ------------------------------------------------------------------------------ course à pied, vélo, F1, ski
-import { DISC, ROUTES, SKI, discLen, npcField, defaultDisc } from './courses.js';
+import { DISC, ROUTES, SKI, BIGAIR_MAX, discLen, npcField, defaultDisc } from './courses.js';
 import { CYCLE_MS } from './clock.js';
 const SKI_HUT = { x: SKI.hut.x, z: SKI.hut.z };
 function atDiscPlace(self, ctx, disc) {
@@ -185,7 +185,7 @@ Object.assign(SPORTS_HANDLERS, {
     d.sessions++;
     return { ok: true, changed: true, data: { seed, field, trial, fee, laps: M.laps, go: ctx.now + 3000, grid: mode === 'course' ? d.grid : null } };
   },
-  'sport.finish'(ctx, { time, laps, gates, abandon }) {
+  'sport.finish'(ctx, { time, laps, gates, abandon, score }) {
     const p = ctx.profile, s = ctx.session.race;
     if (!s) return err('Aucune épreuve en cours.');
     ctx.session.race = null;
@@ -208,7 +208,12 @@ Object.assign(SPORTS_HANDLERS, {
     const lapTimes = Array.isArray(laps) ? laps.map(Number).filter((x) => x >= minLap) : [];
     const bestLap = lapTimes.length ? Math.min(...lapTimes) : null;
     let rank = null, prize = 0, grid = null;
-    if (M.npcs) {
+    const pts = M.score ? Math.max(0, Math.min(BIGAIR_MAX, Math.floor(Number(score) || 0))) : null;
+    if (M.npcs && M.score) {
+      rank = 1 + s.field.filter((n) => n.score > pts).length;
+      prize = M.prizes[rank - 1] || 0;
+      d.races++; if (rank === 1) d.wins++; if (rank <= 3) d.podiums++;
+    } else if (M.npcs) {
       rank = 1 + s.field.filter((n) => n.total < total).length;
       prize = M.prizes[rank - 1] || 0;
       d.races++; if (rank === 1) d.wins++; if (rank <= 3) d.podiums++;
@@ -223,8 +228,8 @@ Object.assign(SPORTS_HANDLERS, {
     if (prize) this.addCoins(p, prize);
     const key = s.mode;
     const prev = d.best[key];
-    const record = prev == null || total < prev;
-    if (record) d.best[key] = total;
+    const record = M.score ? (prev == null || pts > prev) : (prev == null || total < prev);
+    if (record) d.best[key] = M.score ? pts : total;
     // progression : la compétence du sport et l'endurance montent en pratiquant
     const g = (1.2 + M.laps * 0.4) * (M.npcs ? 1.3 : 1) * (1 - d.skill / 125);
     d.skill = Math.min(100, Math.round((d.skill + g) * 10) / 10);
@@ -232,6 +237,6 @@ Object.assign(SPORTS_HANDLERS, {
     p.body.endurance = Math.min(100, (p.body.endurance ?? 15) + endu);
     if (D.how === 'foot' || D.how === 'bike') p.body.muscle = Math.min(100, p.body.muscle + endu * 0.25);
     p.rep = (p.rep || 0) + (rank === 1 ? 2 : 0);
-    return { ok: true, changed: true, data: { total, missed, rank, of: M.npcs + 1, prize, record, best: d.best[key], skill: d.skill, endurance: Math.round(p.body.endurance), grid, bestLap } };
+    return { ok: true, changed: true, data: { total, missed, score: pts, rank, of: M.npcs + 1, prize, record, best: d.best[key], skill: d.skill, endurance: Math.round(p.body.endurance), grid, bestLap } };
   },
 });

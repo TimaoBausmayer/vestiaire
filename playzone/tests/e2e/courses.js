@@ -82,7 +82,7 @@ await closeAll();
 // 4) ski : essai gratuit, télésiège, slalom
 await ev(async () => { const { SKI } = await import('/shared/courses.js'); const g = window.playzone; g.player.teleport(SKI.hut.x, SKI.hut.z + 2.5, Math.PI); g.debugStep(0.3); });
 check(/Mont-Pinard/.test(await ev(() => window.playzone.interactions.label()) || ''), 'chalet de la station de ski');
-await ev(() => window.playzone.ski.go('slalom')); await sleep(600);
+await ev(() => window.playzone.ski.start('slalom', 'rouge', 'ski')); await sleep(600);
 await ev(() => { const g = window.playzone; for (let i = 0; i < 60; i++) g.debugStep(0.1); g.cam.dist = 10; g.debugStep(0.1); });
 await sleep(300);
 await page.screenshot({ path: 'tests/e2e/out/courses-telesiege.png' });
@@ -100,6 +100,25 @@ await page.keyboard.up('KeyW');
 await sleep(800);
 p = await prof();
 check(p.sports.ski.trial && p.sports.ski.best.slalom > 0, `slalom chronométré : ${p.sports.ski.best.slalom} s`);
+await ev(() => { const g = window.playzone; for (const m of [...g.ui.stack]) m.close(); });
+
+// 5) snowpark en snowboard : tremplins, sauts et figures (forfait journée après l'essai)
+await ev(async () => { const { SKI } = await import('/shared/courses.js'); const g = window.playzone; g.player.teleport(SKI.hut.x, SKI.hut.z + 2.5, Math.PI); g.debugStep(0.3); await g.net.request('sport.member', { disc: 'ski', kind: 'day' }); });
+await ev(() => window.playzone.ski.start('bigair', 'park', 'snowboard')); await sleep(500);
+await ev(() => { const g = window.playzone; g.ski.s.t = 99; for (let i = 0; i < 40; i++) g.debugStep(0.1); });
+check(await ev(() => window.playzone.ski.s?.P.color === 'park' && window.playzone.ski.board.visible), 'snowboard au sommet du snowpark');
+await page.keyboard.down('KeyW');
+let air = false;
+for (let k = 0; k < 30 && !air; k++) { air = await ev(() => { const s = window.playzone.ski.s; for (let i = 0; i < 4; i++) window.playzone.debugStep(0.05); return !!s && s.air > 0.2; }); }
+await ev(() => { const g = window.playzone; g.cam.dist = 9; g.cam.pitch = 0.2; g.debugStep(0.05); });
+await sleep(200);
+await page.screenshot({ path: 'tests/e2e/out/courses-snowpark.png' });
+check(air, 'décollage sur un tremplin du snowpark');
+await ev(() => { for (let i = 0; i < 600 && window.playzone.ski.s; i++) window.playzone.debugStep(0.05); });
+await page.keyboard.up('KeyW');
+await sleep(800);
+p = await prof();
+check(p.sports.ski.best.bigair > 0, `Big Air : ${p.sports.ski.best.bigair} pts de figures`);
 
 console.log(ok ? 'OK' : 'ÉCHEC');
 console.log(errors.filter((e) => !/404/.test(e)).join('\n') || 'Aucune erreur console');
