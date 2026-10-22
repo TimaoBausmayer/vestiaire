@@ -4,7 +4,7 @@
 // industrielle, campagne, plage sauvage, parc de loisirs, circuit et prison.
 // Repère : X vers l'est, Z vers le sud. Unité ≈ 1 m.
 
-export const BOUNDS = { minX: -300, maxX: 300, minZ: -420, maxZ: 140 };
+export const BOUNDS = { minX: -300, maxX: 300, minZ: -500, maxZ: 140 };
 
 // ---------------------------------------------------------------------------------------------
 // RUES : segments horizontaux (h : z fixe, de x1 à x2) ou verticaux (v : x fixe, de z1 à z2).
@@ -41,6 +41,11 @@ export const STREETS = [
   { id: 'periph-e', name: 'Boulevard Périphérique Est', axis: 'v', x: 140, z1: -335, z2: 60, w: 9, kind: 'main' },
   { id: 'av-affaires', name: 'Avenue du Commerce', axis: 'v', x: 210, z1: -335, z2: 60, w: 8, kind: 'main' },
   { id: 'est', name: 'Route de l\'Est', axis: 'v', x: 290, z1: -335, z2: 60, w: 8, kind: 'main' },
+  // Quartier des Paillettes (loisirs du soir : casino, stand de tir, laser game...)
+  { id: 'paillettes', name: 'Boulevard des Paillettes', axis: 'h', z: -430, x1: -290, x2: 140, w: 10, kind: 'main' },
+  { id: 'ouest-nord', name: 'Route de l\'Ouest', axis: 'v', x: -290, z1: -430, z2: -335, w: 8, kind: 'main' },
+  { id: 'periph-o-nord', name: 'Boulevard Périphérique Ouest', axis: 'v', x: -140, z1: -430, z2: -335, w: 9, kind: 'main' },
+  { id: 'periph-e-nord', name: 'Boulevard Périphérique Est', axis: 'v', x: 140, z1: -430, z2: -335, w: 9, kind: 'main' },
 ];
 export const STREET_BY_ID = Object.fromEntries(STREETS.map((s) => [s.id, s]));
 
@@ -158,6 +163,7 @@ export const CITY_ZONES = [
   { id: 'prison', name: 'Prison de la Pomme Pourrie', rect: [-300, -420, -136, -335] },
   { id: 'loisirs', name: 'Parc des Loisirs Fous', rect: [-136, -420, 136, -335] },
   { id: 'circuit', name: 'Circuit Turbo-Mamie', rect: [136, -420, 300, -335] },
+  { id: 'paillettes', name: 'Quartier des Paillettes', rect: [-300, -500, 300, -420] },
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -228,7 +234,11 @@ add({ id: 'prison', name: 'Prison de la Pomme Pourrie', kind: 'service', interio
 // --- Parc des Loisirs Fous + circuit
 add({ id: 'bowling', name: 'Bowling Strike-Moi', kind: 'service', interior: 'bowling', x: 95, z: -372, w: 30, d: 20, h: 8, facing: 'S', color: '#3a86ff', roofColor: '#ff006e', sign: 'BOWLING STRIKE-MOI', neon: true, district: 'loisirs' });
 add({ id: 'arcade2', name: 'Salle d\'arcade Mégapixel', kind: 'service', interior: 'arcade', x: -95, z: -372, w: 24, d: 18, h: 7, facing: 'S', color: '#2b2d6e', roofColor: '#ff3fa4', sign: 'MÉGAPIXEL', neon: true, district: 'loisirs' });
-add({ id: 'circuit-stand', name: 'Stand du Circuit Turbo-Mamie', kind: 'service', interior: 'agency', x: 175, z: -352, w: 16, d: 10, h: 6, facing: 'S', color: '#f72585', roofColor: '#3a0ca3', sign: 'TURBO-MAMIE', district: 'circuit' });
+add({ id: 'circuit-stand', name: 'Karting du Circuit Turbo-Mamie', kind: 'service', interior: 'karting', x: 175, z: -352, w: 16, d: 10, h: 6, facing: 'S', color: '#f72585', roofColor: '#3a0ca3', sign: 'TURBO-MAMIE', district: 'circuit' });
+
+// --- Quartier des Paillettes (au nord du parc des loisirs, le long du boulevard des Paillettes)
+add({ id: 'casino', name: 'Casino Royal Pomme', kind: 'service', interior: 'casino', x: 0, z: -452, w: 40, d: 28, h: 12, facing: 'S', style: 'cinema', color: '#1b1446', roofColor: '#d4a017', sign: 'CASINO ROYAL POMME', neon: true, district: 'paillettes' });
+add({ id: 'stand-tir', name: 'Stand de tir Dédé la Gâchette', kind: 'service', interior: 'range', x: -60, z: -453, w: 26, d: 30, h: 7, facing: 'S', style: 'warehouse', color: '#6b705c', roofColor: '#3a3a3a', sign: 'STAND DE TIR', district: 'paillettes' });
 
 // --- Campagne des Navets
 add({ id: 'ferme-navets', name: 'Maison de la Ferme des Navets', kind: 'house', interior: 'house', x: -265, z: -25, w: 12, d: 10, h: 6, facing: 'E', roof: 'gable', color: '#efe3c2', roofColor: '#7a4b2a', district: 'campagne' });

@@ -3,6 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import { Authority } from '../shared/authority.js';
 import { EventDirector } from '../shared/events-director.js';
+import { parseOcc } from '../shared/calendar.js';
 import { buildContent } from '../shared/content/registry.js';
 import { LIMITS, SPEED } from '../shared/protocol.js';
 import { censor, hasPersonalInfo } from '../shared/chat-filter.js';
@@ -66,7 +67,13 @@ export class GameServer {
     this.log = log;
     this.content = buildContent(Date.now());
     this.authority = new Authority(this.content);
-    this.leaderboard = db.leaderboard((mg) => this.content.minigames[mg]?.kind === 'time');
+    // classements : mini-jeux (chrono = plus petit meilleur), tournois du calendrier « cal:<occurrence> »
+    this.leaderboard = db.leaderboard((mg) => {
+      const occ = mg.startsWith('cal:') ? parseOcc(mg.slice(4)) : null;
+      const id = occ ? occ.ev.minigame : mg.split(':')[0];
+      return id === 'kart' || this.content.minigames[id]?.kind === 'time';
+    });
+    this.calRegistry = new CalendarRegistry();
     this.worlds = [];
     this.online = new Map(); // id -> Player
     this.housing = new HousingRegistry(db);
@@ -178,7 +185,7 @@ export class World {
     const s = this.server;
     return {
       profile: p.profile, session: p.session, now: Date.now(), pos: p.pos, zone: p.zone, rand: Math.random, newId,
-      leaderboard: s.leaderboard, events: this.director, log: s.log, housing: s.housing, companies: s.companies,
+      leaderboard: s.leaderboard, events: this.director, log: s.log, housing: s.housing, companies: s.companies, calRegistry: s.calRegistry,
       players: { arrest: (targetId, copPos) => this.arrestPlayer(p, targetId, copPos) },
     };
   }
@@ -425,6 +432,17 @@ export class World {
 }
 
 // Qui habite / possède quel logement (unicité des maisons et appartements entre joueurs).
+// Inscriptions aux événements du calendrier (places limitées) : occurrence -> joueurs inscrits.
+export class CalendarRegistry {
+  constructor() { this.map = new Map(); }
+  count(occ) { return this.map.get(occ)?.size || 0; }
+  add(occ, id) {
+    if (!this.map.has(occ)) this.map.set(occ, new Set());
+    this.map.get(occ).add(id);
+    if (this.map.size > 300) this.map.delete(this.map.keys().next().value);
+  }
+}
+
 export class HousingRegistry {
   constructor(db) {
     this.map = new Map(); // id du logement -> { pid, name }

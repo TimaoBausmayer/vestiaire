@@ -261,7 +261,7 @@ export function buildCityProps(sb, col, scene, world) {
   // ---------- square des Tilleuls : aire de jeux, bancs, arbres
   const TP = CITY_POI.tilleulsPark;
   sb.quad(TP.x, 0.03, TP.z, 50, 30, '#8ccf6a', 0, 'ground');
-  for (let i = 0; i < 10; i++) { const x = TP.x + R(-22, 22), z = TP.z + R(-12, 12); if (Math.hypot(x - TP.x, z - TP.z) > 7) tree(sb, col, x, z, 'round', R(0.9, 1.2)); }
+  for (let i = 0; i < 10; i++) { const x = TP.x + R(-22, 22), z = TP.z + R(-12, 12); if (Math.hypot(x - TP.x, z - TP.z) > 7 && !BUILDINGS.some((b) => Math.abs(x - b.x) < b.w / 2 + 2 && Math.abs(z - b.z) < b.d / 2 + 2)) tree(sb, col, x, z, 'round', R(0.9, 1.2)); }
   // toboggan + balançoires
   sb.box(TP.x - 3, 0, TP.z, 1.2, 2.2, 1.2, '#ff5a5f'); sb.add(SHAPES.box(), { x: TP.x - 1.1, y: 1.0, z: TP.z, sx: 3.4, sy: 0.1, sz: 0.9, rz: -0.6, color: '#ffd23f' }); col.addBoxC(TP.x - 3, TP.z, 1.2, 1.2, 0, 2.2);
   for (const sx of [2, 6]) { sb.cyl(TP.x + sx, 0, TP.z - 1, 0.06, 2.6, '#2b2d42', 6); sb.cyl(TP.x + sx, 0, TP.z + 1, 0.06, 2.6, '#2b2d42', 6); }

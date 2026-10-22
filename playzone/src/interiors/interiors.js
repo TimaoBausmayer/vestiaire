@@ -35,6 +35,8 @@ const ROLE_LOOK = {
   coach: { top: 'debardeur', topColor: '#ff70a6' }, professeur: { top: 'chemise', topColor: '#f4f1ea' }, gerant: { top: 'hawai', topColor: '#ff3fa4' },
   caissier: { top: 'tshirt', topColor: '#d00000' }, geek: { top: 'tshirt', topColor: '#2b2d42' }, ouvrier: { hat: 'casquette', top: 'gilet-livreur', topColor: '#ff9f1c' },
   manutentionnaire: { top: 'gilet-livreur', topColor: '#ffd23f' }, ferrailleur: { hat: 'casquette', top: 'debardeur', topColor: '#6c757d' },
+  croupier: { top: 'costume', topColor: '#14532d' }, vigile: { top: 'costume', topColor: '#111111' }, hotesse: { top: 'costume', topColor: '#7a1027' },
+  moniteur: { hat: 'casquette', top: 'chemise', topColor: '#6b705c' }, commissaire: { hat: 'casquette', top: 'gilet-livreur', topColor: '#ff9f1c' },
 };
 const ROLE_NAME = {
   vendeur: 'Vendeur·se', geek: 'Technicien·ne', soigneur: 'Soigneur·se', boulanger: 'Boulanger·ère', serveur: 'Serveur·se', cuisinier: 'Cuisinier·ère',
@@ -42,6 +44,7 @@ const ROLE_NAME = {
   accueil: 'Accueil', agent: 'Agent·e', ferrailleur: 'Ferrailleur·se', policier: 'Policier·ère', infirmier: 'Infirmier·ère', medecin: 'Médecin', pompier: 'Pompier·ère',
   habitant: 'Habitant·e', concierge: 'Concierge', banquier: 'Banquier·ère', secretaire: 'Secrétaire de mairie', maire: 'Le Maire', gerant: 'Gérant·e', coach: 'Coach',
   professeur: 'Professeur·e', gardien: 'Gardien·ne', fermier: 'Fermier·ère', coiffeur: 'Coiffeur·se',
+  croupier: 'Croupier·ère', vigile: 'Vigile', hotesse: 'Hôte·sse d\'accueil', moniteur: 'Moniteur·rice de tir', commissaire: 'Commissaire de piste',
 };
 const FIRST = ['Gégé', 'Josiane', 'Kévin', 'Mireille', 'Bertrand', 'Sonia', 'Jean-Claude', 'Lulu', 'Fatou', 'Yannick', 'Paulette', 'Momo', 'Ginette', 'Rachid', 'Odette', 'Nono'];
 

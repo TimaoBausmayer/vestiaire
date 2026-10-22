@@ -326,6 +326,7 @@ export function seatOf(model) {
   return {
     board: { x: 0, y: 0.18, z: -0.1, s: 1, pose: 'hold-forward' },
     caddie: { x: 0, y: 0.62, z: -0.05, s: 1, pose: 'sit' },
+    kart: { x: 0, y: 0.22, z: -0.25, s: 1, pose: 'sit' },
     bike: { x: 0, y: 0.62, z: -0.2, s: 1, pose: 'sit' },
     scooter: { x: 0, y: 0.6, z: -0.25, s: 1, pose: 'sit' },
     moto: { x: 0, y: 0.68, z: -0.2, s: 1, pose: 'sit' },
@@ -336,7 +337,7 @@ export function seatOf(model) {
 export function dimsOf(model) {
   const spec = VEHICLES[model];
   if (spec?.kind === 'car') { const b = BODIES[spec.body]; return { L: b.L, W: b.W, r: b.r, zF: b.zF, zR: b.zR, track: b.track }; }
-  return { board: { L: 1.1, W: 0.4, r: 0.11, zF: 0.5, zR: -0.45, track: 0 }, caddie: { L: 1.3, W: 0.8, r: 0.08, zF: 0.4, zR: -0.4, track: 0.3 }, bike: { L: 1.8, W: 0.6, r: 0.34, zF: 0.62, zR: -0.55, track: 0 }, scooter: { L: 1.8, W: 0.7, r: 0.25, zF: 0.62, zR: -0.55, track: 0 }, moto: { L: 2.1, W: 0.8, r: 0.32, zF: 0.75, zR: -0.68, track: 0 } }[spec?.kind] || { L: 2, W: 1, r: 0.3, zF: 0.6, zR: -0.6, track: 0.5 };
+  return { board: { L: 1.1, W: 0.4, r: 0.11, zF: 0.5, zR: -0.45, track: 0 }, caddie: { L: 1.3, W: 0.8, r: 0.08, zF: 0.4, zR: -0.4, track: 0.3 }, kart: { L: 1.9, W: 1.3, r: 0.14, zF: 0.62, zR: -0.6, track: 0.55 }, bike: { L: 1.8, W: 0.6, r: 0.34, zF: 0.62, zR: -0.55, track: 0 }, scooter: { L: 1.8, W: 0.7, r: 0.25, zF: 0.62, zR: -0.55, track: 0 }, moto: { L: 2.1, W: 0.8, r: 0.32, zF: 0.75, zR: -0.68, track: 0 } }[spec?.kind] || { L: 2, W: 1, r: 0.3, zF: 0.6, zR: -0.6, track: 0.5 };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -583,6 +584,27 @@ function buildSmall(cb, model) {
     for (const [x, z] of [[-0.3, -0.4], [0.3, -0.4], [-0.3, 0.4], [0.3, 0.4]]) { cb.box(x, 0.24, z, 0.03, 0.25, 0.03, m, M.chrome); addWheel(cb, x, 0.08, z, 0.08, 0.05, z > 0 ? 2 : 1, 'steel'); }
     cb.add(P.cone(10), { y: 0.55, z: -0.72, sx: 0.28, sy: 0.4, sz: 0.28, rx: -Math.PI / 2, color: '#ff9f1c', mat: M.chrome });
     cb.add(P.cyl(10), { y: 0.55, z: -0.95, sx: 0.2, sy: 0.05, sz: 0.2, rx: Math.PI / 2, color: '#ffd23f', mat: M.amber });
+    return;
+  }
+  if (spec.kind === 'kart') {
+    // châssis tubulaire bas, pontons latéraux, nez, pare-chocs arrière, moteur, volant, numéro
+    const col = '#ffffff'; // teinté par la peinture du véhicule
+    cb.box(0, 0.12, 0, 0.9, 0.04, 1.7, metal, M.trim);
+    for (const sx of [-1, 1]) {
+      cb.rbox(sx * 0.5, 0.2, 0.05, 0.22, 0.16, 0.9, col, M.paint);
+      cb.box(sx * 0.62, 0.18, 0.6, 0.06, 0.06, 0.25, metal, M.chrome);
+    }
+    cb.rbox(0, 0.22, 0.78, 0.8, 0.14, 0.32, col, M.paint, { rx: 0.25 });          // nez
+    cb.rbox(0, 0.26, 0.98, 0.5, 0.18, 0.08, '#ffffff', M.paint);                   // plaque numéro
+    cb.rbox(0, 0.2, -0.86, 1.1, 0.12, 0.12, '#1b1b1f', M.rubber);                 // pare-chocs
+    cb.rbox(0, 0.3, -0.2, 0.42, 0.34, 0.36, '#1b1b1f', M.interior, { rx: -0.25 }); // baquet
+    cb.rbox(0.3, 0.32, -0.55, 0.26, 0.26, 0.3, '#2b2d33', M.trim);                 // moteur
+    cb.add(P.cyl(8), { x: 0.42, y: 0.3, z: -0.72, sx: 0.08, sy: 0.3, sz: 0.08, rx: Math.PI / 2, color: '#c0c4ca', mat: M.chrome });
+    const steer = [0, 0.48, 0.32, 4];
+    cb.add(P.cyl(8), { y: 0.38, z: 0.4, sx: 0.04, sy: 0.35, sz: 0.04, rx: -0.9, color: metal, mat: M.trim });
+    cb.add(P.cyl(14), { y: 0.5, z: 0.3, sx: 0.32, sy: 0.04, sz: 0.32, rx: -0.9, color: '#17171c', mat: M.rubber, wheel: steer });
+    addWheel(cb, -0.56, 0.14, 0.62, 0.14, 0.14, 2, 'steel'); addWheel(cb, 0.56, 0.14, 0.62, 0.14, 0.14, 2, 'steel');
+    addWheel(cb, -0.58, 0.15, -0.6, 0.15, 0.2, 1, 'steel'); addWheel(cb, 0.58, 0.15, -0.6, 0.15, 0.2, 1, 'steel');
     return;
   }
   // vélo, scooter, moto

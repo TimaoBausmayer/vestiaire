@@ -20,7 +20,7 @@ export function vehicleIcon(model) {
 }
 export function vehicleName(model) { return VEHICLES[model]?.name || model; }
 
-const ENGINE_KIND = { board: null, caddie: null, bike: null, scooter: 'moto', moto: 'moto' };
+const ENGINE_KIND = { board: null, caddie: null, bike: null, scooter: 'moto', moto: 'moto', kart: 'moto' };
 const tmpV = new THREE.Vector3();
 let nextUid = 1;
 

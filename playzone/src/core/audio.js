@@ -97,6 +97,9 @@ export class Sfx {
       case 'drill': for (let i = 0; i < 3; i++) this.noise(0.25, 0.09, 'bandpass', 2400, i * 0.35, 3200); break;
       case 'cash': this.tone('square', 1568, 1568, 0.06, 0.05); this.tone('square', 2093, 2093, 0.15, 0.05, 0.06); this.noise(0.1, 0.08, 'highpass', 5000, 0.12); break;
       case 'unlock': this.tone('square', 1000, 1000, 0.05, 0.05); break;
+      case 'shot': this.noise(0.18, 0.5, 'lowpass', 3200, 0, 300); this.tone('square', 160, 50, 0.08, 0.2); break;
+      case 'whoosh': this.noise(0.6, 0.12, 'bandpass', 500, 0, 2600); break;
+      case 'laser': this.tone('sawtooth', 1800, 300, 0.18, 0.08); break;
       default: break;
     }
   }

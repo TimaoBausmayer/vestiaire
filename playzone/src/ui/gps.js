@@ -32,7 +32,7 @@ export function destinations(profile = null) {
     else if (b.shop && CARS.has(b.shop)) cat = 'cars';
     else if (b.kind === 'shop') cat = 'shop';
     else if (['police', 'hospital', 'mairie', 'bank', 'school', 'prison', 'firestation'].includes(b.interior)) cat = 'service';
-    else if (['cinema', 'bowling', 'arcade', 'gym'].includes(b.interior)) cat = 'leisure';
+    else if (['cinema', 'bowling', 'arcade', 'gym', 'casino', 'range'].includes(b.interior)) cat = 'leisure';
     out.push({ id: b.id, name: b.name, cat, x: b.door.x, z: b.door.z });
   }
   out.push({ id: 'arene', name: 'Arène Gonflable (mini-jeux)', cat: 'leisure', x: CITY_POI.arena.x, z: CITY_POI.arena.z + CITY_POI.arena.r + 4 });

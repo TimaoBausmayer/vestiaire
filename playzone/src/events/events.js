@@ -50,7 +50,7 @@ export class Events {
             disabled: !!this.current || g.profile.coins < e.triggerPrice,
             onclick: async () => { try { await g.net.request('event.trigger', { eventId: e.id }); m.close(); } catch (err) { g.ui.toast(err.message, 'bad'); } },
           }, 'Organiser')))));
-        b.append(h('p.muted', { style: { marginTop: '12px' } }, g.net.mode === 'solo' ? 'En solo, tu joues avec les habitants comme public. En ligne, tous les joueurs de ton monde participent et un podium récompense les meilleurs.' : 'Tous les joueurs de ce monde participent. Les 3 meilleurs gagnent un bonus.'));
+        b.append(h('p.muted', { style: { marginTop: '12px' } }, g.net.mode === 'solo' ? 'En solo, des habitants (PNJ) participent contre toi. En ligne, tous les joueurs de ton monde participent aussi. Les horaires sont dans l\'Agenda du téléphone.' : 'Tous les joueurs de ce monde participent. Les 3 meilleurs gagnent un bonus.'));
       },
     });
   }
@@ -166,7 +166,7 @@ export class Events {
     g.hud.setEventBanner(null);
     g.sound.music(false);
     const me = res.podium.find((p) => p.id === g.profile.id);
-    g.ui.toast(`🏁 ${res.name} terminé ! ${res.podium.length ? `Podium : ${res.podium.map((p) => `${p.place}. ${p.name} (${p.n})`).join(' · ')}` : 'Personne n\'a participé...'}`, 'event', 7000);
+    g.ui.toast(`🏁 ${res.name} terminé ! ${res.podium.length ? `Podium : ${res.podium.map((p) => `${p.place}. ${p.name}${p.npc ? ' (PNJ)' : ''} (${p.n})`).join(' · ')}` : 'Personne n\'a participé...'}`, 'event', 7000);
     if (me) { g.sfx('levelup'); g.fx.confetti(g.player.pos, 80); g.ui.toast(`🏆 Tu es ${me.place === 1 ? '1er' : `${me.place}e`} ! +${me.coins} PC, +${me.rep} réputation`, 'good', 6000); }
   }
 
@@ -182,7 +182,7 @@ export class Events {
     const now = g.now();
     const et = (now - st.startsAt) / 1000;
     const left = Math.max(0, Math.ceil((st.endsAt - now) / 1000));
-    const top = (st.top || []).slice(0, 3).map((r, i) => `${i + 1}. ${r.name} (${r.n})`).join(' · ');
+    const top = (st.top || []).slice(0, 3).map((r, i) => `${i + 1}. ${r.name}${r.npc ? ' (PNJ)' : ''} (${r.n})`).join(' · ');
     g.hud.setEventBanner({ title: `${st.emoji} ${st.name} · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`, text: top || (st.id === 'soiree-dj' ? 'Va sur la piste et danse (touches 1, 2, 3) !' : 'Sois le premier à participer !') });
     if (this.chickens) {
       for (const c of this.chickens) {

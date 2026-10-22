@@ -12,6 +12,7 @@ import { businessApp } from '../career/business.js';
 import { healthApp } from '../life/body.js';
 import { papersApp } from '../police/panels.js';
 import { helpApp } from './tutorial.js';
+import { agendaApp } from '../events/agenda.js';
 import { openWardrobe } from './shop.js';
 import { formatHour } from '../world/daynight.js';
 
@@ -29,7 +30,7 @@ const APPS = [
   { id: 'papers', name: 'Papiers', icon: '🪪', bg: '#1d3557' },
   { id: 'help', name: 'Aide', icon: '📘', bg: '#4ea8de' },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
-  { id: 'events', name: 'Événements', icon: '🎉', bg: '#ff5a5f' },
+  { id: 'events', name: 'Agenda', icon: '📅', bg: '#ff5a5f' },
   { id: 'messages', name: 'Messages', icon: '💬', bg: '#5fd068' },
   { id: 'friends', name: 'Joueurs', icon: '👥', bg: '#8b5cf6' },
   { id: 'profile', name: 'Profil', icon: '🏆', bg: '#c77dff' },
@@ -237,14 +238,7 @@ export class Phone {
     group('Autres consommables', (it) => !!it.consumable && !it.food);
   }
 
-  app_events(b) {
-    const g = this.game, ev = g.events?.current;
-    if (ev) b.append(h('div.list-item', { style: { background: 'linear-gradient(90deg, rgba(255,90,95,.5), rgba(139,92,246,.5))' } }, h('span', { style: { fontSize: '26px' } }, ev.emoji), h('div.grow', h('div.t', `En cours : ${ev.name}`), h('div.d', ev.desc))));
-    else b.append(h('p', 'Aucun événement en ce moment. La Mairie en lance régulièrement, et tu peux en organiser un au tableau des événements (Grande Place).'));
-    b.append(h('h4', { style: { margin: '14px 0 6px' } }, 'Événements disponibles'));
-    b.append(h('div.list', Object.values(g.net.content.events).map((e) => h('div.list-item', h('span', { style: { fontSize: '24px' } }, e.emoji), h('div.grow', h('div.t', `${e.name}${e.seasonal ? ' (saison)' : ''}`), h('div.d', `${e.desc} · Organiser : ${e.triggerPrice} PC`))))));
-    b.append(h('button.btn.block', { style: { marginTop: '12px' }, onclick: () => { g.waypoint = { x: POI.eventBoard.x, z: POI.eventBoard.z, label: 'Tableau des événements' }; g.hud.compassTarget = g.waypoint; this.close(); } }, '📍 Me guider jusqu\'au tableau'));
-  }
+  app_events(b) { agendaApp(this.game, b, this); }
 
   app_messages(b) {
     const g = this.game;

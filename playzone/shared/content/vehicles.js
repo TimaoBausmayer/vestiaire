@@ -14,6 +14,10 @@ export const VEHICLES = {
   velo: { name: 'Vélo de Ville', cat: 'moto', kind: 'bike', max: 11, acc: 6, turn: 2.6, grip: 0.95, fuel: 0, price: 450, seats: 1 },
   scooter: { name: 'Scooter', cat: 'moto', kind: 'scooter', max: 16, acc: 9, turn: 2.4, grip: 0.92, fuel: 6, use: 0.03, price: 2400, level: 3, seats: 1 },
   moto: { name: 'Moto Éclair 600', cat: 'moto', kind: 'moto', max: 30, acc: 15, turn: 2.2, grip: 0.9, fuel: 14, use: 0.05, price: 9500, level: 6, seats: 1 },
+  // --- karts du circuit (location uniquement, ne quittent pas la piste)
+  kart: { name: 'Kart Loisir 270 cm³', cat: 'kart', kind: 'kart', paint: '#e63946', max: 17, acc: 11, turn: 2.5, grip: 0.97, fuel: 0, price: 0, seats: 1 },
+  'kart-sport': { name: 'Kart Sport 390 cm³', cat: 'kart', kind: 'kart', paint: '#3a86ff', max: 19.5, acc: 13, turn: 2.55, grip: 0.97, fuel: 0, price: 0, seats: 1 },
+  'kart-pro': { name: 'Kart Pro 125 cm³ 2T', cat: 'kart', kind: 'kart', paint: '#ffd23f', max: 22, acc: 15, turn: 2.6, grip: 0.98, fuel: 0, price: 0, seats: 1 },
   // --- voitures
   voiturette: { name: 'Voiturette Bulle', cat: 'citadine', kind: 'car', body: 'micro', max: 18.5, acc: 10, turn: 2.0, grip: 0.9, fuel: 25, use: 0.04, price: 9000, level: 5, seats: 2 },
   citadine: { name: 'Pomme 3 portes', cat: 'citadine', kind: 'car', body: 'hatch', max: 23, acc: 10.5, turn: 1.9, grip: 0.9, fuel: 40, use: 0.05, price: 14500, level: 5, seats: 4 },

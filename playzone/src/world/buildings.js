@@ -27,6 +27,8 @@ export const INTERIOR_STYLE = {
   bowling: { floor: '#c9a46a', alt: '#b8945a', wall: '#24243e' }, gym: { floor: '#3a3a44', alt: '#2f2f38', wall: '#f1f1f1' },
   school: { floor: '#e9c46a', alt: '#d9b45a', wall: '#fdf3e3' }, prison: { floor: '#9a9a9a', alt: '#8a8a8a', wall: '#c8c8c8' },
   barn: { floor: '#a47148', alt: '#94643e', wall: '#8a3b2a' }, cabin: { floor: '#7a5230', alt: '#6a4628', wall: '#8a6040' },
+  casino: { floor: '#7a1027', alt: '#5e0c1e', wall: '#2a1b3d' }, range: { floor: '#8a8a84', alt: '#7a7a74', wall: '#b9b6ad' },
+  karting: { floor: '#3a3a44', alt: '#2f2f38', wall: '#f4f1ea' },
 };
 
 function shade(hex, f) { const c = new THREE.Color(hex); c.multiplyScalar(f); return `#${c.getHexString()}`; }

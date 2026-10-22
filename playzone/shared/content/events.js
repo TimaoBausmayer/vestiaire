@@ -13,6 +13,7 @@ export const BASE_EVENTS = [
 ];
 
 export const EVENT_RULES = {
-  autoEveryMs: 8 * 60 * 1000,   // un événement automatique toutes les 8 minutes environ
-  cooldownMs: 3 * 60 * 1000,    // délai minimum entre deux événements déclenchés à la main
+  surpriseEveryMs: 35 * 60 * 1000, // un événement « surprise » environ toutes les 35 minutes (en plus du calendrier)
+  roundPauseMs: 40 * 1000,         // pause entre deux manches d'un événement du calendrier
+  cooldownMs: 3 * 60 * 1000,       // délai minimum entre deux événements déclenchés à la main
 };

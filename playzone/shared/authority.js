@@ -24,6 +24,12 @@ import { CAREER_HANDLERS, careerOnPosition, defaultCareer } from './authority-ca
 import { BUSINESS_HANDLERS } from './authority-business.js';
 import { BODY_HANDLERS } from './authority-body.js';
 import { JUSTICE_HANDLERS } from './authority-justice.js';
+import { LEISURE_HANDLERS, defaultLeisure } from './authority-leisure.js';
+import { CALENDAR_HANDLERS, defaultCalendar, tournamentSubmit } from './authority-calendar.js';
+import { KARTING_HANDLERS, defaultKarting, kartOnPosition } from './authority-karting.js';
+import { MARKET_HANDLERS } from './authority-market.js';
+import { COUR_HANDLERS } from './authority-cour.js';
+import { defaultCasino } from './casino.js';
 import { defaultJustice } from './justice.js';
 import { defaultBody, eatWeight } from './body.js';
 import { deliverySpot, homeSize } from './property.js';
@@ -74,6 +80,11 @@ export class Authority {
     p.career ||= defaultCareer();
     p.body = { ...defaultBody(), ...(p.body || {}) };
     p.justice = { ...defaultJustice(), ...(p.justice || {}) };
+    const lz = defaultLeisure();
+    p.leisure = { ...(p.leisure || {}), range: { ...lz.range, ...(p.leisure?.range || {}) } };
+    p.casino = { ...defaultCasino(), ...(p.casino || {}) };
+    p.calendar = { ...defaultCalendar(), ...(p.calendar || {}) };
+    p.karting = { ...defaultKarting(), ...(p.karting || {}) };
     p.jobs ||= {};
     for (const j of Object.keys(JOB_BY_ID)) p.jobs[j] ||= { xp: 0, missions: 0, upgrades: [] };
     p.minigames ||= {};
@@ -163,6 +174,7 @@ export class Authority {
   // Appelé à chaque position validée (en ligne : par le serveur ; en solo : par le client).
   onPosition(ctx) {
     careerOnPosition(ctx);
+    kartOnPosition(ctx);
     const s = ctx.session, pos = ctx.pos, now = ctx.now;
     const mg = s.mg;
     if (mg?.id === 'parcours' && !mg.finishAt && now - mg.startedAt > 3000) {
@@ -536,13 +548,14 @@ const HANDLERS = {
     let rank = null;
     if (ctx.leaderboard) rank = ctx.leaderboard.submit(mg.id, p, score, def.kind === 'time');
     if (rank === 1) p.rep += 5;
-    return { ok: true, changed: true, data: { score, coins, xp: Math.round(rw.xp * factor), medal: rw.medal, best: st.best, record: better, rank, factor, ...lv } };
+    const tournament = tournamentSubmit(ctx, mg.id, score, def.kind === 'time');
+    return { ok: true, changed: true, data: { score, coins, xp: Math.round(rw.xp * factor), medal: rw.medal, best: st.best, record: better, rank, factor, tournament, ...lv } };
   },
 
   'mg.cancel'(ctx) { ctx.session.mg = null; return { ok: true, data: {} }; },
 
   'mg.board'(ctx, { id }) {
-    if (!this.content.minigames[id] || !ctx.leaderboard) return { ok: true, data: { top: [] } };
+    if ((!this.content.minigames[id] && !['tir', 'kart', 'cour-cachette', 'cour-loup', 'cour-cherche'].includes(String(id).split(':')[0])) || !ctx.leaderboard) return { ok: true, data: { top: [] } };
     return { ok: true, data: { top: ctx.leaderboard.top(id, 10) } };
   },
 
@@ -754,7 +767,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS);
 // Liste des entreprises de joueurs où investir (en ligne).
 HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 

@@ -617,6 +617,9 @@ export const TEMPLATES = {
 };
 
 // Répliques du personnel (au hasard quand on s'approche ou qu'on leur parle).
+import { LEISURE_TEMPLATES, LEISURE_STAFF_LINES } from './templates-leisure.js';
+Object.assign(TEMPLATES, LEISURE_TEMPLATES);
+
 export const STAFF_LINES = {
   vendeur: ['Bonjour ! Tout est en promo, sauf ce que vous voulez.', 'Je peux vous aider ? Non ? Je vais quand même essayer.', 'C\'est la dernière taille. Il y en a douze.'],
   geek: ['Ce câble ? Il est compatible avec rien. C\'est pour ça qu\'il est en solde.', 'Avez-vous essayé de l\'éteindre et de le rallumer ?'],
@@ -648,3 +651,4 @@ export const STAFF_LINES = {
   gardien: ['Pas de lime à ongles dans les gâteaux, merci.', 'Ici, l\'heure de promenade dure 15 minutes. Les escargots trouvent ça court.'],
   fermier: ['Ma vache donne du lait. Mon cochon donne des opinions.', 'Ne réveillez pas les poules, elles sont de mauvais poil.'],
 };
+Object.assign(STAFF_LINES, LEISURE_STAFF_LINES);

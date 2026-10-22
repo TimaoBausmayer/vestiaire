@@ -42,6 +42,10 @@ import { Body } from './life/body.js';
 import { Police } from './police/police.js';
 import { Crimes } from './police/crimes.js';
 import { maybeOfferTutorial } from './ui/tutorial.js';
+import { CalendarBoards } from './events/agenda.js';
+import { Karting } from './sports/karting.js';
+import { Markets } from './events/markets.js';
+import { Cour } from './minigames/cour.js';
 import { Life } from './life/life.js';
 import { Basket } from './ui/shop.js';
 import { BUILDINGS, POI } from '../shared/world-layout.js';
@@ -167,6 +171,11 @@ export class Game extends Emitter {
     this.body = this.addSystem(new Body(this));
     this.police = this.addSystem(new Police(this));
     this.crimes = this.addSystem(new Crimes(this));
+    this.calendarBoards = this.addSystem(new CalendarBoards(this));
+    this.addSystem({ update: (dt) => this.range?.update(dt) }); // séance au stand de tir
+    this.karting = this.addSystem(new Karting(this));
+    this.markets = this.addSystem(new Markets(this));
+    this.cour = this.addSystem(new Cour(this));
     setTimeout(() => maybeOfferTutorial(this), 1500);
     this.setProfile(this.net.profile);
     this.avatar.root.visible = true;

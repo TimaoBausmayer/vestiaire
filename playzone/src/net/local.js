@@ -16,6 +16,7 @@ const NPC_RECORDS = {
   tartes: [['Mamie Turbo', 26], ['Kevin', 18], ['Gérard', 12], ['Le Maire', 7]],
   parcours: [['Mamie Turbo', 33.4], ['Coach Biscotte', 41.8], ['Kevin', 57.2], ['Gérard', 95]],
   poulets: [['Fermier Bidoche', 11], ['Paulette', 8], ['Kevin', 5], ['Un pigeon', 1]],
+  tir: [['Dédé la Gâchette', 262], ['Lulu l\'Œil de Lynx', 188], ['Sergent Biscotte', 146], ['Kevin', 74]],
 };
 
 function safeGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
@@ -35,6 +36,9 @@ class LocalBoards {
     if (!e) list.push({ id: profile.id, name: profile.name, score });
     else if (lowerBetter ? score < e.score : score > e.score) e.score = score;
     list.sort((a, b) => (lowerBetter ? a.score - b.score : b.score - a.score));
+    // les classements de tournois (« cal:… ») ne sont gardés que pour les 30 derniers
+    const cal = Object.keys(this.data).filter((k) => k.startsWith('cal:'));
+    if (cal.length > 30) for (const k of cal.slice(0, cal.length - 30)) delete this.data[k];
     safeSet(BOARD_KEY, JSON.stringify(this.data));
     return list.findIndex((x) => x.id === profile.id) + 1;
   }
@@ -58,12 +62,16 @@ export class LocalConnection extends Emitter {
       onStart: (st) => this.emit('event.start', st),
       onUpdate: (u) => this.emit('event.update', u),
       onEnd: (res) => this.onEventEnd(res),
+      calNow: (t) => t + this.shift(),
     });
     this._saveTimer = null;
     setInterval(() => this.tick(), 500);
   }
 
   serverNow() { return Date.now(); }
+
+  // Décalage d'horloge du solo (nuits sautées en dormant) : le calendrier suit l'heure affichée.
+  shift() { return +(safeGet('playzone.timeShift') || 0) || 0; }
 
   currentEvent() { return this.events.publicState(); }
 
@@ -90,7 +98,7 @@ export class LocalConnection extends Emitter {
     return {
       profile: this.profile, session: this.session, now: Date.now(), pos: this.pos, zone: this.zone,
       rand: Math.random, newId: () => Math.random().toString(36).slice(2, 10), leaderboard: this.boards, events: this.events,
-      log: (m) => console.warn(m),
+      shift: this.shift(), log: (m) => console.warn(m),
     };
   }
 

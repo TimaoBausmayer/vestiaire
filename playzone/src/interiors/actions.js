@@ -12,6 +12,9 @@ import { createCompanyPanel } from '../career/business.js';
 import { gymPassPanel, hairPanel, hospitalCarePanel } from '../life/body.js';
 import { policeDesk, prisonGuard, tryEscape } from '../police/panels.js';
 import { cookPanel, shower, sleep, showerFx } from '../life/home-life.js';
+import { slotsPanel, roulettePanel, blackjackPanel, pokerPanel, casinoDesk } from '../leisure/casino.js';
+import { rangePanel } from '../leisure/range.js';
+import { kartingDesk } from '../sports/karting.js';
 
 // ACTIONS DES POINTS D'INTÉRIEUR : acheter, s'asseoir, dormir, parler, regarder la télé, jouer...
 // Tout ce qui touche à l'argent, aux besoins ou aux récompenses passe par l'autorité (activity.do).
@@ -56,6 +59,13 @@ export async function runAction(game, action, { b, spot, staff }) {
       break;
     }
     case 'wardrobe': openWardrobe(g); break;
+    case 'casino-desk': casinoDesk(g); break;
+    case 'casino-slots': slotsPanel(g); break;
+    case 'casino-roulette': roulettePanel(g); break;
+    case 'casino-bj': blackjackPanel(g); break;
+    case 'casino-poker': pokerPanel(g); break;
+    case 'range': if (!g.range) rangePanel(g, b); break;
+    case 'karting': if (!g.karting?.s) kartingDesk(g, b); break;
     case 'basket': openBasket(g, b); break;
     case 'checkout': g.basket?.checkout(b); break;
     case 'sit': g.sitting?.sit(spot.seat, b); break;

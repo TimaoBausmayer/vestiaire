@@ -59,7 +59,7 @@ class PoliceUnit {
       o.av.root.rotation.y = Math.atan2(dx, dz);
       o.av.update(dt, { speed: d > 1.1 ? sp : 0, grounded: true, pose: d < 2 ? 'hold-forward' : 'idle' });
       this.catchT = d < 1.7 ? this.catchT + dt : Math.max(0, this.catchT - dt);
-      if (this.catchT > 0.9) g.police.arrestMe('Menotté·e par un agent !');
+      if (this.catchT > 0.9) { g.police.arrestMe('Menotté·e par un agent !'); return; }
       this.driveCar(dt, 0, 0, true);
       return;
     }
@@ -91,6 +91,7 @@ class PoliceUnit {
   }
 
   driveCar(dt, throttle, steer, handbrake) {
+    if (!this.v.sim.colliders.length) return; // unité déjà retirée (arrestation pendant la mise à jour)
     const hits = this.v.sim.update(dt, { throttle, steer, handbrake });
     if (hits.length) this.game.vehicles.onHits(this.v, hits, 0.4);
   }
@@ -246,7 +247,7 @@ export class Police {
     // police qui voit un grand excès de vitesse, un feu rouge, l'absence de permis
     const cop = this.nearbyCop(P, 45);
     if (cop && kmh > limit + 30 && this.speedCd <= 0) { this.speedCd = 20; this.crime('grand-exces', true); }
-    if (cop && this.licenceCd <= 0 && !['bike', 'board', 'caddie', 'scooter'].includes(v.spec.kind) && !this.j.licence.permis && v.owner !== 'exam') {
+    if (cop && this.licenceCd <= 0 && !['bike', 'board', 'caddie', 'scooter', 'kart'].includes(v.spec.kind) && !this.j.licence.permis && v.owner !== 'exam') {
       this.licenceCd = 60;
       this.fine('sans-permis');
     }

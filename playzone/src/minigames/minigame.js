@@ -1,4 +1,6 @@
 import { h, clear, fmt } from '../ui/dom.js';
+import { liveOf, CAL_BY_ID, minutesUntil } from '../../shared/calendar.js';
+import { calNow } from '../events/agenda.js';
 
 // Socle commun des mini-jeux : présentation (règles + classement), compte à rebours, partie,
 // fin, résultats (calculés et validés par l'autorité), récompenses, rejouer.
@@ -30,6 +32,13 @@ export class Minigame {
           h('div.stat', h('b', st?.best != null ? this.scoreLabel(st.best) : '—'), h('span', 'Ton record')),
           h('div.stat', h('b', String(st?.plays || 0)), h('span', 'Parties jouées')),
           h('div.stat', h('b', this.rewardText()), h('span', 'Récompense'))));
+        const now = calNow(g);
+        for (const o of liveOf((e) => e.kind === 'minigame' && e.minigame === this.def.id, now)) {
+          const ev = CAL_BY_ID[o.id], reg = !!g.profile.calendar?.reg?.[o.occ];
+          b.append(h('div.list-item', { style: { marginTop: '12px', background: 'linear-gradient(90deg, rgba(255,210,63,.3), rgba(139,92,246,.3))' } }, h('span', { style: { fontSize: '24px' } }, ev.emoji),
+            h('div.grow', h('div.t', `Tournoi en cours : ${ev.name}`), h('div.d', `Encore ${minutesUntil(o.end, now)} min réelles · prix ${ev.rewards.podium.join(' / ')} PC · ton meilleur score du créneau compte.`)),
+            reg ? h('span.pill.ok', 'Inscrit·e') : h('button.btn.small', { onclick: async () => { try { await g.net.request('cal.register', { occ: o.occ }); g.sfx('success'); m.refresh(); } catch (e) { g.ui.toast(e.message, 'bad'); } } }, 'S\'inscrire')));
+        }
         b.append(h('h3', { style: { marginTop: '16px' } }, 'Classement'), this.boardEl = h('div.muted', 'Chargement…'));
         this.loadBoard(this.boardEl);
       },
@@ -138,6 +147,7 @@ export class Minigame {
           h('div.stat', h('b', `+${fmt(res.coins)} PC`), h('span', 'Gagné')),
           h('div.stat', h('b', `+${res.xp} XP`), h('span', 'Expérience')),
           h('div.stat', h('b', res.rank ? `#${res.rank}` : '—'), h('span', 'Classement'))));
+        if (res.tournament?.length) b.append(h('p', `🏆 Score enregistré pour le tournoi en cours : résultat et prix dans l'Agenda à la fin du créneau.`));
         if (res.factor < 1) b.append(h('p.muted', `Tu as beaucoup joué à ce jeu cette heure-ci : récompense à ${Math.round(res.factor * 100)} %. Essaie d'autres activités !`));
         b.append(h('h3', { style: { marginTop: '14px' } }, 'Classement'), this.boardEl = h('div.muted', 'Chargement…'));
         this.loadBoard(this.boardEl);
