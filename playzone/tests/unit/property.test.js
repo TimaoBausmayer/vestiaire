@@ -83,7 +83,8 @@ test('location de véhicule : limitée dans le temps', () => {
 
 test('logements : prix réalistes, location, achat, crédit, vente', () => {
   assert.ok(HOUSING.filter((h) => h.kind === 'maison' && h.sea).every((h) => h.price >= 450_000), 'bord de mer ≈ 500 000');
-  assert.ok(HOUSING.filter((h) => h.kind === 'maison' && !h.sea).every((h) => h.price < 330_000 && h.price > 270_000), 'ailleurs ≈ 300 000');
+  assert.ok(HOUSING.filter((h) => h.kind === 'maison' && !h.sea && h.district === 'Les Tilleuls').every((h) => h.price < 330_000 && h.price > 270_000), 'ailleurs ≈ 300 000');
+  assert.ok(HOUSING.filter((h) => h.kind === 'villa').length >= 16 && HOUSING.filter((h) => h.kind === 'villa').every((h) => h.price >= 1_000_000), 'villas de luxe ≥ 1 million');
   assert.ok(HOUSING.filter((h) => h.kind === 'appart').every((h) => h.price >= 150_000 && h.price < 170_000), 'appartements ≈ 150 000');
   const p = rich('h1');
   const agence = inside('immo');

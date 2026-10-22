@@ -283,6 +283,15 @@ add({ id: 'f1-paddock', name: 'Paddock de l\'Académie F1', kind: 'shop', shop: 
 // --- Surf Shop (wingfoil) sur la corniche, face à la mer
 add({ id: 'surf-shop', name: 'Surf Shop Vent Debout', kind: 'shop', shop: 'surf', interior: 'shop', x: 430, z: 38, w: 16, d: 12, h: 6, facing: 'S', roof: 'gable', style: 'hut', color: '#90e0ef', roofColor: '#ff9f1c', sign: 'SURF SHOP · WINGFOIL', district: 'villas' });
 
+// --- Campus des Métiers (formations) et zone commerciale de l'Avenue de Prestige
+add({ id: 'campus', name: 'Campus des Métiers (formations)', kind: 'service', interior: 'school', x: 460, z: -245, w: 56, d: 26, h: 12, floors: 3, facing: 'E', color: '#e9f5db', roofColor: '#1d4ed8', sign: 'CAMPUS DES MÉTIERS', district: 'prestige' });
+add({ id: 'maison-deco', name: 'Maison & Déco Géante', kind: 'shop', shop: 'maison', interior: 'shop', x: 650, z: -176, w: 56, d: 30, h: 10, facing: 'S', style: 'big-box', color: '#fff1e6', roofColor: '#e76f51', sign: 'MAISON & DÉCO GÉANTE', district: 'prestige' });
+add({ id: 'bricolage', name: 'Bricolage Marteau-Pilon', kind: 'shop', shop: 'brico', interior: 'shop', x: 730, z: -174, w: 40, d: 26, h: 9, facing: 'S', style: 'big-box', color: '#ffb703', roofColor: '#023047', sign: 'MARTEAU-PILON', district: 'prestige' });
+add({ id: 'jardinerie', name: 'Jardinerie La Main Verte', kind: 'shop', shop: 'jardin', interior: 'shop', x: 798, z: -174, w: 36, d: 26, h: 8, facing: 'S', color: '#d8f3dc', roofColor: '#2d6a4f', sign: 'LA MAIN VERTE', district: 'prestige' });
+add({ id: 'sport-shop', name: 'Sport Mollets d\'Acier', kind: 'shop', shop: 'sport', interior: 'shop', x: 690, z: -246, w: 30, d: 20, h: 8, facing: 'S', color: '#caf0f8', roofColor: '#0077b6', sign: 'SPORT MOLLETS D\'ACIER', district: 'prestige' });
+add({ id: 'pharmacie', name: 'Pharmacie de la Croix Verte', kind: 'shop', shop: 'pharmacie', interior: 'shop', x: 750, z: -246, w: 16, d: 14, h: 6, facing: 'S', color: '#ffffff', roofColor: '#2a9d3a', sign: 'PHARMACIE', neon: true, district: 'prestige' });
+add({ id: 'bijouterie', name: 'Bijouterie Diamant Brillant', kind: 'shop', shop: 'bijoux', interior: 'shop', x: 792, z: -246, w: 18, d: 14, h: 7, facing: 'S', color: '#14213d', roofColor: '#fca311', sign: 'DIAMANT BRILLANT', neon: true, district: 'prestige' });
+
 // --- Côte des Villas : grandes villas face à la mer (à visiter)
 const VILLA_COLORS = ['#ffffff', '#f4f1ea', '#e9f5db', '#fde2e4', '#e2ece9', '#fff1e6'];
 [340, 400, 460, 520, 610, 670, 730, 790].forEach((x, i) => {

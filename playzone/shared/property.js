@@ -80,13 +80,14 @@ for (const b of BUILDINGS) {
 for (const b of BUILDINGS) {
   if (b.kind !== 'house' || !b.interior) continue;
   const r = mulberry32(hashString(b.id));
-  const sea = /^maison\d/.test(b.id);
-  const farm = b.district === 'campagne';
-  const base = sea ? 480_000 : farm ? 260_000 : 300_000;
+  const sea = /^maison\d/.test(b.id) || /^villa-mer/.test(b.id);
+  const farm = b.district === 'campagne' || b.district === 'vignobles';
+  const villa = b.district === 'villas';
+  const base = /^villa-mer/.test(b.id) ? 1_800_000 : villa ? 1_150_000 : b.district === 'vignobles' ? 620_000 : b.district === 'hauts' ? 340_000 : sea ? 480_000 : farm ? 260_000 : 300_000;
   const price = Math.round((base * (0.95 + r() * 0.1)) / 1000) * 1000;
   HOUSING.push({
-    id: b.id, name: `${farm ? 'Ferme' : 'Maison'} — ${b.name}${sea ? ' (bord de mer)' : ''}`, kind: farm ? 'ferme' : 'maison', building: b.id, sea,
-    price, rent: Math.round(price / 1500), size: houseSize(b), district: sea ? 'Les Mouettes (bord de mer)' : farm ? 'Campagne' : 'Les Tilleuls',
+    id: b.id, name: `${villa ? 'Villa' : farm ? (b.district === 'vignobles' ? 'Domaine viticole' : 'Ferme') : 'Maison'} — ${b.name}${sea ? ' (bord de mer)' : ''}`, kind: villa ? 'villa' : farm ? 'ferme' : 'maison', building: b.id, sea,
+    price, rent: Math.round(price / 1500), size: houseSize(b), district: { villas: 'Côte des Villas', hauts: 'Les Hauts de PLAYZONE', vignobles: 'Vignobles du Pinard', campagne: 'Campagne' }[b.district] || (sea ? 'Les Mouettes (bord de mer)' : 'Les Tilleuls'),
   });
 }
 export const HOUSING_BY_ID = Object.fromEntries(HOUSING.map((x) => [x.id, x]));
