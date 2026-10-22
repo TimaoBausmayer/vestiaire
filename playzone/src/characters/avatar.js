@@ -388,6 +388,7 @@ export class Avatar {
     else if (pose === 'throw') { set(AR, -2.6, 0, -0.2); }
     else if (pose === 'celebrate') { set(AL, 0, 0, 2.7 + Math.sin(t * 12) * 0.2); set(AR, 0, 0, -2.7 - Math.sin(t * 12) * 0.2); bob = Math.abs(Math.sin(t * 8)) * 0.25; }
     else if (pose === 'cook') { set(AL, -1.1 + Math.sin(t * 12) * 0.2, 0, 0.2); set(AR, -1.1 - Math.sin(t * 12) * 0.2, 0, -0.2); }
+    else if (pose === 'phone') { set(AR, -2.0, 0, 0.55); set(AL, -0.5, 0, -0.1); headX = 0.38; }
     else if (pose === 'pet') { set(AR, -0.9 + Math.sin(t * 6) * 0.15, 0, -0.2); bodyRotX = 0.35; }
 
     this.body.position.y += ((bob + bodyY) - this.body.position.y) * Math.min(1, k * 3);

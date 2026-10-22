@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { h, clear, fmt } from './dom.js';
 import { drawMapBase, drawMarkers, drawRoute } from './hud.js';
 import { WORLD_BOUNDS, SECRETS, POI } from '../../shared/world-layout.js';
@@ -13,6 +14,8 @@ import { healthApp } from '../life/body.js';
 import { papersApp } from '../police/panels.js';
 import { helpApp } from './tutorial.js';
 import { agendaApp } from '../events/agenda.js';
+import { socialApp } from './social-app.js';
+import { adminApp } from './admin.js';
 import { openWardrobe } from './shop.js';
 import { formatHour } from '../world/daynight.js';
 
@@ -29,6 +32,8 @@ const APPS = [
   { id: 'health', name: 'Santé', icon: '❤️', bg: '#ff4d6d' },
   { id: 'papers', name: 'Papiers', icon: '🪪', bg: '#1d3557' },
   { id: 'help', name: 'Aide', icon: '📘', bg: '#4ea8de' },
+  { id: 'social', name: 'PlayGram', icon: '📸', bg: '#ff3fa4' },
+  { id: 'admin', name: 'Admin', icon: '👑', bg: '#d4a017', admin: true },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'events', name: 'Agenda', icon: '📅', bg: '#ff5a5f' },
   { id: 'messages', name: 'Messages', icon: '💬', bg: '#5fd068' },
@@ -61,6 +66,13 @@ export class Phone {
       g.ui.stack.push(this.modal);
       g.ui.root.append(this.el);
       g.sfx('click');
+      // le personnage sort son téléphone
+      if (!this.mesh) {
+        this.mesh = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.17, 0.02), new THREE.MeshStandardMaterial({ color: '#14141c', emissive: '#29e6ff', emissiveIntensity: 0.35 }));
+        this.mesh.rotation.x = -Math.PI / 2;
+      }
+      g.avatar?.hold(this.mesh);
+      if (g.player) g.player.onPhone = true;
     }
     this.go(app);
   }
@@ -69,6 +81,8 @@ export class Phone {
     if (!this.el) return;
     this.el.remove();
     this.el = null;
+    if (this.game.avatar?.held === this.mesh) this.game.avatar.hold(null);
+    if (this.game.player) this.game.player.onPhone = false;
     this.game.ui.stack = this.game.ui.stack.filter((m) => m !== this.modal);
     this.game.onUiChange?.();
   }
@@ -84,7 +98,7 @@ export class Phone {
     clear(this.screen);
     if (!this.app) {
       this.screen.append(h('div', { style: { textAlign: 'center', margin: '18px 0 6px', fontWeight: '900', fontStyle: 'italic', fontSize: '22px' } }, 'PlayPhone'),
-        h('div.phone-apps', APPS.map((a) => h('button.app-icon', { onclick: () => this.go(a.id) }, h('span.ic', { style: { background: a.bg } }, a.icon), a.name, this.badges[a.id] ? h('span.dot', String(this.badges[a.id])) : null))));
+        h('div.phone-apps', APPS.filter((a) => !a.admin || this.game.profile.admin).map((a) => h('button.app-icon', { onclick: () => this.go(a.id) }, h('span.ic', { style: { background: a.bg } }, a.icon), a.name, this.badges[a.id] ? h('span.dot', String(this.badges[a.id])) : null))));
       return;
     }
     const app = APPS.find((a) => a.id === this.app);
@@ -217,6 +231,8 @@ export class Phone {
   app_papers(b) { papersApp(this.game, b); }
 
   app_help(b) { helpApp(this.game, b); }
+  app_social(b) { socialApp(this.game, b, this); }
+  app_admin(b) { adminApp(this.game, b, this); }
 
   app_bag(b) {
     const g = this.game, p = g.profile, items = g.net.content.items;

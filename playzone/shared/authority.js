@@ -29,6 +29,8 @@ import { CALENDAR_HANDLERS, defaultCalendar, tournamentSubmit } from './authorit
 import { KARTING_HANDLERS, defaultKarting, kartOnPosition } from './authority-karting.js';
 import { MARKET_HANDLERS } from './authority-market.js';
 import { COUR_HANDLERS } from './authority-cour.js';
+import { ADMIN_HANDLERS, adminTopUp } from './authority-admin.js';
+import { SOCIAL_HANDLERS } from './authority-social.js';
 import { defaultCasino } from './casino.js';
 import { defaultJustice } from './justice.js';
 import { defaultBody, eatWeight } from './body.js';
@@ -164,6 +166,7 @@ export class Authority {
       const expired = ctx.profile && expireRentals(ctx.profile, ctx.now);
       const res = fn.call(this, ctx, payload || {}) || err('Erreur.');
       if (expired && res.ok) res.changed = true;
+      if (ctx.profile?.admin && res.ok) { adminTopUp(ctx.profile); res.changed = true; }
       return res;
     } catch (e) {
       ctx.log?.(`[authority] ${type}: ${e.stack || e}`);
@@ -767,7 +770,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS);
 // Liste des entreprises de joueurs où investir (en ligne).
 HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 

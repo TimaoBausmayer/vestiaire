@@ -91,7 +91,7 @@ export class Traffic {
       const mx = (l.start.x + l.end.x) / 2, mz = (l.start.z + l.end.z) / 2;
       const d = Math.hypot(mx - P.x, mz - P.z);
       if (l.len < 8) continue;
-      if (initial ? d < 230 : d > 70 && d < 210) lane = l;
+      if (initial ? d < 170 : d > 70 && d < 170) lane = l;
     }
     if (!lane) return;
     let car = this.cars[i];
@@ -209,7 +209,7 @@ export class Traffic {
       const c = this.cars[i];
       if (!c) continue;
       // trop loin du joueur : on la replace ailleurs
-      if (Math.abs(c.pos.x - P.x) > 270 || Math.abs(c.pos.z - P.z) > 270) { this.spawn(i); continue; }
+      if (Math.abs(c.pos.x - P.x) > 200 || Math.abs(c.pos.z - P.z) > 200) { this.spawn(i); continue; }
       const seg = c.seg;
       const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw);
       let target = seg.speed * c.max;

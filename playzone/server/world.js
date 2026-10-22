@@ -185,7 +185,7 @@ export class World {
     const s = this.server;
     return {
       profile: p.profile, session: p.session, now: Date.now(), pos: p.pos, zone: p.zone, rand: Math.random, newId,
-      leaderboard: s.leaderboard, events: this.director, log: s.log, housing: s.housing, companies: s.companies, calRegistry: s.calRegistry,
+      leaderboard: s.leaderboard, events: this.director, log: s.log, housing: s.housing, companies: s.companies, calRegistry: s.calRegistry, adminCode: process.env.PLAYZONE_ADMIN_CODE || null,
       players: { arrest: (targetId, copPos) => this.arrestPlayer(p, targetId, copPos) },
     };
   }

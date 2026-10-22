@@ -317,7 +317,7 @@ export class Interiors {
       CUT.uCutB.value = b.bid;
       CUT.uCutRoof.value = 1;
       g.collision.camIgnore = b.bid;
-      cam.inside = { pitch: 0.92, dist: Math.max(8, Math.min(13, Math.max(b.w, b.d) * 0.6)) };
+      cam.inside = { pitch: 0.6, settle: 1.2, dist: Math.max(8, Math.min(13, Math.max(b.w, b.d) * 0.6)) };
       g.world.dayNight.interiorBoost = 1;
       if (prev) g.emit('building.exit', prev);
       g.emit('building.enter', b);

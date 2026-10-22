@@ -93,7 +93,7 @@ export class Game extends Emitter {
     this.fx = new FX(this.engine.scene);
     this.npcs = new NPCs(this);
     this.animals = new Animals(this);
-    this.traffic = new Traffic(this);
+    this.traffic = new Traffic(this, { count: { low: 22, medium: 36 }[this.engine.quality] ?? 46 });
     this.parked = new ParkedCars(this);
     this.season = new Season(this);
     this.ambient = [this.npcs, this.animals, this.traffic, this.minigames, this.season, this.fx];

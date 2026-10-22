@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { groundHeight, WATER_LEVEL, POI, WORLD_BOUNDS } from '../../shared/world-layout.js';
+import { groundHeight, WATER_LEVEL, POI, WORLD_BOUNDS, BUILDINGS } from '../../shared/world-layout.js';
 
 // Contrôleur du joueur : déplacement relatif à la caméra, sprint, saut (avec "coyote time"),
 // nage, trampoline, collisions. Les déplacements sont envoyés au serveur qui vérifie la vitesse.
@@ -54,7 +54,9 @@ export class Player {
   teleport(x, z, yaw, y) {
     if (this.seated) { this.seated = null; this.avatar.root.rotation.set(0, this.yaw, 0); }
     this.teleportedAt = performance.now();
-    this.pos.set(x, y ?? this.collision.supportAt(x, z, 50, PLAYER_RADIUS), z);
+    // dans un bâtiment à étages, on cherche le sol depuis le rez-de-chaussée (pas depuis le toit)
+    const indoor = BUILDINGS.some((b) => b.interior && Math.abs(x - b.x) < b.w / 2 && Math.abs(z - b.z) < b.d / 2);
+    this.pos.set(x, y ?? this.collision.supportAt(x, z, indoor ? 1 : 50, PLAYER_RADIUS), z);
     this.vel.set(0, 0, 0);
     if (yaw !== undefined) this.yaw = yaw;
     this.avatar.root.position.copy(this.pos);
@@ -95,7 +97,15 @@ export class Player {
     const ground = groundHeight(p.x, p.z);
     const inHome = this.zone.startsWith('home');
     this.swimming = !inHome && ground < WATER_LEVEL - 1.0 && p.y < WATER_LEVEL - 0.6;
-    let target = this.swimming ? 3.6 : input.sprint && !this.noSprint && !this.bodyNoSprint ? this.runSpeed : this.walkSpeed;
+    // sprint : plus on est musclé·e, plus on court vite et longtemps (jauge d'endurance)
+    const m = this.muscle ?? 30;
+    const wantSprint = input.sprint && !this.noSprint && !this.bodyNoSprint && mlen > 0.1 && !this.swimming;
+    const sprinting = wantSprint && this.stamina > 0.02 && !(this.winded > 0);
+    this.stamina = Math.max(0, Math.min(1, (this.stamina ?? 1) + (sprinting ? -dt / (6 + m * 0.14) : dt * 0.22)));
+    if (this.stamina <= 0.02 && sprinting) this.winded = 1.5; // essoufflé·e : on doit marcher un instant
+    this.winded = Math.max(0, (this.winded || 0) - dt);
+    this.sprinting = sprinting;
+    let target = this.swimming ? 3.6 : sprinting ? this.runSpeed * (0.82 + m / 220) : this.walkSpeed;
     target *= this.speedBonus * this.needsSpeed * (this.bodySpeed || 1);
     if (this.pose === 'carry') target *= 0.85;
     const accel = this.grounded || this.swimming ? 14 : 4;
@@ -158,7 +168,7 @@ export class Player {
 
     this.avatar.root.position.copy(p);
     if (this.pose !== 'dance' || this.dance !== 2) this.avatar.root.rotation.y = this.yaw;
-    this.avatar.update(dt, { speed: hs, grounded: this.grounded, swimming: this.swimming, pose: this.pose, dance: this.dance });
+    this.avatar.update(dt, { speed: hs, grounded: this.grounded, swimming: this.swimming, pose: this.onPhone && hs < 0.5 ? 'phone' : this.pose, dance: this.dance });
   }
 
   // État réseau compact

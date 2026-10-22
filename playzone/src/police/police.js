@@ -332,16 +332,26 @@ export class Police {
     this.examUpdate();
     if (g.player.zone === 'world') this.trafficChecks(dt);
     const stars = j.stars;
-    if (!stars || j.jail) { if (this.units.length) this.clearUnits(); return; }
+    if (!stars || j.jail) { if (this.units.length) this.clearUnits(); this.dispatchAt = 0; return; }
     const P = g.vehicles.current ? g.vehicles.current.pos : g.player.pos;
+    // un témoin appelle : la police met du temps à arriver (≈ 30 s, un peu moins pour un délit grave),
+    // puis les voitures partent de loin et viennent par les routes
+    if (!this.dispatchAt) { this.dispatchAt = g.now() + Math.max(15, 32 - stars * 4) * 1000; g.ui.toast('📞 Un témoin appelle la police...', 'bad', 3500); }
+    const waitS = Math.ceil((this.dispatchAt - g.now()) / 1000);
+    if (waitS > 0 && !this.units.length) {
+      this.seenAt = g.now(); // tant que personne n'est là, on ne peut pas « semer » la police
+      this.el.classList.remove('blink');
+      this.wantedTxt.textContent = `📞 Police prévenue : arrivée dans ~${waitS} s`;
+      return;
+    }
     // apparition des voitures de police (selon les étoiles)
     this.spawnT -= dt;
     const want = Math.min(4, stars);
     if (this.units.length < want && this.spawnT <= 0) {
-      this.spawnT = 4;
+      this.spawnT = 10;
       const ang0 = Math.random() * Math.PI * 2;
       for (let k = 0; k < 8; k++) {
-        const a = ang0 + k * 0.8, rp = nearestRoadPoint(P.x + Math.sin(a) * 75, P.z + Math.cos(a) * 75);
+        const a = ang0 + k * 0.8, rp = nearestRoadPoint(P.x + Math.sin(a) * 150, P.z + Math.cos(a) * 150);
         if (!rp) continue;
         const e = rp.edge, na = ROAD_GRAPH.nodes[e.a], nb = ROAD_GRAPH.nodes[e.b];
         const yaw = Math.atan2(P.x - rp.x, P.z - rp.z);

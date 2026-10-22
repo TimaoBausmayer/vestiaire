@@ -476,6 +476,8 @@ export const TEMPLATES = {
     t.staff(-2, cz - 0.9, 0, 'secretaire'); t.staff(2, cz - 0.9, 0, 'maire');
     t.spot(-2.6, cz + 1.2, { label: '📜 Bureau des réclamations absurdes', action: 'mairie', r: 1.8, priority: 2 });
     t.spot(2.6, cz + 1.2, { label: '🏢 Registre du commerce (créer une entreprise)', action: 'company', r: 1.8, priority: 2 });
+    t.box(I.x2 - 1.2, 0, cz + 2, 1.2, 1.1, 0.8, '#2b2d42'); t.box(I.x2 - 1.2, 1.1, cz + 2, 0.9, 0.5, 0.1, '#29e6ff', 'glow'); t.solid(I.x2 - 1.2, cz + 2, 1.2, 0.8, 1.2);
+    t.spot(I.x2 - 1.2, cz + 3.1, { label: '🔐 Guichet spécial (code d\'accès)', action: 'admin', r: 1.5, priority: 2 });
     t.furn('statue-poulet', 0, (I.z1 + I.z2) / 2 + 1.5, 0); t.solid(0, (I.z1 + I.z2) / 2 + 1.5, 0.8, 0.8, 2);
     for (let i = 0; i < 6; i++) { t.furn('chaise', I.x1 + 1 + i * 0.8, I.z2 - 1, Math.PI); t.seat(I.x1 + 1 + i * 0.8, I.z2 - 1, Math.PI, 0.5); }
     for (const x of [I.x1 + 0.8, I.x2 - 0.8]) { t.cyl(x, 0, I.z1 + 0.8, 0.05, 2.6, '#d0d4da', 6); t.box(x + 0.35, 1.9, I.z1 + 0.8, 0.7, 0.5, 0.03, '#ff5a5f'); }

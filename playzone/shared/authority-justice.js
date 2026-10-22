@@ -151,18 +151,24 @@ export const JUSTICE_HANDLERS = {
   'jail.escape'(ctx) {
     const p = ctx.profile, jl = p.justice.jail;
     if (!jl) return err('Tu n\'es pas en prison.');
-    if (ctx.now - (p.cooldowns['jail:escape'] || 0) < 60_000) return err('Les gardiens te surveillent de près...');
+    if (ctx.now - (p.cooldowns['jail:escape'] || 0) < 20_000) return err('Un gardien passe dans le couloir... attends un peu.');
     p.cooldowns['jail:escape'] = ctx.now;
     const h = gameHourAt(ctx.now), night = h >= 21 || h < 6;
-    if (ctx.rand() < (night ? 0.35 : 0.2)) {
+    // le tunnel se creuse en plusieurs fois ; à chaque fois, un risque de se faire surprendre
+    if (ctx.rand() < (night ? 0.08 : 0.15)) {
+      jl.tunnel = Math.max(0, (jl.tunnel || 0) - 30);
+      jl.until += 3 * 60_000;
+      return { ok: true, changed: true, data: { escaped: false, caught: true, tunnel: jl.tunnel, until: jl.until } };
+    }
+    jl.tunnel = Math.min(100, (jl.tunnel || 0) + (night ? 40 : 30));
+    if (jl.tunnel >= 100) {
       p.justice.jail = null;
       addCrime(p, 'evasion', ctx.now);
       const at = { x: PRISON.wall.x2 + 6, z: PRISON.wall.z1 - 6 };
       moveTo(ctx, at);
       return { ok: true, changed: true, data: { escaped: true, at, stars: p.justice.stars } };
     }
-    jl.until += 5 * 60_000;
-    return { ok: true, changed: true, data: { escaped: false, until: jl.until } };
+    return { ok: true, changed: true, data: { escaped: false, caught: false, tunnel: jl.tunnel } };
   },
 
   // ---------------------------------------------------------------- code de la route et permis

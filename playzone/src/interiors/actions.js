@@ -15,6 +15,7 @@ import { cookPanel, shower, sleep, showerFx } from '../life/home-life.js';
 import { slotsPanel, roulettePanel, blackjackPanel, pokerPanel, casinoDesk } from '../leisure/casino.js';
 import { rangePanel } from '../leisure/range.js';
 import { kartingDesk } from '../sports/karting.js';
+import { adminKiosk } from '../ui/admin.js';
 
 // ACTIONS DES POINTS D'INTÉRIEUR : acheter, s'asseoir, dormir, parler, regarder la télé, jouer...
 // Tout ce qui touche à l'argent, aux besoins ou aux récompenses passe par l'autorité (activity.do).
@@ -66,6 +67,7 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'casino-poker': pokerPanel(g); break;
     case 'range': if (!g.range) rangePanel(g, b); break;
     case 'karting': if (!g.karting?.s) kartingDesk(g, b); break;
+    case 'admin': adminKiosk(g); break;
     case 'basket': openBasket(g, b); break;
     case 'checkout': g.basket?.checkout(b); break;
     case 'sit': g.sitting?.sit(spot.seat, b); break;

@@ -74,13 +74,15 @@ export function prisonGuard(g) {
 }
 
 export async function tryEscape(g) {
-  const ok = await g.ui.confirm('Tenter une évasion ?', 'Tu creuses avec ta cuillère... Réussite : liberté, mais 3 étoiles de recherche. Échec : 5 minutes de prison en plus. (Plus facile la nuit.)', 'Creuser !');
+  const t = g.profile.justice.jail?.tunnel || 0;
+  const ok = await g.ui.confirm('Creuser le tunnel ?', `Tunnel creusé : ${t} %. Chaque coup de cuillère avance de 30 % (40 % la nuit). Risque d'être surpris·e : 15 % (8 % la nuit) → tunnel rebouché en partie et +3 minutes. À 100 % : tu sors derrière le mur, avec 3 étoiles de recherche.`, 'Creuser !');
   if (!ok) return;
   g.player.setPose('hold-forward', 2);
   g.sfx('drill');
   try {
     const r = await g.net.request('jail.escape', {});
     if (r.escaped) { g.player.teleport(r.at.x, r.at.z, Math.PI); g.police.seenAt = g.now(); g.police.renderStars(); g.ui.toast('🏃 ÉVADÉ·E ! Les sirènes hurlent... Cours !', 'bad', 5000); }
-    else { g.sfx('fail'); g.ui.toast('🥄 Le gardien t\'a surpris·e en train de creuser. +5 minutes !', 'bad', 4500); }
+    else if (r.caught) { g.sfx('fail'); g.ui.toast(`🥄 Un gardien t'a surpris·e ! Tunnel rebouché à ${r.tunnel} %, +3 minutes.`, 'bad', 4500); }
+    else { g.sfx('drill'); g.ui.toast(`⛏️ Tunnel creusé à ${r.tunnel} %. Encore un effort (attends que le gardien passe)...`, 'good', 4000); }
   } catch (e) { g.ui.toast(e.message, 'bad'); }
 }

@@ -49,7 +49,7 @@ const stoppedAtLights = await ev(async () => {
   for (let k = 0; k < 40; k++) {
     g.debugStep(0.25);
     for (const c of g.traffic.cars) {
-      if (!c || c.seg.turn || !c.seg.light) continue;
+      if (!c || !c.seg || c.seg.turn || !c.seg.light || c.seg.to === undefined) continue;
       const st = lightState((await import('/shared/city.js')).ROAD_GRAPH.nodes[c.seg.to], g.now() / 1000, c.seg.axis);
       if (st === 'R' && c.seg.len - c.s < 3 && c.speed < 0.5) n++;
     }

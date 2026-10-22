@@ -158,6 +158,12 @@ export class HUD {
   update(dt) {
     const g = this.game;
     const p = g.player.pos;
+    // jauge d'endurance (sprint : Maj / bouton 🏃)
+    if (!this.stamina) { this.staminaFill = h('div'); this.stamina = h('div.stamina', { title: 'Endurance (sprint)' }, h('span', '🏃'), h('div.sbar', this.staminaFill)); this.ui.root.append(this.stamina); }
+    const st = g.player.stamina ?? 1;
+    this.stamina.classList.toggle('show', st < 0.995 || g.player.sprinting);
+    this.staminaFill.style.width = `${Math.round(st * 100)}%`;
+    this.stamina.classList.toggle('low', st < 0.2);
     // zone
     if (g.player.zone !== 'world' && this.lastZone !== g.player.zone) {
       this.lastZone = g.player.zone;

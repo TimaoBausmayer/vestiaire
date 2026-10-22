@@ -374,3 +374,20 @@ table.board td.num { text-align: right; font-variant-numeric: tabular-nums; font
 /* ---------- Marchés */
 .vendor-say { background: var(--panel-2); border-radius: 14px; padding: 10px 14px; margin-bottom: 10px; font-style: italic; }
 select.haggle { border-radius: 10px; border: 0; padding: 6px 8px; font-weight: 700; background: #fff; color: #1b1446; }
+
+/* ---------- Endurance (sprint) */
+.stamina { position: absolute; left: 50%; bottom: calc(96px + var(--safe-b, 0px)); transform: translateX(-50%); display: none; align-items: center; gap: 6px; background: var(--panel); padding: 4px 10px; border-radius: 99px; pointer-events: none; }
+.stamina.show { display: flex; }
+.stamina .sbar { width: 120px; height: 8px; border-radius: 99px; background: rgba(255,255,255,.15); overflow: hidden; }
+.stamina .sbar div { height: 100%; background: #7ef29a; transition: width .1s; }
+.stamina.low .sbar div { background: #ff4d6d; }
+
+/* ---------- PlayGram */
+.sg-head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.sg-avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 20px; background: linear-gradient(135deg, #ff3fa4, #ffd23f); color: #1b1446; }
+.sg-compose { background: var(--panel-2); border-radius: 14px; padding: 8px; margin-bottom: 10px; }
+.sg-compose textarea { width: 100%; resize: none; }
+.sg-preview img, .sg-photo { width: 100%; border-radius: 10px; margin-top: 6px; image-rendering: auto; }
+.sg-post { background: var(--panel-2); border-radius: 14px; padding: 10px; margin-bottom: 8px; }
+.sg-who { margin-bottom: 4px; font-size: 13px; }
+.sg-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 13px; }

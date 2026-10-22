@@ -42,8 +42,10 @@ export class ThirdPersonCamera {
 
     // à l'intérieur : la caméra plonge (toit et murs côté caméra escamotés)
     if (this.inside) {
-      if (!(input.look.dx || input.look.dy)) this.pitch += (this.inside.pitch - this.pitch) * Math.min(1, dt * 3);
-      this.pitch = Math.max(0.55, this.pitch);
+      // à l'entrée, la caméra se place doucement en légère plongée, puis on la règle librement
+      if (this.inside.settle > 0 && !(input.look.dx || input.look.dy)) { this.inside.settle -= dt; this.pitch += (this.inside.pitch - this.pitch) * Math.min(1, dt * 3); }
+      if (input.look.dx || input.look.dy) this.inside.settle = 0;
+      this.pitch = Math.max(0.22, this.pitch);
     }
     this.smoothTarget.lerp(target, 1 - Math.exp(-dt * 14));
     const t = this.smoothTarget;

@@ -25,8 +25,10 @@ if (!p.justice.stars) await ev(() => window.playzone.police.crime('coups', true)
 await sleep(300);
 p = await prof();
 check(p.justice.stars >= 1 && await ev(() => !document.querySelector('.wanted').classList.contains('hidden')), `recherché·e : ${'★'.repeat(p.justice.stars)}`);
-// 2) la police arrive
-await ev(() => { const g = window.playzone; g.player.teleport(100, 0.5, 0); for (let i = 0; i < 40; i++) g.debugStep(0.25); });
+// 2) la police arrive (après le délai d'appel du témoin, ≈ 30 s)
+await ev(() => { const g = window.playzone; g.player.teleport(100, 0.5, 0); g.debugStep(0.5); });
+check(await ev(() => window.playzone.police.units.length === 0 && /arrivée dans/.test(document.querySelector('.wanted').textContent)), 'la police est prévenue mais pas encore là');
+await ev(() => { const g = window.playzone; g.police.dispatchAt = g.now() - 1; for (let i = 0; i < 40; i++) g.debugStep(0.25); });
 const units = await ev(() => window.playzone.police.units.length);
 check(units >= 1, `voitures de police en route (${units})`);
 await ev(() => { const g = window.playzone; const u = g.police.units[0]; g.cam.yaw = Math.atan2(u.v.pos.x - g.player.pos.x, u.v.pos.z - g.player.pos.z) + Math.PI; g.cam.dist = 14; g.cam.pitch = 0.35; g.debugStep(0.2); });
