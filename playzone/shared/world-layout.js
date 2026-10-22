@@ -5,13 +5,15 @@
 import { BOUNDS, STREETS, streetRect, CITY_ZONES, CITY_BUILDINGS, CITY_POI, PARKINGS, GAS_STATIONS } from './city.js';
 
 export { STREETS, STREET_BY_ID, ROAD_GRAPH, findRoute, nearestRoadPoint, nearestNode, PARKINGS, GAS_STATIONS, CITY_POI } from './city.js';
-export const WORLD_BOUNDS = BOUNDS;     // la carte va de -900 à 900 (X) et de -1000 à 140 (Z)
+export const WORLD_BOUNDS = BOUNDS;     // la carte va de -1850 à 1850 (X) et de -2000 à 400 (Z)
 export const WORLD_HALF = 128;          // demi-taille du centre historique (ancien plan)
 export const WATER_LEVEL = -0.35;       // niveau de la mer et de l'étang
 export const SEA_SLOPE_START = 90;      // au sud de ce Z, le sol descend dans la mer
 export const PORT_QUAY = { x: 140, z: 102 }; // à l'est de x=140, le port a un quai droit à z=102
 
 export const POND = { x: -30, z: -112, r: 9 };
+export const LAKE = { x: -1100, z: -1430, r: 160 };   // Lac des Grenouilles (Nordville)
+export const MARINA = { x1: 1150, x2: 1650 };            // port du Grand-Large : bassin profond
 
 // Le point est-il dans les limites jouables ?
 export function inBounds(x, z, margin = 0) {
@@ -21,11 +23,13 @@ export function inBounds(x, z, margin = 0) {
 // Hauteur du sol (le terrain est plat sauf la mer, le port et l'étang).
 export function groundHeight(x, z) {
   let h = 0;
-  if (x > PORT_QUAY.x && x < 300 && z > 56) { if (z > PORT_QUAY.z) h = -4.5; }
+  if ((x > PORT_QUAY.x && x < 300 && z > 56) || (x > MARINA.x1 && x < MARINA.x2 && z > 56)) { if (z > PORT_QUAY.z) h = -4.5; }
   else if (z > SEA_SLOPE_START) h = -Math.min(4.5, (z - SEA_SLOPE_START) * 0.2);
   // côtes est et ouest : l'île plonge dans la mer
   const edge = Math.max(-x + BOUNDS.minX, x - BOUNDS.maxX);
   if (edge > 0) h = Math.min(h, -Math.min(4.5, edge * 0.35));
+  const dl = Math.hypot(x - LAKE.x, (z - LAKE.z) * 1.3);
+  if (dl < LAKE.r) h = Math.min(h, -Math.min(4.5, (LAKE.r - dl) * 0.12));
   const d = Math.hypot(x - POND.x, z - POND.z);
   if (d < POND.r) {
     // petite île au centre de l'étang (un canard doré s'y cache)

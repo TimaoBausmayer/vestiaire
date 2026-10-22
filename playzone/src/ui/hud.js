@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { h, clear, fmt } from './dom.js';
-import { BUILDINGS, ROADS, POND, zoneAt, WORLD_BOUNDS, POI, MINIGAME_SPOTS, PARKINGS, CITY_POI, PORT_QUAY } from '../../shared/world-layout.js';
+import { BUILDINGS, ROADS, POND, LAKE, MARINA, zoneAt, WORLD_BOUNDS, POI, MINIGAME_SPOTS, PARKINGS, CITY_POI, PORT_QUAY } from '../../shared/world-layout.js';
 import { levelProgress } from '../../shared/rules.js';
 import { PITCH } from '../../shared/sports.js';
 import { SKI, ROUTES } from '../../shared/courses.js';
@@ -10,6 +10,7 @@ import { formatHour } from '../world/daynight.js';
 
 // Carte de fond pré-dessinée (sert à la mini-carte et à la carte du téléphone). px pixels par mètre.
 export const MAP = WORLD_BOUNDS;
+export const MAP_PX = 1;   // pixels par mètre de l'image de la carte (grande carte : 1)
 export function drawMapBase(px = 2) {
   const B = WORLD_BOUNDS;
   const c = document.createElement('canvas');
@@ -30,6 +31,11 @@ export function drawMapBase(px = 2) {
   rect(300, 64, B.maxX, B.maxZ, '#f2d59b'); rect(300, 93, B.maxX, B.maxZ, '#2e9fd6'); // plages de la Côte des Villas
   rect(-840, -430, -300, 50, '#7fae55');                   // vignobles
   rect(-900, -1000, 900, -880, '#6aa84f');                 // abords de l'autoroute
+  rect(-1850, -1900, -420, -1000, '#3f7a35');               // forêt noire
+  rect(-420, -1570, 420, -1230, '#b9c4a6');                 // Nordville
+  rect(900, -1750, 1750, -1300, '#a7d27f'); rect(900, -1575, 1750, -1525, '#5a5e6a');   // aéroport et piste
+  g.fillStyle = '#2e9fd6'; g.beginPath(); g.ellipse(X(LAKE.x), Y(LAKE.z), LAKE.r * px, LAKE.r / 1.3 * px, 0, 0, 7); g.fill();   // lac
+  rect(MARINA.x1, PORT_QUAY.z, MARINA.x2, B.maxZ, '#2e9fd6');
   rect(PITCH.x - PITCH.w / 2, PITCH.z - PITCH.d / 2, PITCH.x + PITCH.w / 2, PITCH.z + PITCH.d / 2, '#3f9a3a'); // stade
   rect(SKI.x1, SKI.top, SKI.x2, SKI.bottom, '#f4f8fb'); rect(SKI.x1 - 26, SKI.top, SKI.x1, SKI.bottom, '#c9d2d8'); rect(SKI.x2, SKI.top, SKI.x2 + 26, SKI.bottom, '#c9d2d8'); // station de ski
   g.strokeStyle = '#3a3d42'; g.lineWidth = 13 * px; g.beginPath(); ROUTES.f1.pts.forEach((p, i) => (i ? g.lineTo(X(p.x), Y(p.z)) : g.moveTo(X(p.x), Y(p.z)))); g.closePath(); g.stroke(); // circuit F1
@@ -109,7 +115,7 @@ export class HUD {
     this.minimap = h('div.minimap', { title: 'Carte', onclick: () => game.phone?.open('map') }, this.mapCanvas);
     this.eventBanner = h('div.event-banner.hidden');
     ui.root.append(this.tl, this.zoneEl, this.tr, this.compass, this.minimap, this.eventBanner);
-    this.mapBase = drawMapBase(2);
+    this.mapBase = drawMapBase(MAP_PX);
     this.lastZone = null;
     this.markers = [];       // marqueurs dynamiques {x, z, color, icon}
     this.compassTarget = null;
@@ -220,7 +226,7 @@ export class HUD {
 
   drawMinimap() {
     const g = this.mapCanvas.getContext('2d');
-    const W = this.mapCanvas.width, px = 2, R = this.game.vehicles?.driving ? 85 : 55; // rayon visible en mètres
+    const W = this.mapCanvas.width, px = MAP_PX, R = this.game.vehicles?.driving ? 85 : 55; // rayon visible en mètres
     const p = this.game.player;
     const inWorld = p.zone === 'world';
     const cx = inWorld ? p.pos.x : POI.homeDoor.x, cz = inWorld ? p.pos.z : POI.homeDoor.z;

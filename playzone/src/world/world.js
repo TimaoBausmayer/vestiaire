@@ -6,6 +6,7 @@ import { buildBuildings } from './buildings.js';
 import { buildProps } from './props.js';
 import { buildRoads } from './roads.js';
 import { buildCityProps } from './city-props.js';
+import { buildExpansionProps } from './expansion-props.js';
 import { SignAtlas } from './signs.js';
 import { DayNight } from './daynight.js';
 import { mulberry32 } from '../../shared/rng.js';
@@ -38,6 +39,7 @@ export class World {
     this.trafficLights = buildRoads(sb, collision, scene);
     buildProps(sb, collision, scene);
     buildCityProps(sb, collision, scene, this);
+    buildExpansionProps(sb, collision);
     for (const fn of this.contributors) fn(sb, collision, scene);
     this.static = sb.build(MATS, { shadows: true });
     scene.add(this.static);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { h, clear, fmt } from './dom.js';
-import { drawMapBase, drawMarkers, drawRoute } from './hud.js';
+import { drawMapBase, drawMarkers, drawRoute, MAP_PX } from './hud.js';
 import { WORLD_BOUNDS, SECRETS, POI } from '../../shared/world-layout.js';
 import { destinations, DEST_CATS } from './gps.js';
 import { JOBS, jobLevel } from '../../shared/content/jobs.js';
@@ -16,6 +16,7 @@ import { helpApp } from './tutorial.js';
 import { agendaApp } from '../events/agenda.js';
 import { socialApp } from './social-app.js';
 import { adminApp } from './admin.js';
+import { premiumApp } from './premium-app.js';
 import { openWardrobe } from './shop.js';
 import { formatHour } from '../world/daynight.js';
 
@@ -34,6 +35,7 @@ const APPS = [
   { id: 'help', name: 'Aide', icon: '📘', bg: '#4ea8de' },
   { id: 'social', name: 'PlayGram', icon: '📸', bg: '#ff3fa4' },
   { id: 'urgences', name: 'Urgences', icon: '🚨', bg: '#d62828' },
+  { id: 'premium', name: 'Boutique', icon: '💎', bg: '#7b2cbf' },
   { id: 'admin', name: 'Admin', icon: '👑', bg: '#d4a017', admin: true },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'code', name: 'Espace code', icon: '🔐', bg: '#2b2d42', hidden: true },
@@ -50,7 +52,7 @@ export class Phone {
     this.game = game;
     this.el = null;
     this.app = null;
-    this.mapBase = drawMapBase(2);
+    this.mapBase = game.hud?.mapBase || drawMapBase(MAP_PX);
     this.badges = {};
     game.on('profile', () => { if (this.el && this.app && this.app !== 'map') this.render(); });
   }
@@ -257,6 +259,7 @@ export class Phone {
   app_social(b) { socialApp(this.game, b, this); }
   app_admin(b) { adminApp(this.game, b, this); }
   app_urgences(b) { this.game.emergencies?.app(b, this); }
+  app_premium(b) { premiumApp(this.game, b); }
 
   // Espace code : on tape un code secret (mode admin...).
   app_code(b) {

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PITCH_RECT } from '../../shared/sports.js';
 import { SKI } from '../../shared/courses.js';
+import { LAKE } from '../../shared/world-layout.js';
 import { BUILDINGS, ROADS, PARKINGS, GAS_STATIONS, CITY_POI, WORLD_BOUNDS, STREETS, PORT_QUAY } from '../../shared/world-layout.js';
 import { BUILDING_BY_ID } from '../../shared/world-layout.js';
 import { mulberry32 } from '../../shared/rng.js';
@@ -285,9 +286,14 @@ export function buildCityProps(sb, col, scene, world) {
 
   // ---------- collines au-delà de la limite nord, falaises est/ouest et limites invisibles
   // ---------- grande carte : forêts et bosquets des nouveaux quartiers, vignes, haies le long de l'autoroute
-  for (let i = 0; i < 520; i++) {
-    const x = R(-895, 895), z = R(-995, 55);
+  const B0 = WORLD_BOUNDS;
+  for (let i = 0; i < 2600; i++) {
+    // forêt noire très dense, campagnes plus clairsemées
+    const forest = i < 1300;
+    const x = forest ? R(-1845, -425) : R(B0.minX + 5, B0.maxX - 5), z = forest ? R(-1890, -1005) : R(B0.minZ + 5, 55);
     if (x > -300 && x < 300 && z > -520) continue;
+    if (Math.hypot(x - LAKE.x, (z - LAKE.z) * 1.3) < LAKE.r + 6) continue;
+    if (x > 880 && x < 1770 && z < -1280 && z > -1770) continue;   // aéroport
     if (isFree(x, z, 2)) tree(sb, col, x, z, i % 3 ? 'round' : 'pine', R(0.9, 1.3));
   }
   for (let z = -425; z < 45; z += 9) for (let x = -830; x < -310; x += 26) if (isFree(x, z, 1) && isFree(x + 18, z, 1)) sb.box(x + 9, 0, z, 18, 0.9, 0.5, '#3e6b2a');

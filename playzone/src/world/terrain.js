@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { groundHeight, WATER_LEVEL, POND, MINIGAME_SPOTS, WORLD_BOUNDS } from '../../shared/world-layout.js';
+import { groundHeight, WATER_LEVEL, POND, LAKE, MINIGAME_SPOTS, WORLD_BOUNDS } from '../../shared/world-layout.js';
 import { MATS, PALETTE } from '../core/materials.js';
 
 // Sol (herbe, sable, terre des champs) avec couleurs par sommet, et eau animée (mer + étang).
@@ -8,11 +8,25 @@ function noise(x, z) {
   return Math.sin(x * 0.13 + Math.sin(z * 0.07) * 2) * 0.5 + Math.sin(z * 0.11 + x * 0.05) * 0.5;
 }
 
+// Terrain découpé en morceaux : détaillé (5 m) dans la ville d'origine, plus grossier (12 m) ailleurs.
 export function buildTerrain() {
+  const B = WORLD_BOUNDS, g = new THREE.Group();
+  g.name = 'terrain';
+  const I = { x0: -945, x1: 945, z0: -1045, z1: 285 };
+  const X0 = B.minX - 45, X1 = B.maxX + 45, Z0 = B.minZ - 45, Z1 = B.maxZ + 45;
+  g.add(terrainPatch(I.x0, I.x1, I.z0, I.z1, 5));
+  g.add(terrainPatch(X0, X1, Z0, I.z0, 12));          // nord
+  g.add(terrainPatch(X0, X1, I.z1, Z1, 12));          // sud (mer)
+  g.add(terrainPatch(X0, I.x0, I.z0, I.z1, 12));      // ouest
+  g.add(terrainPatch(I.x1, X1, I.z0, I.z1, 12));      // est
+  return g;
+}
+
+function terrainPatch(px0, px1, pz0, pz1, step) {
   const B = WORLD_BOUNDS;
-  const sx = B.maxX - B.minX + 90, sz = B.maxZ - B.minZ + 90;
-  const geo = new THREE.PlaneGeometry(sx, sz, Math.round(sx / 5), Math.round(sz / 5)).rotateX(-Math.PI / 2);
-  geo.translate((B.minX + B.maxX) / 2, 0, (B.minZ + B.maxZ) / 2);
+  const sx = px1 - px0, sz = pz1 - pz0;
+  const geo = new THREE.PlaneGeometry(sx, sz, Math.max(1, Math.round(sx / step)), Math.max(1, Math.round(sz / step))).rotateX(-Math.PI / 2);
+  geo.translate((px0 + px1) / 2, 0, (pz0 + pz1) / 2);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
   const c = new THREE.Color();
@@ -48,6 +62,13 @@ export function buildTerrain() {
     // bords de l'étang
     const dp = Math.hypot(x - POND.x, z - POND.z);
     if (dp < POND.r + 1.5 && dp > 1.6) c.lerp(wet, 0.6);
+    // très grande carte : forêt noire, Nordville, aéroport, champs des campagnes, rives du lac
+    if (x < -420 && z < -1000 && z > -1900) c.copy(forest).lerp(grassDark, 0.35 + n * 0.25).multiplyScalar(0.85);
+    if (Math.abs(x) < 420 && z < -1230 && z > -1570) c.lerp(new THREE.Color('#9fb08a'), 0.45);
+    if (x > 900 && x < 1750 && z < -1300 && z > -1750) c.lerp(new THREE.Color('#a7d27f'), 0.5);
+    if ((x < -900 || x > 900) && z > -1000 && z < 50) { const f = Math.floor(x / 60) * 7 + Math.floor(z / 45) * 13; const k = ((f % 5) + 5) % 5; if (k === 1) c.set('#c9b458'); else if (k === 2) c.copy(dirt).lerp(grassDark, Math.sin(x * 1.7) > 0.2 ? 0.5 : 0); else if (k === 3) c.set('#8fbf4f'); }
+    const dLake = Math.hypot(x - LAKE.x, (z - LAKE.z) * 1.3);
+    if (dLake > LAKE.r - 2 && dLake < LAKE.r + 8) c.lerp(sand, 0.6);
     // sous l'eau
     if (h < WATER_LEVEL) c.copy(wet).multiplyScalar(0.85);
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
@@ -113,7 +134,7 @@ export function buildWater() {
     foam: { value: new THREE.Color('#ffffff') }, light: { value: 1 },
   }]);
   const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, transparent: true, fog: true, depthWrite: false });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3400, 2600, 85, 65).rotateX(-Math.PI / 2).translate(0, 0, -300), mat);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(4400, 3400, 110, 85).rotateX(-Math.PI / 2).translate(0, 0, -800), mat);
   mesh.position.y = WATER_LEVEL;
   mesh.renderOrder = 1;
   mesh.name = 'water';

@@ -4,7 +4,7 @@
 // industrielle, campagne, plage sauvage, parc de loisirs, circuit et prison.
 // Repère : X vers l'est, Z vers le sud. Unité ≈ 1 m.
 
-export const BOUNDS = { minX: -900, maxX: 900, minZ: -1000, maxZ: 240 };
+export const BOUNDS = { minX: -1850, maxX: 1850, minZ: -2000, maxZ: 400 };
 
 // ---------------------------------------------------------------------------------------------
 // RUES : segments horizontaux (h : z fixe, de x1 à x2) ou verticaux (v : x fixe, de z1 à z2).
@@ -65,6 +65,33 @@ export const STREETS = [
   { id: 'periph-o-haut', name: 'Boulevard Périphérique Ouest', axis: 'v', x: -140, z1: -940, z2: -430, w: 9, kind: 'main' },
   { id: 'periph-e-haut', name: 'Boulevard Périphérique Est', axis: 'v', x: 140, z1: -940, z2: -430, w: 9, kind: 'main' },
   { id: 'est-haut', name: 'Route de l\'Est', axis: 'v', x: 290, z1: -940, z2: -430, w: 8, kind: 'main' },
+  // --- TRÈS GRANDE CARTE : 2e anneau d'autoroute (A2), autoroute A3 vers Nordville et l'aéroport, villages
+  { id: 'a1-nord-o', name: 'Autoroute A1 du Soleil', axis: 'h', z: -940, x1: -1800, x2: -840, w: 16, kind: 'highway' },
+  { id: 'a1-nord-e', name: 'Autoroute A1 du Soleil', axis: 'h', z: -940, x1: 840, x2: 1800, w: 16, kind: 'highway' },
+  { id: 'a2-nord', name: 'Autoroute A2 des Sommets', axis: 'h', z: -1900, x1: -1800, x2: 1800, w: 16, kind: 'highway' },
+  { id: 'a2-ouest', name: 'Autoroute A2 des Sommets', axis: 'v', x: -1800, z1: -1900, z2: 60, w: 16, kind: 'highway' },
+  { id: 'a2-est', name: 'Autoroute A2 des Sommets', axis: 'v', x: 1800, z1: -1900, z2: 60, w: 16, kind: 'highway' },
+  { id: 'a3', name: 'Autoroute A3 du Nord', axis: 'v', x: 0, z1: -1900, z2: -940, w: 16, kind: 'highway' },
+  { id: 'corniche-oo', name: 'Route de la Corniche', axis: 'h', z: 60, x1: -1800, x2: -840, w: 8, kind: 'main' },
+  { id: 'corniche-ee', name: 'Route de la Corniche', axis: 'h', z: 60, x1: 840, x2: 1800, w: 8, kind: 'main' },
+  // Nordville : la ville du nord
+  { id: 'nord-o', name: 'Avenue du Nord-Ouest', axis: 'v', x: -400, z1: -1900, z2: -940, w: 10, kind: 'main' },
+  { id: 'nord-e', name: 'Avenue du Nord-Est', axis: 'v', x: 400, z1: -1900, z2: -940, w: 10, kind: 'main' },
+  { id: 'nv-1', name: 'Boulevard de Nordville', axis: 'h', z: -1250, x1: -400, x2: 400, w: 10, kind: 'main' },
+  { id: 'nv-2', name: 'Rue des Sapins', axis: 'h', z: -1350, x1: -400, x2: 400, w: 8, kind: 'street' },
+  { id: 'nv-3', name: 'Rue de la Mairie', axis: 'h', z: -1450, x1: -400, x2: 400, w: 8, kind: 'street' },
+  { id: 'nv-4', name: 'Boulevard Polaire', axis: 'h', z: -1550, x1: -400, x2: 400, w: 10, kind: 'main' },
+  { id: 'nv-v1', name: 'Rue des Pingouins', axis: 'v', x: -200, z1: -1550, z2: -1250, w: 8, kind: 'street' },
+  { id: 'nv-v2', name: 'Rue des Morses', axis: 'v', x: 200, z1: -1550, z2: -1250, w: 8, kind: 'street' },
+  // route du lac et de l'aéroport
+  { id: 'rn10-o', name: 'Route Nationale 10 (route du Lac)', axis: 'h', z: -1150, x1: -1800, x2: -400, w: 9, kind: 'country' },
+  { id: 'rn10-e', name: 'Route de l\'Aéroport', axis: 'h', z: -1400, x1: 400, x2: 1800, w: 10, kind: 'main' },
+  // Village des Marmottes (ouest) et Port Grand-Large (est)
+  { id: 'rd12', name: 'Route Départementale 12', axis: 'h', z: -300, x1: -1800, x2: -840, w: 8, kind: 'country' },
+  { id: 'marmottes-v', name: 'Grande Rue des Marmottes', axis: 'v', x: -1350, z1: -500, z2: 60, w: 8, kind: 'street' },
+  { id: 'marmottes-h', name: 'Rue du Fromage', axis: 'h', z: -420, x1: -1500, x2: -1200, w: 7, kind: 'street' },
+  { id: 'rd14', name: 'Route du Grand-Large', axis: 'h', z: -300, x1: 840, x2: 1800, w: 8, kind: 'country' },
+  { id: 'port-gl', name: 'Quai du Grand-Large', axis: 'v', x: 1400, z1: -300, z2: 60, w: 9, kind: 'main' },
 ];
 export const STREET_BY_ID = Object.fromEntries(STREETS.map((s) => [s.id, s]));
 
@@ -188,6 +215,15 @@ export const CITY_ZONES = [
   { id: 'vignobles', name: 'Vignobles du Pinard', rect: [-900, -430, -300, 140] },
   { id: 'hauts', name: 'Les Hauts de PLAYZONE', rect: [-900, -880, 900, -430] },
   { id: 'autoroute', name: 'Autoroute A1 du Soleil', rect: [-900, -1000, 900, -880] },
+  { id: 'nordville', name: 'Nordville', rect: [-420, -1570, 420, -1230] },
+  { id: 'lac', name: 'Lac des Grenouilles', rect: [-1350, -1650, -850, -1150] },
+  { id: 'aeroport', name: 'Aéroport International de PLAYZONE', rect: [900, -1750, 1750, -1300] },
+  { id: 'foret-noire', name: 'Forêt Noire', rect: [-1850, -1900, -420, -1000] },
+  { id: 'marmottes', name: 'Village des Marmottes', rect: [-1550, -520, -1150, 80] },
+  { id: 'campagne-ouest', name: 'Campagne Profonde', rect: [-1850, -1000, -900, 400] },
+  { id: 'grand-large', name: 'Port Grand-Large', rect: [1150, -320, 1650, 400] },
+  { id: 'campagne-est', name: 'Plaines de l\'Est', rect: [900, -1300, 1850, 400] },
+  { id: 'grand-nord', name: 'Le Grand Nord', rect: [-1850, -2000, 1850, -1000] },
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -317,6 +353,52 @@ for (const [i, [x, z]] of [[-700, -60], [-420, -230], [-700, -380], [-420, 20]].
     }
   }
 }
+
+// --- NORDVILLE : immeubles, commerces, mairie annexe, gare routière
+{
+  const NV = [
+    ['nv-super', 'Hyper Nordique', 'shop', 'supermarket', 'supermarket', -300, -1300, 44, 28, 'S', 'big-box', '#e9f5db', '#1d4ed8', 'HYPER NORDIQUE'],
+    ['nv-boulangerie', 'Boulangerie du Pôle', 'shop', 'bakery', 'bakery', -110, -1295, 14, 12, 'N', null, '#fefae0', '#9c6644', 'BOULANGERIE'],
+    ['nv-cafe', 'Café Igloo', 'shop', 'cafe2', 'cafe', -80, -1295, 14, 12, 'N', null, '#caf0f8', '#0077b6', 'CAFÉ IGLOO'],
+    ['nv-resto', 'Restaurant Le Morse Gourmand', 'shop', 'homard', 'restaurant', 110, -1295, 20, 14, 'N', null, '#ffe5d9', '#9d0208', 'LE MORSE GOURMAND'],
+    ['nv-vetements', 'Doudounes & Co', 'shop', 'clothes', 'shop', 290, -1300, 22, 16, 'S', null, '#ffc8dd', '#5e3c58', 'DOUDOUNES & CO'],
+    ['nv-hotel', 'Grand Hôtel de Nordville', 'decor', null, 'lobby', -300, -1400, 36, 22, 'S', 'apartment', '#f4f1ea', '#14213d', 'GRAND HÔTEL'],
+    ['nv-mairie', 'Mairie annexe de Nordville', 'service', null, 'office', 0 + 110, -1400, 30, 22, 'S', null, '#f8f9fa', '#1d3557', 'MAIRIE ANNEXE'],
+    ['nv-ecole', 'Lycée Polaire', 'service', null, 'school', 300, -1400, 40, 24, 'S', null, '#ffd6a5', '#3a86ff', 'LYCÉE POLAIRE'],
+    ['nv-garage', 'Garage des Glaciers', 'shop', 'repair', 'workshop', -300, -1500, 24, 18, 'N', 'warehouse', '#adb5bd', '#495057', 'GARAGE DES GLACIERS'],
+    ['nv-cinema', 'Ciné Aurore Boréale', 'service', 'cinema', 'cinema', 110, -1500, 26, 24, 'N', 'cinema', '#3a0ca3', '#7209b7', 'CINÉ AURORE'],
+    ['nv-station', 'Station du Nord', 'shop', 'station', 'minimarket', 300, -1500, 14, 9, 'N', 'station', '#f4f1ea', '#2a9d8f', 'STATION DU NORD'],
+  ]
+  for (const [id, name, kind, shop, interior, x, z, w, d, facing, style, color, roofColor, sign] of NV) add({ id, name, kind, ...(shop ? { shop } : {}), interior, x, z, w, d, h: style === 'apartment' ? 22 : 8, floors: style === 'apartment' ? 7 : 1, facing, ...(style ? { style } : {}), color, roofColor, sign, district: 'nordville' });
+  // immeubles et maisons de Nordville
+  let k = 0;
+  for (const [x, z, facing] of [[-150, -1300, 'S'], [150, -1300, 'S'], [-150, -1500, 'N'], [-100, -1400, 'S'], [232, -1470, 'N']]) { k++; add({ id: `nv-immeuble${k}`, name: `Résidence Polaire ${k}`, kind: 'decor', interior: 'lobby', x, z, w: 18, d: 18, h: 25, floors: 8, facing, style: 'apartment', color: ['#bde0fe', '#a2d2ff', '#cdb4db', '#ffc8dd', '#e2ece9'][k % 5], roofColor: '#3d405b', district: 'nordville' }); }
+  let m = 0;
+  for (let x = -380; x <= 380; x += 38) for (const [z, facing] of [[-1590, 'S'], [-1212, 'N']]) {
+    if (Math.abs(x) < 16 || Math.abs(Math.abs(x) - 200) < 14 || Math.abs(Math.abs(x) - 400) < 14) continue;
+    m++; add({ id: `maison-nv${m}`, name: `${m} boulevard ${z < -1400 ? 'Polaire' : 'de Nordville'}`, kind: 'house', interior: 'house', x, z, w: 12, d: 10, h: 6, facing, roof: 'gable', color: HOUSE_COLORS0[m % HOUSE_COLORS0.length], roofColor: ['#8c3b2f', '#3d5a80', '#6b4226'][m % 3], district: 'nordville' });
+  }
+}
+
+// --- AÉROPORT, LAC, VILLAGE DES MARMOTTES, PORT GRAND-LARGE
+add({ id: 'aeroport', name: 'Aéroport International de PLAYZONE', kind: 'service', interior: 'lobby', x: 1300, z: -1360, w: 90, d: 30, h: 14, floors: 2, facing: 'S', style: 'big-box', color: '#e9ecef', roofColor: '#0b132b', sign: 'AÉROPORT PLAYZONE', neon: true, district: 'aeroport' });
+add({ id: 'hangar', name: 'Hangar des jets privés', kind: 'decor', interior: 'warehouse', x: 1600, z: -1360, w: 50, d: 30, h: 14, facing: 'S', style: 'warehouse', color: '#adb5bd', roofColor: '#495057', sign: 'JETS PRIVÉS', garageDoors: 3, district: 'aeroport' });
+add({ id: 'chalet-lac', name: 'Chalet du Lac (restaurant)', kind: 'shop', shop: 'poisson', interior: 'restaurant', x: -1100, z: -1250, w: 18, d: 12, h: 7, facing: 'S', roof: 'gable', color: '#a0703c', roofColor: '#3a2a1e', sign: 'CHALET DU LAC', district: 'lac' });
+{
+  const MV = [
+    ['mv-epicerie', 'Épicerie des Marmottes', 'shop', 'superette', 'supermarket', -1325, -460, 14, 10, 'W'],
+    ['mv-fromager', 'Fromagerie Ça Sent Bon', 'shop', 'farm', 'bakery', -1325, -380, 12, 10, 'W'],
+    ['mv-bistrot', 'Bistrot de la Marmotte', 'shop', 'cafe', 'cafe', -1375, -380, 14, 10, 'E'],
+    ['mv-mairie', 'Mairie du village', 'service', null, 'office', -1375, -460, 14, 12, 'E'],
+  ]
+  for (const [id, name, kind, shop, interior, x, z, w, d, facing] of MV) add({ id, name, kind, ...(shop ? { shop } : {}), interior, x, z, w, d, h: 7, facing, roof: 'gable', color: '#f6e7c8', roofColor: '#8c3b2f', sign: name.toUpperCase(), district: 'marmottes' });
+  let q = 0;
+  for (let z = -340; z <= 20; z += 30) if (z !== -310) for (const [x, facing] of [[-1325, 'W'], [-1375, 'E']]) { q++; add({ id: `maison-mv${q}`, name: `${q} Grande Rue des Marmottes`, kind: 'house', interior: 'house', x, z, w: 11, d: 10, h: 6, facing, roof: 'gable', color: HOUSE_COLORS0[q % HOUSE_COLORS0.length], roofColor: '#6b4226', district: 'marmottes' }); }
+}
+add({ id: 'capitainerie-gl', name: 'Capitainerie du Grand-Large', kind: 'decor', interior: 'office', x: 1430, z: -40, w: 14, d: 12, h: 9, floors: 2, facing: 'W', color: '#f4f1ea', roofColor: '#c1121f', sign: 'CAPITAINERIE', district: 'grand-large' });
+add({ id: 'yacht-club', name: 'Yacht Club du Grand-Large', kind: 'shop', shop: 'homard', interior: 'restaurant', x: 1370, z: -40, w: 18, d: 14, h: 8, facing: 'E', color: '#ffffff', roofColor: '#1d3557', sign: 'YACHT CLUB', neon: true, district: 'grand-large' });
+add({ id: 'hotel-gl', name: 'Hôtel Grand-Large', kind: 'decor', interior: 'lobby', x: 1370, z: -160, w: 24, d: 20, h: 24, floors: 7, facing: 'E', style: 'apartment', color: '#e2ece9', roofColor: '#0077b6', sign: 'HÔTEL GRAND-LARGE', district: 'grand-large' });
+add({ id: 'station-a2', name: 'Aire des Sommets (A2)', kind: 'shop', shop: 'station', interior: 'minimarket', x: 40, z: -1865, w: 14, d: 9, h: 4.5, facing: 'N', style: 'station', color: '#f4f1ea', roofColor: '#d00000', sign: 'AIRE DES SOMMETS', district: 'grand-nord', gas: { x: 40, z: -1882, w: 16, d: 12 } });
 
 // --- Campagne des Navets
 add({ id: 'ferme-navets', name: 'Maison de la Ferme des Navets', kind: 'house', interior: 'house', x: -265, z: -25, w: 12, d: 10, h: 6, facing: 'E', roof: 'gable', color: '#efe3c2', roofColor: '#7a4b2a', district: 'campagne' });
