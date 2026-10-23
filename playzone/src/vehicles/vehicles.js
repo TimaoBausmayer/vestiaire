@@ -106,7 +106,7 @@ export class Vehicles {
       h('div.gauges',
         h('div.g', h('span', '⛽'), h('div.bar', this.fuelBar = h('div'))),
         h('div.g', h('span', '🔧'), h('div.bar.dmg', this.dmgBar = h('div')))),
-      this.dashFix = h('button.limit.fix', { title: 'Mécano mobile : réparation sur place', onclick: () => this.repairHere(this.current) }, '🔧'),
+      this.dashFix = h('button.fix', { title: 'Mécano mobile : réparation sur place', onclick: () => this.repairHere(this.current) }, '🔧'),
       this.dashLimit = h('button.limit', { title: 'Limiteur de vitesse (touche B)', onclick: () => this.cycleLimiter() }, 'LIM —'),
       this.dashName = h('div.name', ''));
     game.ui.root.append(this.dash);

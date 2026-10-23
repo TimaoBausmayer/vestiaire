@@ -424,7 +424,7 @@ select.haggle { border-radius: 10px; border: 0; padding: 6px 8px; font-weight: 7
 
 .dash .limit { pointer-events: auto; margin-top: 7px; width: 100%; padding: 4px 0; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; background: rgba(255,255,255,.06); color: #fff; font: 700 12px/1.2 inherit; letter-spacing: .5px; cursor: pointer; }
 .dash .limit.on { background: #ffb703; border-color: #ffb703; color: #1b1b24; }
-.dash .limit.fix { background: #e63946; border-color: #e63946; }
+.dash .fix { pointer-events: auto; margin-top: 7px; width: 100%; padding: 4px 0; border: 1px solid #e63946; border-radius: 10px; background: #e63946; color: #fff; font: 700 12px/1.2 inherit; cursor: pointer; }
 
 /* --- téléphone : recherche, raccourcis, Équipement, Météo */
 .ph-search { width: 100%; margin: 4px 0 10px; padding: 9px 14px; border: none; border-radius: 12px; background: rgba(255,255,255,.12); color: #fff; font: inherit; font-size: 14px; outline: none; }
@@ -448,3 +448,11 @@ select.haggle { border-radius: 10px; border: 0; padding: 6px 8px; font-weight: 7
 .meteo .mb { flex: 1; width: 100%; display: flex; align-items: flex-end; }
 .meteo .mb i { display: block; width: 100%; border-radius: 6px 6px 2px 2px; }
 .meteo .mh, .meteo .mk { font-size: 11px; opacity: .8; }
+/* --- PlayAzon : onglets, filtre, articles cliquables */
+.seg { display: flex; gap: 4px; padding: 3px; margin-bottom: 10px; border-radius: 12px; background: rgba(255,255,255,.1); }
+.seg button { flex: 1; padding: 8px 6px; border: none; border-radius: 9px; background: transparent; color: #fff; font: 700 12.5px/1 inherit; cursor: pointer; opacity: .75; }
+.seg button.on { background: #ff9900; color: #1b1b24; opacity: 1; }
+.phone select.input { width: 100%; margin-bottom: 10px; padding: 9px 12px; border: none; border-radius: 12px; background: rgba(255,255,255,.12); color: #fff; font: inherit; font-size: 13px; }
+.phone select.input option { color: #14141c; }
+button.list-item.clickable { width: 100%; text-align: left; border: none; color: inherit; font: inherit; cursor: pointer; }
+button.list-item.clickable:hover { background: rgba(255,255,255,.14); }

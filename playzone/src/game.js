@@ -35,6 +35,7 @@ import { TouchControls } from './ui/touch.js';
 import { GPS } from './ui/gps.js';
 import { Interiors } from './interiors/interiors.js';
 import { Bills } from './property/bills.js';
+import { OnlineOrders } from './ui/shopping-app.js';
 import { Bank } from './property/bank.js';
 import { Career } from './career/career.js';
 import { bodyEffects } from '../shared/body.js';
@@ -170,6 +171,7 @@ export class Game extends Emitter {
     this.basket = new Basket(this);
     this.interiors = this.addSystem(new Interiors(this));
     this.bills = this.addSystem(new Bills(this));
+    this.online = this.addSystem(new OnlineOrders(this));   // colis des achats en ligne
     // décalage d'horloge (nuits passées à dormir) : seulement en solo, l'heure en ligne est commune
     try { this.world.dayNight.shift = this.net.mode === 'solo' ? +(localStorage.getItem('playzone.timeShift') || 0) || 0 : 0; } catch { /* stockage indisponible */ }
     this.bank = new Bank(this);

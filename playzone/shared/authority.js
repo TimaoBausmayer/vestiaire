@@ -29,6 +29,7 @@ import { CALENDAR_HANDLERS, defaultCalendar, tournamentSubmit } from './authorit
 import { KARTING_HANDLERS, defaultKarting, kartOnPosition } from './authority-karting.js';
 import { SPORTS_HANDLERS } from './authority-sports.js';
 import { PREMIUM_HANDLERS } from './authority-premium.js';
+import { ONLINE_HANDLERS } from './authority-online.js';
 import { defaultFoot } from './sports.js';
 import { defaultWing } from './wingfoil.js';
 import { defaultDisc } from './courses.js';
@@ -776,7 +777,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, SPORTS_HANDLERS, PREMIUM_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, SPORTS_HANDLERS, PREMIUM_HANDLERS, ONLINE_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS);
 // Liste des entreprises de joueurs où investir (en ligne).
 HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 

@@ -35,7 +35,11 @@ await ev(() => { const g = window.playzone; const u = g.police.units[0]; g.cam.y
 await sleep(500);
 await page.screenshot({ path: 'tests/e2e/out/pol-poursuite.png' });
 // 3) arrestation → prison
-await ev(() => window.playzone.police.arrestMe('Arrêté·e !'));
+// interpellation : l'avocat est proposé ; on choisit de suivre l'agent au tribunal
+await ev(() => { window.playzone.police.arrestMe('Arrêté·e !'); });
+await sleep(500);
+check(await page.getByText(/Appeler Maître Plaidetout/).count() > 0, 'l\'avocat est proposé à l\'interpellation');
+await page.getByText(/Suivre l'agent au tribunal/).click();
 await sleep(900);
 p = await prof();
 check(!!p.justice.jail && p.justice.jail.minutes >= 2 && p.justice.jail.minutes <= 12, `en prison pour ${p.justice.jail?.minutes} min (peine courte)`);

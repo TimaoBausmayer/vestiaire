@@ -18,6 +18,7 @@ import { socialApp } from './social-app.js';
 import { adminApp } from './admin.js';
 import { premiumApp } from './premium-app.js';
 import { gearApp, meteoApp, lawyerApp, quickActions } from './gear-app.js';
+import { shoppingApp } from './shopping-app.js';
 import { windAt } from '../../shared/wingfoil.js';
 import { calNow } from '../events/agenda.js';
 import { openWardrobe } from './shop.js';
@@ -39,6 +40,7 @@ const APPS = [
   { id: 'social', name: 'PlayGram', icon: '📸', bg: '#ff3fa4' },
   { id: 'urgences', name: 'Urgences', icon: '🚨', bg: '#d62828' },
   { id: 'premium', name: 'Boutique', icon: '💎', bg: '#7b2cbf' },
+  { id: 'achats', name: 'PlayAzon', icon: '🛒', bg: '#ff9900' },
   { id: 'gear', name: 'Équipement', icon: '🎛️', bg: '#0096c7' },
   { id: 'meteo', name: 'Météo', icon: '🌤️', bg: '#48cae4' },
   { id: 'avocat', name: 'Avocat', icon: '⚖️', bg: '#495057' },
@@ -273,6 +275,7 @@ export class Phone {
   app_urgences(b) { this.game.emergencies?.app(b, this); }
   app_premium(b) { premiumApp(this.game, b); }
   app_gear(b) { gearApp(this.game, b, this); }
+  app_achats(b) { shoppingApp(this.game, b, this); }
   app_meteo(b) { meteoApp(this.game, b); }
   app_avocat(b) { lawyerApp(this.game, b, this); }
 

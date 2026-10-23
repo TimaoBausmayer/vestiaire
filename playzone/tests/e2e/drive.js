@@ -23,6 +23,9 @@ check(near === 'berline', `voiture à portée de portière (${near})`);
 await page.keyboard.press('KeyE');
 await ev(() => window.playzone.debugStep(0.2));
 check(await ev(() => window.playzone.vehicles.driving), 'monté dans la voiture');
+// circulation traversable pendant les mesures (une voiture arrêtée au feu fausserait l'accélération)
+const ghostTraffic = (on) => ev((on) => { for (const c of window.playzone.traffic?.cars || []) for (const k of c?.colliders || []) k.enabled = !on; }, on);
+await ghostTraffic(true);
 // accélération
 const p0 = await ev(() => ({ ...window.playzone.player.pos }));
 await page.keyboard.down('KeyW');
@@ -56,6 +59,7 @@ const drift = await ev(() => { const s = window.playzone.vehicles.current.sim; r
 await page.screenshot({ path: 'tests/e2e/out/drive-3-derapage.png' });
 await page.keyboard.up('KeyD'); await page.keyboard.up('Space'); await page.keyboard.up('KeyW');
 check(drift.skid > 0.3, `dérapage au frein à main (glisse ${drift.slip.toFixed(1)} m/s)`);
+await ghostTraffic(false);
 // choc contre un mur : on vise un bâtiment à pleine vitesse
 await ev(() => { const g = window.playzone; const v = g.vehicles.current; v.sim.place(78, -2, -Math.PI / 2 + Math.PI); v.sim.yaw = Math.PI / 2; });
 // on vise la Résidence (x=72, z=22) depuis le nord : cap sud
