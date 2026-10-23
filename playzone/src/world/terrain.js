@@ -21,7 +21,10 @@ export function buildTerrain() {
   g.add(terrainPatch(M.x0, I.x0, I.z0, I.z1, 12));        // ouest
   g.add(terrainPatch(I.x1, M.x1, I.z0, I.z1, 12));        // est
   // carte géante (16 m) : massif au nord, désert à l'ouest, côte des Palmiers à l'est
-  g.add(terrainPatch(X0, X1, Z0, M.z0, 16));
+  // bande fine (4 m) au pied du massif pour dessiner la falaise, le reste à 16 m
+  g.add(terrainPatch(X0, X1, Z0, -3000, 16));
+  g.add(terrainPatch(X0, X1, -3000, -2940, 4));
+  g.add(terrainPatch(X0, X1, -2940, M.z0, 16));
   g.add(terrainPatch(X0, M.x0, M.z0, Z1, 16));
   g.add(terrainPatch(M.x1, X1, M.z0, Z1, 16));
   return g;
@@ -78,7 +81,8 @@ function terrainPatch(px0, px1, pz0, pz1, step) {
     if (x < -1880) { const dn = 0.5 + 0.5 * Math.sin(x * 0.05 + Math.sin(z * 0.03) * 2); c.copy(sand).lerp(new THREE.Color('#d9a066'), 0.35 + dn * 0.3); if (Math.sin(x * 0.011) * Math.sin(z * 0.013) > 0.55) c.lerp(new THREE.Color('#b5523b'), 0.45); }
     if (x > 1880) { c.copy(grass).lerp(new THREE.Color('#3fae5a'), 0.45 + n * 0.2); if (x > 2930) c.copy(sand).lerp(wet, Math.min(1, (x - 2960) / 30)); }
     if (z < -2010 && z > -2960) c.lerp(new THREE.Color('#8fc46a'), 0.35 + n * 0.15);
-    if (h > 3) { c.copy(new THREE.Color('#7d7f7d')).lerp(new THREE.Color('#5e6b4f'), Math.max(0, 0.6 - h / 60) + n * 0.1); if (h > 55 + n * 12) c.set('#f4f7fb'); }
+    if (h > 3 && z > -2985) c.set('#6f6a64').lerp(new THREE.Color('#8a857c'), 0.5 + n * 0.5);   // falaise
+    else if (h > 3) { c.copy(new THREE.Color('#7d7f7d')).lerp(new THREE.Color('#5e6b4f'), Math.max(0, 0.6 - h / 60) + n * 0.1); if (h > 55 + n * 12) c.set('#f4f7fb'); }
     // sous l'eau
     if (h < WATER_LEVEL) c.copy(wet).multiplyScalar(0.85);
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;

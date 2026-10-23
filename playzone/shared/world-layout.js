@@ -28,7 +28,7 @@ export function groundHeight(x, z) {
   // côtes est et ouest : l'île plonge dans la mer
   const edge = Math.max(-x + BOUNDS.minX, x - BOUNDS.maxX);
   if (edge > 0) h = Math.min(h, -Math.min(4.5, edge * 0.35));
-  // Massif des Géants : la montagne se dresse au nord de l'autoroute A4 (jusqu'à ~170 m)
+  // Massif des Géants : falaise puis montagne au nord de l'autoroute A4 (jusqu'à ~190 m)
   if (z < -2960) h = Math.max(h, mountainHeight(x, z));
   const dl = Math.hypot(x - LAKE.x, (z - LAKE.z) * 1.3);
   if (dl < LAKE.r) h = Math.min(h, -Math.min(4.5, (LAKE.r - dl) * 0.12));
@@ -44,7 +44,9 @@ export function mountainHeight(x, z) {
   const t = -2960 - z;
   if (t <= 0) return 0;
   const ridge = 0.72 + 0.2 * Math.sin(x * 0.0031 + 1.3) + 0.12 * Math.sin(x * 0.0113 + z * 0.006) + 0.06 * Math.sin(x * 0.041 - z * 0.027);
-  return t * 0.36 * ridge * Math.min(1, t / 60);   // pied adouci sur les 60 premiers mètres
+  // falaise rocheuse au pied (infranchissable : un mur de collision la double), puis les pentes et les sommets
+  const u = Math.min(1, t / 18), cliff = (26 + 8 * Math.sin(x * 0.07) * Math.sin(x * 0.023)) * ridge * u * u * (3 - 2 * u);
+  return cliff + Math.max(0, t - 18) * 0.36 * ridge;
 }
 
 export function isWater(x, z) {

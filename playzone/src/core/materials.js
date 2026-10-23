@@ -96,7 +96,8 @@ export const MATS = {
 };
 
 // Matériau pour objets mobiles individuels (personnages, animaux...).
-export const actorMaterial = withCut(withRim(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0 })), 'pz-actor');
+// matière physique avec reflet velouté (peau, tissus) : plus douce et plus réaliste à la lumière rasante
+export const actorMaterial = withCut(withRim(new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.66, metalness: 0, sheen: 0.4, sheenRoughness: 0.75, sheenColor: new THREE.Color('#fff4ea') })), 'pz-actor');
 
 // Matériau uni (une couleur), même rendu que le décor.
 export function solidMaterial(color, opts = {}) {

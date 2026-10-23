@@ -25,6 +25,15 @@ for (const [k, s] of Object.entries(spots)) {
   check(Number.isFinite(y) && y > -2, `${k} : sol à ${y.toFixed(1)} m`);
   await page.screenshot({ path: `tests/e2e/out/region-${k}.png` });
 }
+// Massif des Géants : falaise infranchissable, à pied comme en voiture
+await ev(() => { const g = window.playzone; g.player.teleport(300, -2940, Math.PI); g.cam.yaw = 0; g.cam.dist = 16; g.cam.pitch = 0.15; g.debugStep(0.3); });
+await page.keyboard.down('KeyW'); await ev(() => window.playzone.debugStep(5)); await page.keyboard.up('KeyW');
+const foot = await ev(() => ({ z: window.playzone.player.pos.z, y: window.playzone.player.pos.y }));
+check(foot.z > -2966 && foot.y < 3, `à pied : bloqué au pied de la falaise (z=${foot.z.toFixed(1)}, y=${foot.y.toFixed(1)})`);
+await sleep(1500);
+await page.screenshot({ path: 'tests/e2e/out/region-falaise.png' });
+const car = await ev(async () => { const { WorldVehicle } = await import('/src/vehicles/vehicles.js'); const g = window.playzone; const v = new WorldVehicle(g, { model: 'suv', x: 300, z: -2930, yaw: Math.PI, owner: 'stolen' }); g.vehicles.list.push(v); g.vehicles.enter(v); v.sim.place(300, -2930, Math.PI); v.sim.vx = 0; v.sim.vz = -30; v.sim.vf = 30; for (let i = 0; i < 60; i++) g.debugStep(1 / 20); const r = { z: v.sim.pos.z, y: v.sim.pos.y }; g.vehicles.exit(true); return r; });
+check(car.z > -2968 && car.y < 3, `en 4x4 à 108 km/h : arrêté par la falaise (z=${car.z.toFixed(1)})`);
 const d = await ev(async () => { const { destinations } = await import('/src/ui/gps.js'); return destinations(window.playzone.profile).map((x) => x.id); }).catch(() => []);
 check(['nordville', 'lac', 'marmottes', 'grand-large'].every((x) => d.includes(x)), 'GPS : destinations des nouvelles régions');
 const cBefore = await ev(() => window.playzone.profile.coins);

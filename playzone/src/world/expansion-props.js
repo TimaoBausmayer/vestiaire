@@ -85,11 +85,11 @@ function mesa(sb, col, x, z, r, h) {
   let y = 0;
   for (let i = 0; i < 4; i++) {
     const hh = h / 4, rr = r * (1 - i * 0.07);
-    sb.add(B.cyl(14), { x, y, z, sx: rr * 2, sy: hh, sz: rr * 1.7, ry: x * 0.01, color: cols[i] });
+    sb.add(B.cyl(18), { x, y, z, sx: rr * 2, sy: hh, sz: rr * 2, color: cols[i] });
     y += hh;
   }
-  sb.add(B.cyl(14), { x, y, z, sx: r * 1.65, sy: 0.6, sz: r * 1.4, ry: x * 0.01, color: '#c2a074' });
-  col.addBox(x - r * 0.8, 0, z - r * 0.7, x + r * 0.8, h, z + r * 0.7);
+  sb.add(B.cyl(18), { x, y, z, sx: r * 1.65, sy: 0.6, sz: r * 1.65, color: '#c2a074' });
+  col.addCyl(x, z, r, 0, h);   // collision à la taille exacte de la butte (on ne rentre plus dedans)
 }
 
 // Tracé d'un parcours : bandes posées segment par segment (+ disques aux virages), et zone sans arbres.
@@ -183,7 +183,7 @@ export function buildGiantProps(sb, col) {
   }
   // --- hauts plateaux, alpages et pentes du Massif des Géants : sapins
   for (let i = 0; i < 2600; i++) {
-    const x = R(-2990, 2990), z = i < 1700 ? R(-2950, -2010) : R(-3250, -2970);
+    const x = R(-2990, 2990), z = i < 1700 ? R(-2950, -2010) : R(-3250, -2995);   // pas d'arbres sur la falaise
     if (z > -2950 && !isFree(x, z, 1.5)) continue;
     if (x > -720 && x < 720 && z > -2640 && z < -2080 && rnd() < 0.85) continue;   // village dégagé
     const y = groundHeight(x, z);
@@ -195,6 +195,10 @@ export function buildGiantProps(sb, col) {
     const x = R(-2990, 2990), z = R(-2950, -2020);
     if (isFree(x, z, 2)) sb.blob(x, groundHeight(x, z), z, R(0.8, 2.6), '#8d8f8a', 0.6);
   }
+  // le Massif des Géants est infranchissable : mur de collision au pied de la falaise
+  col.addBox(-3100, -10, -3500, 3100, 400, -2963, { noCamera: true });
+  // éboulis au pied de la falaise
+  for (let i = 0; i < 420; i++) { const x = R(-2990, 2990), z = R(-2966, -2956); sb.blob(x, groundHeight(x, z) - 0.3, z, R(0.8, 2.4), i % 3 ? '#7d7f7d' : '#6f6a64', 0.7); }
   // fontaine du village de Glacier-sur-Alpe
   sb.cyl(0, 0, -2400, 4, 0.8, '#adb5bd', 16); sb.cyl(0, 0.8, -2400, 0.5, 2.2, '#adb5bd', 8); sb.sphere(0, 3.1, -2400, 0.6, '#90e0ef', 10);
   col.addBox(-4, 0, -2404, 4, 1, -2396);
