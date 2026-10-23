@@ -54,9 +54,10 @@ export class Player {
   teleport(x, z, yaw, y) {
     if (this.seated) { this.seated = null; this.avatar.root.rotation.set(0, this.yaw, 0); }
     this.teleportedAt = performance.now();
-    // dans un bâtiment à étages, on cherche le sol depuis le rez-de-chaussée (pas depuis le toit)
+    // on cherche le sol juste au-dessus du terrain : jamais sur un toit ou un auvent (sinon, en revenant
+    // devant sa porte, on atterrissait sur le toit de sa maison et on se blessait en tombant)
     const indoor = BUILDINGS.some((b) => b.interior && Math.abs(x - b.x) < b.w / 2 && Math.abs(z - b.z) < b.d / 2);
-    this.pos.set(x, y ?? this.collision.supportAt(x, z, indoor ? 1 : 50, PLAYER_RADIUS), z);
+    this.pos.set(x, y ?? this.collision.supportAt(x, z, indoor ? 1 : groundHeight(x, z) + 2.5, PLAYER_RADIUS), z);
     this.vel.set(0, 0, 0);
     if (yaw !== undefined) this.yaw = yaw;
     this.avatar.root.position.copy(this.pos);

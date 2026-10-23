@@ -107,7 +107,11 @@ export const STREETS = [
   { id: 'alpe-h', name: 'Grande Rue de Glacier-sur-Alpe', axis: 'h', z: -2350, x1: -700, x2: 700, w: 10, kind: 'main' },
   { id: 'alpe-v1', name: 'Chemin des Edelweiss', axis: 'v', x: -350, z1: -2600, z2: -2350, w: 8, kind: 'street' },
   { id: 'alpe-v2', name: 'Chemin des Chamois', axis: 'v', x: 350, z1: -2600, z2: -2350, w: 8, kind: 'street' },
+  { id: 'route-cimes', name: 'Route des Cimes', axis: 'h', z: -2500, x1: 0, x2: 1000, w: 9, kind: 'main' },
 ];
+// Chaussées élargies (plus confortables en voiture) : autoroutes +4 m, routes +2 m, rues +1,5 m.
+const WIDEN = { highway: 4, main: 2, country: 2, street: 1.5 };
+for (const s of STREETS) if (s.id !== 'crapaud') s.w += WIDEN[s.kind] || 0;   // la rue du Crapaud est bordée de maisons
 export const STREET_BY_ID = Object.fromEntries(STREETS.map((s) => [s.id, s]));
 
 // Rectangle de chaussée [x1, z1, x2, z2] d'une rue (prolongée d'une demi-largeur aux extrémités
@@ -245,6 +249,9 @@ export const CITY_ZONES = [
   { id: 'massif', name: 'Massif des Géants', rect: [-3000, -3400, 3000, -2950] },
   { id: 'desert', name: 'Désert des Sablons', rect: [-3000, -2000, -1850, 400] },
   { id: 'cote-palmiers', name: 'Côte des Palmiers', rect: [1850, -2000, 3000, 400] },
+  { id: 'bike-park', name: 'Bike Park des Géants', rect: [500, -2890, 990, -2440] },
+  { id: 'cols', name: 'Route des Cols', rect: [1040, -2800, 2480, -2280] },
+  { id: 'cimes', name: 'Zone commerciale des Cimes', rect: [80, -2490, 820, -2440] },
   { id: 'hauts-plateaux', name: 'Hauts Plateaux', rect: [-3000, -2950, 3000, -2000] },
 ];
 
@@ -473,6 +480,21 @@ add({ id: 'station-a2', name: 'Aire des Sommets (A2)', kind: 'shop', shop: 'stat
   for (let x = -660; x <= 660; x += 40) {
     if (Math.abs(x) < 300 || Math.abs(Math.abs(x) - 350) < 22) continue;
     for (const [z, facing] of [[-2375, 'S'], [-2325, 'N']]) { c++; add({ id: `chalet-al${c}`, name: `Chalet ${c} Grande Rue`, kind: 'house', interior: 'house', x, z, w: 13, d: 11, h: 7, facing, roof: 'gable', color: ['#a0703c', '#8d5a2b', '#bc6c25'][c % 3], roofColor: '#3a2a1e', district: 'alpe' }); }
+  }
+  // Bike Park des Géants : magasin de vélos et départ des parcours VTT et vélo de route
+  add({ id: 'bike-park', name: 'Bike Park des Géants', kind: 'shop', shop: 'bikepark', interior: 'agency', x: 930, z: -2522, w: 26, d: 14, h: 8, facing: 'S', roof: 'gable', color: '#ff6b35', roofColor: '#283618', sign: 'BIKE PARK DES GÉANTS', neon: true, district: 'bike-park' });
+  // zone commerciale des Cimes, le long de la route du Bike Park
+  {
+    const ZC = [
+      ['zc-sport', 'Sport Géant (tout pour le sport)', 'sport', 'shop', 140, 30, '#0082c3', '#ffffff', 'SPORT GÉANT'],
+      ['zc-brico', 'Brico des Cimes', 'brico', 'warehouse', 230, 36, '#f77f00', '#3d405b', 'BRICO DES CIMES'],
+      ['zc-meubles', 'Meubles du Chalet', 'maison', 'shop', 440, 30, '#bc6c25', '#283618', 'MEUBLES DU CHALET'],
+      ['zc-velos', 'Cycles des Cimes', 'bikes', 'shop', 520, 20, '#06d6a0', '#073b4c', 'CYCLES DES CIMES'],
+      ['zc-burger', 'Burger des Cimes', 'tacos', 'fastfood', 600, 18, '#e63946', '#ffd166', 'BURGER DES CIMES'],
+      ['zc-garage', 'Garage Alpin', 'repair', 'workshop', 680, 26, '#adb5bd', '#495057', 'GARAGE ALPIN'],
+      ['zc-super', 'Hyper des Cimes', 'supermarket', 'supermarket', 770, 36, '#e9f5db', '#1d4ed8', 'HYPER DES CIMES'],
+    ]
+    for (const [id, name, shop, interior, x, w, color, roofColor, sign] of ZC) add({ id, name, kind: 'shop', shop, interior, x, z: -2474, w, d: 16, h: 8, facing: 'N', ...(w >= 30 ? { style: 'big-box' } : {}), color, roofColor, sign, district: 'cimes' });
   }
   add({ id: 'station-a4', name: 'Aire des Géants (A4)', kind: 'shop', shop: 'station', interior: 'minimarket', x: 40, z: -2865, w: 14, d: 9, h: 4.5, facing: 'N', style: 'station', color: '#f4f1ea', roofColor: '#0077b6', sign: 'AIRE DES GÉANTS', district: 'hauts-plateaux', gas: { x: 40, z: -2882, w: 16, d: 12 } });
 }

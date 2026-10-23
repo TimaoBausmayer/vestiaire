@@ -45,6 +45,12 @@ export class DriveSim {
   get forward() { return tmp.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
 
   maxSpeed() { return this.spec.max * (this.boost || 1) * (1 - this.damage * 0.4); }
+  // Gamme de la voiture (0 = petite voiture bon marché, 1 = hypercar) : plus elle est chère, plus elle
+  // tient la route (adhérence en virage, direction vive, stabilité). Véhicules de service : milieu de gamme.
+  get tier() {
+    if (this._tier === undefined) { const p = this.spec.price || 30000; this._tier = Math.max(0, Math.min(1, Math.log10(Math.max(1, p / 8000)) / 2.5)); }
+    return this._tier;
+  }
   get broken() { return this.damage >= 1; }
   get outOfFuel() { return this.spec.fuel > 0 && this.fuel <= 0; }
 
@@ -80,6 +86,8 @@ export class DriveSim {
     if (thr > 0.05) {
       if (vf < -0.4) { acc = 13 * thr; this.brake = 1; }
       else acc = sp.acc * thr * Math.max(0.06, 1 - (vf / maxF) ** 2);
+      // limiteur de vitesse : on coupe l'accélération en douceur à l'approche de la limite
+      if (this.limit && vf > this.limit - 1.5) acc = Math.min(acc, (this.limit - vf) * 2.5);
     } else if (thr < -0.05) {
       if (vf > 0.4) { acc = 13 * thr; this.brake = 1; }
       else { acc = sp.acc * 0.55 * thr * Math.max(0, 1 - (vf / (maxF * 0.3)) ** 2); this.reverse = 1; }
@@ -94,14 +102,19 @@ export class DriveSim {
     const aspd = Math.abs(vf);
     const maxSteer = (sp.kind === 'car' ? 0.62 : 0.75) * (1 - 0.62 * Math.min(1, aspd / Math.max(10, sp.max)));
     const target = (inp.steer || 0) * maxSteer;
-    this.steer += (target - this.steer) * Math.min(1, dt * (Math.abs(target) > Math.abs(this.steer) ? 6 : 9));
+    const T = sp.kind === 'car' ? this.tier : 0.5;
+    this.steer += (target - this.steer) * Math.min(1, dt * (Math.abs(target) > Math.abs(this.steer) ? 6 + 4 * T : 9 + 3 * T));
     const wb = Math.max(0.6, D.zF - D.zR);
     let yawRate = -vf * Math.tan(this.steer) / wb * (sp.turn / 1.8);
+    // l'adhérence plafonne la rotation : à haute vitesse la voiture vire large mais reste contrôlable
+    // (au lieu de pivoter brutalement). Les voitures haut de gamme encaissent plus d'accélération latérale.
+    const latMax = (sp.kind === 'car' ? 11 + 9 * T : 13) * sp.grip * (inp.handbrake ? 1.8 : 1);
+    if (aspd > 1 && Math.abs(yawRate * vf) > latMax) yawRate = Math.sign(yawRate) * latMax / aspd;
     if (inp.handbrake && aspd > 4) yawRate *= 1.6;
     this.yawRate = yawRate;
     // adhérence latérale : le dérapage s'amortit plus ou moins vite
     const grip = sp.grip * (inp.handbrake ? 0.22 : 1) * (1 - this.damage * 0.25);
-    vl *= Math.exp(-dt * (1.5 + 11 * grip));
+    vl *= Math.exp(-dt * (1.5 + 11 * grip + 5 * T * (inp.handbrake ? 0 : 1)));   // contrôle de stabilité (haut de gamme)
     this.slip = Math.abs(vl);
     this.latAcc = yawRate * vf;
     this.yaw += yawRate * dt;

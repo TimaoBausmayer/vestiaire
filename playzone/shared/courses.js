@@ -18,6 +18,9 @@ export const ROUTES = {
   piste: { name: 'Piste d\'athlétisme du Stade des Crampons', pts: roundedRect(ATHLE.cx, ATHLE.cz, ATHLE.hx, ATHLE.hz, ATHLE.r).reverse(), width: ATHLE.w },
   hauts: { name: 'Boucle cycliste des Hauts', width: 9, pts: [{ x: 450, z: -430 }, { x: 140, z: -430 }, { x: 140, z: -700 }, { x: 560, z: -700 }, { x: 560, z: -430 }] },
   bouees: { name: 'Parcours de bouées de la Côte des Villas', width: 14, pts: [{ x: 360, z: 128 }, { x: 520, z: 128 }, { x: 572, z: 165 }, { x: 520, z: 205 }, { x: 440, z: 185 }, { x: 360, z: 208 }, { x: 318, z: 168 }] },
+  // Bike Park des Géants : sentier VTT en terre qui serpente vers la montagne, et la Route des Cols (asphalte)
+  vtt: { name: 'Sentier VTT du Bike Park des Géants', width: 7, pts: [{ x: 880, z: -2550 }, { x: 780, z: -2570 }, { x: 720, z: -2620 }, { x: 630, z: -2600 }, { x: 560, z: -2650 }, { x: 570, z: -2730 }, { x: 650, z: -2770 }, { x: 610, z: -2830 }, { x: 710, z: -2860 }, { x: 790, z: -2800 }, { x: 850, z: -2830 }, { x: 900, z: -2760 }, { x: 870, z: -2690 }, { x: 910, z: -2620 }] },
+  cols: { name: 'Route des Cols', width: 9, pts: [{ x: 1060, z: -2490 }, { x: 1700, z: -2490 }, { x: 1950, z: -2300 }, { x: 2400, z: -2300 }, { x: 2450, z: -2600 }, { x: 2000, z: -2780 }, { x: 1500, z: -2720 }, { x: 1250, z: -2620 }] },
   f1: { name: 'Circuit de l\'Académie F1', width: 13, pts: [{ x: 640, z: -748 }, { x: 790, z: -748 }, { x: 806, z: -762 }, { x: 806, z: -792 }, { x: 790, z: -806 }, { x: 735, z: -812 }, { x: 722, z: -826 }, { x: 735, z: -840 }, { x: 790, z: -846 }, { x: 806, z: -862 }, { x: 806, z: -888 }, { x: 790, z: -902 }, { x: 640, z: -902 }, { x: 622, z: -886 }, { x: 622, z: -764 }] },
 };
 // longueurs cumulées
@@ -48,7 +51,7 @@ export function distToRoute(r, x, z) {
   }
   return best;
 }
-export const GATE_R = { piste: 7, hauts: 12, f1: 16, bouees: 14 };
+export const GATE_R = { piste: 7, hauts: 12, f1: 16, bouees: 14, vtt: 11, cols: 14 };
 
 // ------------------------------------------------------------------------------ station de ski du Mont-Pinard
 // 5 pistes côte à côte qui descendent du nord (sommet) vers le sud (front de neige) : verte, bleue,
@@ -121,6 +124,22 @@ export const DISC = {
     modes: {
       seance: { name: 'Sortie d\'entraînement (1 tour)', laps: 1, npcs: 0, fee: 0, prizes: [] },
       course: { name: 'Grand Prix cycliste des Hauts (2 tours)', laps: 2, npcs: 9, fee: 20, prizes: [600, 300, 150] },
+    },
+  },
+  vtt: {
+    name: 'VTT', icon: '🚵', place: 'bike-park', route: 'vtt', how: 'bike', model: 'vtt', ref: 8.5, vmax: 20,
+    member: { name: 'Pass Bike Park', price: 120, days: 7 },
+    modes: {
+      seance: { name: 'Sentier des Géants (1 tour)', laps: 1, npcs: 0, fee: 0, prizes: [] },
+      course: { name: 'Enduro des Géants (2 tours, 7 riders PNJ)', laps: 2, npcs: 7, fee: 20, prizes: [500, 250, 120] },
+    },
+  },
+  route: {
+    name: 'Vélo de route', icon: '🚴‍♂️', place: 'bike-park', route: 'cols', how: 'bike', model: 'velo-route', ref: 11.5, vmax: 26,
+    member: null,   // la Route des Cols est gratuite
+    modes: {
+      seance: { name: 'Sortie sur la Route des Cols (1 tour, gratuit)', laps: 1, npcs: 0, fee: 0, prizes: [] },
+      course: { name: 'Tour des Géants (1 tour, 11 coureurs PNJ)', laps: 1, npcs: 11, fee: 15, prizes: [700, 350, 175] },
     },
   },
   f1: {

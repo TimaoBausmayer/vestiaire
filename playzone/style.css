@@ -422,3 +422,5 @@ select.haggle { border-radius: 10px; border: 0; padding: 6px 8px; font-weight: 7
 .foot-btns { position: absolute; right: calc(14px + var(--safe-r, 0px)); bottom: calc(190px + var(--safe-b, 0px)); display: flex; flex-direction: column; gap: 8px; pointer-events: auto; z-index: 5; }
 .foot-btns button { font: 800 14px/1 inherit; padding: 10px 14px; border-radius: 99px; border: 2px solid rgba(255,255,255,.7); background: rgba(20,30,60,.75); color: #fff; touch-action: none; }
 
+.dash .limit { margin-top: 7px; width: 100%; padding: 4px 0; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; background: rgba(255,255,255,.06); color: #fff; font: 700 12px/1.2 inherit; letter-spacing: .5px; cursor: pointer; }
+.dash .limit.on { background: #ffb703; border-color: #ffb703; color: #1b1b24; }

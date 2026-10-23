@@ -106,6 +106,7 @@ export class Vehicles {
       h('div.gauges',
         h('div.g', h('span', '⛽'), h('div.bar', this.fuelBar = h('div'))),
         h('div.g', h('span', '🔧'), h('div.bar.dmg', this.dmgBar = h('div')))),
+      this.dashLimit = h('button.limit', { title: 'Limiteur de vitesse (touche B)', onclick: () => this.cycleLimiter() }, 'LIM —'),
       this.dashName = h('div.name', ''));
     game.ui.root.append(this.dash);
     game.interactions.add({
@@ -127,6 +128,7 @@ export class Vehicles {
       if (e.code === 'KeyK') { const v = this.current || this.nearOwn(4); if (v) this.toggleLock(v); return; }
       if (!this.current) return;
       if (e.code === 'KeyH') this.honk();
+      if (e.code === 'KeyB') this.cycleLimiter();
       if (e.code === 'KeyL') { this.current.lightsOn = !this.current.lightsOn; game.ui.toast(this.current.lightsOn ? 'Phares allumés' : 'Phares automatiques', '', 1200); }
     });
     // pompe à essence : à pied près de son véhicule, ou à l'arrêt au volant, dans une station-service
@@ -322,6 +324,7 @@ export class Vehicles {
     g.cam.dist = Math.max(g.cam.dist, v.spec.kind === 'car' ? 6 + v.dims.L * 0.9 : 6);
     this.dash.classList.remove('hidden');
     this.dashName.textContent = `${vehicleIcon(v.model)} ${vehicleName(v.model)}`;
+    { const l = Math.round((v.sim.limit || 0) * 3.6); this.dashLimit.textContent = l ? `LIM ${l}` : 'LIM —'; this.dashLimit.classList.toggle('on', !!l); }
     const touch = g.input.isTouch;
     g.hud.track('vehicle', { title: `${vehicleIcon(v.model)} ${vehicleName(v.model)}`, text: touch ? 'Joystick : avancer / tourner. ✋ : descendre.' : 'Z/S : avancer / freiner / reculer · Q/D : tourner · Espace : frein à main · H : klaxon · L : phares · E : descendre' });
     this.emit('enter', v);
@@ -355,6 +358,18 @@ export class Vehicles {
   }
 
   emit(type, v) { this.game.emit(`vehicle.${type}`, v); }
+
+  // Limiteur de vitesse : arrêt → 30 → 50 → 80 → 110 → 130 km/h → arrêt (touche B ou bouton du compteur)
+  cycleLimiter() {
+    const v = this.current; if (!v) return;
+    const steps = [0, 30, 50, 80, 110, 130];
+    const cur = Math.round((v.sim.limit || 0) * 3.6);
+    const next = steps[(steps.indexOf(cur) + 1) % steps.length];
+    v.sim.limit = next ? next / 3.6 : 0;
+    this.dashLimit.textContent = next ? `LIM ${next}` : 'LIM —';
+    this.dashLimit.classList.toggle('on', !!next);
+    this.game.ui.toast(next ? `🚦 Limiteur : ${next} km/h` : '🚦 Limiteur désactivé', '', 1200);
+  }
 
   honk() {
     const v = this.current;

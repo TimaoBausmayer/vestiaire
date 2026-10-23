@@ -12,6 +12,8 @@ export const VEHICLES = {
   trottinette: { name: 'Trottinette', cat: 'micro', kind: 'board', max: 9.5, acc: 7, turn: 2.6, grip: 0.95, fuel: 0, price: 450, seats: 1 },
   caddie: { name: 'Caddie Turbo', cat: 'micro', kind: 'caddie', max: 12, acc: 8, turn: 2.8, grip: 0.8, fuel: 0, price: 1200, level: 2, seats: 1 },
   velo: { name: 'Vélo de Ville', cat: 'moto', kind: 'bike', max: 11, acc: 6, turn: 2.6, grip: 0.95, fuel: 0, price: 450, seats: 1 },
+  vtt: { name: 'VTT tout-suspendu', cat: 'moto', kind: 'bike', paint: '#ff6b35', max: 12.5, acc: 7, turn: 2.7, grip: 0.97, fuel: 0, price: 1600, seats: 1 },
+  'velo-route': { name: 'Vélo de route aéro', cat: 'moto', kind: 'bike', paint: '#1d4ed8', max: 16, acc: 7, turn: 2.4, grip: 0.95, fuel: 0, price: 3200, level: 3, seats: 1 },
   scooter: { name: 'Scooter', cat: 'moto', kind: 'scooter', max: 16, acc: 9, turn: 2.4, grip: 0.92, fuel: 6, use: 0.03, price: 2400, level: 3, seats: 1 },
   moto: { name: 'Moto Éclair 600', cat: 'moto', kind: 'moto', max: 30, acc: 15, turn: 2.2, grip: 0.9, fuel: 14, use: 0.05, price: 9500, level: 6, seats: 1 },
   // --- karts du circuit (location uniquement, ne quittent pas la piste)

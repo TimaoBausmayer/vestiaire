@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { openShop } from '../ui/shop.js';
 import { h, fmt } from '../ui/dom.js';
 import { WorldVehicle } from '../vehicles/vehicles.js';
 import { CarVisual } from '../vehicles/car-models.js';
@@ -14,7 +15,7 @@ import { DISC, ROUTES, ATHLE, GATE_R, routeAt, distToRoute, fmtTime } from '../.
 
 const req = async (g, t, p) => { try { return await g.net.request(t, p); } catch (e) { g.ui.toast(e.message, 'bad', 5000); g.sfx('error'); return null; } };
 const pick = (r, a) => a[Math.floor(r() * a.length)];
-const MODEL = { bike: 'velo-course', f1: 'f1' };
+const MODEL = { bike: 'velo-course', f1: 'f1' };   // modèle prêté (une discipline peut en préciser un autre)
 const F1_PAINTS = ['#d00000', '#00a19c', '#ff8700', '#1e41ff', '#ffffff', '#006f62', '#2b2d42', '#ffd23f', '#9b5de5', '#0090ff'];
 
 export class Races {
@@ -88,6 +89,17 @@ export class Races {
     ] });
   }
 
+  // Bike Park des Géants : VTT, vélo de route, achat de vélos
+  bikeDesk(b) {
+    const g = this.g;
+    g.ui.dialog({ name: 'Accueil', role: 'Bike Park des Géants', text: 'Salut ! Sentier VTT plein de bosses (essai gratuit puis pass), Route des Cols gratuite en vélo de route. Et on vend des vélos !', choices: [
+      { label: '🚵 VTT : sentier et Enduro', action: (m) => { m.close(); this.desk('vtt'); } },
+      { label: '🚴‍♂️ Vélo de route : Route des Cols', action: (m) => { m.close(); this.desk('route'); } },
+      { label: '🛒 Acheter un vélo', action: (m) => { m.close(); openShop(g, 'bikes', b); } },
+      { label: 'Au revoir', ghost: true, action: (m) => m.close() },
+    ] });
+  }
+
   desk(disc) {
     const g = this.g, D = DISC[disc];
     if (this.s || g.football?.s) { g.ui.toast('Termine d\'abord ton activité en cours.', 'bad'); return; }
@@ -139,7 +151,7 @@ export class Races {
       g.player.teleport(me.x, me.z, me.yaw);
       g.player.speedBonus = (g.player.speedBonus || 1) * (1 + d.skill / 450);
     } else {
-      const v = new WorldVehicle(g, { model: MODEL[D.how], color: D.how === 'f1' ? '#d00000' : '#e63946', x: me.x, z: me.z, yaw: me.yaw, owner: 'course' });
+      const v = new WorldVehicle(g, { model: D.model || MODEL[D.how], color: D.how === 'f1' ? '#d00000' : '#e63946', x: me.x, z: me.z, yaw: me.yaw, owner: 'course' });
       g.vehicles.list.push(v); g.vehicles.enter(v);
       if (D.how === 'bike') v.sim.boost = 1 + (d.skill + (g.profile.body.endurance ?? 15)) / 380;
       else v.sim.boost = 1 + d.skill / 900;
@@ -158,7 +170,7 @@ export class Races {
     const g = this.g, r = mulberry32(hashString(n.name));
     const app = { ...DEFAULT_APPEARANCE, skin: pick(r, SKINS.slice(0, 8)), hair: pick(r, HAIR_STYLES), hairColor: pick(r, HAIR_COLORS.slice(0, 7)), top: D.how === 'foot' ? 'debardeur' : 'tshirt', topColor: pick(r, COLORS), bottom: 'short', hat: null };
     let root, av = null, vis = null;
-    if (D.how === 'foot') { av = new Avatar(app, {}); root = av.root; } else { vis = new CarVisual(MODEL[D.how], { paint: D.how === 'f1' ? pick(r, F1_PAINTS) : pick(r, COLORS), driver: app, driverKey: `race-${n.name}` }); root = vis.root; }
+    if (D.how === 'foot') { av = new Avatar(app, {}); root = av.root; } else { vis = new CarVisual(D.model || MODEL[D.how], { paint: D.how === 'f1' ? pick(r, F1_PAINTS) : pick(r, COLORS), driver: app, driverKey: `race-${n.name}` }); root = vis.root; }
     g.engine.scene.add(root);
     const label = document.createElement('div');
     label.className = 'wlabel'; label.textContent = `${n.name} (PNJ)`;

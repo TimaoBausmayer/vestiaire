@@ -22,7 +22,9 @@ const NEW_CARS = [
   ['fantome', '🎩', 'Le chauffeur n\'est pas fourni. La classe, si.'],
   ['furioso', '🐂', 'V12, portes en ciseaux, voisins jaloux.'],
   ['chiron-mamie', '👵', 'La voiture la plus rapide de PLAYZONE. Mamie l\'a validée.'],
-].map(([id, emoji, desc]) => ({ id, name: VEHICLES[id].name, shop: id === 'velo' || id === 'moto' ? 'bikes' : VEHICLES[id].price >= 100000 ? 'cars-luxe' : 'cars-new', vehicle: id, price: VEHICLES[id].price, level: VEHICLES[id].level, emoji, desc, max: 1 }));
+  ['vtt', '🚵', 'Suspensions, gros pneus à crampons : les bosses du Bike Park n\'ont qu\'à bien se tenir.'],
+  ['velo-route', '🚴', 'Cadre carbone, 7 kg tout mouillé. Les mollets ne sont pas fournis.'],
+].map(([id, emoji, desc]) => ({ id, name: VEHICLES[id].name, shop: ['velo', 'moto', 'vtt', 'velo-route'].includes(id) ? 'bikes' : VEHICLES[id].price >= 100000 ? 'cars-luxe' : 'cars-new', vehicle: id, price: VEHICLES[id].price, level: VEHICLES[id].level, emoji, desc, max: 1 }));
 
 export default {
   id: 'base',

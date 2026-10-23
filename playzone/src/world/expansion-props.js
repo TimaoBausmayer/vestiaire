@@ -1,7 +1,8 @@
 import { SHAPES as B } from '../core/static-builder.js';
 import { LAKE, MARINA, WATER_LEVEL, groundHeight } from '../../shared/world-layout.js';
 import { tree } from './props.js';
-import { isFree } from './city-props.js';
+import { isFree, block } from './city-props.js';
+import { ROUTES } from '../../shared/courses.js';
 
 // DÉCOR DE LA TRÈS GRANDE CARTE : aéroport (piste, tour de contrôle, avions garés), port du Grand-Large
 // (pontons, yachts), Lac des Grenouilles (ponton, barques), panneaux d'autoroute.
@@ -91,7 +92,63 @@ function mesa(sb, col, x, z, r, h) {
   col.addBox(x - r * 0.8, 0, z - r * 0.7, x + r * 0.8, h, z + r * 0.7);
 }
 
+// Tracé d'un parcours : bandes posées segment par segment (+ disques aux virages), et zone sans arbres.
+function paintRoute(sb, r, color, edge) {
+  for (let i = 0; i < r.pts.length; i++) {
+    const a = r.pts[i], b = r.pts[(i + 1) % r.pts.length], len = Math.hypot(b.x - a.x, b.z - a.z), yaw = Math.atan2(b.x - a.x, b.z - a.z);
+    const cx = (a.x + b.x) / 2, cz = (a.z + b.z) / 2;
+    if (edge) sb.quad(cx, 0.035, cz, r.width + 1.6, len, edge, yaw, 'ground');
+    sb.quad(cx, 0.045, cz, r.width, len, color, yaw, 'ground');
+    sb.add(B.cyl(16), { x: a.x, y: 0.046, z: a.z, sx: r.width, sy: 0.01, sz: r.width, color });   // virage arrondi
+    block(Math.min(a.x, b.x) - r.width, Math.min(a.z, b.z) - r.width, Math.max(a.x, b.x) + r.width, Math.max(a.z, b.z) + r.width);
+  }
+}
+
+// Bike Park des Géants : sentier VTT (terre, bosses, virages relevés, passerelles), Route des Cols
+// (asphalte, ligne médiane), piste de bosses (pump track) devant le magasin.
+function bikePark(sb, col) {
+  const V = ROUTES.vtt, C = ROUTES.cols;
+  paintRoute(sb, V, '#8d6e4f', '#6b8f3a');
+  paintRoute(sb, C, '#3e4148', '#c9c3b6');
+  // ligne médiane pointillée de la Route des Cols
+  for (let i = 0; i < C.pts.length; i++) {
+    const a = C.pts[i], b = C.pts[(i + 1) % C.pts.length], len = Math.hypot(b.x - a.x, b.z - a.z), yaw = Math.atan2(b.x - a.x, b.z - a.z);
+    for (let d = 6; d < len - 6; d += 12) sb.quad(a.x + (b.x - a.x) * d / len, 0.05, a.z + (b.z - a.z) * d / len, 0.25, 5, '#f4f1ea', yaw, 'ground');
+  }
+  // bosses du sentier : petites buttes de terre franchissables (le vélo monte dessus)
+  for (let i = 0; i < V.pts.length; i++) {
+    const a = V.pts[i], b = V.pts[(i + 1) % V.pts.length], len = Math.hypot(b.x - a.x, b.z - a.z), yaw = Math.atan2(b.x - a.x, b.z - a.z);
+    for (let d = 18; d < len - 12; d += 22) {
+      const x = a.x + (b.x - a.x) * d / len, z = a.z + (b.z - a.z) * d / len;
+      sb.add(B.sphere(12), { x, y: -0.05, z, sx: V.width * 0.9, sy: 0.8, sz: 3.2, ry: yaw, color: '#7a5c3e' });
+      const hx = Math.abs(Math.cos(yaw)) * V.width * 0.4 + Math.abs(Math.sin(yaw)) * 1.2, hz = Math.abs(Math.sin(yaw)) * V.width * 0.4 + Math.abs(Math.cos(yaw)) * 1.2;
+      col.addBox(x - hx, 0, z - hz, x + hx, 0.32, z + hz);
+    }
+    // virage relevé (berme) à l'extérieur de chaque virage, et quelques rochers
+    sb.add(B.sphere(12), { x: a.x, y: 0, z: a.z, sx: V.width * 1.6, sy: 1.2, sz: V.width * 1.6, color: '#6f5236' });
+    sb.blob(a.x + V.width, 0, a.z + 2, 1.1, '#8d8f8a', 0.6);
+  }
+  // panneaux de départ (arche) du sentier et de la Route des Cols
+  for (const [r, c] of [[V, '#ff6b35'], [C, '#1d4ed8']]) {
+    const p = r.pts[0], q = r.pts[1], yaw = Math.atan2(q.x - p.x, q.z - p.z), ox = Math.cos(yaw) * (r.width / 2 + 3), oz = -Math.sin(yaw) * (r.width / 2 + 3);
+    sb.box(p.x + ox, 0, p.z + oz, 0.4, 5, 0.4, c); sb.box(p.x - ox, 0, p.z - oz, 0.4, 5, 0.4, c);
+    sb.add(B.box(), { x: p.x, y: 5, z: p.z, sx: r.width + 6.4, sy: 1, sz: 0.4, ry: yaw + Math.PI / 2, color: c });
+    col.addCyl(p.x + ox, p.z + oz, 0.25, 0, 5); col.addCyl(p.x - ox, p.z - oz, 0.25, 0, 5);
+  }
+  // pump track (ovale de bosses) devant le magasin, au sud de la route des Cimes
+  const pt = { x: 760, z: -2468, rx: 34, rz: 14 };
+  for (let k = 0; k < 40; k++) {
+    const a0 = (k / 40) * Math.PI * 2, x = pt.x + Math.cos(a0) * pt.rx, z = pt.z + Math.sin(a0) * pt.rz;
+    sb.add(B.sphere(10), { x, y: -0.1, z, sx: 6, sy: k % 2 ? 1.2 : 0.5, sz: 6, color: k % 2 ? '#8d6e4f' : '#7a5c3e' });
+    if (k % 2) col.addBox(x - 1.5, 0, z - 1.5, x + 1.5, 0.45, z + 1.5);
+  }
+  block(pt.x - pt.rx - 4, pt.z - pt.rz - 4, pt.x + pt.rx + 4, pt.z + pt.rz + 4);
+  // râteliers à vélos devant le magasin
+  for (let i = 0; i < 6; i++) sb.add(B.torus(), { x: 912 + i * 1.6, y: 0.5, z: -2511, sx: 1, sy: 1, sz: 1, color: '#adb5bd' });
+}
+
 export function buildGiantProps(sb, col) {
+  bikePark(sb, col);
   // --- désert des Sablons
   let n = 0;
   for (let i = 0; i < 400 && n < 16; i++) {
