@@ -3,6 +3,7 @@ import { h, fmt } from '../ui/dom.js';
 import { Avatar } from '../characters/avatar.js';
 import { DEFAULT_APPEARANCE, SKINS, COLORS } from '../../shared/appearance.js';
 import { groundHeight, WATER_LEVEL, BUILDING_BY_ID } from '../../shared/world-layout.js';
+import { deepWaterNear, inNavZone } from '../../shared/gear.js';
 import { mulberry32, hashString } from '../../shared/rng.js';
 import { DISC, ROUTES, GATE_R, routeAt, fmtTime } from '../../shared/courses.js';
 import { Wake } from './wake.js';
@@ -52,15 +53,25 @@ export class Jetski {
 
   go(mode) { return this.start(mode); }
 
-  async start(mode) {
+  // Mise à l'eau « où on veut » avec son propre jet ski (balade libre), sur l'eau profonde la plus proche.
+  launchHere() {
+    const g = this.g, P = g.player;
+    if (this.s) return;
+    const at = deepWaterNear(P.pos.x, P.pos.z, 48);
+    if (!at) { g.ui.toast('🌊 Pas d\'eau profonde à côté : approche-toi de la mer, du lac ou d\'un port.', 'bad', 3500); return; }
+    this.start('balade', at);
+  }
+
+  async start(mode, at = null) {
     const g = this.g, D = DISC.jetski, M = D.modes[mode];
-    const r = await req(g, 'sport.start', { disc: 'jetski', mode });
+    const back = { x: g.player.pos.x, z: g.player.pos.z };
+    const r = await req(g, 'sport.start', { disc: 'jetski', mode, ...(at ? { at } : {}) });
     if (!r) return;
     if (r.trial) g.ui.toast('🎁 Essai gratuit !', 'good', 2500);
     if (g.vehicles?.current) g.vehicles.exit(true);
-    const st = routeAt(R, -12);
+    const st = at ? { x: at.x, z: at.z, yaw: 0 } : routeAt(R, -12);
     g.player.external = true; g.player.noJump = true;
-    this.s = { mode, M, x: st.x, z: st.z, yaw: st.yaw, vx: 0, vz: 0, y: 0, vy: 0, spin: 0, air: 0, vis: st.yaw, next: 1, lap: 0, laps: [], go: r.go, lapStart: r.go, hudT: 0, npcs: [], tricks: 0, until: M.free ? g.now() + M.free * 1000 : 0 };
+    this.s = { back: at ? back : null, mode, M, x: st.x, z: st.z, yaw: st.yaw, vx: 0, vz: 0, y: 0, vy: 0, spin: 0, air: 0, vis: st.yaw, next: 1, lap: 0, laps: [], go: r.go, lapStart: r.go, hudT: 0, npcs: [], tricks: 0, until: M.free ? g.now() + M.free * 1000 : 0 };
     this.rig.visible = true;
     this.wake.clear();
     const own = (g.profile.inventory.jetski || 0) > 0;
@@ -126,7 +137,7 @@ export class Jetski {
     if (waiting) { s.vx = 0; s.vz = 0; }
     s.x += s.vx * dt; s.z += s.vz * dt;
     // rester en eau profonde
-    if (groundHeight(s.x, s.z) > WATER_LEVEL - 0.7 || s.z > 236 || Math.abs(s.x) > 896) { s.x -= s.vx * dt * 1.5; s.z -= s.vz * dt * 1.5; s.vx *= -0.3; s.vz *= -0.3; g.sfx('bump'); }
+    if (groundHeight(s.x, s.z) > WATER_LEVEL - 0.7 || !inNavZone(s.x, s.z)) { s.x -= s.vx * dt * 1.5; s.z -= s.vz * dt * 1.5; s.vx *= -0.3; s.vz *= -0.3; g.sfx('bump'); }
     const sp = Math.hypot(s.vx, s.vz);
     const wy = wave(s.x, s.z, t);
     const y = WATER_LEVEL + 0.05 + wy * (sp > 12 ? 0.4 : 1) + Math.max(0, s.y);
@@ -196,7 +207,7 @@ export class Jetski {
     if (!abandon) { const p0 = R.pts[0]; g.player.pos.set(p0.x, 0, p0.z); g.net.sendState?.(g.player.netState(), g.player.zone); }
     const r = await req(g, 'sport.finish', abandon ? { abandon: true } : { time, laps: s.laps });
     const shop = BUILDING_BY_ID['surf-shop'];
-    g.player.teleport(shop.door.x, shop.door.z + 3, Math.PI);
+    if (s.back) g.player.teleport(s.back.x, s.back.z, Math.PI); else g.player.teleport(shop.door.x, shop.door.z + 3, Math.PI);
     if (abandon || !r) return;
     g.sfx(r.rank === 1 || r.record ? 'levelup' : 'success');
     const pos = r.rank ? `${r.rank === 1 ? '🥇 VICTOIRE' : `${r.rank}e`} sur ${r.of}. ` : '';

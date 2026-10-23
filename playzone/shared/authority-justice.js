@@ -3,7 +3,7 @@
 // travail et évasion, code de la route et permis. Fonctions appelées avec `this` = l'Authority.
 import { BUILDING_BY_ID, BUILDINGS } from './world-layout.js';
 import { VEHICLES } from './content/vehicles.js';
-import { CRIMES, FINES, BOUNTY, BOUNTY_COOLDOWN, ASSIST, MAX_STARS, sentence, loseTime, LICENCE, CODE_QUESTIONS, codeTest, CODE_PASS, EXAM_ROUTE, EXAM_MIN_SECONDS, EXAM_MAX_ERRORS } from './justice.js';
+import { CRIMES, FINES, BOUNTY, BOUNTY_COOLDOWN, ASSIST, MAX_STARS, sentence, lawyerCost, loseTime, LICENCE, CODE_QUESTIONS, codeTest, CODE_PASS, EXAM_ROUTE, EXAM_MIN_SECONDS, EXAM_MAX_ERRORS } from './justice.js';
 
 const err = (error) => ({ ok: false, error });
 // Téléportation décidée par l'autorité : la position validée suit (sinon l'anti-triche la refuserait).
@@ -150,6 +150,25 @@ export const JUSTICE_HANDLERS = {
     ctx.session.stolen = null; ctx.session.robbery = null; ctx.session.shift = null;
     moveTo(ctx, res.at);
     return { ok: true, changed: true, data: res };
+  },
+
+  // Avocat appelé au moment de l'arrestation : il règle l'affaire sur place, pas de prison. On repart
+  // d'où on est (avec sa voiture). Le butin volé est restitué. Gratuit pour l'admin.
+  'police.lawyer'(ctx) {
+    const p = ctx.profile, j = p.justice;
+    if (j.jail) return err('Trop tard : tu es déjà en prison (le gardien accepte peut-être un billet...).');
+    if (!j.stars && !j.crimes.length) return err('Personne ne te recherche : pas besoin d\'avocat.');
+    const minutes = sentence(j.crimes);
+    const cost = p.admin ? 0 : lawyerCost(minutes, j.stars);   // sans prison en vue : tarif de base (les amendes restent dues)
+    if (p.coins < cost) return err(`Maître Plaidetout demande ${cost} PC d'honoraires.`);
+    this.addCoins(p, -cost);
+    const restored = Math.min(Math.round(p.cash || 0), Math.round(j.loot || 0));
+    p.cash = Math.max(0, (p.cash || 0) - restored); j.loot = 0;
+    for (const c of j.crimes) j.record.push({ ...c, end: 'avocat' });
+    if (j.record.length > 40) j.record.splice(0, j.record.length - 40);
+    j.crimes = []; j.stars = 0;
+    ctx.session.stolen = null; ctx.session.robbery = null;
+    return { ok: true, changed: true, data: { cost, avoided: minutes, restored } };
   },
 
   // ---------------------------------------------------------------- prison

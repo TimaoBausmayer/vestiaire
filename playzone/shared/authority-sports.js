@@ -98,22 +98,33 @@ export { PITCH };
 import { windAt, MIN_WIND, WING, maxJump, jumpPoints, windLabel } from './wingfoil.js';
 import { calTime } from './authority-calendar.js';
 const atSurf = (self, ctx) => self.atBuilding(ctx, BUILDING_BY_ID['surf-shop'], 4);
+import { equipped, gearStats, ownsGear, GEAR_SLOTS, GEAR_COLORS } from './gear.js';
+import { groundHeight, WATER_LEVEL } from './world-layout.js';
 
 Object.assign(SPORTS_HANDLERS, {
   // mise à l'eau : il faut une aile (achetée), ou l'essai gratuit, ou une location ; et du vent
-  'wing.start'(ctx, { mode }) {
+  // at : mise à l'eau « où on veut » (avec son propre matériel), sur un point d'eau profonde proche
+  'wing.start'(ctx, { mode, at }) {
     const p = ctx.profile, w = p.sports.wing;
-    if (!atSurf(this, ctx)) return err('La mise à l\'eau se fait au Surf Shop de la Côte des Villas.');
+    const own = ownsGear(p, 'aile-5') || Object.keys(GEAR_SLOTS.wing).some((id) => ownsGear(p, id));
+    if (at) {
+      if (!own) return err('Il te faut ton propre wingfoil pour te mettre à l\'eau où tu veux (Surf Shop).');
+      if (typeof at.x !== 'number' || typeof at.z !== 'number' || groundHeight(at.x, at.z) > WATER_LEVEL - 1) return err('Il faut de l\'eau profonde pour mettre le foil à l\'eau.');
+      if (ctx.pos && Math.hypot(ctx.pos.x - at.x, ctx.pos.z - at.z) > 60) return err('Approche-toi de l\'eau.');
+      if (ctx.pos) { ctx.pos.x = at.x; ctx.pos.z = at.z; }
+    } else if (!atSurf(this, ctx)) return err('La mise à l\'eau se fait au Surf Shop de la Côte des Villas (ou n\'importe où au bord de l\'eau avec ton propre wingfoil).');
+    const gear = own ? equipped(p) : equipped({ inventory: {} });
+    const st = gearStats(gear);
     const wind = windAt(calTime(ctx));
-    if (wind.kts < MIN_WIND) return err(`Pas assez de vent : ${wind.kts} nœuds (${windLabel(wind.kts)}). Il en faut au moins ${MIN_WIND}. Regarde les prévisions et reviens plus tard !`);
+    if (wind.kts < st.minWind) return err(`Pas assez de vent : ${wind.kts} nœuds (${windLabel(wind.kts)}). Avec cette aile, il en faut au moins ${st.minWind}. ${st.minWind > 6 ? 'Une aile plus grande vole avec moins de vent !' : 'Reviens plus tard !'}`);
     if (p.body.injury) return err('Tu es blessé·e : repos d\'abord.');
     let paid = 0;
     if ((p.inventory.wingfoil || 0) > 0) mode = 'own';
     else if (mode === 'trial') { if (w.trial) return err('Ton essai gratuit est déjà utilisé : loue ou achète une aile.'); w.trial = true; }
     else { if (p.coins < WING.rental) return err(`La location coûte ${WING.rental} PC.`); this.addCoins(p, -WING.rental); paid = WING.rental; mode = 'rent'; }
     w.sessions++;
-    ctx.session.wing = { at: ctx.now, lastJump: 0, kts: wind.kts };
-    return { ok: true, changed: true, data: { mode, paid, wind } };
+    ctx.session.wing = { at: ctx.now, lastJump: 0, kts: wind.kts, jump: st.jump };
+    return { ok: true, changed: true, data: { mode, paid, wind, gear, stats: st } };
   },
   'wing.jump'(ctx, { height, air, spins }) {
     const p = ctx.profile, w = p.sports.wing, s = ctx.session.wing;
@@ -121,7 +132,7 @@ Object.assign(SPORTS_HANDLERS, {
     if (ctx.now - s.lastJump < 1200) return err('Trop rapide.');
     s.lastJump = ctx.now;
     const kts = Math.max(s.kts, windAt(calTime(ctx)).kts);
-    height = Math.max(0, Math.min(maxJump(kts), Number(height) || 0));
+    height = Math.max(0, Math.min(maxJump(kts) * (s.jump || 1), Number(height) || 0));
     air = Math.max(0, Math.min(2 * Math.sqrt((2 * height) / 9.8) + 0.6, Number(air) || 0));
     spins = Math.max(0, Math.min(Math.floor(air * 1.6), Math.floor(Number(spins) || 0)));
     const pts = jumpPoints(height, spins);
@@ -135,6 +146,19 @@ Object.assign(SPORTS_HANDLERS, {
     return { ok: true, changed: true, data: { height, spins, pts, record: rec, rank } };
   },
   'wing.end'(ctx) { ctx.session.wing = null; return { ok: true, changed: false, data: {} }; },
+  // Réglage de l'équipement : pièce possédée dans chaque emplacement, couleurs libres.
+  'gear.equip'(ctx, { slot, id, wingColor, boardColor }) {
+    const p = ctx.profile;
+    p.gear = { ...equipped(p) };
+    if (slot) {
+      if (!GEAR_SLOTS[slot]?.[id]) return err('Équipement inconnu.');
+      if (!ownsGear(p, id)) return err('Tu ne possèdes pas cet équipement (Surf Shop).');
+      p.gear[slot] = id;
+    }
+    if (wingColor) { if (!GEAR_COLORS.includes(wingColor)) return err('Couleur inconnue.'); p.gear.wingColor = wingColor; }
+    if (boardColor) { if (!GEAR_COLORS.includes(boardColor)) return err('Couleur inconnue.'); p.gear.boardColor = boardColor; }
+    return { ok: true, changed: true, data: { gear: p.gear } };
+  },
 });
 
 // ------------------------------------------------------------------------------ course à pied, vélo, F1, ski
@@ -164,10 +188,17 @@ Object.assign(SPORTS_HANDLERS, {
     d.member = { kind: day ? 'jour' : 'saison', until: base + (day ? 1 : D.member.days) * CYCLE_MS };
     return { ok: true, changed: true, data: { until: d.member.until, price } };
   },
-  'sport.start'(ctx, { disc, mode }) {
+  'sport.start'(ctx, { disc, mode, at }) {
     const p = ctx.profile, D = DISC[disc], M = D?.modes[mode];
     if (!M) return err('Épreuve inconnue.');
-    if (!atDiscPlace(this, ctx, disc)) return err('Ça se lance depuis le club (accueil).');
+    // balade en jet ski « où on veut » avec son propre jet ski (eau profonde, tout près)
+    const anywhere = at && disc === 'jetski' && M.free && (p.inventory.jetski || 0) > 0;
+    if (at && !anywhere) return err('Seule la balade libre avec ton propre jet ski peut partir d\'ici.');
+    if (anywhere) {
+      if (typeof at.x !== 'number' || typeof at.z !== 'number' || groundHeight(at.x, at.z) > WATER_LEVEL - 1) return err('Il faut de l\'eau profonde.');
+      if (ctx.pos && Math.hypot(ctx.pos.x - at.x, ctx.pos.z - at.z) > 60) return err('Approche-toi de l\'eau.');
+      if (ctx.pos) { ctx.pos.x = at.x; ctx.pos.z = at.z; }
+    } else if (!atDiscPlace(this, ctx, disc)) return err('Ça se lance depuis le club (accueil).');
     if (p.body.injury) return err('Tu es blessé·e : repos d\'abord.');
     if (p.justice?.jail) return err('Pas depuis la prison !');
     const d = discOf(p, disc);

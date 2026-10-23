@@ -5,7 +5,7 @@ import { BUILDING_BY_ID, BUILDINGS, GAS_STATIONS, inBounds, dist2d } from './wor
 import { VEHICLES } from './content/vehicles.js';
 import { levelFromXp } from './rules.js';
 import {
-  FUEL_PRICE, TOW_FEE, REPAIR_SHOPS, SELL_SHOPS, repairCost, resaleValue, usedOffers, RENTALS, RENTAL_DURATIONS, rentalPrice,
+  FUEL_PRICE, TOW_FEE, REPAIR_SHOPS, SELL_SHOPS, repairCost, mobileRepairCost, POCKET_KINDS, resaleValue, usedOffers, RENTALS, RENTAL_DURATIONS, rentalPrice,
   deliverySpot, HOUSING_BY_ID, DEPOSIT_RATE, LOAN_RATE, loanHourly, sellValue, hourlyBills, EVICT_DEBT, homeSize,
   secondHandOffers, secondHandBuys, localInBuilding, SAVINGS_RATE,
 } from './property.js';
@@ -68,10 +68,12 @@ export const PROPERTY_HANDLERS = {
   'vehicle.deliver'(ctx, { vehicleId }) {
     const p = ctx.profile, v = p.vehicles.find((q) => q.id === vehicleId);
     if (!v) return err('Véhicule introuvable.');
-    if (p.coins < TOW_FEE) return err(`La dépanneuse coûte ${TOW_FEE} PC.`);
-    this.addCoins(p, -TOW_FEE);
+    // vélos, VTT, trottinettes : ils tiennent dans le sac, on les sort gratuitement où on veut
+    const fee = POCKET_KINDS.includes(VEHICLES[v.model]?.kind) ? 0 : TOW_FEE;
+    if (p.coins < fee) return err(`La dépanneuse coûte ${fee} PC.`);
+    this.addCoins(p, -fee);
     v.park = null;
-    return { ok: true, changed: true, data: { fee: TOW_FEE } };
+    return { ok: true, changed: true, data: { fee } };
   },
 
   // Réparation au garage (le véhicule doit être garé devant ou dedans).
@@ -85,6 +87,20 @@ export const PROPERTY_HANDLERS = {
     const cost = repairCost(v.model, v.damage || 0);
     if (!cost) return err('Ton véhicule est déjà comme neuf !');
     if (p.coins < cost) return err(`La réparation coûte ${cost} PC.`);
+    this.addCoins(p, -cost);
+    v.damage = 0;
+    return { ok: true, changed: true, data: { cost } };
+  },
+
+  // Mécano mobile : réparation sur place, n'importe où (plus cher qu'au garage). damage : état actuel
+  // envoyé par le client (on ne peut que le faire empirer, jamais l'améliorer).
+  'vehicle.repairHere'(ctx, { vehicleId, damage }) {
+    const p = ctx.profile, v = p.vehicles.find((q) => q.id === vehicleId);
+    if (!v) return err('Véhicule introuvable.');
+    if (num(damage)) v.damage = Math.max(v.damage || 0, Math.min(1, damage));
+    const cost = mobileRepairCost(v.model, v.damage || 0);
+    if (!cost) return err('Ton véhicule est déjà comme neuf !');
+    if (p.coins < cost) return err(`Le mécano mobile demande ${cost} PC.`);
     this.addCoins(p, -cost);
     v.damage = 0;
     return { ok: true, changed: true, data: { cost } };

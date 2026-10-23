@@ -17,6 +17,9 @@ import { agendaApp } from '../events/agenda.js';
 import { socialApp } from './social-app.js';
 import { adminApp } from './admin.js';
 import { premiumApp } from './premium-app.js';
+import { gearApp, meteoApp, lawyerApp, quickActions } from './gear-app.js';
+import { windAt } from '../../shared/wingfoil.js';
+import { calNow } from '../events/agenda.js';
 import { openWardrobe } from './shop.js';
 import { formatHour } from '../world/daynight.js';
 
@@ -36,6 +39,9 @@ const APPS = [
   { id: 'social', name: 'PlayGram', icon: '📸', bg: '#ff3fa4' },
   { id: 'urgences', name: 'Urgences', icon: '🚨', bg: '#d62828' },
   { id: 'premium', name: 'Boutique', icon: '💎', bg: '#7b2cbf' },
+  { id: 'gear', name: 'Équipement', icon: '🎛️', bg: '#0096c7' },
+  { id: 'meteo', name: 'Météo', icon: '🌤️', bg: '#48cae4' },
+  { id: 'avocat', name: 'Avocat', icon: '⚖️', bg: '#495057' },
   { id: 'admin', name: 'Admin', icon: '👑', bg: '#d4a017', admin: true },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'code', name: 'Espace code', icon: '🔐', bg: '#2b2d42', hidden: true },
@@ -110,9 +116,15 @@ export class Phone {
       const icon = (a) => h('button.app-icon', { onclick: () => this.go(a.id) }, h('span.ic', { style: { background: `linear-gradient(160deg, ${a.bg}, ${a.bg}cc)` } }, a.icon), h('span.nm', a.name), this.badges[a.id] ? h('span.dot', String(this.badges[a.id])) : null);
       const dockIds = ['map', 'bank', 'social', 'urgences'];
       const apps = APPS.filter((a) => !a.hidden && (!a.admin || this.game.profile.admin));
+      const kts = windAt(calNow(g)).kts;
+      // recherche d'appli : filtre la grille en direct
+      const grid = h('div.phone-apps', apps.filter((a) => !dockIds.includes(a.id)).map(icon));
+      const search = h('input.ph-search', { placeholder: '🔍 Rechercher une appli', oninput: (e) => { const q = e.target.value.trim().toLowerCase(); for (const el of grid.children) el.style.display = !q || el.textContent.toLowerCase().includes(q) ? '' : 'none'; }, onkeydown: (e) => e.stopPropagation() });
       this.screen.append(
-        h('div.ph-widget', h('div.big', hr), h('div.sub', `${day} · ${fmt(g.profile.coins)} PC · ${online ? 'En ligne' : 'Solo'}`)),
-        h('div.phone-apps', apps.filter((a) => !dockIds.includes(a.id)).map(icon)),
+        h('div.ph-widget', h('div.big', hr), h('div.sub', `${day} · ${fmt(g.profile.coins)} PC · 🌬️ ${Math.round(kts)} nds · ${online ? 'En ligne' : 'Solo'}`)),
+        quickActions(g, this) || '',
+        search,
+        grid,
         h('button.code-space', { onclick: () => this.go('code') }, '🔐 Espace code'),
         h('div.ph-dock', apps.filter((a) => dockIds.includes(a.id)).map(icon)));
       return;
@@ -260,6 +272,9 @@ export class Phone {
   app_admin(b) { adminApp(this.game, b, this); }
   app_urgences(b) { this.game.emergencies?.app(b, this); }
   app_premium(b) { premiumApp(this.game, b); }
+  app_gear(b) { gearApp(this.game, b, this); }
+  app_meteo(b) { meteoApp(this.game, b); }
+  app_avocat(b) { lawyerApp(this.game, b, this); }
 
   // Espace code : on tape un code secret (mode admin...).
   app_code(b) {

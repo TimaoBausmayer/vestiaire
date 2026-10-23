@@ -8,12 +8,16 @@ import { todayKey } from './rules.js';
 
 // ------------------------------------------------------------------------------------ véhicules
 export const FUEL_PRICE = 2;          // PC par litre
+export const POCKET_KINDS = ['bike', 'board'];   // vélos, trottinettes : « de poche », gratuits à sortir du sac
 export const TOW_FEE = 150;           // dépanneuse : amène ton véhicule jusqu'à toi
 export const REPAIR_SHOPS = ['repair', 'vehicles'];
 export const SELL_SHOPS = ['cars-new', 'cars-used', 'vehicles', 'bikes'];
 
 const round5 = (n) => Math.round(n / 5) * 5;
 export const vehicleBase = (model) => VEHICLES[model]?.price || 3000;
+// Mécano mobile : il vient réparer où tu es, mais c'est bien plus cher qu'au garage (déplacement + urgence).
+export const MOBILE_FEE = 200;
+export const mobileRepairCost = (model, damage) => (damage <= 0.005 ? 0 : MOBILE_FEE + 2 * repairCost(model, damage));
 export const repairCost = (model, damage) => (damage <= 0.005 ? 0 : Math.max(25, round5(vehicleBase(model) * 0.16 * damage)));
 // Valeur de revente : moitié du prix de base, moins l'usure (kilométrage) et les dégâts.
 export function resaleValue(v) {

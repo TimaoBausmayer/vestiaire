@@ -36,6 +36,8 @@ export function defaultJustice() {
 }
 
 // Peine pour une liste de délits : minutes de prison (plafonnées).
+// Avocat (sur place, au moment de l'arrestation) : plus la peine serait lourde, plus il coûte cher.
+export const lawyerCost = (minutes, stars) => 600 + minutes * 350 + stars * 250;
 export function sentence(crimes) {
   const mins = crimes.reduce((s, c) => s + (CRIMES[c.type]?.jail || 0), 0);
   return Math.min(MAX_JAIL, mins);

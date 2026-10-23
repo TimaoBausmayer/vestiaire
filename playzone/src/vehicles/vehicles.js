@@ -3,7 +3,7 @@ import { CarVisual, seatOf, dimsOf } from './car-models.js';
 import { DriveSim } from './drive.js';
 import { SkidMarks } from './skidmarks.js';
 import { VEHICLES, CAR_PAINTS } from '../../shared/content/vehicles.js';
-import { TOW_FEE, FUEL_PRICE, resaleValue, repairCost } from '../../shared/property.js';
+import { TOW_FEE, FUEL_PRICE, resaleValue, repairCost, mobileRepairCost, POCKET_KINDS } from '../../shared/property.js';
 import { GAS_STATIONS, zoneAt } from '../../shared/world-layout.js';
 import { h } from '../ui/dom.js';
 
@@ -106,6 +106,7 @@ export class Vehicles {
       h('div.gauges',
         h('div.g', h('span', '⛽'), h('div.bar', this.fuelBar = h('div'))),
         h('div.g', h('span', '🔧'), h('div.bar.dmg', this.dmgBar = h('div')))),
+      this.dashFix = h('button.limit.fix', { title: 'Mécano mobile : réparation sur place', onclick: () => this.repairHere(this.current) }, '🔧'),
       this.dashLimit = h('button.limit', { title: 'Limiteur de vitesse (touche B)', onclick: () => this.cycleLimiter() }, 'LIM —'),
       this.dashName = h('div.name', ''));
     game.ui.root.append(this.dash);
@@ -359,6 +360,19 @@ export class Vehicles {
 
   emit(type, v) { this.game.emit(`vehicle.${type}`, v); }
 
+  // Mécano mobile : il vient réparer le véhicule là où il est (bien plus cher qu'au garage).
+  async repairHere(v) {
+    const g = this.game;
+    if (!v?.data || v.owner !== 'me') return;
+    try {
+      const garage = repairCost(v.model, v.sim.damage);
+      const r = await g.net.request('vehicle.repairHere', { vehicleId: v.data.id, damage: Math.round(v.sim.damage * 1000) / 1000 });
+      v.sim.damage = 0; v.data.damage = 0; v.sim.sunk = false; v.visual.clearDents();
+      g.sfx('drill');
+      g.ui.toast(`🔧 Le mécano mobile est arrivé en trottinette : réparé·e sur place ! -${r.cost.toLocaleString('fr-FR')} PC (au garage : ${garage.toLocaleString('fr-FR')} PC).`, 'money', 4500);
+    } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+  }
+
   // Limiteur de vitesse : arrêt → 30 → 50 → 80 → 110 → 130 km/h → arrêt (touche B ou bouton du compteur)
   cycleLimiter() {
     const v = this.current; if (!v) return;
@@ -521,6 +535,9 @@ export class Vehicles {
       this.fuelBar.style.width = `${v.spec.fuel ? Math.round((s.fuel / v.spec.fuel) * 100) : 100}%`;
       this.fuelBar.parentElement.parentElement.style.display = v.spec.fuel ? '' : 'none';
       this.dmgBar.style.width = `${Math.round((1 - s.damage) * 100)}%`;
+      const fix = v.owner === 'me' && s.damage > 0.05 ? mobileRepairCost(v.model, s.damage) : 0;
+      this.dashFix.style.display = fix ? '' : 'none';
+      if (fix) this.dashFix.textContent = `🔧 Réparer ici (${fix.toLocaleString('fr-FR')} PC)`;
     }
     // sauvegarde périodique de l'état
     this._saveT = (this._saveT || 0) + dt;
@@ -577,9 +594,10 @@ export function garagePanel(game, container, refresh) {
         h('div.d', `${v.locked ? '🔒' : '🔓'} ${where}`)),
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
         pos && vs.current?.data?.id !== v.id ? h('button.btn.small.ghost', { onclick: () => { game.phone?.goTo({ x: pos.x, z: pos.z, name: spec.name }); } }, '📍 GPS') : null,
-        vs.current?.data?.id !== v.id ? h('button.btn.small', { title: `${TOW_FEE} PC`, onclick: () => { game.phone?.close(); vs.deliver(v.id); } }, `🚚 ${TOW_FEE} PC`) : null)));
+        vs.current?.data?.id !== v.id ? h('button.btn.small', { title: POCKET_KINDS.includes(spec.kind) ? 'Gratuit : il tient dans le sac' : `${TOW_FEE} PC`, onclick: () => { game.phone?.close(); vs.deliver(v.id); } }, POCKET_KINDS.includes(spec.kind) ? '🎒 Sortir' : `🚚 ${TOW_FEE} PC`) : null,
+        wv && wv.sim.damage > 0.05 ? h('button.btn.small', { title: 'Mécano mobile : réparation sur place (plus cher qu\'au garage)', onclick: async () => { await vs.repairHere(wv); refresh?.(); } }, `🔧 ${mobileRepairCost(v.model, wv.sim.damage).toLocaleString('fr-FR')} PC`) : null)));
   }
-  container.append(h('p.muted', { style: { marginTop: '8px' } }, 'Touche K près de ton véhicule : verrouiller / déverrouiller. Pleins : stations-service. Réparations : Garage du Piston Fou, Clé à Molette ou Roule-Toujours. Revente : concession, Occaz\' du Siècle ou casse.'));
+  container.append(h('p.muted', { style: { marginTop: '8px' } }, 'Touche K près de ton véhicule : verrouiller / déverrouiller. Pleins : stations-service. Réparations : Garage du Piston Fou, Clé à Molette ou Roule-Toujours, ou le mécano mobile (🔧, partout, mais plus cher). Revente : concession, Occaz\' du Siècle ou casse.'));
   container.append(h('p.muted', { style: { marginTop: '10px' } }, `Peintures en stock : ${p.inventory.peinture || 0} (Garage Roule-Toujours, 150 PC).`));
   if (p.inventory.peinture > 0) {
     for (const v of p.vehicles.filter((x) => !x.rentUntil)) {

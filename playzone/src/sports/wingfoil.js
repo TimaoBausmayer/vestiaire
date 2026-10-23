@@ -4,6 +4,7 @@ import { groundHeight, WATER_LEVEL, BUILDING_BY_ID } from '../../shared/world-la
 import { windAt, windLabel, forecast, MIN_WIND, SURF_SPOT, WING, maxJump } from '../../shared/wingfoil.js';
 import { calNow } from '../events/agenda.js';
 import { Wake } from './wake.js';
+import { gearStats, equipped, deepWaterNear, inNavZone } from '../../shared/gear.js';
 
 // WINGFOIL : on tient l'aile, le vent pousse, la planche décolle sur son foil au-dessus de l'eau.
 // Commandes : gauche/droite = tourner, avant = border l'aile (plus de puissance), arrière = choquer,
@@ -36,7 +37,7 @@ export class Wingfoil {
     shape.moveTo(-0.28, -0.75); shape.lineTo(0.28, -0.75); shape.quadraticCurveTo(0.33, 0.2, 0.18, 0.62); shape.quadraticCurveTo(0, 0.85, -0.18, 0.62); shape.quadraticCurveTo(-0.33, 0.2, -0.28, -0.75);
     const boardG = new THREE.ExtrudeGeometry(shape, { depth: 0.1, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2 }).rotateX(-Math.PI / 2);
     const board = new THREE.Mesh(boardG, m('#f7f7f2')); board.position.y = -0.05; root.add(board);
-    const rail = new THREE.Mesh(boardG, m('#ff9f1c')); rail.scale.set(1.04, 0.5, 1.02); rail.position.y = -0.07; root.add(rail);
+    const rail = new THREE.Mesh(boardG, this.railMat = m('#ff9f1c')); rail.scale.set(1.04, 0.5, 1.02); rail.position.y = -0.07; root.add(rail);
     const pad = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.7), m('#2b2d42', { roughness: 0.9 })); pad.position.set(0, 0.09, -0.25); root.add(pad);
     // foil : mât, fuselage, aile avant (grande), stabilisateur
     const carbon = m('#1b1b1f', { roughness: 0.3, metalness: 0.3 });
@@ -46,18 +47,28 @@ export class Wingfoil {
     const st = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 4), carbon); st.scale.set(0.16, 0.01, 0.05); st.position.set(0, -0.9, -0.36); root.add(st);
     // l'aile gonflable : bord d'attaque (boudin), voilure, latte centrale avec poignées, fenêtre
     const wing = new THREE.Group();
-    const lead = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.075, 8, 32, Math.PI), m('#ff3fa4'));
+    const lead = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.075, 8, 32, Math.PI), this.leadMat = m('#ff3fa4'));
     wing.add(lead);
-    const canopy = new THREE.Mesh(new THREE.CircleGeometry(1.35, 32, 0, Math.PI), m('#ffd6ec', { side: THREE.DoubleSide, transparent: true, opacity: 0.9, roughness: 0.6 }));
+    const canopy = new THREE.Mesh(new THREE.CircleGeometry(1.35, 32, 0, Math.PI), this.canopyMat = m('#ffd6ec', { side: THREE.DoubleSide, transparent: true, opacity: 0.9, roughness: 0.6 }));
     wing.add(canopy);
     const win = new THREE.Mesh(new THREE.CircleGeometry(0.28, 16), m('#bfe9ff', { side: THREE.DoubleSide, transparent: true, opacity: 0.55, roughness: 0.1 })); win.position.set(0.55, 0.45, 0.01); wing.add(win);
-    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 1.35, 8), m('#ff3fa4')); strut.position.set(0, 0.675, 0.02); wing.add(strut);
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 1.35, 8), this.leadMat); strut.position.set(0, 0.675, 0.02); wing.add(strut);
     for (const yy of [0.35, 0.85]) { const hd = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 6, 12), m('#14141c')); hd.position.set(0, yy, 0.08); hd.rotation.y = Math.PI / 2; wing.add(hd); }
     // tenue à bout de bras, de côté (comme une voile), légèrement inclinée
     wing.rotation.set(-0.35, Math.PI / 2, 0, 'YXZ'); wing.position.set(0.15, 1.15, 0.45);
     root.add(wing);
     this.wingMesh = wing;
     return root;
+  }
+
+  // Habille le rig avec l'équipement choisi : couleurs de l'aile et de la planche, taille de l'aile.
+  applyGear(gear) {
+    const c = new THREE.Color(gear.wingColor);
+    this.leadMat.color.copy(c);
+    this.canopyMat.color.copy(c).lerp(new THREE.Color('#ffffff'), 0.7);
+    this.railMat.color.set(gear.boardColor);
+    const size = { 'aile-3': 0.78, 'aile-4': 0.88, 'aile-6': 1.08, 'aile-7': 1.16, 'aile-free': 0.94, 'aile-mamie': 0.7 }[gear.wing] || 1;
+    this.wingMesh.scale.setScalar(size);
   }
 
   // ------------------------------------------------------------------ Surf Shop
@@ -68,6 +79,7 @@ export class Wingfoil {
     const fc = forecast(t, 6).map((f) => `${f.h} h : ${Math.round(f.kts)} nds`).join(' · ');
     g.ui.dialog({ name: 'Kéké le moniteur', role: 'Surf Shop Vent Debout', text: `Vent actuel : ${w.kts} nœuds (${windLabel(w.kts)}). Il en faut ${MIN_WIND} pour voler. Prévisions : ${fc}. ${own ? 'Ton wingfoil est prêt !' : W.trial ? `Location : ${WING.rental} PC la session, ou achète le tien (${WING.price} PC).` : 'Première fois ? L\'essai est GRATUIT !'}`, choices: [
       own ? { label: '🪁 Aller à l\'eau avec mon wingfoil', action: (m) => { m.close(); this.start('own'); } } : null,
+      { label: '🎛️ Mon équipement (aile, planche, foil, couleurs)', action: (m) => { m.close(); g.phone?.open('gear'); } },
       !own && !W.trial ? { label: '🎁 Essai gratuit', action: (m) => { m.close(); this.start('trial'); } } : null,
       !own ? { label: `🪁 Louer pour une session (${WING.rental} PC)`, action: (m) => { m.close(); this.start('rent'); } } : null,
       { label: '🚤 Jet ski (essai gratuit, abonnement ou achat)', action: (m) => { m.close(); g.races?.desk('jetski'); } },
@@ -77,15 +89,28 @@ export class Wingfoil {
     ].filter(Boolean) });
   }
 
-  async start(mode) {
+  // Mise à l'eau « où on veut » (avec son propre matériel) : l'eau profonde la plus proche.
+  launchHere() {
+    const g = this.g, P = g.player;
+    if (this.s) return;
+    const at = deepWaterNear(P.pos.x, P.pos.z, 48);
+    if (!at) { g.ui.toast('🌊 Pas d\'eau profonde à côté : approche-toi de la mer, du lac ou d\'un port.', 'bad', 3500); return; }
+    this.start('own', at);
+  }
+
+  async start(mode, at = null) {
     const g = this.g;
-    const r = await req(g, 'wing.start', { mode });
+    const P = g.player;
+    const back = { x: P.pos.x, z: P.pos.z };
+    const r = await req(g, 'wing.start', { mode, ...(at ? { at } : {}) });
     if (!r) return;
     if (g.vehicles?.current) g.vehicles.exit(true);
-    const P = g.player;
-    P.teleport(SURF_SPOT.x, SURF_SPOT.z, Math.PI / 2);
+    const sp = at || SURF_SPOT;
+    P.teleport(sp.x, sp.z, Math.PI / 2);
     P.external = true;
-    this.s = { x: SURF_SPOT.x, z: SURF_SPOT.z, yaw: Math.PI / 2, speed: 2, y: 0, vy: 0, air: 0, spinAcc: 0, spinStart: 0, crashed: 0, hudT: 0, best: 0, jumps: 0, mode, sheet: 0.7, wind: r.wind };
+    this.stats = r.stats || gearStats(equipped(g.profile));
+    this.applyGear(r.gear || equipped(g.profile));
+    this.s = { back: at ? back : null, x: sp.x, z: sp.z, yaw: Math.PI / 2, speed: 2, y: 0, vy: 0, air: 0, spinAcc: 0, spinStart: 0, crashed: 0, hudT: 0, best: 0, jumps: 0, mode, sheet: 0.7, wind: r.wind };
     this.rig.visible = true;
     this.buttons = h('div.foot-btns', h('button', { onpointerdown: (e) => { e.preventDefault(); this.jump(); } }, '🦘 Saut'), h('button', { onpointerdown: (e) => { e.preventDefault(); this.stop(); } }, '🏖️ Plage'));
     g.ui.root.append(this.buttons);
@@ -98,7 +123,8 @@ export class Wingfoil {
     if (!s || s.y > 0.05 || s.crashed > 0) return;
     if (s.speed < 6.5) { this.g.ui.toast('Trop lent pour sauter : prends de la vitesse sur le foil !', '', 1200); return; }
     const kts = s.wind.kts;
-    s.vy = Math.min(Math.sqrt(2 * 9.8 * maxJump(kts)) * 0.98, 3 + s.speed * 0.42 + kts * 0.12);
+    const J = this.stats.jump;
+    s.vy = Math.min(Math.sqrt(2 * 9.8 * maxJump(kts) * J) * 0.98, (3 + s.speed * 0.42 + kts * 0.12) * Math.sqrt(J));
     s.y = 0.06; s.air = 0; s.spinAcc = 0; s.maxY = 0; s.spinStart = s.yaw;
     this.g.sfx('whoosh');
   }
@@ -119,25 +145,28 @@ export class Wingfoil {
       // en l'air : rotations
       s.air += dt;
       s.vy -= 9.8 * dt; s.y += s.vy * dt; s.maxY = Math.max(s.maxY, s.y);
-      const spin = I.move.x * 6.5 * dt;
+      const spin = I.move.x * 6.5 * this.stats.spin * dt;
       s.yaw -= spin; s.spinAcc += Math.abs(spin);
       if (I.pressed('Space')) { /* déjà en l'air */ }
       if (s.y <= 0) this.land();
     } else {
       // sur l'eau / sur le foil
       s.sheet = clamp(s.sheet + I.move.y * dt * 0.8, 0.3, 1);
-      const turn = (s.speed > 6 ? 1.1 : 1.6) * dt;
+      const turn = (s.speed > 6 ? 1.1 : 1.6) * this.stats.turn * dt;
       s.yaw -= I.move.x * turn;
-      const kts = w.kts < MIN_WIND ? w.kts * 0.4 : w.kts;
-      const target = Math.min(WING.maxSpeed, kts * 0.5 * sail * s.sheet * (1 + (g.profile.sports?.wing?.skill || 5) / 300));
+      const minW = this.stats.minWind;
+      // une grande aile « porte » avec moins de vent : on ramène le vent ressenti à l'échelle de 10 nœuds
+      const kts = w.kts < minW ? w.kts * 0.4 : w.kts * Math.max(1, MIN_WIND / minW);
+      const target = Math.min(WING.maxSpeed * this.stats.speed, kts * 0.5 * this.stats.speed * sail * s.sheet * (1 + (g.profile.sports?.wing?.skill || 5) / 300));
       s.speed += (target - s.speed) * Math.min(1, dt * (target > s.speed ? 0.6 : 1.2));
       if (I.pressed('Space')) this.jump();
     }
-    const foilH = s.speed > 5.5 ? Math.min(0.75, (s.speed - 5.5) * 0.4) : 0;
+    const tk = this.stats.takeoff;
+    const foilH = s.speed > tk ? Math.min(0.75, (s.speed - tk) * 0.4) : 0;
     s.x += Math.sin(s.yaw) * s.speed * dt;
     s.z += Math.cos(s.yaw) * s.speed * dt;
     // rester en eau profonde, dans la zone de navigation
-    if (groundHeight(s.x, s.z) > WATER_LEVEL - 0.9 || s.z > 236 || Math.abs(s.x) > 896) {
+    if (groundHeight(s.x, s.z) > WATER_LEVEL - 0.9 || !inNavZone(s.x, s.z)) {
       s.x -= Math.sin(s.yaw) * s.speed * dt; s.z -= Math.cos(s.yaw) * s.speed * dt;
       s.speed *= 0.5; s.yaw += Math.PI * 0.6 * dt * 4;
       if (groundHeight(s.x, s.z) > WATER_LEVEL - 0.3) { this.stop('Retour à la plage !'); return; }
@@ -168,7 +197,7 @@ export class Wingfoil {
       s.hudT = 0.25;
       const allure = off < 0.7 ? '⛔ face au vent (zone morte)' : off < 1.2 ? 'près du vent' : off < 2.2 ? '✅ vent de travers (top !)' : 'vent arrière';
       g.hud.track('wing', { title: `🪁 Wingfoil · vent ${w.kts} nds`, text: `${Math.round(s.speed * 3.6)} km/h · ${foilH > 0.1 ? 'sur le foil ✈️' : 'dans l\'eau'} · ${allure} · aile ${Math.round(s.sheet * 100)} % · meilleur saut ${s.best.toFixed(1)} m`, button: { label: 'Rentrer à la plage', onclick: () => this.stop() } });
-      if (w.kts < MIN_WIND - 2 && !s.windWarn) { s.windWarn = true; g.ui.toast('🌬️ Le vent tombe... ça ne porte presque plus. Rentre à la plage !', 'bad', 4000); }
+      if (w.kts < this.stats.minWind - 2 && !s.windWarn) { s.windWarn = true; g.ui.toast('🌬️ Le vent tombe... ça ne porte presque plus. Rentre à la plage !', 'bad', 4000); }
     }
   }
 
@@ -178,7 +207,7 @@ export class Wingfoil {
     const spins = Math.floor((s.spinAcc + 0.6) / (Math.PI * 2));
     const err = Math.abs(wrap(s.yaw - s.spinStart));
     // atterrissage : il faut retomber à peu près dans l'axe (ou après des tours complets)
-    if (err > 1.0 && s.spinAcc > 0.6) { s.crashed = 2; s.speed = 0; g.sfx('splat'); g.ui.toast('💦 PLOUF ! Atterrissage raté.', 'bad', 1500); return; }
+    if (err > 0.75 + 0.25 * this.stats.stability && s.spinAcc > 0.6) { s.crashed = 2; s.speed = 0; g.sfx('splat'); g.ui.toast('💦 PLOUF ! Atterrissage raté.', 'bad', 1500); return; }
     if (s.spinAcc > 0.6) s.yaw = s.spinStart + spins * Math.PI * 2;
     s.speed *= 0.85;
     const height = s.maxY, air = s.air;
@@ -201,8 +230,9 @@ export class Wingfoil {
     g.hud.track('wing', null);
     const P = g.player;
     P.external = false;
+    // retour au bord : là où on s'était mis à l'eau, sinon devant le Surf Shop
     const shop = BUILDING_BY_ID['surf-shop'];
-    P.teleport(shop.door.x, shop.door.z + 3, Math.PI);
+    if (s.back) P.teleport(s.back.x, s.back.z, Math.PI); else P.teleport(shop.door.x, shop.door.z + 3, Math.PI);
     g.net.request('wing.end', {}).catch(() => null);
     g.ui.toast(`🏖️ ${msg || 'Session terminée.'} ${s.jumps} saut(s), meilleur ${s.best.toFixed(1)} m.`, 'good', 3500);
   }

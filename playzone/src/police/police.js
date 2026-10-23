@@ -3,7 +3,7 @@ import { h } from '../ui/dom.js';
 import { WorldVehicle } from '../vehicles/vehicles.js';
 import { Avatar } from '../characters/avatar.js';
 import { findRoute, nearestRoadPoint, ROAD_GRAPH, STREET_BY_ID } from '../../shared/city.js';
-import { CRIMES, FINES, SPEED_LIMIT, RADARS, loseTime, EXAM_ROUTE, EXAM_START, EXAM_MAX_ERRORS } from '../../shared/justice.js';
+import { CRIMES, FINES, SPEED_LIMIT, RADARS, loseTime, sentence, lawyerCost, EXAM_ROUTE, EXAM_START, EXAM_MAX_ERRORS } from '../../shared/justice.js';
 import { PRISON_YARD, PRISON_CELL, inPrison } from '../../shared/authority-justice.js';
 import { lightState } from '../world/traffic.js';
 import { Beacon } from '../jobs/beacon.js';
@@ -198,6 +198,9 @@ export class Police {
     const g = this.game;
     if (this.arresting) return;
     this.arresting = true;
+    // une peine de prison en vue : on peut appeler son avocat, qui règle tout sur place (on garde sa voiture)
+    const minutes = sentence(this.j?.crimes || []);
+    if (minutes > 0 && await this.offerLawyer(why, minutes)) { this.arresting = false; return; }
     if (g.vehicles.current) g.vehicles.exit(true);
     g.player.setPose('celebrate', 1);
     g.labels.bubble(g.avatar.root, 'C\'est pas moi ! C\'est le pigeon !', 2500, 'player');
@@ -206,6 +209,27 @@ export class Police {
       this.onArrested(r, why);
     } catch { /* plus recherché */ }
     this.arresting = false;
+  }
+
+  // Dialogue d'interpellation : avocat (payant, on reste libre ici) ou tribunal. Renvoie true si libéré.
+  async offerLawyer(why, minutes) {
+    const g = this.game, cost = g.profile.admin ? 0 : lawyerCost(minutes, this.stars);
+    const choice = await new Promise((res) => {
+      const m = g.ui.dialog({ name: 'L\'agent·e', role: 'Interpellation', text: `${why} Vous risquez ${minutes} minutes de prison. Vous avez le droit d'appeler un avocat...`, choices: [
+        { label: `🧑‍⚖️ Appeler Maître Plaidetout (${cost ? `${cost.toLocaleString('fr-FR')} PC` : 'gratuit'})`, action: () => { m.choice = 'lawyer'; m.close(); } },
+        { label: '⛓️ Suivre l\'agent au tribunal', ghost: true, action: () => { m.choice = 'jail'; m.close(); } },
+      ] });
+      const close = m.close; m.close = () => { close(); res(m.choice || 'jail'); };
+    });
+    if (choice !== 'lawyer') return false;
+    try {
+      const r = await g.net.request('police.lawyer', {});
+      this.clearUnits();
+      this.renderStars();
+      g.sfx('success');
+      g.ui.dialog({ name: 'Maître Plaidetout', role: 'Avocat (très) cher', text: `Vice de procédure : l'agent avait mis son képi à l'envers ! Affaire classée, vous êtes libre${g.vehicles.current ? ', et votre voiture aussi' : ''}. ${r.cost ? `Mes honoraires : ${r.cost.toLocaleString('fr-FR')} PC.` : 'Pour vous, c\'est gratuit, patron.'}${r.restored ? ` Le butin (${r.restored} PC) a été rendu.` : ''}`, choices: [{ label: '😎 Merci Maître', action: (m) => m.close() }] });
+      return true;
+    } catch (e) { g.ui.toast(e.message, 'bad', 4000); return false; }
   }
 
   onArrested(r, why) {
