@@ -44,7 +44,9 @@ await page.screenshot({ path: 'tests/e2e/out/lei-slots.png' });
 await closeAll();
 await spotIn('casino', 'roulette'); await page.keyboard.press('KeyE'); await sleep(400);
 await page.locator('.rbet.rouge').click(); await page.locator('.rbet.d2').click();
-await page.getByRole('button', { name: /Lancer la bille/ }).click(); await sleep(3600);
+await page.getByRole('button', { name: /Lancer la bille/ }).click();
+// on attend la fin de l'animation de la bille (plus ou moins longue selon la vitesse du rendu)
+await page.waitForFunction(() => /Sorti/.test([...document.querySelectorAll('.modal')].pop()?.textContent || ''), null, { timeout: 15000 }).catch(() => {});
 check((await prof()).casino.played === 2 && /Sorti/.test(await page.locator('.modal').last().textContent()), 'roulette : la bille est tombée');
 await page.screenshot({ path: 'tests/e2e/out/lei-roulette.png' });
 await closeAll();
