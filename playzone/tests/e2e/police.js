@@ -36,9 +36,12 @@ await sleep(500);
 await page.screenshot({ path: 'tests/e2e/out/pol-poursuite.png' });
 // 3) arrestation → prison
 // interpellation : l'avocat est proposé ; on choisit de suivre l'agent au tribunal
-await ev(() => { window.playzone.police.arrestMe('Arrêté·e !'); });
-await sleep(500);
-check(await page.getByText(/Appeler Maître Plaidetout/).count() > 0, 'l\'avocat est proposé à l\'interpellation');
+// la police a pu « perdre » le joueur pendant son approche (caché trop longtemps) : on reste recherché·e
+await ev(async () => { const g = window.playzone; if (!g.profile.justice.stars && !g.police.arresting) await g.police.crime('coups', true); });
+// (un agent a parfois déjà attrapé le joueur pendant l'approche : le dialogue est alors déjà ouvert)
+await ev(() => { if (!window.playzone.police.arresting) window.playzone.police.arrestMe('Arrêté·e !'); });
+const lawyer = await page.getByText(/Appeler Maître Plaidetout/).waitFor({ timeout: 8000 }).then(() => true, () => false);
+check(lawyer, 'l\'avocat est proposé à l\'interpellation');
 await page.getByText(/Suivre l'agent au tribunal/).click();
 await sleep(900);
 p = await prof();

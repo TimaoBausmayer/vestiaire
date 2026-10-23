@@ -396,7 +396,8 @@ export class Police {
     // la police voit-elle le joueur ?
     const inside = !!g.interiors?.inside;
     const seen = this.units.some((u) => { const q = u.officer ? u.officer.pos : u.v.pos; const d = Math.hypot(q.x - P.x, q.z - P.z); return d < (inside ? 14 : 70); });
-    if (seen) this.seenAt = g.now();
+    // pendant une interpellation (dialogue avocat / tribunal ouvert), on ne peut pas semer la police
+    if (seen || this.arresting) this.seenAt = g.now();
     const unseen = (g.now() - this.seenAt) / 1000;
     const need = loseTime(stars);
     this.el.classList.toggle('blink', unseen > 2);
