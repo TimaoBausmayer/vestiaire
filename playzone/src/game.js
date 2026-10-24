@@ -49,6 +49,8 @@ import { Football } from './sports/football.js';
 import { Wingfoil } from './sports/wingfoil.js';
 import { Sailing } from './sports/sailing.js';
 import { TerraceDiners } from './world/terraces.js';
+import { Sea } from './world/sealife.js';
+import { Submarine } from './sports/submarine.js';
 import { Races } from './sports/races.js';
 import { Ski } from './sports/ski.js';
 import { Jetski } from './sports/jetski.js';
@@ -188,6 +190,8 @@ export class Game extends Emitter {
     this.wingfoil = this.addSystem(new Wingfoil(this));
     this.sailing = this.addSystem(new Sailing(this));   // voile et kitesurf (Cap Venteux)
     this.terraces = this.addSystem(new TerraceDiners(this));   // clients des terrasses de restaurants
+    this.sea = this.addSystem(new Sea(this));   // fonds marins : poissons, plongée, trésor
+    this.submarine = this.addSystem(new Submarine(this));   // sous-marin du Centre de plongée
     this.races = this.addSystem(new Races(this));
     this.ski = this.addSystem(new Ski(this));
     this.jetski = this.addSystem(new Jetski(this));
@@ -360,6 +364,7 @@ export class Game extends Emitter {
     this.cam.update(dt, this.player.pos, this.input);
     this.engine.followShadow(this.player.pos.x, this.player.pos.z);
     this.world.update(dt, t, this.now());
+    this.sea?.afterWorld();
     this.labels.update();
     this.input.endFrame();
   }

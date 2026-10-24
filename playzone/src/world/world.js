@@ -8,6 +8,7 @@ import { buildRoads } from './roads.js';
 import { buildCityProps } from './city-props.js';
 import { buildExpansionProps, buildGiantProps } from './expansion-props.js';
 import { buildTerraces } from './terraces.js';
+import { buildSeabed } from './seabed.js';
 import { SignAtlas } from './signs.js';
 import { DayNight } from './daynight.js';
 import { mulberry32 } from '../../shared/rng.js';
@@ -45,6 +46,7 @@ export class World {
     buildExpansionProps(sb, collision);
     buildGiantProps(sb, collision);
     buildTerraces(sb, collision);
+    buildSeabed(sb, collision);
     for (const fn of this.contributors) fn(sb, collision, scene);
     this.static = sb.build(MATS, { shadows: true });
     scene.add(this.static);

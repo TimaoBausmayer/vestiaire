@@ -90,6 +90,15 @@ export const TEMPLATES = {
     lightsAround(t);
     shopCounter(t, `🛒 Acheter : ${b.name}`, 'shop', kind === 'electronics' ? 'geek' : kind === 'pets' || kind === 'pet-acc' ? 'soigneur' : 'vendeur', t.rand() < 0.5 ? 1 : -1);
     const midZ = (I.z1 + I.z2) / 2;
+    if (kind === 'plongee') {
+      // bouteilles de plongée, combinaisons, hublot ; bureau de location du sous-marin
+      for (let i = 0; i < 6; i++) { const x = I.x1 + 0.6 + i * 0.5; t.cyl(x, 0, I.z1 + 0.5, 0.17, 0.75, ['#ffd23f', '#3a86ff', '#e63946'][i % 3], 10); t.sphere(x, 0.78, I.z1 + 0.5, 0.12, '#adb5bd', 8); }
+      for (let i = 0; i < 3; i++) t.box(I.x2 - 0.6, 0.6, midZ - 1 + i * 0.9, 0.08, 1.3, 0.55, '#14141c');
+      t.cyl(0, 1.4, I.z1 + 0.15, 0.7, 0.08, '#b08d57', 16, Math.PI / 2); t.cyl(0, 1.4, I.z1 + 0.19, 0.55, 0.06, '#8ee3ff', 16, Math.PI / 2);
+      counter(t, -2.2, midZ + 0.6, 2.2, 0, '#0077b6', '#e0fbff');
+      t.staff(-2.2, midZ - 0.3, 0, 'moniteur');
+      t.spot(-2.2, midZ + 1.7, { label: '🟡 Louer le sous-marin', action: 'submarine', r: 1.8, priority: 2 });
+    }
     if (kind === 'clothes' || kind === 'clothes-used') {
       for (let x = I.x1 + 2; x < I.x2 - 4; x += 3.2) rack(t, x, midZ - 1, 2.4, Math.PI / 2);
       rack(t, 0, I.z1 + 0.8, Math.min(6, I.x2 - I.x1 - 8));

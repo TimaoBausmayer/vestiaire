@@ -9,6 +9,8 @@ function noise(x, z) {
 }
 
 // Terrain découpé en morceaux : détaillé (5 m) dans la ville d'origine, plus grossier (12 m) ailleurs.
+const DEEP_SAND = new THREE.Color('#5f8f8a');
+
 export function buildTerrain() {
   const B = WORLD_BOUNDS, g = new THREE.Group();
   g.name = 'terrain';
@@ -84,7 +86,7 @@ function terrainPatch(px0, px1, pz0, pz1, step) {
     if (h > 3 && z > -2985) c.set('#6f6a64').lerp(new THREE.Color('#8a857c'), 0.5 + n * 0.5);   // falaise
     else if (h > 3) { c.copy(new THREE.Color('#7d7f7d')).lerp(new THREE.Color('#5e6b4f'), Math.max(0, 0.6 - h / 60) + n * 0.1); if (h > 55 + n * 12) c.set('#f4f7fb'); }
     // sous l'eau
-    if (h < WATER_LEVEL) c.copy(wet).multiplyScalar(0.85);
+    if (h < WATER_LEVEL) { c.copy(wet).multiplyScalar(0.85); c.lerp(DEEP_SAND, Math.min(0.55, -h / 22)); }   // fond qui s'assombrit avec la profondeur
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -108,7 +110,7 @@ void main() {
   #include <fog_vertex>
 }`;
 const WATER_FRAG = /* glsl */`
-uniform float time; uniform vec3 deep; uniform vec3 shallow; uniform vec3 foam; uniform float light;
+uniform float time; uniform vec3 deep; uniform vec3 shallow; uniform vec3 foam; uniform float light; uniform float under;
 varying vec3 vWorld;
 #include <fog_pars_fragment>
 // relief de vagues (somme de sinus) : sert à calculer une normale pour les reflets
@@ -137,7 +139,10 @@ void main() {
   // écume : petites crêtes blanches éparses qui bougent avec les vagues
   float fm = noise(p * 0.35 + vec2(time * 0.4, time * 0.25)) * noise(p * 1.1 - vec2(time * 0.3, 0.0));
   col = mix(col, foam, smoothstep(0.55, 0.8, fm) * 0.5);
-  gl_FragColor = vec4(col * light, 0.88);
+  float alpha = 0.88;
+  // vue d'en dessous : surface claire au-dessus de soi (fenêtre de Snell), bleu profond sur les côtés
+  if (under > 0.5) { float f = pow(1.0 - abs(dot(n, v)), 1.5); col = mix(vec3(0.62, 0.9, 0.98), deep * 0.7, f); alpha = 0.95; }
+  gl_FragColor = vec4(col * light, alpha);
   #include <colorspace_fragment>
   #include <fog_fragment>
 }`;
@@ -145,7 +150,7 @@ void main() {
 export function buildWater() {
   const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
     time: { value: 0 }, deep: { value: new THREE.Color('#1f7fbf') }, shallow: { value: new THREE.Color('#4cc3e6') },
-    foam: { value: new THREE.Color('#ffffff') }, light: { value: 1 },
+    foam: { value: new THREE.Color('#ffffff') }, light: { value: 1 }, under: { value: 0 },
   }]);
   const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, transparent: true, fog: true, depthWrite: false });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(7400, 5400, 185, 135).rotateX(-Math.PI / 2).translate(0, 0, -1300), mat);

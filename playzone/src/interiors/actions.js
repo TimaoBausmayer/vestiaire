@@ -135,6 +135,7 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'sleep': sleep(g, spot.seat); break;
     case 'police': policeDesk(g); break;
     case 'court': g.police.courtDesk(); break;
+    case 'submarine': g.submarine.desk(); break;
     case 'hospital': {
       const r = await activity(g, 'hospital', b);
       if (r) { g.ui.dialog({ name: 'Dr Bobo', role: 'Hôpital Saint-Bobo', text: pick(DIAG), choices: [{ label: 'Merci docteur', ghost: true, action: (m) => m.close() }] }); needsToast(g, r, '🩺 Consultation terminée'); }

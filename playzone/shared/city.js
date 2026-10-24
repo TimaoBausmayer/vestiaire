@@ -362,6 +362,7 @@ add({ id: 'f1-paddock', name: 'Paddock de l\'Académie F1', kind: 'shop', shop: 
 }
 
 // --- Surf Shop (wingfoil) sur la corniche, face à la mer
+add({ id: 'plongee', name: 'Centre de plongée Bulle d\'Air', kind: 'shop', shop: 'plongee', interior: 'shop', x: -380, z: 47, w: 14, d: 10, h: 5.5, facing: 'S', roof: 'gable', style: 'hut', color: '#48cae4', roofColor: '#ffd23f', sign: 'PLONGÉE · SOUS-MARIN', district: 'villas' });
 add({ id: 'surf-shop', name: 'Surf Shop Vent Debout', kind: 'shop', shop: 'surf', interior: 'shop', x: 430, z: 38, w: 16, d: 12, h: 6, facing: 'S', roof: 'gable', style: 'hut', color: '#90e0ef', roofColor: '#ff9f1c', sign: 'SURF SHOP · WINGFOIL', district: 'villas' });
 
 // --- Campus des Métiers (formations) et zone commerciale de l'Avenue de Prestige

@@ -106,7 +106,7 @@ export class Player {
     if (this.stamina <= 0.02 && sprinting) this.winded = 1.5; // essoufflé·e : on doit marcher un instant
     this.winded = Math.max(0, (this.winded || 0) - dt);
     this.sprinting = sprinting;
-    let target = this.swimming ? 3.6 : sprinting ? this.runSpeed * (0.82 + m / 220) : this.walkSpeed;
+    let target = this.swimming ? 3.6 * (this.swimBoost || 1) : sprinting ? this.runSpeed * (0.82 + m / 220) : this.walkSpeed;
     target *= this.speedBonus * this.needsSpeed * (this.bodySpeed || 1);
     if (this.pose === 'carry') target *= 0.85;
     const accel = this.grounded || this.swimming ? 14 : 4;
@@ -125,7 +125,7 @@ export class Player {
       this.onJump?.();
     }
     if (this.swimming) {
-      const targetY = WATER_LEVEL - 1.05 + Math.sin(performance.now() / 400) * 0.05;
+      const targetY = WATER_LEVEL - 1.05 - (this.dive || 0) + Math.sin(performance.now() / 400) * 0.05;
       v.y = (targetY - p.y) * 4;
     } else {
       v.y -= GRAVITY * dt;
