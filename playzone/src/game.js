@@ -297,6 +297,7 @@ export class Game extends Emitter {
 
   interact() {
     if (!this.playing || this.ui.blocking || this.cutscene) return;
+    if (this.wingfoil?.s) return;   // en wingfoil, E sert à pomper
     if (this.interactions.trigger()) this.sfx('click');
   }
 

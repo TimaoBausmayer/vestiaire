@@ -5,7 +5,7 @@ import { mulberry32 } from './rng.js';
 
 export const MIN_WIND = 10;          // nœuds : en dessous, l'aile ne porte pas
 export const SURF_SPOT = { x: 430, z: 112 };    // mise à l'eau, devant le Surf Shop (Côte des Villas)
-export const WING = { rental: 60, price: 1800, maxSpeed: 12 };
+export const WING = { rental: 60, price: 1800, maxSpeed: 12, foilBoost: 1.6 };   // en vol, le foil va bien plus vite
 
 // Vent à un instant (heure du jeu) : { kts, dir } — dir = d'où vient le vent (radians, 0 = du nord).
 export function windAt(t) {
@@ -26,5 +26,6 @@ export function forecast(t, hours = 6) { return Array.from({ length: hours }, (_
 
 // Hauteur maximale crédible d'un saut selon le vent.
 export const maxJump = (kts) => 2 + kts * 0.28;
-export function jumpPoints(height, spins) { return Math.round(height * 10 + spins * 40 + (spins >= 2 ? 30 : 0)); }
+// points d'un saut : hauteur, rotations (360) et flips (salto avant / arrière), bonus pour les combos
+export function jumpPoints(height, spins, flips = 0) { return Math.round(height * 10 + spins * 40 + (spins >= 2 ? 30 : 0) + flips * 60 + (spins && flips ? 50 : 0)); }
 export function defaultWing() { return { sessions: 0, trial: false, best: 0, bestPoints: 0, jumps: 0, skill: 5 }; }

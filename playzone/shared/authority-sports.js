@@ -126,7 +126,7 @@ Object.assign(SPORTS_HANDLERS, {
     ctx.session.wing = { at: ctx.now, lastJump: 0, kts: wind.kts, jump: st.jump };
     return { ok: true, changed: true, data: { mode, paid, wind, gear, stats: st } };
   },
-  'wing.jump'(ctx, { height, air, spins }) {
+  'wing.jump'(ctx, { height, air, spins, flips }) {
     const p = ctx.profile, w = p.sports.wing, s = ctx.session.wing;
     if (!s) return err('Pas sur l\'eau.');
     if (ctx.now - s.lastJump < 1200) return err('Trop rapide.');
@@ -135,15 +135,16 @@ Object.assign(SPORTS_HANDLERS, {
     height = Math.max(0, Math.min(maxJump(kts) * (s.jump || 1), Number(height) || 0));
     air = Math.max(0, Math.min(2 * Math.sqrt((2 * height) / 9.8) + 0.6, Number(air) || 0));
     spins = Math.max(0, Math.min(Math.floor(air * 1.6), Math.floor(Number(spins) || 0)));
-    const pts = jumpPoints(height, spins);
+    flips = Math.max(0, Math.min(Math.floor(air * 1.2), Math.floor(Number(flips) || 0)));
+    const pts = jumpPoints(height, spins, flips);
     w.jumps++;
-    w.skill = Math.min(100, Math.round((w.skill + 0.3 + spins * 0.4) * 10) / 10);
+    w.skill = Math.min(100, Math.round((w.skill + 0.3 + spins * 0.4 + flips * 0.6) * 10) / 10);
     p.body.endurance = Math.min(100, (p.body.endurance ?? 15) + 0.15);
     const rec = height > w.best;
     if (rec) w.best = Math.round(height * 10) / 10;
     if (pts > w.bestPoints) w.bestPoints = pts;
     const rank = ctx.leaderboard ? ctx.leaderboard.submit('wing', p, pts, false) : null;
-    return { ok: true, changed: true, data: { height, spins, pts, record: rec, rank } };
+    return { ok: true, changed: true, data: { height, spins, flips, pts, record: rec, rank } };
   },
   'wing.end'(ctx) { ctx.session.wing = null; return { ok: true, changed: false, data: {} }; },
   // Réglage de l'équipement : pièce possédée dans chaque emplacement, couleurs libres.

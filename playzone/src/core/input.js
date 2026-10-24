@@ -15,6 +15,7 @@ export class Input extends Emitter {
     this.keys = new Set();
     this.move = { x: 0, y: 0 };
     this.look = { dx: 0, dy: 0 };
+    this.mouse = { dx: 0, dy: 0 };   // mouvement brut de la souris (sans clic) : figures en l'air
     this.zoom = 0;
     this.sprintToggle = false;
     this.actionHeld = false;
@@ -28,7 +29,7 @@ export class Input extends Emitter {
     addEventListener('keyup', (e) => this._key(e, false));
     addEventListener('blur', () => { this.keys.clear(); this.actionHeld = false; });
     canvas.addEventListener('pointerdown', (e) => this._down(e));
-    addEventListener('pointermove', (e) => this._moveP(e));
+    addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { this.mouse.dx += e.movementX || 0; this.mouse.dy += e.movementY || 0; } this._moveP(e); });
     addEventListener('pointerup', (e) => this._up(e));
     addEventListener('pointercancel', (e) => this._up(e));
     canvas.addEventListener('wheel', (e) => { e.preventDefault(); this.zoom += Math.sign(e.deltaY); }, { passive: false });
@@ -123,7 +124,7 @@ export class Input extends Emitter {
   }
 
   endFrame() {
-    this.look.dx = 0; this.look.dy = 0; this.zoom = 0;
+    this.look.dx = 0; this.look.dy = 0; this.mouse.dx = 0; this.mouse.dy = 0; this.zoom = 0;
     this._edges.clear();
   }
 }

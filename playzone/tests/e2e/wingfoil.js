@@ -52,6 +52,28 @@ await page.screenshot({ path: 'tests/e2e/out/wing-jump.png' });
 await step(60, 0.05); await sleep(600);
 const W = (await prof()).sports.wing;
 check(W.jumps >= 1 && W.best > 0.6, `saut validé : ${W.best} m (${W.bestPoints} pts)`);
+// figures : salto à la souris (mouvement vers le bas) puis réception à plat
+await ev(() => { const s = window.playzone.wingfoil.s; s.speed = Math.max(s.speed, 9); s.y = 0; s.crashed = 0; });
+const flip = await ev(async () => {
+  const g = window.playzone, w = g.wingfoil, s = w.s;
+  g.profile.sports.wing.skill = 80;   // un rider entraîné réussit ses réceptions
+  w.jump(); const pts0 = g.profile.sports.wing.bestPoints;
+  // pendant la montée : on tire la souris vers le bas jusqu'à un tour complet, puis on la lâche
+  for (let i = 0; i < 80 && w.s && (s.y > 0 || i === 0); i++) { if (s.flipAcc < Math.PI * 2) g.input.mouse.dy = 60; g.debugStep(0.04); }
+  await new Promise((r) => setTimeout(r, 600));
+  return { flips: Math.floor((s.flipAcc + 0.7) / (Math.PI * 2)), crashed: s.crashed > 0, pts: g.profile.sports.wing.bestPoints, pts0 };
+});
+check(flip.flips >= 1 && !flip.crashed, `flip à la souris réussi (${flip.flips} salto, meilleur score ${flip.pts} pts)`);
+// vitesse en vol : sur le foil on va bien plus vite que dans l'eau
+const fly = await ev(() => { const s = window.playzone.wingfoil.s; return { v: s.speed, tk: window.playzone.wingfoil.stats.takeoff }; });
+check(fly.v > fly.tk, `en vol sur le foil : ${Math.round(fly.v * 3.6)} km/h (décollage à ${Math.round(fly.tk * 3.6)} km/h)`);
+// aile rangée + pompage (E) : on relance la planche sans vent
+await ev(() => { const g = window.playzone, s = g.wingfoil.s; g.wingfoil.toggleWing(); s.speed = 2; s.stamina = 1; });
+const v0p = await ev(() => window.playzone.wingfoil.s.speed);
+for (let i = 0; i < 5; i++) { await page.keyboard.press('KeyE'); await sleep(450); await ev(() => window.playzone.debugStep(0.05)); }
+const pumped = await ev(() => ({ v: window.playzone.wingfoil.s.speed, stowed: window.playzone.wingfoil.s.stowed, wing: window.playzone.wingfoil.wingMesh.visible }));
+check(pumped.stowed && !pumped.wing && pumped.v > v0p + 2, `aile rangée, pompage avec E : ${Math.round(v0p * 3.6)} → ${Math.round(pumped.v * 3.6)} km/h`);
+await page.screenshot({ path: 'tests/e2e/out/wing-pump.png' });
 await ev(() => window.playzone.wingfoil.stop()); await sleep(300);
 check(await ev(() => !window.playzone.wingfoil.s && !window.playzone.player.external), 'retour à la plage');
 

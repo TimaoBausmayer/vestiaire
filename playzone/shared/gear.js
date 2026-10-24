@@ -5,6 +5,7 @@ import { groundHeight, WATER_LEVEL, WORLD_BOUNDS } from './world-layout.js';
 
 // lowWind : nœuds gagnés sur le vent minimum · speed / jump / spin / turn : multiplicateurs
 export const WINGS = {
+  'aile-2': { name: 'Aile Tempête 2,5 m²', emoji: '🌪️', price: 1900, lowWind: -9, speed: 1.2, jump: 1.1, spin: 1.3, turn: 1.3, level: 4, desc: 'Pour le très gros temps : dès 19 nœuds, et ça décoiffe jusqu\'à 40.' },
   'aile-3': { name: 'Aile Fusée 3 m²', emoji: '🔺', price: 1400, lowWind: -4, speed: 1.12, jump: 0.95, spin: 1.25, turn: 1.25, desc: 'Petite et nerveuse : pour les jours de gros vent (14 nœuds minimum).' },
   'aile-4': { name: 'Aile Sprint 4 m²', emoji: '🪁', price: 1600, lowWind: -2, speed: 1.08, jump: 1, spin: 1.12, turn: 1.12, desc: 'Vive et rapide dès 12 nœuds.' },
   'aile-5': { name: 'Aile Polyvalente 5 m²', emoji: '🪁', price: 1800, lowWind: 0, speed: 1, jump: 1, spin: 1, turn: 1, desc: 'Celle du pack de base : fait tout bien, à partir de 10 nœuds.' },
@@ -12,6 +13,7 @@ export const WINGS = {
   'aile-7': { name: 'Aile Pétole 7 m²', emoji: '🍃', price: 2500, lowWind: 4, speed: 0.9, jump: 1.08, spin: 0.82, turn: 0.85, desc: 'Pour les jours sans vent : vole dès 6 nœuds !' },
   'aile-free': { name: 'Aile Freestyle Twister 4,5 m²', emoji: '🌀', price: 3200, lowWind: -1, speed: 1.02, jump: 1.25, spin: 1.45, turn: 1.15, level: 5, desc: 'Sauts plus hauts, rotations ultra-rapides : la reine des figures.' },
   'aile-race': { name: 'Aile Carbone Racing 5 m²', emoji: '⚡', price: 4800, lowWind: 0, speed: 1.28, jump: 1, spin: 0.95, turn: 1.05, level: 8, desc: 'Lattes en carbone : la plus rapide du plan d\'eau.' },
+  'aile-8': { name: 'Aile Pétole XXL 8 m²', emoji: '🎈', price: 3400, lowWind: 5, speed: 0.88, jump: 1.1, spin: 0.75, turn: 0.8, level: 3, desc: 'Énorme : décolle dès 5 nœuds (en pompant un peu).' },
   'aile-mamie': { name: 'Aile Parapluie de Mamie', emoji: '☂️', price: 600, lowWind: -3, speed: 0.8, jump: 0.8, spin: 1.6, turn: 1.3, desc: 'Ça ne devrait pas voler. Et pourtant. Tourne comme une toupie.' },
 };
 export const BOARDS = {
