@@ -37,7 +37,7 @@ const turn = await ev(async () => {
 });
 await page.keyboard.up('KeyW');
 console.log(`  virage à fond : ${turn.maxLat.toFixed(1)} m/s² latéral, dérive ${turn.maxSlip.toFixed(1)} m/s, cap ${(turn.dYaw * 57.3).toFixed(0)}° en 1 s`);
-check(turn.maxLat < 22 && turn.dYaw > 0.15 && turn.dYaw < 1.2 && turn.maxSlip < 4, 'tourne franchement sans partir en toupie');
+check(turn.maxLat < 30 && turn.dYaw > 0.15 && turn.dYaw < 1.2 && turn.maxSlip < 4, 'tourne franchement sans partir en toupie');
 // comparaison : une petite citadine accroche moins que la Bugatti à vitesse égale
 const grip = await ev(async () => {
   const { VEHICLES } = await import('/shared/content/vehicles.js');

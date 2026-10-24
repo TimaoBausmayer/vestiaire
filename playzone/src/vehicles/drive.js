@@ -100,21 +100,23 @@ export class DriveSim {
     this.accel = acc;
     // braquage
     const aspd = Math.abs(vf);
-    const maxSteer = (sp.kind === 'car' ? 0.62 : 0.75) * (1 - 0.62 * Math.min(1, aspd / Math.max(10, sp.max)));
+    // direction plus vive à basse vitesse, plus douce à haute vitesse ; le permis rend la conduite plus facile
+    const L = this.licensed ? 1 : 0;
+    const maxSteer = (sp.kind === 'car' ? 0.72 : 0.78) * (1 - 0.58 * Math.min(1, aspd / Math.max(10, sp.max)));
     const target = (inp.steer || 0) * maxSteer;
     const T = sp.kind === 'car' ? this.tier : 0.5;
-    this.steer += (target - this.steer) * Math.min(1, dt * (Math.abs(target) > Math.abs(this.steer) ? 6 + 4 * T : 9 + 3 * T));
+    this.steer += (target - this.steer) * Math.min(1, dt * (Math.abs(target) > Math.abs(this.steer) ? 8 + 4 * T + 2 * L : 11 + 3 * T + 2 * L));
     const wb = Math.max(0.6, D.zF - D.zR);
     let yawRate = -vf * Math.tan(this.steer) / wb * (sp.turn / 1.8);
     // l'adhérence plafonne la rotation : à haute vitesse la voiture vire large mais reste contrôlable
     // (au lieu de pivoter brutalement). Les voitures haut de gamme encaissent plus d'accélération latérale.
-    const latMax = (sp.kind === 'car' ? 11 + 9 * T : 13) * sp.grip * (inp.handbrake ? 1.8 : 1);
+    const latMax = (sp.kind === 'car' ? 15 + 8 * T + 3 * L : 15) * sp.grip * (inp.handbrake ? 1.8 : 1);
     if (aspd > 1 && Math.abs(yawRate * vf) > latMax) yawRate = Math.sign(yawRate) * latMax / aspd;
     if (inp.handbrake && aspd > 4) yawRate *= 1.6;
     this.yawRate = yawRate;
     // adhérence latérale : le dérapage s'amortit plus ou moins vite
     const grip = sp.grip * (inp.handbrake ? 0.22 : 1) * (1 - this.damage * 0.25);
-    vl *= Math.exp(-dt * (1.5 + 11 * grip + 5 * T * (inp.handbrake ? 0 : 1)));   // contrôle de stabilité (haut de gamme)
+    vl *= Math.exp(-dt * (1.5 + 11 * grip + (3 + 5 * T + 2 * L) * (inp.handbrake ? 0 : 1)));   // contrôle de stabilité (toutes, renforcé haut de gamme et avec le permis)
     this.slip = Math.abs(vl);
     this.latAcc = yawRate * vf;
     this.yaw += yawRate * dt;

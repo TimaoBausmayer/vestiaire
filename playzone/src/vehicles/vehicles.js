@@ -313,6 +313,7 @@ export class Vehicles {
   enter(v) {
     const g = this.game;
     if (g.player.carrying || g.jobs?.active?.job.id === 'cook') { g.ui.toast('Impossible de conduire maintenant.', 'bad'); return; }
+    v.sim.licensed = !!this.game.profile.justice?.licence?.permis;   // avec le permis, la conduite est plus facile
     this.current = v;
     v.driven = true;
     v.doorTarget = 1;
