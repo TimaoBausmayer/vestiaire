@@ -177,7 +177,7 @@ export class Authority {
       const away = ctx.profile && jailTick(ctx.profile, ctx.now);
       const res = fn.call(this, ctx, payload || {}) || err('Erreur.');
       if ((expired || away) && res.ok) res.changed = true;
-      if (ctx.profile?.admin && res.ok) { adminTopUp(ctx.profile); res.changed = true; }
+      if (ctx.profile?.admin && res.ok) { adminTopUp(ctx.profile, ctx.now); res.changed = true; }
       return res;
     } catch (e) {
       ctx.log?.(`[authority] ${type}: ${e.stack || e}`);

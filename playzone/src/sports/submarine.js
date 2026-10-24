@@ -102,7 +102,6 @@ export class Submarine {
     g.player.avatar.root.visible = true;
     if (this.saved) { g.cam.dist = this.saved.dist; g.cam.pitch = this.saved.pitch; g.cam.minDist = this.saved.min; }
     g.net.request('sub.end', {}).catch(() => {});
-    const b = BUILDING_BY_ID.plongee;
-    g.player.teleport(b.door.x, b.door.z + 3, 0);
+    g.player.teleport(s.x, s.z, s.yaw);   // on remonte à la surface, là où on est
   }
 }

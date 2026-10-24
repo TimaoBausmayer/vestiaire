@@ -230,7 +230,7 @@ export function clinicPanel(g) {
 // Appli Santé (téléphone).
 export function healthApp(g, b) {
   const p = g.profile, bd = p.body, items = g.net.content.items;
-  const st = needsStatus(p.needs, g.now());
+  const st = p.admin ? { faim: 100, energie: 100, humeur: 100, hygiene: 100 } : needsStatus(p.needs, g.now());
   const att = attractiveness(p, items, g.now(), st.hygiene);
   const line = (icon, t, d) => b.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, icon), h('div.grow', h('div.t', t), d ? h('div.d', d) : null)));
   line('❤️', `Santé : ${Math.round(bd.health)} / 100`, bd.injury ? `🩹 ${INJURIES[bd.injury.kind].name} (guérit dans ${Math.max(1, Math.ceil((bd.injury.until - g.now()) / 60000))} min)` : 'Aucune blessure.');

@@ -48,10 +48,22 @@ await step(60);
 s = await S();
 check(s.v < s.tk && s.flight === 0, `sans pomper, on retombe dans l'eau (${Math.round(s.v * 3.6)} km/h)`);
 void fast;
-// 6) fin de session : record
+// 6) fin de session : record ; on reste là où on est, dans l'eau
+const where = await ev(() => ({ x: window.playzone.wingfoil.s.x, z: window.playzone.wingfoil.s.z }));
 await ev(() => window.playzone.wingfoil.stop()); await sleep(1200);
+await step(20);
+const after = await ev(() => ({ x: window.playzone.player.pos.x, z: window.playzone.player.pos.z, swim: window.playzone.player.swimming }));
+check(Math.hypot(after.x - where.x, after.z - where.z) < 3 && after.swim, 'en rentrant, on reste dans l\'eau, là où on est (à la nage)');
 const best = await ev(() => window.playzone.profile.sports.wing.pumpBest);
 check(best > 6, `record de vol en pumpfoil : ${best} s`);
+
+// 7) téléportation depuis la carte du téléphone (payante)
+const c0 = await ev(() => window.playzone.profile.coins);
+await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const b = BUILDING_BY_ID.tribunal; window.playzone.phone.pick({ x: b.door.x, z: b.door.z + 2, name: b.name }); });
+await sleep(400);
+await page.getByText(/Téléportation/).click(); await sleep(1200);
+const tp = await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const b = BUILDING_BY_ID.tribunal, P = window.playzone.player.pos; return { d: Math.hypot(P.x - b.door.x, P.z - b.door.z - 2), coins: window.playzone.profile.coins }; });
+check(tp.d < 3 && tp.coins < c0 - 300, `téléporté·e devant le Palais de Justice (−${c0 - tp.coins} PC)`);
 
 console.log(ok ? 'OK' : 'ÉCHEC');
 const errs = errors.filter((e) => !/status of 404|AudioContext/.test(e));

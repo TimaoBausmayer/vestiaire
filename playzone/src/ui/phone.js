@@ -19,6 +19,7 @@ import { adminApp } from './admin.js';
 import { premiumApp } from './premium-app.js';
 import { gearApp, meteoApp, lawyerApp, quickActions } from './gear-app.js';
 import { lottoApp } from './lotto-app.js';
+import { teleportCost } from '../../shared/teleport.js';
 import { shoppingApp } from './shopping-app.js';
 import { windAt } from '../../shared/wingfoil.js';
 import { calNow } from '../events/agenda.js';
@@ -209,7 +210,7 @@ export class Phone {
       // lieu le plus proche du point touché
       let best = null, bd = 14 / view.k + 6;
       for (const d of destinations()) { const dd = Math.hypot(d.x - wx, d.z - wz); if (dd < bd) { bd = dd; best = d; } }
-      this.goTo(best || { x: wx, z: wz, name: 'Repère' });
+      this.pick(best || { x: wx, z: wz, name: 'Repère' });
     });
     c.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.2 : 1 / 1.2); }, { passive: false });
     // liste des lieux (recherche + catégories)
@@ -225,12 +226,40 @@ export class Phone {
         list.append(h('h4', { style: { margin: '10px 0 4px' } }, label));
         const P = g.player.pos;
         items.sort((a2, b2) => Math.hypot(a2.x - P.x, a2.z - P.z) - Math.hypot(b2.x - P.x, b2.z - P.z));
-        for (const d of items) list.append(h('div.list-item', { style: { cursor: 'pointer' }, onclick: () => this.goTo(d) }, h('div.grow', h('div.t', d.name), h('div.d', `${Math.round(Math.hypot(d.x - P.x, d.z - P.z))} m à vol d'oiseau`)), h('span.pill', 'GPS')));
+        for (const d of items) list.append(h('div.list-item', { style: { cursor: 'pointer' }, onclick: () => this.pick(d) }, h('div.grow', h('div.t', d.name), h('div.d', `${Math.round(Math.hypot(d.x - P.x, d.z - P.z))} m à vol d'oiseau`)), h('span.pill', 'GPS')));
       }
     };
     search.addEventListener('input', fill);
     b.append(h('h4', { style: { margin: '10px 0 0' } }, '🧭 Aller à...'), search, list);
     fill();
+  }
+
+  // Lieu choisi sur la carte : GPS (gratuit) ou téléportation (payante, gratuite pour l'admin).
+  pick(d) {
+    const g = this.game, cost = g.profile.admin ? 0 : teleportCost(g.player.pos, d);
+    this.close();
+    g.ui.dialog({ name: d.name, role: `${Math.round(Math.hypot(d.x - g.player.pos.x, d.z - g.player.pos.z))} m`, text: 'Comment veux-tu y aller ?', choices: [
+      { label: '🧭 GPS (gratuit)', action: (m) => { m.close(); this.goTo(d); } },
+      { label: `✨ Téléportation (${cost ? `${cost.toLocaleString('fr-FR')} PC` : 'gratuit'})`, action: (m) => { m.close(); this.teleport(d); } },
+      { label: 'Annuler', ghost: true, action: (m) => m.close() },
+    ] });
+  }
+
+  async teleport(d) {
+    const g = this.game;
+    if (g.player.zone !== 'world') { g.ui.toast('Sors d\'abord du bâtiment.', 'bad'); return; }
+    try {
+      if (g.jetski?.s) await g.jetski.stop(true);
+      for (const sys of [g.wingfoil, g.sailing, g.submarine]) if (sys?.s) await sys.stop();
+      if (g.vehicles.current) g.vehicles.exit(true);
+      const r = await g.net.request('teleport', { x: d.x, z: d.z });
+      g.fx?.burst?.(g.player.pos, '#c77dff', 24);
+      g.player.teleport(r.at.x, r.at.z, g.player.yaw);
+      g.cam.snap?.(g.player.pos);
+      g.fx?.burst?.(g.player.pos, '#c77dff', 24);
+      g.sfx('levelup');
+      g.ui.toast(`✨ Téléporté·e : ${d.name}${r.cost ? ` (−${r.cost.toLocaleString('fr-FR')} PC)` : ''}`, 'good', 3500);
+    } catch (e) { g.ui.toast(e.message, 'bad', 4000); }
   }
 
   goTo(d) {

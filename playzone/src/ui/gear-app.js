@@ -63,7 +63,7 @@ export function gearApp(g, b, phone) {
   if (!pocket.length) b.append(h('p.muted', 'Aucun pour l\'instant : Deux-Roues Express, Cycles des Cimes ou le Bike Park.'));
   for (const v of pocket) {
     b.append(h('div.list-item', h('span', { style: { fontSize: '22px' } }, VEHICLES[v.model].kind === 'board' ? '🛴' : '🚲'), h('div.grow', h('div.t', VEHICLES[v.model].name), h('div.d', 'Gratuit, où que tu sois.')),
-      h('button.btn.small', { onclick: () => { phone.close(); g.vehicles.deliver(v.id); } }, '🎒 Sortir')));
+      h('button.btn.small', { onclick: () => { phone.close(); g.vehicles.summon(v.id); } }, '🎒 Sortir')));
   }
 }
 
@@ -103,12 +103,14 @@ export function quickActions(g, phone) {
   const cur = g.vehicles?.current;
   if (cur?.owner === 'me' && cur.sim.damage > 0.05) chip(`🔧 Réparer ici · ${fmt(mobileRepairCost(cur.model, cur.sim.damage))} PC`, async () => { await g.vehicles.repairHere(cur); phone.render(); });
   if ((g.profile.justice?.stars || 0) > 0) chip('⚖️ Avocat', () => phone.go('avocat'));
-  if (Object.keys(WINGS).some((id) => ownsGear(p, id))) chip('🪁 À l\'eau', () => { phone.close(); g.wingfoil?.launchHere(); });
+  if (Object.keys(WINGS).some((id) => ownsGear(p, id))) chip('🪁 Wingfoil', () => { phone.close(); g.wingfoil?.launchHere(); });
   if ((p.inventory.pumpfoil || 0) > 0 || (p.inventory.wingfoil || 0) > 0) chip('🏄 Pumpfoil', () => { phone.close(); g.wingfoil?.launchHere(true); });
   if ((p.inventory.jetski || 0) > 0) chip('🚤 Jet ski', () => { phone.close(); g.jetski?.launchHere(); });
   const boat = Object.keys(BOATS).find((id) => ownsBoat(p, id));
   if (boat) chip(`${BOATS[boat].emoji} ${BOATS[boat].name}`, () => { phone.close(); g.sailing?.launchHere(boat); });
+  const car = p.vehicles.find((v) => VEHICLES[v.model] && !POCKET_KINDS.includes(VEHICLES[v.model].kind));
+  if (car && !cur) chip(`🚗 Voiture`, () => { phone.close(); g.vehicles.summon(car.id); });
   const bike = p.vehicles.find((v) => POCKET_KINDS.includes(VEHICLES[v.model]?.kind));
-  if (bike && !cur) chip(`🎒 ${VEHICLES[bike.model].name}`, () => { phone.close(); g.vehicles.deliver(bike.id); });
+  if (bike && !cur) chip(`🎒 ${VEHICLES[bike.model].name}`, () => { phone.close(); g.vehicles.summon(bike.id); });
   return out.length ? h('div.quick-actions', out) : null;
 }

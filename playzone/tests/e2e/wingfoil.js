@@ -107,8 +107,8 @@ await ev(async () => {
 const pj = await prof();
 check(pj.sports.jetski?.best?.bouees > 0, `parcours de bouées : ${pj.sports.jetski?.best?.bouees} s`);
 await ev(() => { const g = window.playzone; for (const m of [...g.ui.stack]) m.close(); });
+await toShop();   // après la course, on est resté·e sur l'eau : retour à la boutique
 await ev(async () => { await window.playzone.net.request('shop.buy', { itemId: 'jetski' }); });
-await toShop();
 await ev(() => window.playzone.jetski.start('course')); await sleep(500);
 check(await ev(() => window.playzone.jetski.s?.npcs.length === 6), 'course : 6 jet skis PNJ (sans abonnement grâce à son jet ski)');
 await ev(() => { for (let i = 0; i < 80; i++) window.playzone.debugStep(0.05); });

@@ -79,7 +79,8 @@ export class Life {
   refresh() {
     const p = this.game.profile;
     if (!p?.needs) return;
-    const st = needsStatus(p.needs, this.game.now());
+    // l'admin ne perd rien : faim, énergie, humeur et hygiène restent pleines
+    const st = p.admin ? { faim: 100, energie: 100, humeur: 100, hygiene: 100 } : needsStatus(p.needs, this.game.now());
     this.status = st;
     NEED_KEYS.forEach((k, i) => {
       const v = st[k];

@@ -212,7 +212,7 @@ export class Jetski {
     if (!abandon) { const p0 = R.pts[0]; g.player.pos.set(p0.x, 0, p0.z); g.net.sendState?.(g.player.netState(), g.player.zone); }
     const r = await req(g, 'sport.finish', abandon ? { abandon: true } : { time, laps: s.laps });
     const shop = BUILDING_BY_ID['surf-shop'];
-    if (s.back) g.player.teleport(s.back.x, s.back.z, Math.PI); else g.player.teleport(shop.door.x, shop.door.z + 3, Math.PI);
+    void shop; g.player.teleport(s.x, s.z, s.yaw);   // on reste là où on est, dans l'eau
     if (abandon || !r) return;
     g.sfx(r.rank === 1 || r.record ? 'levelup' : 'success');
     const pos = r.rank ? `${r.rank === 1 ? '🥇 VICTOIRE' : `${r.rank}e`} sur ${r.of}. ` : '';

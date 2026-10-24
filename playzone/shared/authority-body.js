@@ -11,6 +11,7 @@ const SEVERITY = { bosse: 1, commotion: 2, entorse: 2, fracture: 3 };
 const atKind = (self, ctx, interior) => BUILDINGS.some((b) => b.interior === interior && self.atBuilding(ctx, b, 1));
 
 function injure(p, kind, now) {
+  if (p.admin) return;   // l'admin ne se blesse jamais
   const inj = INJURIES[kind];
   p.body.health = Math.max(0, p.body.health - inj.health);
   if (!p.body.injury || SEVERITY[kind] >= SEVERITY[p.body.injury.kind]) p.body.injury = { kind, until: now + inj.minutes * 60_000 };

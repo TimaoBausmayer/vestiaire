@@ -245,7 +245,7 @@ export class Sailing {
     g.hud.track('sail', null);
     const P = g.player;
     P.external = false; P.noJump = false; P.swimming = false;
-    P.teleport(s.back.x, s.back.z, Math.PI);
+    P.teleport(s.x, s.z, s.yaw);   // on reste là où on est, dans l'eau
     g.net.request('sail.end', { capsizes: s.capsizes }).then((r) => { if (r?.skill) g.profile.sports.sail = { ...(g.profile.sports.sail || {}), skill: r.skill }; }).catch(() => null);
     g.ui.toast(`⚓ ${msg || 'Retour au port.'}${s.capsizes ? ` ${s.capsizes} dessalage(s).` : ''}${s.jumps ? ` ${s.jumps} saut(s), meilleur ${s.best.toFixed(1)} m.` : ''}`, 'good', 3500);
   }

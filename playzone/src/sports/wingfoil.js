@@ -307,7 +307,8 @@ export class Wingfoil {
     P.external = false;
     // retour au bord : là où on s'était mis à l'eau, sinon devant le Surf Shop
     const shop = BUILDING_BY_ID['surf-shop'];
-    if (s.back) P.teleport(s.back.x, s.back.z, Math.PI); else P.teleport(shop.door.x, shop.door.z + 3, Math.PI);
+    // on reste là où on est (dans l'eau, à la nage) : pas de retour forcé à la plage
+    void shop; P.teleport(s.x, s.z, s.yaw);
     if (s.pump) {
       const best = s.bestFlight;
       g.net.request('wing.pump', { seconds: best }).then((r) => { g.net.request('wing.end', {}).catch(() => null); g.ui.toast(`🏖️ ${msg || 'Session de pumpfoil terminée.'} Plus long vol : ${best.toFixed(1)} s${r.record ? ' — NOUVEAU RECORD !' : ` (record ${r.best} s)`}.`, 'good', 4500); }).catch(() => g.net.request('wing.end', {}).catch(() => null));
