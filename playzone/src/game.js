@@ -47,6 +47,7 @@ import { CalendarBoards } from './events/agenda.js';
 import { Karting } from './sports/karting.js';
 import { Football } from './sports/football.js';
 import { Wingfoil } from './sports/wingfoil.js';
+import { Sailing } from './sports/sailing.js';
 import { Races } from './sports/races.js';
 import { Ski } from './sports/ski.js';
 import { Jetski } from './sports/jetski.js';
@@ -184,6 +185,7 @@ export class Game extends Emitter {
     this.karting = this.addSystem(new Karting(this));
     this.football = this.addSystem(new Football(this));
     this.wingfoil = this.addSystem(new Wingfoil(this));
+    this.sailing = this.addSystem(new Sailing(this));   // voile et kitesurf (Cap Venteux)
     this.races = this.addSystem(new Races(this));
     this.ski = this.addSystem(new Ski(this));
     this.jetski = this.addSystem(new Jetski(this));
@@ -297,7 +299,7 @@ export class Game extends Emitter {
 
   interact() {
     if (!this.playing || this.ui.blocking || this.cutscene) return;
-    if (this.wingfoil?.s) return;   // en wingfoil, E sert à pomper
+    if (this.wingfoil?.s || this.sailing?.s) return;   // sur l'eau, E sert à pomper
     if (this.interactions.trigger()) this.sfx('click');
   }
 

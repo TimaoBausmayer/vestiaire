@@ -47,6 +47,7 @@ export async function runAction(game, action, { b, spot, staff }) {
       else if (s === 'auto-ecole') policeDesk(g, true);
       else if (s === 'foot-club') g.races?.clubDesk();
       else if (s === 'bikepark') g.races?.bikeDesk(b);
+      else if (s === 'voile-club') g.sailing?.desk(b);
       else if (s === 'f1') g.races?.desk('f1');
       else if (s === 'surf') g.wingfoil?.desk(b);
       else if (s === 'pole-emploi') poleEmploiPanel(g);

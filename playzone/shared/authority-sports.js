@@ -95,9 +95,9 @@ function FOOT_LEVELS_NAME(id) { return { debutant: 'Débutant', amateur: 'Amateu
 export { PITCH };
 
 // ------------------------------------------------------------------------------ wingfoil
-import { windAt, MIN_WIND, WING, maxJump, jumpPoints, windLabel } from './wingfoil.js';
+import { windAt, windAtPos, MIN_WIND, WING, maxJump, jumpPoints, windLabel } from './wingfoil.js';
 import { calTime } from './authority-calendar.js';
-const atSurf = (self, ctx) => self.atBuilding(ctx, BUILDING_BY_ID['surf-shop'], 4);
+const atSurf = (self, ctx) => Object.values(BUILDING_BY_ID).some((b) => b.shop === 'surf' && self.atBuilding(ctx, b, 6));   // tous les magasins de wingfoil
 import { equipped, gearStats, ownsGear, GEAR_SLOTS, GEAR_COLORS } from './gear.js';
 import { groundHeight, WATER_LEVEL } from './world-layout.js';
 
@@ -108,14 +108,15 @@ Object.assign(SPORTS_HANDLERS, {
     const p = ctx.profile, w = p.sports.wing;
     const own = ownsGear(p, 'aile-5') || Object.keys(GEAR_SLOTS.wing).some((id) => ownsGear(p, id));
     if (at) {
-      if (!own) return err('Il te faut ton propre wingfoil pour te mettre à l\'eau où tu veux (Surf Shop).');
+      if (!own && !atSurf(this, ctx)) return err('Il te faut ton propre wingfoil pour te mettre à l\'eau où tu veux (Surf Shop).');
       if (typeof at.x !== 'number' || typeof at.z !== 'number' || groundHeight(at.x, at.z) > WATER_LEVEL - 1) return err('Il faut de l\'eau profonde pour mettre le foil à l\'eau.');
-      if (ctx.pos && Math.hypot(ctx.pos.x - at.x, ctx.pos.z - at.z) > 60) return err('Approche-toi de l\'eau.');
+      if (ctx.pos && Math.hypot(ctx.pos.x - at.x, ctx.pos.z - at.z) > (own ? 60 : 180)) return err('Approche-toi de l\'eau.');
       if (ctx.pos) { ctx.pos.x = at.x; ctx.pos.z = at.z; }
     } else if (!atSurf(this, ctx)) return err('La mise à l\'eau se fait au Surf Shop de la Côte des Villas (ou n\'importe où au bord de l\'eau avec ton propre wingfoil).');
     const gear = own ? equipped(p) : equipped({ inventory: {} });
     const st = gearStats(gear);
-    const wind = windAt(calTime(ctx));
+    const wp = at || ctx.pos || {};
+    const wind = typeof wp.x === 'number' ? windAtPos(calTime(ctx), wp.x, wp.z) : windAt(calTime(ctx));
     if (wind.kts < st.minWind) return err(`Pas assez de vent : ${wind.kts} nœuds (${windLabel(wind.kts)}). Avec cette aile, il en faut au moins ${st.minWind}. ${st.minWind > 6 ? 'Une aile plus grande vole avec moins de vent !' : 'Reviens plus tard !'}`);
     if (p.body.injury) return err('Tu es blessé·e : repos d\'abord.');
     let paid = 0;
@@ -131,7 +132,7 @@ Object.assign(SPORTS_HANDLERS, {
     if (!s) return err('Pas sur l\'eau.');
     if (ctx.now - s.lastJump < 1200) return err('Trop rapide.');
     s.lastJump = ctx.now;
-    const kts = Math.max(s.kts, windAt(calTime(ctx)).kts);
+    const kts = Math.max(s.kts, ctx.pos ? windAtPos(calTime(ctx), ctx.pos.x, ctx.pos.z).kts : windAt(calTime(ctx)).kts);
     height = Math.max(0, Math.min(maxJump(kts) * (s.jump || 1), Number(height) || 0));
     air = Math.max(0, Math.min(2 * Math.sqrt((2 * height) / 9.8) + 0.6, Number(air) || 0));
     spins = Math.max(0, Math.min(Math.floor(air * 1.6), Math.floor(Number(spins) || 0)));

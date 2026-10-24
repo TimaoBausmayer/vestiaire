@@ -1,5 +1,5 @@
 import { SHAPES as B } from '../core/static-builder.js';
-import { LAKE, MARINA, WATER_LEVEL, groundHeight } from '../../shared/world-layout.js';
+import { LAKE, MARINA, CAP_PORT, PORT_QUAY, WATER_LEVEL, groundHeight } from '../../shared/world-layout.js';
 import { tree } from './props.js';
 import { isFree, block } from './city-props.js';
 import { ROUTES } from '../../shared/courses.js';
@@ -147,8 +147,69 @@ function bikePark(sb, col) {
   for (let i = 0; i < 6; i++) sb.add(B.torus(), { x: 912 + i * 1.6, y: 0.5, z: -2511, sx: 1, sy: 1, sz: 1, color: '#adb5bd' });
 }
 
+// petit dériveur amarré (coque + mât + voile ferlée)
+function dinghy(sb, x, z, yaw, color) {
+  const y = WATER_LEVEL;
+  sb.add(B.sphere(12), { x, y: y + 0.1, z, sx: 1.6, sy: 0.6, sz: 4.2, ry: yaw, color });
+  sb.add(B.box(), { x, y: y + 0.38, z, sx: 1.4, sy: 0.06, sz: 3.8, ry: yaw, color: '#f8f9fa' });
+  sb.cyl(x + Math.sin(yaw) * 0.6, y + 0.4, z + Math.cos(yaw) * 0.6, 0.05, 5.5, '#c0c4cc', 6);
+  sb.add(B.cyl(6), { x: x - Math.sin(yaw) * 0.8, y: y + 1.2, z: z - Math.cos(yaw) * 0.8, sx: 0.22, sy: 2.6, sz: 0.22, rx: Math.PI / 2, ry: yaw, color: '#f4f1ea' });
+}
+
+// PORT DU CAP VENTEUX : marina de voiliers et de dériveurs, cale de mise à l'eau du club, digue avec
+// phare, port de commerce (grues, conteneurs, cargo), bouées du parcours de régate.
+function capPort(sb, col) {
+  const P = CAP_PORT, qz = PORT_QUAY.z;
+  sb.quad((P.x1 + P.x2) / 2, 0.05, qz - 4, P.x2 - P.x1, 8, '#b3aea4', 0, 'ground');          // quai
+  for (let x = P.x1 + 10; x < P.x2; x += 12) { sb.cyl(x, 0, qz - 1, 0.25, 0.5, '#2b2d33', 8); }    // bollards
+  // cale de mise à l'eau du club (rampe en béton)
+  sb.add(B.box(), { x: -2380, y: -1.2, z: qz + 8, sx: 14, sy: 0.4, sz: 22, rx: -0.12, color: '#a8a39a' });
+  // pontons de la marina, avec voiliers et dériveurs
+  const colors = ['#f8f9fa', '#e63946', '#3a86ff', '#ffd23f', '#2a9d8f', '#14213d'];
+  let k = 0;
+  for (let x = P.x1 + 40; x < -2200; x += 60) {
+    sb.box(x, WATER_LEVEL + 0.3, qz + 40, 3, 0.3, 76, '#a0703c');
+    col.addBox(x - 1.5, 0, qz + 2, x + 1.5, 0.6, qz + 78);
+    for (let zz = qz + 10; zz < qz + 76; zz += 9) {
+      k++;
+      if (k % 3 === 0) yacht(sb, x + (k % 2 ? 9 : -9), zz, 0, 12 + (k % 4) * 3, colors[k % colors.length]);
+      else dinghy(sb, x + (k % 2 ? 6 : -6), zz, Math.PI / 2, colors[k % colors.length]);
+    }
+  }
+  // digue et phare à l'entrée du port
+  sb.box(P.x1 + 20, -1, 330, 40, 3.2, 8, '#8d8f8a'); sb.box(P.x1 + 260, -1, 330, 480, 3.2, 8, '#8d8f8a');
+  col.addBox(P.x1, -2, 326, P.x1 + 500, 2.2, 334);
+  for (let i = 0; i < 4; i++) sb.cyl(P.x1 + 30, 2.2 + i * 3.2, 330, 2.2 - i * 0.25, 3.2, i % 2 ? '#e63946' : '#f8f9fa', 14);
+  sb.cyl(P.x1 + 30, 15, 330, 1.4, 1.6, '#fff3c4', 12, 'glow'); sb.cone(P.x1 + 30, 16.6, 330, 1.7, 1.6, '#14141c', 12);
+  col.addCyl(P.x1 + 30, 330, 2.4, -1, 18);
+  // port de commerce : grues portiques, piles de conteneurs, cargo à quai
+  const cont = ['#e63946', '#2a9d8f', '#3a86ff', '#ffb703', '#6c757d', '#8338ec'];
+  for (const cx of [-2160, -2080]) {
+    for (const [dx, dz] of [[-6, 0], [6, 0]]) { sb.box(cx + dx, 0, qz + 2 + dz, 1, 26, 1, '#ffb703'); sb.box(cx + dx, 0, qz + 16, 1, 26, 1, '#ffb703'); }
+    sb.box(cx, 26, qz + 9, 14, 2, 18, '#ffb703'); sb.box(cx, 26, qz + 30, 3, 2, 40, '#ffb703');
+    col.addBox(cx - 7, 0, qz + 1, cx + 7, 26, qz + 3);
+  }
+  for (let i = 0; i < 28; i++) {
+    const x = -2190 + (i % 7) * 8.5, z = 74 + Math.floor(i / 7) * 3.2, lv = (i * 7) % 3 + 1;
+    for (let l = 0; l < lv; l++) sb.box(x, l * 2.6, z, 8, 2.6, 2.6, cont[(i + l) % cont.length]);
+  }
+  col.addBox(-2195, 0, 72, -2128, 8, 87);
+  // cargo
+  const sx = -2100, sz = qz + 24;
+  sb.add(B.box(), { x: sx, y: -3, z: sz, sx: 120, sy: 9, sz: 20, color: '#1d3557' });
+  sb.add(B.box(), { x: sx, y: 6, z: sz, sx: 118, sy: 0.6, sz: 19, color: '#c1121f' });
+  sb.add(B.box(), { x: sx - 48, y: 6.6, z: sz, sx: 16, sy: 12, sz: 16, color: '#f8f9fa' });
+  for (let i = 0; i < 18; i++) sb.box(sx - 32 + (i % 9) * 9, 6.6 + Math.floor(i / 9) * 2.6, sz - 4 + (i % 2) * 8, 8.5, 2.6, 2.6, cont[i % cont.length]);
+  col.addBox(sx - 60, -3, sz - 10, sx + 60, 18, sz + 10);
+  // bouées du parcours de régate (devant le port)
+  for (const [bx, bz] of [[-2350, 230], [-2150, 300], [-2550, 300], [-2350, 380]]) { sb.cyl(bx, WATER_LEVEL - 0.3, bz, 0.9, 1.6, '#ff9f1c', 12); sb.cone(bx, WATER_LEVEL + 1.3, bz, 0.7, 1.2, '#ff9f1c', 10); }
+  // drapeaux du club (vent !)
+  for (let i = 0; i < 5; i++) { sb.cyl(-2400 + i * 10, 0, 98, 0.08, 9, '#f8f9fa', 6); sb.box(-2400 + i * 10 + 1.2, 7.8, 98, 2.4, 1.4, 0.05, ['#e63946', '#3a86ff', '#ffd23f', '#2a9d8f', '#f8f9fa'][i]); }
+}
+
 export function buildGiantProps(sb, col) {
   bikePark(sb, col);
+  capPort(sb, col);
   // --- désert des Sablons
   let n = 0;
   for (let i = 0; i < 400 && n < 16; i++) {

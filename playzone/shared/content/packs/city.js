@@ -1,4 +1,5 @@
 import { GEAR_ITEMS } from '../../gear.js';
+import { SAIL_ITEMS } from '../../sailing.js';
 
 // Pack "La Grande Ville" (mise à jour du monde ouvert) : nourriture et boissons des restaurants et
 // commerces, électronique, accessoires pour animaux, équipement deux-roues, nouveaux meubles.
@@ -99,6 +100,8 @@ export default {
     { id: 'wingfoil', name: 'Wingfoil complet (aile 5 m², planche, foil)', shop: 'surf', special: true, price: 1800, emoji: '🪁', desc: 'Pour voler au-dessus de l\'eau quand il y a du vent (10 nœuds minimum).', max: 1 },
     // ailes, planches et foils à la carte (à régler dans l'appli « Équipement » du téléphone)
     ...GEAR_ITEMS,
+    // ---------- Voilerie du Cap : dériveurs et kites (naviguer partout ensuite)
+    ...SAIL_ITEMS,
     // ---------- Maison & Déco Géante (meubles à installer chez soi)
     ...[['canape-cuir', 'Canapé cuir 4 places', 1800, '🛋️', 'Tellement confortable qu\'on ne se relève plus.'], ['lit-king', 'Lit King Size', 2400, '🛏️', 'On peut y dormir en étoile de mer.'], ['table-verre', 'Table en verre', 900, '🍽️', 'Attention aux traces de doigts.'], ['fauteuil', 'Fauteuil club', 600, '💺', 'Pour lire en se sentant important.'], ['bibliotheque', 'Grande bibliothèque', 750, '📚', '200 livres. Dont 3 lus.'], ['cheminee', 'Cheminée', 3200, '🔥', 'Crépite même en plein été.'], ['billard', 'Billard', 4500, '🎱', 'Pour perdre avec élégance.'], ['baby-foot', 'Baby-foot', 650, '⚽', 'Pas de pissette !'], ['lustre', 'Lustre doré', 1200, '💡', 'Éblouissant. Littéralement.'], ['tableau', 'Tableau de maître (ou presque)', 400, '🖼️', 'Peint par un pigeon talentueux.'], ['miroir', 'Grand miroir', 250, '🪞', 'Vous êtes magnifique.'], ['jacuzzi', 'Jacuzzi', 9000, '🛁', 'Bulles, détente, voisins jaloux.', 4], ['piscine', 'Piscine', 15000, '🏊', 'Plouf garanti.', 6]].map(([id, name, price, emoji, desc, level]) => ({ id, name, shop: 'maison', furniture: true, price, emoji, desc, ...(level ? { level } : {}) })),
     { id: 'etabli', name: 'Établi de bricoleur', shop: 'brico', furniture: true, price: 450, emoji: '🧰', desc: 'Pour réparer... ou empirer.' },

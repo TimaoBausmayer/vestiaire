@@ -243,6 +243,7 @@ export const CITY_ZONES = [
   { id: 'grand-large', name: 'Port Grand-Large', rect: [1150, -320, 1650, 400] },
   { id: 'campagne-est', name: 'Plaines de l\'Est', rect: [900, -1300, 1850, 400] },
   { id: 'grand-nord', name: 'Le Grand Nord', rect: [-1850, -2000, 1850, -1000] },
+  { id: 'cap-venteux', name: 'Port du Cap Venteux (club de voile)', rect: [-2720, 40, -1990, 400] },
   { id: 'sablons', name: 'Les Sablons', rect: [-2560, -1020, -2240, -380] },
   { id: 'palmeraie', name: 'La Palmeraie', rect: [2280, -1020, 2920, 80] },
   { id: 'alpe', name: 'Glacier-sur-Alpe', rect: [-720, -2640, 720, -2080] },
@@ -344,6 +345,20 @@ add({ id: 'club-foot', name: 'Club-house du Stade des Crampons', kind: 'shop', s
 
 // --- Académie F1 : paddock au bord du boulevard de l'Emploi, circuit à l'est
 add({ id: 'f1-paddock', name: 'Paddock de l\'Académie F1', kind: 'shop', shop: 'f1', interior: 'agency', x: 585, z: -775, w: 20, d: 16, h: 8, facing: 'W', color: '#d00000', roofColor: '#14141c', sign: 'ACADÉMIE F1', neon: true, district: 'hauts' });
+
+// --- PORT DU CAP VENTEUX : club de voile (spot toujours venté), voilerie, magasin de wingfoil, port de commerce
+{
+  const CP = [
+    ['club-voile', 'Club de Voile du Cap Venteux', 'shop', 'voile-club', 'agency', -2380, 30, '#f8f9fa', '#0077b6', 'CLUB DE VOILE · CAP VENTEUX', 9],
+    ['voilerie', 'Voilerie du Cap (dériveurs, kites)', 'shop', 'voile', 'shop', -2335, 24, '#e0fbfc', '#1d3557', 'VOILERIE DU CAP', 8],
+    ['wing-cap', 'Wing Shop du Cap', 'shop', 'surf', 'shop', -2295, 20, '#ffd6ec', '#ff3fa4', 'WING SHOP', 7],
+    ['capitainerie-cap', 'Capitainerie du Cap', 'decor', null, 'office', -2440, 16, '#f4f1ea', '#c1121f', 'CAPITAINERIE', 11],
+    ['cabane-port', 'La Cabane du Port (fruits de mer)', 'shop', 'poisson', 'restaurant', -2490, 22, '#a0703c', '#3a2a1e', 'LA CABANE DU PORT', 7],
+    ['shipchandler', 'Shipchandler Le Nœud de Chaise', 'shop', 'surf', 'shop', -2540, 20, '#caf0f8', '#023e8a', 'SHIPCHANDLER', 7],
+  ];
+  for (const [id, name, kind, shop, interior, x, w, color, roofColor, sign, h] of CP) add({ id, name, kind, ...(shop ? { shop } : {}), interior, x, z: 86, w, d: 18, h, facing: 'S', color, roofColor, sign, neon: kind === 'shop', district: 'cap-venteux' });
+  for (const [k, x] of [[1, -2150], [2, -2090], [3, -2030]]) add({ id: `entrepot-cap${k}`, name: `Entrepôt portuaire ${k}`, kind: 'decor', interior: 'warehouse', x, z: 86, w: 44, d: 20, h: 12, facing: 'S', style: 'warehouse', color: ['#8d99ae', '#adb5bd', '#6c757d'][k - 1], roofColor: '#495057', sign: 'PORT DE COMMERCE', garageDoors: 3, district: 'cap-venteux' });
+}
 
 // --- Surf Shop (wingfoil) sur la corniche, face à la mer
 add({ id: 'surf-shop', name: 'Surf Shop Vent Debout', kind: 'shop', shop: 'surf', interior: 'shop', x: 430, z: 38, w: 16, d: 12, h: 6, facing: 'S', roof: 'gable', style: 'hut', color: '#90e0ef', roofColor: '#ff9f1c', sign: 'SURF SHOP · WINGFOIL', district: 'villas' });

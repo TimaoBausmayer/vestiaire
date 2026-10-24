@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { h } from '../ui/dom.js';
 import { groundHeight, WATER_LEVEL, BUILDING_BY_ID } from '../../shared/world-layout.js';
-import { windAt, windLabel, forecast, MIN_WIND, SURF_SPOT, WING, maxJump } from '../../shared/wingfoil.js';
+import { windAt, windAtPos, windLabel, forecast, MIN_WIND, SURF_SPOT, WING, maxJump } from '../../shared/wingfoil.js';
 import { calNow } from '../events/agenda.js';
 import { Wake } from './wake.js';
 import { gearStats, equipped, deepWaterNear, inNavZone } from '../../shared/gear.js';
@@ -74,19 +74,26 @@ export class Wingfoil {
   // ------------------------------------------------------------------ Surf Shop
   desk(b) {
     const g = this.g;
-    const t = calNow(g), w = windAt(t), W = g.profile.sports?.wing || {};
+    const t = calNow(g), w = windAtPos(t, g.player.pos.x, g.player.pos.z), W = g.profile.sports?.wing || {};
     const own = (g.profile.inventory.wingfoil || 0) > 0;
     const fc = forecast(t, 6).map((f) => `${f.h} h : ${Math.round(f.kts)} nds`).join(' · ');
     g.ui.dialog({ name: 'Kéké le moniteur', role: 'Surf Shop Vent Debout', text: `Vent actuel : ${w.kts} nœuds (${windLabel(w.kts)}). Il en faut ${MIN_WIND} pour voler. Prévisions : ${fc}. ${own ? 'Ton wingfoil est prêt !' : W.trial ? `Location : ${WING.rental} PC la session, ou achète le tien (${WING.price} PC).` : 'Première fois ? L\'essai est GRATUIT !'}`, choices: [
-      own ? { label: '🪁 Aller à l\'eau avec mon wingfoil', action: (m) => { m.close(); this.start('own'); } } : null,
+      own ? { label: '🪁 Aller à l\'eau avec mon wingfoil', action: (m) => { m.close(); this.start('own', this.launchFor(b)); } } : null,
       { label: '🎛️ Mon équipement (aile, planche, foil, couleurs)', action: (m) => { m.close(); g.phone?.open('gear'); } },
-      !own && !W.trial ? { label: '🎁 Essai gratuit', action: (m) => { m.close(); this.start('trial'); } } : null,
-      !own ? { label: `🪁 Louer pour une session (${WING.rental} PC)`, action: (m) => { m.close(); this.start('rent'); } } : null,
+      !own && !W.trial ? { label: '🎁 Essai gratuit', action: (m) => { m.close(); this.start('trial', this.launchFor(b)); } } : null,
+      !own ? { label: `🪁 Louer pour une session (${WING.rental} PC)`, action: (m) => { m.close(); this.start('rent', this.launchFor(b)); } } : null,
       { label: '🚤 Jet ski (essai gratuit, abonnement ou achat)', action: (m) => { m.close(); g.races?.desk('jetski'); } },
       { label: '🛒 Boutique (wingfoil, jet ski)', action: (m) => { m.close(); import('../ui/shop.js').then(({ openShop }) => openShop(g, 'surf', b)); } },
       { label: `🏆 Mes records (saut ${W.best || 0} m, ${W.bestPoints || 0} pts)`, action: (m) => m.show(`Sessions : ${W.sessions || 0} · sauts : ${W.jumps || 0} · niveau de glisse : ${Math.round(W.skill || 5)}/100. Conseils : vent de travers = vitesse max ; en vol, Espace pour sauter, tourne en l'air pour des rotations !`, [{ label: 'OK', ghost: true, action: (x) => x.close() }]) },
       { label: 'Au revoir', ghost: true, action: (m) => m.close() },
     ].filter(Boolean) });
+  }
+
+  // Point de mise à l'eau d'un magasin : le spot historique pour le Surf Shop, sinon l'eau devant la boutique.
+  launchFor(b) {
+    if (!b || b.id === 'surf-shop') return null;
+    if (b.district === 'cap-venteux') return { x: -2260, z: 240 };   // plan d'eau du Cap, au large de la marina
+    return deepWaterNear(b.door.x, b.door.z, 90);
   }
 
   // Mise à l'eau « où on veut » (avec son propre matériel) : l'eau profonde la plus proche.
@@ -159,7 +166,7 @@ export class Wingfoil {
     const s = this.s, g = this.g;
     if (!s) return;
     const I = g.input, P = g.player;
-    s.wind = windAt(calNow(g));
+    s.wind = windAtPos(calNow(g), s.x, s.z);   // le vent local (le Cap Venteux souffle toujours)
     const w = s.wind;
     if (I.pressed('KeyE')) this.pump();
     if (I.pressed('KeyR')) this.toggleWing();

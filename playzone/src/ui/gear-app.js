@@ -1,11 +1,12 @@
 import { h, fmt } from './dom.js';
 import { WINGS, BOARDS, FOILS, GEAR_COLORS, GEAR_SLOTS, equipped, gearStats, ownsGear } from '../../shared/gear.js';
-import { windAt, windLabel, forecast } from '../../shared/wingfoil.js';
+import { windAt, windAtPos, windLabel, forecast } from '../../shared/wingfoil.js';
 import { VEHICLES } from '../../shared/content/vehicles.js';
 import { sentence, lawyerCost } from '../../shared/justice.js';
 import { mobileRepairCost, POCKET_KINDS } from '../../shared/property.js';
 import { BUILDING_BY_ID } from '../../shared/world-layout.js';
 import { calNow } from '../events/agenda.js';
+import { BOATS, ownsBoat } from '../../shared/sailing.js';
 
 // Applis du téléphone : Équipement (wingfoil à la carte, jet ski, vélos « de poche »), Météo (vent),
 // Avocat (faire cesser une poursuite), et les raccourcis de l'écran d'accueil.
@@ -18,7 +19,7 @@ const bar = (label, v, max = 1.5) => h('div.gear-stat', h('span', label), h('div
 export function gearApp(g, b, phone) {
   const p = g.profile, gear = equipped(p), st = gearStats(gear);
   const ownsWing = Object.keys(WINGS).some((id) => ownsGear(p, id));
-  const w = windAt(calNow(g));
+  const w = windAtPos(calNow(g), g.player.pos.x, g.player.pos.z);
   // wingfoil : résumé + mise à l'eau
   b.append(h('div.gear-card', { style: { borderColor: gear.wingColor } },
     h('div.t', `🪁 Wingfoil ${ownsWing ? '' : '(location au Surf Shop)'}`),
@@ -47,6 +48,13 @@ export function gearApp(g, b, phone) {
   if ((p.inventory.jetski || 0) > 0) {
     b.append(h('h4.gear-h', '🚤 Jet ski'), h('div.list-item', h('span', { style: { fontSize: '22px' } }, '🚤'), h('div.grow', h('div.t', 'Jet ski Turbo-Mouette 1600'), h('div.d', 'Balade libre partout où il y a de l\'eau profonde.')),
       h('button.btn.small', { onclick: () => { phone.close(); g.jetski?.launchHere(); } }, '🌊 À l\'eau ici')));
+  }
+  // bateaux et kites possédés : à l'eau où on veut
+  const boats = Object.keys(BOATS).filter((id) => ownsBoat(p, id));
+  if (boats.length) {
+    b.append(h('h4.gear-h', '⛵ Mes bateaux'));
+    for (const id of boats) b.append(h('div.list-item', h('span', { style: { fontSize: '22px' } }, BOATS[id].emoji), h('div.grow', h('div.t', BOATS[id].name), h('div.d', 'Navigation libre partout où il y a de l\'eau profonde.')),
+      h('button.btn.small', { onclick: () => { phone.close(); g.sailing?.launchHere(id); } }, '🌊 À l\'eau ici')));
   }
   // vélos et trottinettes : on les sort du sac gratuitement
   const pocket = p.vehicles.filter((v) => POCKET_KINDS.includes(VEHICLES[v.model]?.kind));
@@ -96,6 +104,8 @@ export function quickActions(g, phone) {
   if ((g.profile.justice?.stars || 0) > 0) chip('⚖️ Avocat', () => phone.go('avocat'));
   if (Object.keys(WINGS).some((id) => ownsGear(p, id))) chip('🪁 À l\'eau', () => { phone.close(); g.wingfoil?.launchHere(); });
   if ((p.inventory.jetski || 0) > 0) chip('🚤 Jet ski', () => { phone.close(); g.jetski?.launchHere(); });
+  const boat = Object.keys(BOATS).find((id) => ownsBoat(p, id));
+  if (boat) chip(`${BOATS[boat].emoji} ${BOATS[boat].name}`, () => { phone.close(); g.sailing?.launchHere(boat); });
   const bike = p.vehicles.find((v) => POCKET_KINDS.includes(VEHICLES[v.model]?.kind));
   if (bike && !cur) chip(`🎒 ${VEHICLES[bike.model].name}`, () => { phone.close(); g.vehicles.deliver(bike.id); });
   return out.length ? h('div.quick-actions', out) : null;

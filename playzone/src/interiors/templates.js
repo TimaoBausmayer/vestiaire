@@ -329,7 +329,7 @@ export const TEMPLATES = {
     t.furn('bureau', dx, dz, 0); t.solid(dx, dz, 1.8, 1, 1);
     t.staff(dx, dz - 0.9, 0, t.b.shop === 'scrapyard' ? 'ferrailleur' : 'agent');
     t.furn('chaise', dx - 0.5, dz + 0.9, Math.PI); t.furn('chaise', dx + 0.5, dz + 0.9, Math.PI);
-    const labels = { f1: '🏎️ Académie F1 : essais, qualifications, Grand Prix', 'foot-club': '⚽ Maison des Sports : foot, course à pied, vélo', bikepark: '🚵 Bike Park : VTT, vélo de route, vente de vélos', 'auto-ecole': '🚦 Code et examen du permis', 'pole-emploi': '💼 Consulter les offres d\'emploi', immo: '🏡 Voir les annonces immobilières', rental: '🔑 Louer un véhicule', 'cars-used': '🚙 Voir les voitures d\'occasion', scrapyard: '🔩 Vendre une épave / pièces détachées' };
+    const labels = { f1: '🏎️ Académie F1 : essais, qualifications, Grand Prix', 'foot-club': '⚽ Maison des Sports : foot, course à pied, vélo', bikepark: '🚵 Bike Park : VTT, vélo de route, vente de vélos', 'voile-club': '⛵ Club de voile : Optimist, ILCA, 420, 29er, 49er, kite', 'auto-ecole': '🚦 Code et examen du permis', 'pole-emploi': '💼 Consulter les offres d\'emploi', immo: '🏡 Voir les annonces immobilières', rental: '🔑 Louer un véhicule', 'cars-used': '🚙 Voir les voitures d\'occasion', scrapyard: '🔩 Vendre une épave / pièces détachées' };
     t.spot(dx, dz + 1.5, { label: labels[t.b.shop] || '💬 Parler à l\'agent', action: t.b.shop ? 'shop' : 'talk', r: 2.2, priority: 2 });
     for (let x = I.x1 + 1; x < I.x2 - 1; x += 1.8) poster(t, x, I.z1 + 0.1, 0, PRODUCT_COLORS[Math.floor(x + 20) % 8], 1.3, 0.9);
     plant(t, I.x1 + 0.6, I.z2 - 0.6); plant(t, I.x2 - 0.6, I.z2 - 0.6);

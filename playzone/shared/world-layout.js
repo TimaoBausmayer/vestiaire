@@ -14,6 +14,7 @@ export const PORT_QUAY = { x: 140, z: 102 }; // à l'est de x=140, le port a un 
 export const POND = { x: -30, z: -112, r: 9 };
 export const LAKE = { x: -1100, z: -1430, r: 160 };   // Lac des Grenouilles (Nordville)
 export const MARINA = { x1: 1150, x2: 1650 };            // port du Grand-Large : bassin profond
+export const CAP_PORT = { x1: -2700, x2: -2000 };         // grand port du Cap Venteux : marina, club de voile, port de commerce
 
 // Le point est-il dans les limites jouables ?
 export function inBounds(x, z, margin = 0) {
@@ -23,7 +24,7 @@ export function inBounds(x, z, margin = 0) {
 // Hauteur du sol (le terrain est plat sauf la mer, le port et l'étang).
 export function groundHeight(x, z) {
   let h = 0;
-  if ((x > PORT_QUAY.x && x < 300 && z > 56) || (x > MARINA.x1 && x < MARINA.x2 && z > 56)) { if (z > PORT_QUAY.z) h = -4.5; }
+  if ((x > PORT_QUAY.x && x < 300 && z > 56) || (x > MARINA.x1 && x < MARINA.x2 && z > 56) || (x > CAP_PORT.x1 && x < CAP_PORT.x2 && z > 56)) { if (z > PORT_QUAY.z) h = -4.5; }
   else if (z > SEA_SLOPE_START) h = -Math.min(4.5, (z - SEA_SLOPE_START) * 0.2);
   // côtes est et ouest : l'île plonge dans la mer
   const edge = Math.max(-x + BOUNDS.minX, x - BOUNDS.maxX);

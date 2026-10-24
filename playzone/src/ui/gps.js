@@ -46,6 +46,7 @@ export function destinations(profile = null) {
   out.push({ id: 'ski', name: '⛷️ Station de ski du Mont-Pinard', cat: 'leisure', x: SKI.hut.x, z: SKI.hut.z + 4 });
   out.push({ id: 'piste-athle', name: '🏃 Piste d\'athlétisme (Stade des Crampons)', cat: 'leisure', x: PITCH.x, z: PITCH.z + PITCH.d / 2 + 14 });
   out.push({ id: 'surf-spot', name: '🪁🚤 Wingfoil et jet ski (Surf Shop)', cat: 'leisure', x: 430, z: 50 });
+  out.push({ id: 'cap-venteux', name: '⛵ Club de voile du Cap Venteux (toujours du vent)', cat: 'leisure', x: -2380, z: 70 });
   out.push({ id: 'bike-park', name: '🚵 Bike Park des Géants (VTT, vélo de route)', cat: 'leisure', x: 930, z: -2505 });
   out.push({ id: 'sablons', name: '🌵 Les Sablons (désert)', cat: 'other', x: -2400, z: -700 });
   out.push({ id: 'palmeraie', name: '🌴 La Palmeraie (station balnéaire)', cat: 'leisure', x: 2600, z: -300 });
