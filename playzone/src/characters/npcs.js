@@ -133,7 +133,7 @@ export class NPCs {
     // foule de piétons dans toute la ville (nombre selon la qualité graphique)
     const n = { low: 14, medium: 26 }[game.engine.quality] ?? 36;
     this.crowd = [];
-    for (let i = 0; i < n; i++) { const c = new NPC(this, crowdDef(i)); this.crowd.push(c); this.list.push(c); this.place(c, true); }
+    for (let i = 0; i < n; i++) { const c = new NPC(this, crowdDef(i)); c.ci = i; this.crowd.push(c); this.list.push(c); this.place(c, true); }
     this.nearest = null;
     game.interactions.add({
       r: 2.8, priority: 1,
@@ -176,16 +176,33 @@ export class NPCs {
   blocked(x, z) { return BUILDINGS.some((b) => Math.abs(x - b.x) < b.w / 2 + 0.6 && Math.abs(z - b.z) < b.d / 2 + 0.6); }
 
   // Prochain tronçon : on va au bout de la rue, puis on tourne au hasard au carrefour.
+  // Au carrefour, on tourne au coin en restant sur son trottoir ; rares sont ceux qui traversent
+  // (2 piétons au plus en même temps sur toute la ville).
   nextLeg(n) {
+    n.crossing = false;
     const node = ROAD_GRAPH.nodes[n.toNode];
     const p = this.sidewalk(n.edge, node.x, node.z, n.side);
     if (Math.hypot(p.x - n.pos.x, p.z - n.pos.z) > 1.2) { n.target = p; return; }
     const opts = node.edges.filter((id) => id !== n.edge.id && ROAD_GRAPH.edges[id].kind !== 'highway');
     const id = opts.length ? opts[Math.floor(Math.random() * opts.length)] : n.edge.id;
-    n.edge = ROAD_GRAPH.edges[id];
-    n.toNode = n.edge.a === node.id ? n.edge.b : n.edge.a;
-    const q = this.sidewalk(n.edge, ROAD_GRAPH.nodes[n.toNode].x, ROAD_GRAPH.nodes[n.toNode].z, n.side);
-    n.target = this.blocked(q.x, q.z) ? { x: ROAD_GRAPH.nodes[n.toNode].x, z: ROAD_GRAPH.nodes[n.toNode].z } : q;
+    const edge = ROAD_GRAPH.edges[id];
+    // côté de la nouvelle rue le plus proche (même angle de trottoir) ; parfois l'autre (traversée)
+    const corner = [1, -1].map((sd) => ({ sd, q: this.sidewalk(edge, node.x, node.z, sd) })).sort((a, b) => Math.hypot(a.q.x - n.pos.x, a.q.z - n.pos.z) - Math.hypot(b.q.x - n.pos.x, b.q.z - n.pos.z));
+    const crossers = this.crowd.filter((c) => c.crossing).length;
+    const cross = crossers < 2 && Math.random() < 0.12;
+    const pickSide = cross ? corner[1] : corner[0];
+    n.edge = edge; n.side = pickSide.sd;
+    n.toNode = edge.a === node.id ? edge.b : edge.a;
+    if (this.blocked(pickSide.q.x, pickSide.q.z)) { n.target = corner[0].q; n.side = corner[0].sd; return; }
+    n.crossing = cross;
+    n.target = pickSide.q;
+  }
+
+  // Part des piétons dehors selon l'heure du jeu : presque personne au milieu de la nuit, foule l'après-midi.
+  crowdShare() {
+    const h = this.game.world?.dayNight?.hour ?? 15;
+    if (h < 5) return 0.12; if (h < 7) return 0.3; if (h < 9) return 0.75; if (h < 12) return 0.85;
+    if (h < 19) return 1; if (h < 22) return 0.65; return 0.3;
   }
 
   converse(a, b) {
@@ -240,7 +257,13 @@ export class NPCs {
     const inWorld = g.player.zone === 'world';
     const night = g.world.dayNight.night;
     let best = null, bd = 2.8;
+    const active = Math.round(this.crowd.length * this.crowdShare());
     for (const n of this.list) {
+      // piétons « rentrés chez eux » selon l'heure : invisibles et figés ; ils ressortent loin du joueur
+      if (n.def.kind === 'crowd') {
+        if (n.ci >= active) { if (!n.home) { n.home = true; n.avatar.root.visible = false; n.crossing = false; } continue; }
+        if (n.home) { n.home = false; this.place(n); }
+      }
       let d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z);
       // piétons trop loin : ils réapparaissent plus près (hors de vue)
       if (n.def.kind === 'crowd' && inWorld && d > 150 && n.state !== 'ko') { this.place(n); d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z); }
