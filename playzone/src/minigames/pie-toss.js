@@ -89,6 +89,7 @@ export class PieToss extends Minigame {
     g.cam.override = { pos: new THREE.Vector3(SPOT.x + 1.1, 2.6, SPOT.z + 2.2), look: new THREE.Vector3(SPOT.x + 0.4, 1.5, SPOT.z - 20) };
     this.cross = h('div.crosshair');
     g.ui.root.append(this.cross);
+    g.input.noLock = true; g.input.unlock();   // on vise avec le curseur
     this.offClick = g.input.on('click', (e) => this.throwAt(e.x, e.y));
     this.cooldown = 0;
   }
@@ -182,7 +183,7 @@ export class PieToss extends Minigame {
     this.pies = [];
     this.meshes = null;
     this.targets = null;
-    this.offClick?.();
+    this.offClick?.(); g.input.noLock = false;
     this.cross?.remove();
     g.cutscene = false;
     g.cam.override = null;

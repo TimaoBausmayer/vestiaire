@@ -132,6 +132,7 @@ export class RangeSession {
     this.cd = h('div.countdown');
     this.quit = h('button.btn.ghost.range-quit', { onclick: () => this.finish(true) }, 'Abandonner');
     g.ui.root.append(this.cross, this.hud, this.cd, this.quit);
+    g.input.noLock = true; g.input.unlock();   // on vise avec le curseur
     this.offClick = g.input.on('click', (e) => this.fire(e.x, e.y));
     this.flash = new THREE.PointLight('#ffd27a', 0, 6);
     g.engine.scene.add(this.flash);
@@ -225,7 +226,7 @@ export class RangeSession {
 
   cleanup() {
     const g = this.g;
-    this.offClick?.();
+    this.offClick?.(); this.g.input.noLock = false;
     for (const m of [...this.meshes, ...this.markers]) g.engine.scene.remove(m);
     g.engine.scene.remove(this.flash);
     g.engine.camera.remove(this.gun);

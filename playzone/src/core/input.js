@@ -29,7 +29,15 @@ export class Input extends Emitter {
     addEventListener('keyup', (e) => this._key(e, false));
     addEventListener('blur', () => { this.keys.clear(); this.actionHeld = false; });
     canvas.addEventListener('pointerdown', (e) => this._down(e));
-    addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { this.mouse.dx += e.movementX || 0; this.mouse.dy += e.movementY || 0; } this._moveP(e); });
+    // souris capturée (un clic dans le jeu) : bouger la souris tourne la caméra, sans rien maintenir.
+    // Échap rend le curseur.
+    this.locked = false;
+    document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === canvas; this.emit('lock', this.locked); });
+    addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'mouse') { this.mouse.dx += e.movementX || 0; this.mouse.dy += e.movementY || 0; }
+      if (this.locked) { this.look.dx += e.movementX || 0; this.look.dy += e.movementY || 0; return; }
+      this._moveP(e);
+    });
     addEventListener('pointerup', (e) => this._up(e));
     addEventListener('pointercancel', (e) => this._up(e));
     canvas.addEventListener('wheel', (e) => { e.preventDefault(); this.zoom += Math.sign(e.deltaY); }, { passive: false });
@@ -57,6 +65,8 @@ export class Input extends Emitter {
 
   _down(e) {
     if (!this.enabled) return;
+    if (e.pointerType === 'mouse' && !this.locked && e.button === 0 && (this.canLock?.() ?? true)) { try { this.canvas.requestPointerLock?.()?.catch?.(() => {}); } catch { /* navigateur sans capture */ } }
+    if (this.locked) { if (e.button === 0) this.actionHeld = true; return; }
     this.canvas.setPointerCapture?.(e.pointerId);
     const left = e.clientX < innerWidth * 0.42;
     if (e.pointerType === 'touch' && left && !this._joy) {
@@ -100,6 +110,7 @@ export class Input extends Emitter {
       this._drag = null;
     }
     if (e.pointerType !== 'touch' && e.button === 0) this.actionHeld = false;
+    if (this.locked) return;
   }
 
   // Appuis "fronts montants" (une seule fois par appui).
@@ -122,6 +133,8 @@ export class Input extends Emitter {
     this.sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') || this.sprintToggle || (this._joy && Math.hypot(this._joy.x, this._joy.y) > 0.95);
     this.jumpHeld = this.keys.has('Space');
   }
+
+  unlock() { if (this.locked) document.exitPointerLock?.(); }
 
   endFrame() {
     this.look.dx = 0; this.look.dy = 0; this.mouse.dx = 0; this.mouse.dy = 0; this.zoom = 0;

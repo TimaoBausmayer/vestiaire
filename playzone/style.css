@@ -519,3 +519,4 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 .lift-btn.roof, .lift-btn.rdc { grid-column: 1 / -1; aspect-ratio: auto; padding: 10px; font-size: 15px; }
 .lift-btn.roof { background: linear-gradient(135deg, #ff9f1c, #ff3fa4); }
 .foot-btns .pump-big { font-size: 18px; padding: 16px 26px; background: linear-gradient(135deg, #2ec4b6, #3a86ff); color: #fff; font-weight: 900; }
+#ui .underwater { pointer-events: none !important; }

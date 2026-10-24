@@ -40,7 +40,7 @@ await ev(async () => {
 });
 await page.keyboard.down('KeyW'); await step(120); await page.keyboard.up('KeyW');
 const sp = await ev(() => window.playzone.wingfoil.s.speed);
-check(sp > 6.5, `sur le foil : ${(sp * 3.6).toFixed(0)} km/h`);
+check(sp > 6.5, `sur le foil : ${(sp * 3.6).toFixed(0)} km/h`); if (sp <= 6.5) console.log(await ev(() => { const s = window.playzone.wingfoil.s; return JSON.stringify({ ...s, wind: s.wind, back: 0 }); }));
 await ev(() => { const g = window.playzone; g.cam.dist = 9; g.cam.pitch = 0.25; g.debugStep(0.2); });
 await sleep(400);
 await page.screenshot({ path: 'tests/e2e/out/wing-ride.png' });
@@ -70,7 +70,7 @@ check(fly.v > fly.tk, `en vol sur le foil : ${Math.round(fly.v * 3.6)} km/h (dé
 // aile rangée + pompage (E) : on relance la planche sans vent
 await ev(() => { const g = window.playzone, s = g.wingfoil.s; g.wingfoil.toggleWing(); s.speed = 2; s.stamina = 1; });
 const v0p = await ev(() => window.playzone.wingfoil.s.speed);
-for (let i = 0; i < 5; i++) { await page.keyboard.press('KeyE'); await sleep(450); await ev(() => window.playzone.debugStep(0.05)); }
+for (let i = 0; i < 5; i++) { await page.keyboard.press('KeyE'); await ev(() => { const g = window.playzone; g.debugStep(0.05); g.wingfoil.s.speed = Math.max(g.wingfoil.s.speed, 0); for (let k = 0; k < 4; k++) g.debugStep(0.1); }); }
 const pumped = await ev(() => ({ v: window.playzone.wingfoil.s.speed, stowed: window.playzone.wingfoil.s.stowed, wing: window.playzone.wingfoil.wingMesh.visible }));
 check(pumped.stowed && !pumped.wing && pumped.v > v0p + 2, `aile rangée, pompage avec E : ${Math.round(v0p * 3.6)} → ${Math.round(pumped.v * 3.6)} km/h`);
 await page.screenshot({ path: 'tests/e2e/out/wing-pump.png' });

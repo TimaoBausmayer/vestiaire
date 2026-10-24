@@ -80,6 +80,8 @@ export class Game extends Emitter {
     const serverProbe = probeServer();
     this.engine = new Engine(this.container, this.qs.get('qualite') || detectQuality());
     this.input = new Input(this.engine.canvas);
+    this.input.canLock = () => !this.ui?.blocking && !this.phone?.isOpen && !this.input.noLock && !this.cameraMode;
+    this.input.on('lock', (on) => { if (on && !this._lockTip) { this._lockTip = true; this.ui?.toast('🖱️ Souris capturée : bouge-la pour tourner la caméra. Échap pour retrouver le curseur.', '', 4500); } });
     this.collision = new Collision();
     this.interactions = new Interactions();
     this.sound = new Sfx();
@@ -346,6 +348,8 @@ export class Game extends Emitter {
 
   update(dt, t) {
     this.input.update();
+    // menus, téléphone, visée au curseur : on rend la souris
+    if (this.input.locked && (this.ui.blocking || this.phone?.isOpen || this.input.noLock || this.cameraMode)) this.input.unlock();
     if (this.titleOrbit) {
       const a = t * 0.06;
       this.cam.override = { pos: new THREE.Vector3(Math.sin(a) * 42, 18, Math.cos(a) * 42), look: new THREE.Vector3(0, 2, 0) };

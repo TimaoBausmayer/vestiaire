@@ -79,7 +79,7 @@ export class Wingfoil {
     const fc = forecast(t, 6).map((f) => `${f.h} h : ${Math.round(f.kts)} nds`).join(' · ');
     g.ui.dialog({ name: 'Kéké le moniteur', role: 'Surf Shop Vent Debout', text: `Vent actuel : ${w.kts} nœuds (${windLabel(w.kts)}). Il en faut ${MIN_WIND} pour voler. Prévisions : ${fc}. ${own ? 'Ton wingfoil est prêt !' : W.trial ? `Location : ${WING.rental} PC la session, ou achète le tien (${WING.price} PC).` : 'Première fois ? L\'essai est GRATUIT !'}`, choices: [
       own ? { label: '🪁 Aller à l\'eau avec mon wingfoil', action: (m) => { m.close(); this.start('own', this.launchFor(b)); } } : null,
-      { label: `🏄 Pumpfoil, sans vent (${own || (g.profile.inventory.pumpfoil || 0) > 0 ? 'ton matériel' : W.trial ? `${WING.rental} PC` : 'essai gratuit'})`, action: (m) => { m.close(); const mine = own || (g.profile.inventory.pumpfoil || 0) > 0; this.start(mine ? 'own' : W.trial ? 'rent' : 'trial', this.launchFor(b), true); } },
+      { label: `🏄 Pumpfoil, sans vent (${own || (g.profile.inventory.pumpfoil || 0) > 0 ? 'ton matériel' : W.trial ? `${WING.rental} PC` : '1re fois offerte'})`, action: (m) => { m.close(); const mine = own || (g.profile.inventory.pumpfoil || 0) > 0; this.start(mine ? 'own' : W.trial ? 'rent' : 'trial', this.launchFor(b), true); } },
       { label: '🎛️ Mon équipement (aile, planche, foil, couleurs)', action: (m) => { m.close(); g.phone?.open('gear'); } },
       !own && !W.trial ? { label: '🎁 Essai gratuit', action: (m) => { m.close(); this.start('trial', this.launchFor(b)); } } : null,
       !own ? { label: `🪁 Louer pour une session (${WING.rental} PC)`, action: (m) => { m.close(); this.start('rent', this.launchFor(b)); } } : null,
@@ -144,15 +144,15 @@ export class Wingfoil {
   pump() {
     const s = this.s, g = this.g;
     if (!s || s.y > 0 || s.crashed > 0) return;
-    const now = g.now(), gap = (now - (s.lastPump || 0)) / 1000;
-    s.lastPump = now;
+    const now = g.engine.time * 1000, gap = (now - (s.lastPump || 0)) / 1000;   // temps du jeu
+    s.lastPump = now; s.pumps = (s.pumps || 0) + 1;
     if (s.stamina < 0.12) { g.ui.toast('😮‍💨 À bout de souffle : laisse-toi glisser un instant.', '', 1200); return; }
     const skill = (g.profile.sports?.wing?.skill || 5) / 100;
-    if (s.pump) {
-      // pumpfoil : beaucoup de petits coups en rythme (toutes les 0,2 à 0,7 s) ; trop vite = moins efficace
+    if (s.pump || s.stowed) {
+      // pumpfoil (ou aile rangée) : beaucoup de petits coups en rythme (toutes les 0,2 à 0,7 s) ; trop vite = moins efficace
       const rhythm = gap > 0.18 && gap < 0.7 ? 1 : gap <= 0.18 ? 0.45 : 0.6;
       const onFoil = s.speed > this.stats.takeoff;
-      s.speed = Math.min(WING.maxSpeed * 0.75, s.speed + (onFoil ? 0.55 + skill * 0.4 : 0.6 + skill * 0.3) * rhythm);
+      s.speed = Math.min(WING.maxSpeed * 0.75, s.speed + (onFoil ? 0.6 + skill * 0.4 : 0.85 + skill * 0.3) * rhythm);
       s.beat = rhythm;
       s.stamina = Math.max(0, s.stamina - 0.035 * (1.2 - skill));
     } else {
@@ -211,9 +211,10 @@ export class Wingfoil {
       const cap = WING.maxSpeed * this.stats.speed * (foiling ? 1.4 : 1);
       const target = Math.min(cap, kts * 0.5 * this.stats.speed * sail * s.sheet * fly * (1 + (g.profile.sports?.wing?.skill || 5) / 300));
       // sans propulsion, on ralentit doucement en vol (le foil glisse) et vite dans l'eau
-      if (s.pump) {
-        // pumpfoil : pas de vent, on ralentit sans arrêt (vite dans l'eau, doucement sur le foil)
-        s.speed = Math.max(0, s.speed - dt * (foiling ? 0.85 + s.speed * 0.05 : 1.6));
+      if (s.pump || s.stowed) {
+        // pumpfoil (ou aile rangée) : pas de vent, on ralentit sans arrêt (vite dans l'eau, doucement sur le foil)
+        s.speed = Math.max(0, s.speed - dt * (foiling ? 0.55 + s.speed * 0.05 : 0.9));
+        if (I.pressed('Space') && !s.pump) this.jump();
         if (foiling) { s.flight += dt; s.bestFlight = Math.max(s.bestFlight, s.flight); }
         else if (s.flight > 0) { if (s.flight > 3) g.ui.toast(`🏄 Vol de ${s.flight.toFixed(1)} s ! Pompe encore plus régulièrement pour tenir plus longtemps.`, '', 2200); s.flight = 0; }
       } else {
