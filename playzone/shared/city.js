@@ -572,6 +572,64 @@ export const PARKINGS = [
 ];
 
 // Stations-service (pompes) : position de l'auvent.
+// --- PETITS QUARTIERS : le long de quelques rues, les terrains libres reçoivent des maisons, de petits
+// immeubles (étages visitables) et des commerces de quartier. Placement déterministe : jamais sur une
+// route, un bâtiment, une cour ou un parking.
+const QUARTERS = [
+  { district: 'villas', streets: ['nationale-e', 'prestige', 'emploi'], rect: [300, -425, 900, 48], street: 'quartier des Embruns', mix: 'hhahhsha', max: 48 },
+  { district: 'nordville', streets: ['nv-1', 'nv-2', 'nv-3', 'nv-4', 'nv-v1', 'nv-v2'], rect: [-395, -1565, 395, -1235], street: 'Nordville', mix: 'hahshhah', max: 44 },
+  { district: 'grand-large', streets: ['port-gl', 'rd14'], rect: [1150, -320, 1650, 48], street: 'quartier des Mouettes', mix: 'hhashhah', max: 30 },
+];
+const Q_SHOPS = [['bakery', 'bakery', 'Boulangerie du Coin', '#fefae0', 'BOULANGERIE'], ['cafe2', 'cafe', 'Café du Quartier', '#a3c4bc', 'CAFÉ'], ['superette', 'supermarket', 'Supérette de Quartier', '#e9edf2', 'SUPÉRETTE'], ['tacos', 'fastfood', 'Snack du Quartier', '#ffb703', 'SNACK'], ['pizzeria', 'restaurant', 'Pizzeria du Quartier', '#f6e7c8', 'PIZZERIA'], ['hair', 'salon', 'Salon de coiffure', '#cdb4db', 'COIFFEUR']];
+const Q_COLORS = ['#f4d35e', '#ee964b', '#83c5be', '#e5989b', '#b5e48c', '#a2d2ff', '#ffc8dd', '#cdb4db', '#f6bd60', '#84a59d', '#e9edf2', '#ffe5b4'];
+{
+  const overlaps = (r, m) => B.some((b) => {
+    const rr = [b.x - b.w / 2 - m, b.z - b.d / 2 - m, b.x + b.w / 2 + m, b.z + b.d / 2 + m];
+    const yard = b.lot || b.yard || b.gas && { x1: b.gas.x - b.gas.w / 2, z1: b.gas.z - b.gas.d / 2, x2: b.gas.x + b.gas.w / 2, z2: b.gas.z + b.gas.d / 2 };
+    const hit = (a) => r[0] < a[2] && r[2] > a[0] && r[1] < a[3] && r[3] > a[1];
+    return hit(rr) || (yard && hit([yard.x1 - m, yard.z1 - m, yard.x2 + m, yard.z2 + m]));
+  }) || STREETS.some((s) => { const q = streetRect(s); return r[0] < q[2] + 1.5 && r[2] > q[0] - 1.5 && r[1] < q[3] + 1.5 && r[3] > q[1] - 1.5; })
+    || PARKINGS.some((p) => r[0] < p.x2 + 2 && r[2] > p.x1 - 2 && r[1] < p.z2 + 2 && r[3] > p.z1 - 2);
+  let seed = 7, n = 0, shopN = 0;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (const Q of QUARTERS) {
+    let k = 0, num = 1;
+    for (const id of Q.streets) {
+      const s = STREETS.find((x) => x.id === id);
+      if (!s) continue;
+      const [a0, a1] = s.axis === 'h' ? [Math.max(s.x1, Q.rect[0]), Math.min(s.x2, Q.rect[2])] : [Math.max(s.z1, Q.rect[1]), Math.min(s.z2, Q.rect[3])];
+      for (const side of [-1, 1]) {
+        for (let t = a0 + 10; t < a1 - 10 && k < Q.max;) {
+          const type = Q.mix[k % Q.mix.length];
+          const dim = type === 'a' ? { w: 18, d: 15 } : type === 's' ? { w: 14, d: 11 } : { w: 11, d: 10 };
+          const off = s.w / 2 + 4 + dim.d / 2;
+          const x = s.axis === 'h' ? t : s.x + side * off, z = s.axis === 'h' ? s.z + side * off : t;
+          const facing = s.axis === 'h' ? (side < 0 ? 'S' : 'N') : (side < 0 ? 'E' : 'W');
+          // dimensions dans le repère du monde (w le long de x)
+          const W = s.axis === 'h' ? dim.w : dim.d, D = s.axis === 'h' ? dim.d : dim.w;
+          const r = [x - W / 2, z - D / 2, x + W / 2, z + D / 2];
+          const inRect = r[0] > Q.rect[0] && r[2] < Q.rect[2] && r[1] > Q.rect[1] && r[3] < Q.rect[3];
+          if (!inRect || overlaps(r, 3)) { t += 6; continue; }
+          k++; n++;
+          const col = Q_COLORS[Math.floor(rnd() * Q_COLORS.length)], roofColor = ['#8c3b2f', '#3d5a80', '#6b4226', '#2a6f4e', '#3d405b'][Math.floor(rnd() * 5)];
+          const street = `${s.name || Q.street}`;
+          if (type === 'a') {
+            const floors = 4 + Math.floor(rnd() * 4);
+            add({ id: `q-immeuble${n}`, name: `Résidence ${['des Mouettes', 'du Parc', 'Les Lilas', 'Bellevue', 'du Phare', 'Les Cèdres', 'Le Belvédère'][n % 7]}`, kind: 'decor', interior: 'lobby', x, z, w: W, d: D, h: floors * 3.2 + 0.5, floors, facing, style: 'apartment', color: col, roofColor: '#3d405b', district: Q.district });
+          } else if (type === 's') {
+            const [shop, interior, name, color, sign] = Q_SHOPS[shopN++ % Q_SHOPS.length];
+            add({ id: `q-shop${n}`, name: `${name} (${Q.street})`, kind: 'shop', shop, interior, x, z, w: W, d: D, h: 6, facing, color, roofColor, sign, awning: ['#e63946', '#2a9d8f', '#3d5a80'][n % 3], district: Q.district });
+          } else {
+            add({ id: `q-maison${n}`, name: `${num} ${street}`, kind: 'house', interior: 'house', x, z, w: W, d: D, h: 5.5 + rnd() * 1.5, facing, roof: rnd() < 0.75 ? 'gable' : 'flat', color: col, roofColor, district: Q.district });
+            num += 2;
+          }
+          t += (s.axis === 'h' ? W : D) + 4 + rnd() * 6;
+        }
+      }
+    }
+  }
+}
+
 export const GAS_STATIONS = CITY_BUILDINGS.filter((b) => b.gas).map((b) => ({ id: b.id, name: b.name, ...b.gas }));
 
 // Lieux spéciaux des nouveaux quartiers.

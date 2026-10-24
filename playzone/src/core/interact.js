@@ -21,6 +21,7 @@ export class Interactions {
       const z = typeof d.z === 'function' ? d.z() : d.z;
       const dist = Math.hypot(pos.x - x, pos.z - z);
       if (dist > d.r) continue;
+      if (d.level !== undefined && Math.abs(pos.y - d.level) > 3) continue;   // au rez-de-chaussée / sur le toit seulement
       if (d.enabled && !d.enabled()) continue;
       const score = dist - d.priority * 10;
       if (score < bestScore) { bestScore = score; best = d; }

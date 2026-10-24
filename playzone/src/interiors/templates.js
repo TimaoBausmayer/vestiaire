@@ -320,6 +320,10 @@ export const TEMPLATES = {
     counter(t, rx, rz, 3, 0, '#3d5a80', '#f4f1ea');
     t.staff(rx, rz - 0.9, 0, 'accueil');
     t.spot(rx, rz + 1.2, { label: '🛎️ Parler à l\'accueil', action: 'talk', r: 2.2, priority: 2 });
+    if ((t.b.floors || 1) >= 3) {   // ascenseur vers les étages et le toit
+      t.box(I.x2 - 0.15, 0, rz, 0.1, 2.4, 1.8, '#adb5bd'); t.box(I.x2 - 0.2, 0, rz, 0.1, 2.4, 0.04, '#495057');
+      t.spot(I.x2 - 1.1, rz, { label: '🛗 Prendre l\'ascenseur', action: 'elevator', r: 1.6, priority: 2 });
+    }
     // open space
     for (let x = I.x1 + 2; x < I.x2 - 2; x += 3) for (let z = I.z1 + 2; z < rz - 2.5; z += 3) {
       t.furn('bureau', x, z, 0); t.solid(x, z, 1.8, 0.9, 1);

@@ -513,3 +513,8 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 .underwater { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s; z-index: 0;
   background: radial-gradient(ellipse at 50% 0%, rgba(120,220,255,.18), transparent 60%), radial-gradient(ellipse at center, transparent 55%, rgba(0,30,60,.55)); }
 .underwater.on { opacity: 1; }
+.lift-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lift-btn { aspect-ratio: 1.6; border-radius: 12px; border: 2px solid rgba(255,255,255,.25); background: radial-gradient(circle at 40% 30%, #4a4e5a, #23252b); color: #fff; font-weight: 900; font-size: 18px; cursor: pointer; }
+.lift-btn.on { border-color: #ffd23f; color: #ffd23f; box-shadow: 0 0 12px rgba(255,210,63,.5); }
+.lift-btn.roof, .lift-btn.rdc { grid-column: 1 / -1; aspect-ratio: auto; padding: 10px; font-size: 15px; }
+.lift-btn.roof { background: linear-gradient(135deg, #ff9f1c, #ff3fa4); }

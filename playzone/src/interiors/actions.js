@@ -7,7 +7,6 @@ import { quizOfDay } from '../../shared/activities.js';
 import { VEHICLES } from '../../shared/content/vehicles.js';
 import { dealerPanel, usedCarsPanel, rentalPanel, immoPanel, secondHandPanel, isSecondHand, scrapPanel } from '../property/panels.js';
 import { repairPanel } from '../vehicles/vehicles.js';
-import { HOUSING_BY_ID } from '../../shared/property.js';
 import { cashPanel } from '../property/bank.js';
 import { jobPanel, schoolPanel, poleEmploiPanel } from '../career/career.js';
 import { createCompanyPanel } from '../career/business.js';
@@ -107,15 +106,7 @@ export async function runAction(game, action, { b, spot, staff }) {
       await activity(g, 'mail', b);
       break;
     }
-    case 'elevator': {
-      // appartement du joueur dans cet immeuble : l'ascenseur y monte
-      const p = g.profile;
-      const mine = p.properties.map((x) => HOUSING_BY_ID[x.id]).find((x) => x?.kind === 'appart' && x.building === b.id);
-      if (!mine) { g.ui.toast('🛗 "Ascenseur réservé aux résidents. Et en panne depuis 1997." (Agence Immo Pas Cher pour louer ou acheter ici.)', '', 4500); break; }
-      if (p.home.place !== mine.id) { g.ui.toast(`🛗 Tu possèdes l'${mine.name.toLowerCase()} mais tu n'y habites pas : emménage depuis l'agence immobilière.`, '', 4500); break; }
-      g.home.enter(null, null, null, { x: spot.x, z: spot.z });
-      break;
-    }
+    case 'elevator': g.floors.panel(b); break;   // étages, toit-terrasse, son appartement
     case 'homefun': g.home?.useFunItem(spot.item); break;
     case 'job': jobPanel(g, b); break;
     case 'training': schoolPanel(g); break;

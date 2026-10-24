@@ -50,6 +50,7 @@ import { Wingfoil } from './sports/wingfoil.js';
 import { Sailing } from './sports/sailing.js';
 import { TerraceDiners } from './world/terraces.js';
 import { Sea } from './world/sealife.js';
+import { Floors } from './interiors/floors.js';
 import { Submarine } from './sports/submarine.js';
 import { Races } from './sports/races.js';
 import { Ski } from './sports/ski.js';
@@ -190,6 +191,7 @@ export class Game extends Emitter {
     this.wingfoil = this.addSystem(new Wingfoil(this));
     this.sailing = this.addSystem(new Sailing(this));   // voile et kitesurf (Cap Venteux)
     this.terraces = this.addSystem(new TerraceDiners(this));   // clients des terrasses de restaurants
+    this.floors = this.addSystem(new Floors(this));   // étages des immeubles et toits-terrasses
     this.sea = this.addSystem(new Sea(this));   // fonds marins : poissons, plongée, trésor
     this.submarine = this.addSystem(new Submarine(this));   // sous-marin du Centre de plongée
     this.races = this.addSystem(new Races(this));

@@ -187,7 +187,8 @@ export class HUD {
     if (g.player.zone !== 'world' && this.lastZone !== g.player.zone) {
       this.lastZone = g.player.zone;
       const ins = g.home?.inside;
-      this.zoneName.textContent = ins && !ins.mine ? `Chez ${ins.ownerName}` : 'Chez moi';
+      const fl = g.floors?.at;
+      this.zoneName.textContent = fl ? `${fl.b.name} · ${fl.n}e étage` : ins && !ins.mine ? `Chez ${ins.ownerName}` : 'Chez moi';
       this.zoneName.classList.add('show');
     }
     if (g.player.zone === 'world') {

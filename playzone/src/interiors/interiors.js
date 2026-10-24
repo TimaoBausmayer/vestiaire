@@ -243,11 +243,11 @@ export class Interiors {
     });
     // points d'interaction
     const inters = spots.map((sp) => g.interactions.add({
-      x: sp.x, z: sp.z, r: sp.r || 1.6, priority: sp.priority || 1,
+      x: sp.x, z: sp.z, r: sp.r || 1.6, priority: sp.priority || 1, level: (b.floors || 1) >= 3 ? 0 : undefined,
       label: sp.label, action: () => runAction(g, sp.action, { b, spot: sp, interior: this.loaded.get(b.id) }),
     }));
     // le personnel est aussi bavard
-    for (const p of people) inters.push(g.interactions.add({ x: p.x, z: p.z, r: 1.7, priority: 0, label: `💬 Parler : ${p.name}`, action: () => runAction(g, 'talk', { b, staff: p }) }));
+    for (const p of people) inters.push(g.interactions.add({ x: p.x, z: p.z, r: 1.7, priority: 0, level: (b.floors || 1) >= 3 ? 0 : undefined, label: `💬 Parler : ${p.name}`, action: () => runAction(g, 'talk', { b, staff: p }) }));
     const it = { b, group, colliders, inters, people, objects };
     this.loaded.set(b.id, it);
     return it;
@@ -288,7 +288,8 @@ export class Interiors {
       }
     }
     // dedans / dehors
-    const b = inWorld && !g.vehicles?.driving ? this.buildingAt(P.x, P.z) : null;
+    // sur un toit-terrasse, on n'est pas « dans » le bâtiment
+    const b = inWorld && !g.vehicles?.driving && P.y < 5 ? this.buildingAt(P.x, P.z) : null;
     if (b !== this.inside) this.setInside(b);
     if (this.inside) this.updateCut();
     this.updateDoors(dt);
