@@ -28,6 +28,7 @@ export function gearApp(g, b, phone) {
     bar('Vitesse', st.speed), bar('Sauts', st.jump), bar('Rotations', st.spin, 1.7), bar('Stabilité', st.stability, 1.7),
     h('div.d', `Décolle sur le foil à ${Math.round(st.takeoff * 3.6)} km/h`),
     h('div.row', ownsWing ? h('button.btn.small', { onclick: () => { phone.close(); g.wingfoil?.launchHere(); } }, '🌊 Mettre à l\'eau ici') : null,
+      ownsWing || (p.inventory.pumpfoil || 0) > 0 ? h('button.btn.small', { onclick: () => { phone.close(); g.wingfoil?.launchHere(true); } }, '🏄 Pumpfoil ici') : null,
       h('button.btn.small.ghost', { onclick: () => { const s = BUILDING_BY_ID['surf-shop']; phone.goTo?.({ x: s.door.x, z: s.door.z, name: 'Surf Shop' }); } }, '📍 Surf Shop'))));
   // pièces : équiper ce qu'on possède, voir le reste
   for (const [slot, table] of Object.entries(GEAR_SLOTS)) {
@@ -103,6 +104,7 @@ export function quickActions(g, phone) {
   if (cur?.owner === 'me' && cur.sim.damage > 0.05) chip(`🔧 Réparer ici · ${fmt(mobileRepairCost(cur.model, cur.sim.damage))} PC`, async () => { await g.vehicles.repairHere(cur); phone.render(); });
   if ((g.profile.justice?.stars || 0) > 0) chip('⚖️ Avocat', () => phone.go('avocat'));
   if (Object.keys(WINGS).some((id) => ownsGear(p, id))) chip('🪁 À l\'eau', () => { phone.close(); g.wingfoil?.launchHere(); });
+  if ((p.inventory.pumpfoil || 0) > 0 || (p.inventory.wingfoil || 0) > 0) chip('🏄 Pumpfoil', () => { phone.close(); g.wingfoil?.launchHere(true); });
   if ((p.inventory.jetski || 0) > 0) chip('🚤 Jet ski', () => { phone.close(); g.jetski?.launchHere(); });
   const boat = Object.keys(BOATS).find((id) => ownsBoat(p, id));
   if (boat) chip(`${BOATS[boat].emoji} ${BOATS[boat].name}`, () => { phone.close(); g.sailing?.launchHere(boat); });

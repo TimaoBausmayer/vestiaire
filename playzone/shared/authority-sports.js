@@ -104,9 +104,11 @@ import { groundHeight, WATER_LEVEL } from './world-layout.js';
 Object.assign(SPORTS_HANDLERS, {
   // mise à l'eau : il faut une aile (achetée), ou l'essai gratuit, ou une location ; et du vent
   // at : mise à l'eau « où on veut » (avec son propre matériel), sur un point d'eau profonde proche
-  'wing.start'(ctx, { mode, at }) {
+  // pump : pumpfoil (sans aile, sans vent : on avance en pompant). Une planche de pumpfoil ou un
+  // wingfoil complet suffit pour se mettre à l'eau partout.
+  'wing.start'(ctx, { mode, at, pump }) {
     const p = ctx.profile, w = p.sports.wing;
-    const own = ownsGear(p, 'aile-5') || Object.keys(GEAR_SLOTS.wing).some((id) => ownsGear(p, id));
+    const own = ownsGear(p, 'aile-5') || Object.keys(GEAR_SLOTS.wing).some((id) => ownsGear(p, id)) || (pump && (p.inventory.pumpfoil || 0) > 0);
     if (at) {
       if (!own && !atSurf(this, ctx)) return err('Il te faut ton propre wingfoil pour te mettre à l\'eau où tu veux (Surf Shop).');
       if (typeof at.x !== 'number' || typeof at.z !== 'number' || groundHeight(at.x, at.z) > WATER_LEVEL - 1) return err('Il faut de l\'eau profonde pour mettre le foil à l\'eau.');
@@ -117,14 +119,14 @@ Object.assign(SPORTS_HANDLERS, {
     const st = gearStats(gear);
     const wp = at || ctx.pos || {};
     const wind = typeof wp.x === 'number' ? windAtPos(calTime(ctx), wp.x, wp.z) : windAt(calTime(ctx));
-    if (wind.kts < st.minWind) return err(`Pas assez de vent : ${wind.kts} nœuds (${windLabel(wind.kts)}). Avec cette aile, il en faut au moins ${st.minWind}. ${st.minWind > 6 ? 'Une aile plus grande vole avec moins de vent !' : 'Reviens plus tard !'}`);
+    if (!pump && wind.kts < st.minWind) return err(`Pas assez de vent : ${wind.kts} nœuds (${windLabel(wind.kts)}). Avec cette aile, il en faut au moins ${st.minWind}. ${st.minWind > 6 ? 'Une aile plus grande vole avec moins de vent !' : 'Reviens plus tard !'}`);
     if (p.body.injury) return err('Tu es blessé·e : repos d\'abord.');
     let paid = 0;
-    if ((p.inventory.wingfoil || 0) > 0) mode = 'own';
+    if ((p.inventory.wingfoil || 0) > 0 || (pump && (p.inventory.pumpfoil || 0) > 0)) mode = 'own';
     else if (mode === 'trial') { if (w.trial) return err('Ton essai gratuit est déjà utilisé : loue ou achète une aile.'); w.trial = true; }
     else { if (p.coins < WING.rental) return err(`La location coûte ${WING.rental} PC.`); this.addCoins(p, -WING.rental); paid = WING.rental; mode = 'rent'; }
     w.sessions++;
-    ctx.session.wing = { at: ctx.now, lastJump: 0, kts: wind.kts, jump: st.jump };
+    ctx.session.wing = { at: ctx.now, lastJump: 0, kts: wind.kts, jump: st.jump, pump: !!pump };
     return { ok: true, changed: true, data: { mode, paid, wind, gear, stats: st } };
   },
   'wing.jump'(ctx, { height, air, spins, flips }) {
@@ -148,6 +150,18 @@ Object.assign(SPORTS_HANDLERS, {
     return { ok: true, changed: true, data: { height, spins, flips, pts, record: rec, rank } };
   },
   'wing.end'(ctx) { ctx.session.wing = null; return { ok: true, changed: false, data: {} }; },
+  // Pumpfoil : plus long vol (secondes sur le foil sans toucher l'eau) ; on progresse en pompant.
+  'wing.pump'(ctx, { seconds }) {
+    const p = ctx.profile, w = p.sports.wing, s = ctx.session.wing;
+    if (!s?.pump) return err('Pas en pumpfoil.');
+    const max = (ctx.now - s.at) / 1000 + 1;
+    seconds = Math.max(0, Math.min(max, 600, Number(seconds) || 0));
+    const record = seconds > (w.pumpBest || 0);
+    if (record) w.pumpBest = Math.round(seconds * 10) / 10;
+    w.skill = Math.min(100, Math.round(((w.skill || 5) + Math.min(3, seconds / 20)) * 10) / 10);
+    const rank = ctx.leaderboard ? ctx.leaderboard.submit('pumpfoil', p, Math.round(seconds * 10), false) : null;
+    return { ok: true, changed: true, data: { seconds, record, best: w.pumpBest, skill: w.skill, rank } };
+  },
   // Réglage de l'équipement : pièce possédée dans chaque emplacement, couleurs libres.
   'gear.equip'(ctx, { slot, id, wingColor, boardColor }) {
     const p = ctx.profile;

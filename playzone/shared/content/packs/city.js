@@ -99,6 +99,7 @@ export default {
     // ---------- Surf Shop : wingfoil (aile + planche + foil)
     { id: 'jetski', name: 'Jet ski Turbo-Mouette 1600', shop: 'surf', special: true, price: 9500, emoji: '🚤', desc: 'À toi pour toujours : balades et courses sans abonnement.', max: 1, level: 4 },
     { id: 'wingfoil', name: 'Wingfoil complet (aile 5 m², planche, foil)', shop: 'surf', special: true, price: 1800, emoji: '🪁', desc: 'Pour voler au-dessus de l\'eau quand il y a du vent (10 nœuds minimum).', max: 1 },
+    { id: 'pumpfoil', name: 'Pumpfoil (planche courte + foil 1800 cm²)', shop: 'surf', special: true, price: 950, emoji: '🏄', desc: 'Sans aile ni vent : on décolle et on vole en pompant (Espace en rythme). Mise à l\'eau partout.', max: 1 },
     // ailes, planches et foils à la carte (à régler dans l'appli « Équipement » du téléphone)
     ...GEAR_ITEMS,
     // ---------- Voilerie du Cap : dériveurs et kites (naviguer partout ensuite)

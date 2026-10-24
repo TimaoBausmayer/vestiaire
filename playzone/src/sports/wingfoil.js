@@ -79,6 +79,7 @@ export class Wingfoil {
     const fc = forecast(t, 6).map((f) => `${f.h} h : ${Math.round(f.kts)} nds`).join(' · ');
     g.ui.dialog({ name: 'Kéké le moniteur', role: 'Surf Shop Vent Debout', text: `Vent actuel : ${w.kts} nœuds (${windLabel(w.kts)}). Il en faut ${MIN_WIND} pour voler. Prévisions : ${fc}. ${own ? 'Ton wingfoil est prêt !' : W.trial ? `Location : ${WING.rental} PC la session, ou achète le tien (${WING.price} PC).` : 'Première fois ? L\'essai est GRATUIT !'}`, choices: [
       own ? { label: '🪁 Aller à l\'eau avec mon wingfoil', action: (m) => { m.close(); this.start('own', this.launchFor(b)); } } : null,
+      { label: `🏄 Pumpfoil, sans vent (${own || (g.profile.inventory.pumpfoil || 0) > 0 ? 'ton matériel' : W.trial ? `${WING.rental} PC` : 'essai gratuit'})`, action: (m) => { m.close(); const mine = own || (g.profile.inventory.pumpfoil || 0) > 0; this.start(mine ? 'own' : W.trial ? 'rent' : 'trial', this.launchFor(b), true); } },
       { label: '🎛️ Mon équipement (aile, planche, foil, couleurs)', action: (m) => { m.close(); g.phone?.open('gear'); } },
       !own && !W.trial ? { label: '🎁 Essai gratuit', action: (m) => { m.close(); this.start('trial', this.launchFor(b)); } } : null,
       !own ? { label: `🪁 Louer pour une session (${WING.rental} PC)`, action: (m) => { m.close(); this.start('rent', this.launchFor(b)); } } : null,
@@ -97,19 +98,19 @@ export class Wingfoil {
   }
 
   // Mise à l'eau « où on veut » (avec son propre matériel) : l'eau profonde la plus proche.
-  launchHere() {
+  launchHere(pump = false) {
     const g = this.g, P = g.player;
     if (this.s) return;
     const at = deepWaterNear(P.pos.x, P.pos.z, 48);
     if (!at) { g.ui.toast('🌊 Pas d\'eau profonde à côté : approche-toi de la mer, du lac ou d\'un port.', 'bad', 3500); return; }
-    this.start('own', at);
+    this.start('own', at, pump);
   }
 
-  async start(mode, at = null) {
+  async start(mode, at = null, pump = false) {
     const g = this.g;
     const P = g.player;
     const back = { x: P.pos.x, z: P.pos.z };
-    const r = await req(g, 'wing.start', { mode, ...(at ? { at } : {}) });
+    const r = await req(g, 'wing.start', { mode, ...(at ? { at } : {}), ...(pump ? { pump: true } : {}) });
     if (!r) return;
     if (g.vehicles?.current) g.vehicles.exit(true);
     const sp = at || SURF_SPOT;
@@ -117,12 +118,13 @@ export class Wingfoil {
     P.external = true;
     this.stats = r.stats || gearStats(equipped(g.profile));
     this.applyGear(r.gear || equipped(g.profile));
-    this.s = { back: at ? back : null, x: sp.x, z: sp.z, yaw: Math.PI / 2, speed: 2, y: 0, vy: 0, air: 0, spinAcc: 0, spinStart: 0, crashed: 0, hudT: 0, best: 0, jumps: 0, mode, sheet: 0.7, wind: r.wind, stamina: 1, stowed: false, pitch: 0, flipAcc: 0 };
-    this.wingMesh.visible = true;
+    this.s = { back: at ? back : null, x: sp.x, z: sp.z, yaw: Math.PI / 2, speed: 2, y: 0, vy: 0, air: 0, spinAcc: 0, spinStart: 0, crashed: 0, hudT: 0, best: 0, jumps: 0, mode, sheet: 0.7, wind: r.wind, stamina: 1, stowed: pump, pump, pitch: 0, flipAcc: 0, flight: 0, bestFlight: 0, beat: 0 };
+    this.wingMesh.visible = !pump;
     this.rig.visible = true;
-    this.buttons = h('div.foot-btns', h('button', { onpointerdown: (e) => { e.preventDefault(); this.pump(); } }, '💪 Pomper (E)'), h('button', { onpointerdown: (e) => { e.preventDefault(); this.jump(); } }, '🦘 Saut'), h('button', { onpointerdown: (e) => { e.preventDefault(); this.toggleWing(); } }, '🎒 Aile (R)'), h('button', { onpointerdown: (e) => { e.preventDefault(); this.stop(); } }, '🏖️ Plage'));
+    this.buttons = pump ? h('div.foot-btns', h('button.pump-big', { onpointerdown: (e) => { e.preventDefault(); this.pump(); } }, '💪 POMPER (Espace)'), h('button', { onpointerdown: (e) => { e.preventDefault(); this.stop(); } }, '🏖️ Plage')) : h('div.foot-btns', h('button', { onpointerdown: (e) => { e.preventDefault(); this.pump(); } }, '💪 Pomper (E)'), h('button', { onpointerdown: (e) => { e.preventDefault(); this.jump(); } }, '🦘 Saut'), h('button', { onpointerdown: (e) => { e.preventDefault(); this.toggleWing(); } }, '🎒 Aile (R)'), h('button', { onpointerdown: (e) => { e.preventDefault(); this.stop(); } }, '🏖️ Plage'));
     g.ui.root.append(this.buttons);
     g.sfx('whoosh');
+    if (pump) { g.ui.toast(`🏄 Pumpfoil ! ${r.paid ? `Location ${r.paid} PC. ` : mode === 'trial' ? 'Essai gratuit ! ' : ''}Appuie sur ESPACE plein de fois, en rythme, pour décoller sur le foil... puis continue à pomper pour rester en l'air. Gauche / droite pour tourner.`, 'good', 7000); return; }
     g.ui.toast(`🪁 ${r.paid ? `Location ${r.paid} PC. ` : mode === 'trial' ? 'Essai gratuit ! ' : ''}Vent ${r.wind.kts} nœuds. Vent de travers = vitesse, Avant = puissance, E = pomper, Espace = saut (en l'air : souris = 360 et flips), R = ranger l'aile.`, 'good', 7000);
   }
 
@@ -145,10 +147,19 @@ export class Wingfoil {
     const now = g.now(), gap = (now - (s.lastPump || 0)) / 1000;
     s.lastPump = now;
     if (s.stamina < 0.12) { g.ui.toast('😮‍💨 À bout de souffle : laisse-toi glisser un instant.', '', 1200); return; }
-    const rhythm = gap > 0.3 && gap < 0.9 ? 1 : gap <= 0.3 ? 0.35 : 0.7;
     const skill = (g.profile.sports?.wing?.skill || 5) / 100;
-    s.speed += (0.75 + skill * 0.6) * rhythm * (s.speed < this.stats.takeoff + 1 ? 1.25 : 0.8);
-    s.stamina = Math.max(0, s.stamina - 0.09);
+    if (s.pump) {
+      // pumpfoil : beaucoup de petits coups en rythme (toutes les 0,2 à 0,7 s) ; trop vite = moins efficace
+      const rhythm = gap > 0.18 && gap < 0.7 ? 1 : gap <= 0.18 ? 0.45 : 0.6;
+      const onFoil = s.speed > this.stats.takeoff;
+      s.speed = Math.min(WING.maxSpeed * 0.75, s.speed + (onFoil ? 0.55 + skill * 0.4 : 0.6 + skill * 0.3) * rhythm);
+      s.beat = rhythm;
+      s.stamina = Math.max(0, s.stamina - 0.035 * (1.2 - skill));
+    } else {
+      const rhythm = gap > 0.3 && gap < 0.9 ? 1 : gap <= 0.3 ? 0.35 : 0.7;
+      s.speed += (0.75 + skill * 0.6) * rhythm * (s.speed < this.stats.takeoff + 1 ? 1.25 : 0.8);
+      s.stamina = Math.max(0, s.stamina - 0.09);
+    }
     s.pumpAnim = 0.35;
     g.sfx('whoosh');
   }
@@ -156,7 +167,7 @@ export class Wingfoil {
   // Ranger / sortir l'aile (touche R) : sans aile, on vole seulement en pompant (pumpfoil).
   toggleWing() {
     const s = this.s;
-    if (!s) return;
+    if (!s || s.pump) return;
     s.stowed = !s.stowed;
     this.wingMesh.visible = !s.stowed;
     this.g.ui.toast(s.stowed ? '🎒 Aile rangée dans le dos : pompe avec E pour rester sur le foil !' : '🪁 Aile sortie : le vent te pousse à nouveau.', '', 2500);
@@ -168,9 +179,9 @@ export class Wingfoil {
     const I = g.input, P = g.player;
     s.wind = windAtPos(calNow(g), s.x, s.z);   // le vent local (le Cap Venteux souffle toujours)
     const w = s.wind;
-    if (I.pressed('KeyE')) this.pump();
+    if (I.pressed('KeyE') || (s.pump && I.pressed('Space'))) this.pump();
     if (I.pressed('KeyR')) this.toggleWing();
-    s.stamina = Math.min(1, (s.stamina ?? 1) + dt * 0.12);
+    s.stamina = Math.min(1, (s.stamina ?? 1) + dt * (s.pump ? 0.16 : 0.12));
     // cap du vent : il souffle VERS (dir + PI) ; angle entre notre cap et la direction d'où il vient
     const off = Math.abs(wrap(s.yaw - w.dir));           // 0 = face au vent
     const sail = s.stowed ? 0 : off < 0.7 ? 0 : off < 1.2 ? (off - 0.7) / 0.5 * 0.8 : off < 2.2 ? 1 : 1 - (off - 2.2) / 0.94 * 0.4;
@@ -200,9 +211,16 @@ export class Wingfoil {
       const cap = WING.maxSpeed * this.stats.speed * (foiling ? 1.4 : 1);
       const target = Math.min(cap, kts * 0.5 * this.stats.speed * sail * s.sheet * fly * (1 + (g.profile.sports?.wing?.skill || 5) / 300));
       // sans propulsion, on ralentit doucement en vol (le foil glisse) et vite dans l'eau
-      const drag = target > s.speed ? 0.6 : foiling ? 0.22 : 1.2;
-      s.speed += (target - s.speed) * Math.min(1, dt * drag);
-      if (I.pressed('Space')) this.jump();
+      if (s.pump) {
+        // pumpfoil : pas de vent, on ralentit sans arrêt (vite dans l'eau, doucement sur le foil)
+        s.speed = Math.max(0, s.speed - dt * (foiling ? 0.85 + s.speed * 0.05 : 1.6));
+        if (foiling) { s.flight += dt; s.bestFlight = Math.max(s.bestFlight, s.flight); }
+        else if (s.flight > 0) { if (s.flight > 3) g.ui.toast(`🏄 Vol de ${s.flight.toFixed(1)} s ! Pompe encore plus régulièrement pour tenir plus longtemps.`, '', 2200); s.flight = 0; }
+      } else {
+        const drag = target > s.speed ? 0.6 : foiling ? 0.22 : 1.2;
+        s.speed += (target - s.speed) * Math.min(1, dt * drag);
+        if (I.pressed('Space')) this.jump();
+      }
     }
     const foilH = s.speed > tk ? Math.min(0.75, (s.speed - tk) * 0.4) : 0;
     s.x += Math.sin(s.yaw) * s.speed * dt;
@@ -240,6 +258,11 @@ export class Wingfoil {
     s.hudT -= dt;
     if (s.hudT <= 0) {
       s.hudT = 0.25;
+      if (s.pump) {
+        const need = Math.max(0, tk - s.speed);
+        g.hud.track('wing', { title: '🏄 Pumpfoil', text: `${Math.round(s.speed * 3.6)} km/h · ${foilH > 0.1 ? `✈️ EN VOL ${s.flight.toFixed(1)} s` : `dans l'eau : pompe ! (encore ${Math.round(need * 3.6)} km/h)`} · rythme ${s.beat >= 1 ? '👍 parfait' : s.beat ? '⚠️ irrégulier' : '—'} · souffle ${Math.round(s.stamina * 100)} % · record ${Math.max(s.bestFlight, g.profile.sports?.wing?.pumpBest || 0).toFixed(1)} s`, bar: Math.min(1, s.speed / (tk * 1.6)), button: { label: 'Rentrer à la plage', onclick: () => this.stop() } });
+        return;
+      }
       const allure = s.stowed ? '🎒 aile rangée (pumpfoil)' : off < 0.7 ? '⛔ face au vent (zone morte)' : off < 1.2 ? 'près du vent' : off < 2.2 ? '✅ vent de travers (top !)' : 'vent arrière';
       g.hud.track('wing', { title: `🪁 Wingfoil · vent ${w.kts} nds`, text: `${Math.round(s.speed * 3.6)} km/h · ${foilH > 0.1 ? 'sur le foil ✈️' : `dans l'eau (décolle à ${Math.round(tk * 3.6)} km/h : pompe avec E !)`} · ${allure} · souffle ${Math.round(s.stamina * 100)} % · meilleur saut ${s.best.toFixed(1)} m`, button: { label: 'Rentrer à la plage', onclick: () => this.stop() } });
       if (w.kts < this.stats.minWind - 2 && !s.windWarn && !s.stowed) { s.windWarn = true; g.ui.toast('🌬️ Peu de vent pour cette aile : pompe avec E pour décoller, ou prends une aile plus grande.', 'bad', 4500); }
@@ -284,6 +307,11 @@ export class Wingfoil {
     // retour au bord : là où on s'était mis à l'eau, sinon devant le Surf Shop
     const shop = BUILDING_BY_ID['surf-shop'];
     if (s.back) P.teleport(s.back.x, s.back.z, Math.PI); else P.teleport(shop.door.x, shop.door.z + 3, Math.PI);
+    if (s.pump) {
+      const best = s.bestFlight;
+      g.net.request('wing.pump', { seconds: best }).then((r) => { g.net.request('wing.end', {}).catch(() => null); g.ui.toast(`🏖️ ${msg || 'Session de pumpfoil terminée.'} Plus long vol : ${best.toFixed(1)} s${r.record ? ' — NOUVEAU RECORD !' : ` (record ${r.best} s)`}.`, 'good', 4500); }).catch(() => g.net.request('wing.end', {}).catch(() => null));
+      return;
+    }
     g.net.request('wing.end', {}).catch(() => null);
     g.ui.toast(`🏖️ ${msg || 'Session terminée.'} ${s.jumps} saut(s), meilleur ${s.best.toFixed(1)} m.`, 'good', 3500);
   }

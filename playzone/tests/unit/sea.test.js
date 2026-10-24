@@ -32,3 +32,15 @@ test('sous-marin au Centre de plongée, trésor une fois par jour, spots découv
   assert.ok(auth.handle(mk(p, reef), 'sea.discover', { id: reef.id }).data.count === 1 && p.xp > xp);
   assert.ok(auth.handle(mk(p, reef), 'sea.discover', { id: reef.id }).data.already);
 });
+
+test('pumpfoil : sans vent, record du plus long vol', () => {
+  const p = auth.newProfile({ id: 'pf1', name: 'Pompeur', appearance: {}, now: 0 }); p.coins = 1000; p.inventory.pumpfoil = 1;
+  const at = { x: 0, z: 200 };
+  const ctx = mk(p, { x: 0, z: 190 }); ctx.session = {};
+  const r = auth.handle(ctx, 'wing.start', { mode: 'own', at, pump: true });
+  assert.ok(r.ok && r.data.mode === 'own', JSON.stringify(r));
+  const c2 = mk(p, null, NOW + 60_000); c2.session = ctx.session;
+  const e = auth.handle(c2, 'wing.pump', { seconds: 12.4 });
+  assert.ok(e.ok && e.data.record && p.sports.wing.pumpBest === 12.4);
+  assert.ok(auth.handle(c2, 'wing.pump', { seconds: 9999 }).data.seconds <= 61, 'durée plafonnée');
+});
