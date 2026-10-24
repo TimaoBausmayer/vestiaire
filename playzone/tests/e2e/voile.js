@@ -51,7 +51,10 @@ await toClub();
 await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const g = window.playzone; await g.sailing.start('49er', g.sailing.launchFor(BUILDING_BY_ID['club-voile'])); });
 await sleep(800);
 await beam();
-await ev(() => { const s = window.playzone.sailing.s; s.sheet = 1; s.speed = 8; s.wind.kts = 22; });
+// on attend un moment de brise forte (≥ 22 nœuds) au Cap Venteux
+await ev(async () => { const W = await import('/shared/wingfoil.js'); const { HOUR_MS } = await import('/shared/clock.js'); const g = window.playzone, s = g.sailing.s; for (let k = 0; k < 3000; k++) { const sh = k * HOUR_MS / 4; if (W.windAtPos(g.now() + sh, s.x, s.z).kts >= 22) { localStorage.setItem('playzone.timeShift', String(sh)); g.world.dayNight.shift = sh; break; } } });
+await beam();
+await ev(() => { const s = window.playzone.sailing.s; s.sheet = 1; s.speed = 8; });
 const cap1 = await ev(() => { const g = window.playzone, s = g.sailing.s; for (let i = 0; i < 60; i++) g.debugStep(0.1); return s.capsizes; });
 check(cap1 >= 1, `49er toute voile dehors sans rappel : dessalage (${cap1})`);
 await page.screenshot({ path: 'tests/e2e/out/voile-dessale.png' });

@@ -4,7 +4,8 @@ import { groundHeight, WATER_LEVEL, BUILDING_BY_ID } from '../../shared/world-la
 import { windAt, windAtPos, windLabel, forecast, MIN_WIND, SURF_SPOT, WING, maxJump } from '../../shared/wingfoil.js';
 import { calNow } from '../events/agenda.js';
 import { Wake } from './wake.js';
-import { gearStats, equipped, deepWaterNear, inNavZone } from '../../shared/gear.js';
+import { gearStats, equipped, deepWaterNear, inNavZone, WINGS } from '../../shared/gear.js';
+import { sailPower } from '../../shared/sailing.js';
 
 // WINGFOIL : on tient l'aile, le vent pousse, la planche décolle sur son foil au-dessus de l'eau.
 // Commandes : gauche/droite = tourner, avant = border l'aile (plus de puissance), arrière = choquer,
@@ -67,7 +68,8 @@ export class Wingfoil {
     this.leadMat.color.copy(c);
     this.canopyMat.color.copy(c).lerp(new THREE.Color('#ffffff'), 0.7);
     this.railMat.color.set(gear.boardColor);
-    const size = { 'aile-3': 0.78, 'aile-4': 0.88, 'aile-6': 1.08, 'aile-7': 1.16, 'aile-free': 0.94, 'aile-mamie': 0.7 }[gear.wing] || 1;
+    // taille visible proportionnelle à la surface (une 8 m² est deux fois plus grande qu'une 2,5 m²)
+    const size = Math.sqrt((WINGS[gear.wing]?.area || 5) / 5);
     this.wingMesh.scale.setScalar(size);
   }
 
@@ -184,7 +186,8 @@ export class Wingfoil {
     s.stamina = Math.min(1, (s.stamina ?? 1) + dt * (s.pump ? 0.16 : 0.12));
     // cap du vent : il souffle VERS (dir + PI) ; angle entre notre cap et la direction d'où il vient
     const off = Math.abs(wrap(s.yaw - w.dir));           // 0 = face au vent
-    const sail = s.stowed ? 0 : off < 0.7 ? 0 : off < 1.2 ? (off - 0.7) / 0.5 * 0.8 : off < 2.2 ? 1 : 1 - (off - 2.2) / 0.94 * 0.4;
+    // même polaire que les dériveurs : face au vent on tape, au près on avance peu, le largue est le plus rapide
+    const sail = s.stowed ? 0 : sailPower(off);
     const tk = this.stats.takeoff;
     const foiling = s.speed > tk;
     if (s.crashed > 0) {
@@ -206,10 +209,16 @@ export class Wingfoil {
       const turn = (s.speed > 6 ? 1.1 : 1.6) * this.stats.turn * dt;
       s.yaw -= I.move.x * turn;
       const minW = this.stats.minWind;
-      const kts = w.kts < minW ? w.kts * 0.4 : w.kts * Math.max(1, MIN_WIND / minW);
+      // puissance de l'aile : grande surface = plus de traction ; au-delà de son vent max, trop de toile
+      const A = this.stats.area, kts = (w.kts < minW ? w.kts * 0.4 : w.kts) * Math.sqrt(A / 5) * Math.max(1, MIN_WIND / minW) ** 0.3;
+      s.over = Math.max(0, w.kts / this.stats.maxWind - 1);
       const fly = foiling ? WING.foilBoost : 0.8;
       const cap = WING.maxSpeed * this.stats.speed * (foiling ? 1.4 : 1);
-      const target = Math.min(cap, kts * 0.5 * this.stats.speed * sail * s.sheet * fly * (1 + (g.profile.sports?.wing?.skill || 5) / 300));
+      const target = Math.min(cap, kts * 0.5 * this.stats.speed * sail * s.sheet * fly * (1 + (g.profile.sports?.wing?.skill || 5) / 300)) * (1 - Math.min(0.5, s.over * 0.9 * s.sheet));
+      // trop de toile, aile bordée à fond : on peut se faire catapulter (choque l'aile : touche arrière)
+      if (s.over > 0.15 && s.sheet > 0.75 && sail > 0.5 && Math.random() < dt * s.over * 0.5) { s.crashed = 2.5; s.speed = 0; g.sfx('splat'); g.ui.toast('💥 Catapulté·e ! Trop de toile pour ce vent : choque l\'aile (arrière) ou prends une aile plus petite.', 'bad', 4500); }
+      if (sail === 0 && s.speed < 0.8 && !s.ironsTip) { s.ironsTip = true; g.ui.toast('⛔ Face au vent, l\'aile ne tire plus : abats (gauche / droite). Meilleur compromis pour remonter : ~55°.', '', 4000); }
+      if (sail > 0) s.ironsTip = false;
       // sans propulsion, on ralentit doucement en vol (le foil glisse) et vite dans l'eau
       if (s.pump || s.stowed) {
         // pumpfoil (ou aile rangée) : pas de vent, on ralentit sans arrêt (vite dans l'eau, doucement sur le foil)
@@ -218,7 +227,7 @@ export class Wingfoil {
         if (foiling) { s.flight += dt; s.bestFlight = Math.max(s.bestFlight, s.flight); }
         else if (s.flight > 0) { if (s.flight > 3) g.ui.toast(`🏄 Vol de ${s.flight.toFixed(1)} s ! Pompe encore plus régulièrement pour tenir plus longtemps.`, '', 2200); s.flight = 0; }
       } else {
-        const drag = target > s.speed ? 0.6 : foiling ? 0.22 : 1.2;
+        const drag = target > s.speed ? 0.6 : sail === 0 ? 1.4 : foiling ? 0.22 : 1.2;
         s.speed += (target - s.speed) * Math.min(1, dt * drag);
         if (I.pressed('Space')) this.jump();
       }
@@ -264,7 +273,9 @@ export class Wingfoil {
         g.hud.track('wing', { title: '🏄 Pumpfoil', text: `${Math.round(s.speed * 3.6)} km/h · ${foilH > 0.1 ? `✈️ EN VOL ${s.flight.toFixed(1)} s` : `dans l'eau : pompe ! (encore ${Math.round(need * 3.6)} km/h)`} · rythme ${s.beat >= 1 ? '👍 parfait' : s.beat ? '⚠️ irrégulier' : '—'} · souffle ${Math.round(s.stamina * 100)} % · record ${Math.max(s.bestFlight, g.profile.sports?.wing?.pumpBest || 0).toFixed(1)} s`, bar: Math.min(1, s.speed / (tk * 1.6)), button: { label: 'Rentrer à la plage', onclick: () => this.stop() } });
         return;
       }
-      const allure = s.stowed ? '🎒 aile rangée (pumpfoil)' : off < 0.7 ? '⛔ face au vent (zone morte)' : off < 1.2 ? 'près du vent' : off < 2.2 ? '✅ vent de travers (top !)' : 'vent arrière';
+      const deg = Math.round(off * 180 / Math.PI), st = this.stats;
+      const toile = w.kts < st.minWind ? '🟡 sous-toilé' : s.over > 0.15 ? '🔴 TROP DE TOILE' : '🟢 bien toilé';
+      const allure = s.stowed ? '🎒 aile rangée (pumpfoil)' : `${deg}° du vent · ` + (off < 0.7 ? '⛔ face au vent : abats !' : off < 0.85 ? 'près serré (lent)' : off < 1.15 ? '🎯 près (compromis)' : off < 1.6 ? 'travers' : off < 2.0 ? '✅ largue (top)' : 'vent arrière') + ` · aile ${st.area} m² ${toile}`;
       g.hud.track('wing', { title: `🪁 Wingfoil · vent ${w.kts} nds`, text: `${Math.round(s.speed * 3.6)} km/h · ${foilH > 0.1 ? 'sur le foil ✈️' : `dans l'eau (décolle à ${Math.round(tk * 3.6)} km/h : pompe avec E !)`} · ${allure} · souffle ${Math.round(s.stamina * 100)} % · meilleur saut ${s.best.toFixed(1)} m`, button: { label: 'Rentrer à la plage', onclick: () => this.stop() } });
       if (w.kts < this.stats.minWind - 2 && !s.windWarn && !s.stowed) { s.windWarn = true; g.ui.toast('🌬️ Peu de vent pour cette aile : pompe avec E pour décoller, ou prends une aile plus grande.', 'bad', 4500); }
     }

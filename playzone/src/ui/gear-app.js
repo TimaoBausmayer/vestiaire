@@ -37,7 +37,7 @@ export function gearApp(g, b, phone) {
       const own = ownsGear(p, id), on = gear[slot] === id;
       const price = d.price || (slot === 'wing' ? 1800 : 0);
       b.append(h(`div.list-item${on ? '.sel' : ''}`, h('span', { style: { fontSize: '22px' } }, d.emoji),
-        h('div.grow', h('div.t', d.name), h('div.d', d.desc)),
+        h('div.grow', h('div.t', d.name), h('div.d', d.desc), slot === 'wing' ? (() => { const st = gearStats({ ...gear, wing: id }); return h('div.d', `📐 ${d.area} m² · 🌬️ vole de ${st.minWind} à ${st.maxWind} nœuds${w.kts >= st.minWind && w.kts <= st.maxWind ? ' · ✅ idéale maintenant' : w.kts > st.maxWind ? ' · 🔴 trop de toile maintenant' : ''}`); })() : null),
         own ? h('button.btn.small', { disabled: on, onclick: async () => { if (await req(g, 'gear.equip', { slot, id })) { g.sfx('click'); phone.render(); } } }, on ? '✔ équipé' : 'Équiper')
           : h('span.pill', price ? `${fmt(price)} PC · Surf Shop` : 'dans le pack')));
     }

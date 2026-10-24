@@ -23,11 +23,19 @@ export function defaultSail() { return { sessions: 0, trials: [], member: null, 
 export const SAIL_ITEMS = Object.entries(BOATS).map(([id, b]) => ({ id: `bateau-${id}`, boat: id, name: b.kite ? b.name : `Dériveur ${b.name}`, shop: 'voile', special: true, price: b.price, emoji: b.emoji, desc: b.desc, max: 1, ...(b.level ? { level: b.level } : {}) }));
 export const ownsBoat = (p, id) => (p.inventory?.[`bateau-${id}`] || 0) > 0;
 
-// Polaire simplifiée : puissance de la voile selon l'angle au vent (0 = face au vent).
+// Polaire : part de la vitesse maximale selon l'angle au vent (0 = face au vent, PI = vent arrière).
+//  - face au vent (< 40°) : la voile faseye, on n'avance plus (on « tape » dans le vent) ;
+//  - au près serré, on avance peu ; plus on abat, plus ça accélère ;
+//  - meilleure vitesse au travers / petit largue (~90° à 115°) ;
+//  - vent arrière : on ralentit (le kite, qui tire en travers, encore plus).
+// Le bon compromis pour remonter au vent : ~50° (voir vmgBest).
 export function sailPower(off, kite = false) {
-  const dead = kite ? 0.85 : 0.75;                  // zone morte (« bout au vent ») : ~45°
+  const dead = kite ? 0.8 : 0.7;                        // ~40-45°
   if (off < dead) return 0;
-  if (off < 1.2) return 0.55 + (off - dead) / (1.2 - dead) * 0.3;   // près
-  if (off < 2.0) return 0.85 + Math.sin((off - 1.2) / 0.8 * Math.PI) * 0.15;   // travers / largue
-  return 0.85 - (off - 2.0) / 1.14 * (kite ? 0.45 : 0.25);         // grand largue / vent arrière
+  if (off < dead + 0.15) return (off - dead) / 0.15 * 0.32;            // au près très serré : peu de vitesse
+  if (off < 1.6) return 0.32 + (off - dead - 0.15) / (1.6 - dead - 0.15) * 0.63;   // jusqu'au travers
+  if (off < 2.0) return 0.95 + Math.sin((off - 1.6) / 0.4 * Math.PI / 2) * 0.05;   // petit largue : le top
+  return 1 - (off - 2.0) / 1.14 * (kite ? 0.5 : 0.35);                  // grand largue, vent arrière
 }
+// Vitesse utile pour remonter au vent (VMG) : maximale vers ~50-55°.
+export const vmg = (off, kite = false) => sailPower(off, kite) * Math.cos(off);

@@ -3,18 +3,20 @@
 // stabilité). Partagé client / autorité : l'autorité vérifie la propriété et plafonne les sauts.
 import { groundHeight, WATER_LEVEL, WORLD_BOUNDS } from './world-layout.js';
 
+// area : surface (m²) : grande aile = puissance dans le petit temps mais trop de toile dans la brise ;
+// petite aile = il faut du vent, mais vitesse et contrôle quand ça souffle fort.
 // lowWind : nœuds gagnés sur le vent minimum · speed / jump / spin / turn : multiplicateurs
 export const WINGS = {
-  'aile-2': { name: 'Aile Tempête 2,5 m²', emoji: '🌪️', price: 1900, lowWind: -9, speed: 1.2, jump: 1.1, spin: 1.3, turn: 1.3, level: 4, desc: 'Pour le très gros temps : dès 19 nœuds, et ça décoiffe jusqu\'à 40.' },
-  'aile-3': { name: 'Aile Fusée 3 m²', emoji: '🔺', price: 1400, lowWind: -4, speed: 1.12, jump: 0.95, spin: 1.25, turn: 1.25, desc: 'Petite et nerveuse : pour les jours de gros vent (14 nœuds minimum).' },
-  'aile-4': { name: 'Aile Sprint 4 m²', emoji: '🪁', price: 1600, lowWind: -2, speed: 1.08, jump: 1, spin: 1.12, turn: 1.12, desc: 'Vive et rapide dès 12 nœuds.' },
-  'aile-5': { name: 'Aile Polyvalente 5 m²', emoji: '🪁', price: 1800, lowWind: 0, speed: 1, jump: 1, spin: 1, turn: 1, desc: 'Celle du pack de base : fait tout bien, à partir de 10 nœuds.' },
-  'aile-6': { name: 'Aile Brise Légère 6 m²', emoji: '🌬️', price: 2100, lowWind: 2, speed: 0.95, jump: 1.05, spin: 0.9, turn: 0.92, desc: 'Grande surface : vole dès 8 nœuds, un peu moins vive.' },
-  'aile-7': { name: 'Aile Pétole 7 m²', emoji: '🍃', price: 2500, lowWind: 4, speed: 0.9, jump: 1.08, spin: 0.82, turn: 0.85, desc: 'Pour les jours sans vent : vole dès 6 nœuds !' },
-  'aile-free': { name: 'Aile Freestyle Twister 4,5 m²', emoji: '🌀', price: 3200, lowWind: -1, speed: 1.02, jump: 1.25, spin: 1.45, turn: 1.15, level: 5, desc: 'Sauts plus hauts, rotations ultra-rapides : la reine des figures.' },
-  'aile-race': { name: 'Aile Carbone Racing 5 m²', emoji: '⚡', price: 4800, lowWind: 0, speed: 1.28, jump: 1, spin: 0.95, turn: 1.05, level: 8, desc: 'Lattes en carbone : la plus rapide du plan d\'eau.' },
-  'aile-8': { name: 'Aile Pétole XXL 8 m²', emoji: '🎈', price: 3400, lowWind: 5, speed: 0.88, jump: 1.1, spin: 0.75, turn: 0.8, level: 3, desc: 'Énorme : décolle dès 5 nœuds (en pompant un peu).' },
-  'aile-mamie': { name: 'Aile Parapluie de Mamie', emoji: '☂️', price: 600, lowWind: -3, speed: 0.8, jump: 0.8, spin: 1.6, turn: 1.3, desc: 'Ça ne devrait pas voler. Et pourtant. Tourne comme une toupie.' },
+  'aile-2': { area: 2.5, name: 'Aile Tempête 2,5 m²', emoji: '🌪️', price: 1900, lowWind: -9, speed: 1.2, jump: 1.1, spin: 1.3, turn: 1.3, level: 4, desc: 'Pour le très gros temps : dès 19 nœuds, et ça décoiffe jusqu\'à 40.' },
+  'aile-3': { area: 3, name: 'Aile Fusée 3 m²', emoji: '🔺', price: 1400, lowWind: -4, speed: 1.12, jump: 0.95, spin: 1.25, turn: 1.25, desc: 'Petite et nerveuse : pour les jours de gros vent (14 nœuds minimum).' },
+  'aile-4': { area: 4, name: 'Aile Sprint 4 m²', emoji: '🪁', price: 1600, lowWind: -2, speed: 1.08, jump: 1, spin: 1.12, turn: 1.12, desc: 'Vive et rapide dès 12 nœuds.' },
+  'aile-5': { area: 5, name: 'Aile Polyvalente 5 m²', emoji: '🪁', price: 1800, lowWind: 0, speed: 1, jump: 1, spin: 1, turn: 1, desc: 'Celle du pack de base : fait tout bien, à partir de 10 nœuds.' },
+  'aile-6': { area: 6, name: 'Aile Brise Légère 6 m²', emoji: '🌬️', price: 2100, lowWind: 2, speed: 0.95, jump: 1.05, spin: 0.9, turn: 0.92, desc: 'Grande surface : vole dès 8 nœuds, un peu moins vive.' },
+  'aile-7': { area: 7, name: 'Aile Pétole 7 m²', emoji: '🍃', price: 2500, lowWind: 4, speed: 0.9, jump: 1.08, spin: 0.82, turn: 0.85, desc: 'Pour les jours sans vent : vole dès 6 nœuds !' },
+  'aile-free': { area: 4.5, name: 'Aile Freestyle Twister 4,5 m²', emoji: '🌀', price: 3200, lowWind: -1, speed: 1.02, jump: 1.25, spin: 1.45, turn: 1.15, level: 5, desc: 'Sauts plus hauts, rotations ultra-rapides : la reine des figures.' },
+  'aile-race': { area: 5, name: 'Aile Carbone Racing 5 m²', emoji: '⚡', price: 4800, lowWind: 0, speed: 1.28, jump: 1, spin: 0.95, turn: 1.05, level: 8, desc: 'Lattes en carbone : la plus rapide du plan d\'eau.' },
+  'aile-8': { area: 8, name: 'Aile Pétole XXL 8 m²', emoji: '🎈', price: 3400, lowWind: 5, speed: 0.88, jump: 1.1, spin: 0.75, turn: 0.8, level: 3, desc: 'Énorme : décolle dès 5 nœuds (en pompant un peu).' },
+  'aile-mamie': { area: 2, name: 'Aile Parapluie de Mamie', emoji: '☂️', price: 600, lowWind: -3, speed: 0.8, jump: 0.8, spin: 1.6, turn: 1.3, desc: 'Ça ne devrait pas voler. Et pourtant. Tourne comme une toupie.' },
 };
 export const BOARDS = {
   'planche-95': { name: 'Planche Stable 95 L', emoji: '🏄', price: 0, speed: 1, jump: 1, stability: 1.25, desc: 'Large et rassurante (fournie avec le pack).' },
@@ -61,6 +63,9 @@ export function gearStats(g) {
     turn: W.turn,
     takeoff: F.takeoff,
     stability: Bd.stability,
+    area: W.area || 5,
+    // vent au-delà duquel l'aile devient trop puissante (trop de toile) : ~125 / surface
+    maxWind: Math.round(125 / (W.area || 5) + (W.lowWind < 0 ? 4 : 0)),
   };
 }
 // Mise à l'eau « où on veut » : point d'eau profonde le plus proche (rayon r), ou null.

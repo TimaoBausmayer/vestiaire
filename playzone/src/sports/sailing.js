@@ -51,7 +51,8 @@ function buildBoat(B) {
   // bande de couleur (numéro de voile)
   boom.add(triangle([0.01, B.mast * 0.55, -0.05], [0.01, B.mast * 0.65, -0.05], [0.01, B.mast * 0.55, -bl * 0.35], B.color === '#f8f9fa' ? '#3a86ff' : B.color));
   let jib = null;
-  if (B.jib) { jib = triangle([0, B.mast * 0.78, mz], [0, 0.3, L * 0.48], [0, 0.35, mz + 0.15], '#f8f9fa'); root.add(jib); }
+  // foc : pivote autour de son point d'amure, à l'étrave
+  if (B.jib) { jib = new THREE.Group(); jib.position.set(0, 0, L * 0.48); jib.add(triangle([0, B.mast * 0.78, mz - L * 0.48], [0, 0.3, 0], [0, 0.35, mz + 0.15 - L * 0.48], '#f8f9fa')); root.add(jib); }
   return { root, boom, jib, hull };
 }
 
@@ -149,7 +150,10 @@ export class Sailing {
       s.yaw -= I.move.x * B.turn * dt * (0.35 + Math.min(1, s.speed / 3));
       const pw = sailPower(off, B.kite) * s.sheet;
       const target = Math.min(B.max * (1 + skill * 0.25), kts * 0.514 * B.eff * pw * 1.15);
-      s.speed += (target - s.speed) * Math.min(1, dt * (target > s.speed ? 0.45 : 0.9));
+      // face au vent : la voile faseye, le bateau « tape » et s'arrête vite
+      s.speed += (target - s.speed) * Math.min(1, dt * (target > s.speed ? 0.45 : pw === 0 ? 1.6 : 0.9));
+      if (pw === 0 && s.speed < 0.6 && !s.ironsTip) { s.ironsTip = true; g.ui.toast('⛔ Face au vent, tu n\'avances plus : abats (gauche / droite). Le bon compromis pour remonter : ~55° du vent.', '', 4000); }
+      if (pw > 0) s.ironsTip = false;
       if (B.kite) {
         if (I.pressed('Space') || (this.touchHike && !s.jumpLatch)) this.jump();
         s.jumpLatch = this.touchHike;
@@ -175,7 +179,9 @@ export class Sailing {
     const y = WATER_LEVEL + Math.max(0, s.y) + Math.sin(g.now() / 500 + s.x) * 0.05;
     M.root.position.set(s.x, y, s.z);
     M.root.rotation.set(s.y > 0 ? s.pitch : Math.sin(g.now() / 700) * 0.03, s.yaw, B.kite ? 0 : -heelVis, 'YXZ');
-    if (M.boom) M.boom.rotation.y = side * clamp(0.25 + (off - 0.8) * 0.55 * (1.15 - s.sheet), 0.12, 1.35);
+    // bôme et voile SOUS le vent (à l'opposé du vent et du marin) ; plus on abat et plus on choque, plus elle s'ouvre
+    if (M.boom) M.boom.rotation.y = -side * clamp(0.18 + (off - 0.7) * 0.5 + (1 - s.sheet) * 0.5, 0.12, 1.4);
+    if (M.jib) M.jib.rotation.y = -side * clamp((off - 0.7) * 0.18, 0.04, 0.3);
     if (B.kite) {
       // aile de traction : sous le vent, à 14 m de haut, lignes jusqu'au rider
       const kd = w.dir + Math.PI + side * 0.5, kx = Math.sin(kd) * 16, kz = Math.cos(kd) * 16;
@@ -202,7 +208,8 @@ export class Sailing {
     s.hudT -= dt;
     if (s.hudT <= 0) {
       s.hudT = 0.25;
-      const allure = off < (B.kite ? 0.85 : 0.75) ? '⛔ bout au vent : vire de bord !' : off < 1.2 ? 'au près' : off < 2.0 ? '✅ travers / largue (top)' : 'vent arrière';
+      const deg = Math.round(off * 180 / Math.PI);
+      const allure = `${deg}° du vent · ` + (off < (B.kite ? 0.8 : 0.7) ? '⛔ face au vent : tu tapes, abats !' : off < 0.85 ? 'près serré (lent)' : off < 1.15 ? '🎯 près (bon compromis pour remonter)' : off < 1.6 ? 'bon plein / travers' : off < 2.0 ? '✅ largue (le plus rapide)' : 'vent arrière (plus lent)');
       g.hud.track('sail', { title: `${B.emoji} ${B.name} · vent ${kts} nds`, text: `${Math.round(s.speed * 3.6)} km/h · ${allure} · voile ${Math.round(s.sheet * 100)} %${B.kite ? ` · meilleur saut ${s.best.toFixed(1)} m` : ` · gîte ${Math.round(clamp(s.heel, 0, 1.5) * 40)}°${s.heel > 0.9 ? ' ⚠️ RAPPEL !' : ''}`}`, button: { label: 'Rentrer au port', onclick: () => this.stop() } });
     }
   }
