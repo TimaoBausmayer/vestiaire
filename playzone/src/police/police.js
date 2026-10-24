@@ -5,6 +5,8 @@ import { Avatar } from '../characters/avatar.js';
 import { findRoute, nearestRoadPoint, ROAD_GRAPH, STREET_BY_ID } from '../../shared/city.js';
 import { CRIMES, FINES, SPEED_LIMIT, RADARS, loseTime, sentence, lawyerCost, EXAM_ROUTE, EXAM_START, EXAM_MAX_ERRORS } from '../../shared/justice.js';
 import { PRISON_YARD, PRISON_CELL, inPrison } from '../../shared/authority-justice.js';
+import { isGrave } from '../../shared/plea.js';
+import { BUILDING_BY_ID } from '../../shared/world-layout.js';
 import { lightState } from '../world/traffic.js';
 import { Beacon } from '../jobs/beacon.js';
 
@@ -194,42 +196,115 @@ export class Police {
   }
 
   // ------------------------------------------------------------------ arrestation et prison
+  // Interpellation : avocat, plaidoirie écrite (l'agent peut réduire la peine), ou on suit l'agent.
+  // Un crime grave (braquage, peine lourde) passe ensuite en audience au Palais de Justice.
   async arrestMe(why) {
     const g = this.game;
     if (this.arresting) return;
     this.arresting = true;
-    // une peine de prison en vue : on peut appeler son avocat, qui règle tout sur place (on garde sa voiture)
-    const minutes = sentence(this.j?.crimes || []);
-    if (minutes > 0 && await this.offerLawyer(why, minutes)) { this.arresting = false; return; }
-    if (g.vehicles.current) g.vehicles.exit(true);
-    g.player.setPose('celebrate', 1);
-    g.labels.bubble(g.avatar.root, 'C\'est pas moi ! C\'est le pigeon !', 2500, 'player');
     try {
-      const r = await g.net.request('police.arrest', {});
-      this.onArrested(r, why);
-    } catch { /* plus recherché */ }
-    this.arresting = false;
+      const crimes = this.j?.crimes || [], minutes = sentence(crimes);
+      const grave = minutes > 0 && isGrave(crimes.map((c) => c.type), minutes);
+      if (minutes > 0 && !this.j?.court && await this.interpellation(why, minutes, grave)) return;
+      if (grave && await this.hearing(why)) return;
+      if (g.vehicles.current) g.vehicles.exit(true);
+      g.player.setPose('celebrate', 1);
+      if (!grave) g.labels.bubble(g.avatar.root, 'C\'est pas moi ! C\'est le pigeon !', 2500, 'player');
+      try {
+        const r = await g.net.request('police.arrest', {});
+        this.onArrested(r, why);
+      } catch { /* plus recherché */ }
+    } finally { this.arresting = false; }
   }
 
-  // Dialogue d'interpellation : avocat (payant, on reste libre ici) ou tribunal. Renvoie true si libéré.
-  async offerLawyer(why, minutes) {
-    const g = this.game, cost = g.profile.admin ? 0 : lawyerCost(minutes, this.stars);
-    const choice = await new Promise((res) => {
-      const m = g.ui.dialog({ name: 'L\'agent·e', role: 'Interpellation', text: `${why} Vous risquez ${minutes} minutes de prison. Vous avez le droit d'appeler un avocat...`, choices: [
-        { label: `🧑‍⚖️ Appeler Maître Plaidetout (${cost ? `${cost.toLocaleString('fr-FR')} PC` : 'gratuit'})`, action: () => { m.choice = 'lawyer'; m.close(); } },
-        { label: '⛓️ Suivre l\'agent au tribunal', ghost: true, action: () => { m.choice = 'jail'; m.close(); } },
-      ] });
-      const close = m.close; m.close = () => { close(); res(m.choice || 'jail'); };
+  // Dialogue d'interpellation. Renvoie true si l'avocat a réglé l'affaire (on reste libre, ici).
+  interpellation(why, minutes, grave) {
+    const g = this.game;
+    return new Promise((res) => {
+      let done = false, pleaded = false, m = null;
+      const fin = (v) => { if (done) return; done = true; m.close(); res(v); };
+      const risk = () => `Vous risquez ${minutes} minute${minutes > 1 ? 's' : ''} de prison${grave ? ' et vous serez présenté·e au tribunal' : ''}.`;
+      const choices = () => [
+        { label: `🧑‍⚖️ Appeler Maître Plaidetout (${this.lawyerLabel(minutes)})`, action: async () => { if (await this.callLawyer()) fin(true); } },
+        !pleaded && { label: '✍️ Plaider ta cause', action: async () => {
+          const text = await g.ui.ask('✍️ Plaider ta cause', `${why} Expliquez-vous : l'agent·e vous écoute (urgence, excuses, légitime défense...). Attention, mentir ou insulter aggrave votre cas.`, { placeholder: 'Monsieur l\'agent, je vous jure que...' });
+          if (!text || done) return;
+          try {
+            const r = await g.net.request('police.plea', { text });
+            pleaded = true; minutes = r.minutes;
+            g.sfx(r.factor > 0 ? 'success' : r.factor < 0 ? 'fail' : 'click');
+            m.show(`« ${r.reply} » ${risk()}`, choices());
+          } catch (e) { g.ui.toast(e.message, 'bad'); }
+        } },
+        { label: grave ? '⚖️ Être présenté·e au juge' : '⛓️ Suivre l\'agent', ghost: true, action: () => fin(false) },
+      ].filter(Boolean);
+      m = g.ui.dialog({ name: 'L\'agent·e', role: 'Interpellation', text: `${why} ${risk()} Vous avez le droit d'appeler un avocat... ou de vous expliquer.`, choices: choices() });
+      const close = m.close; m.close = () => { close(); if (!done) { done = true; res(false); } };
     });
-    if (choice !== 'lawyer') return false;
+  }
+
+  lawyerLabel(minutes) {
+    const g = this.game, cost = g.profile.admin ? 0 : lawyerCost(minutes, this.stars) * (this.j?.court ? 2 : 1);
+    return cost ? `${cost.toLocaleString('fr-FR')} PC` : 'gratuit';
+  }
+
+  async callLawyer() {
+    const g = this.game;
     try {
+      const court = !!this.j?.court;
       const r = await g.net.request('police.lawyer', {});
       this.clearUnits();
       this.renderStars();
+      if (r.at) g.player.teleport(r.at.x, r.at.z, Math.PI);
       g.sfx('success');
-      g.ui.dialog({ name: 'Maître Plaidetout', role: 'Avocat (très) cher', text: `Vice de procédure : l'agent avait mis son képi à l'envers ! Affaire classée, vous êtes libre${g.vehicles.current ? ', et votre voiture aussi' : ''}. ${r.cost ? `Mes honoraires : ${r.cost.toLocaleString('fr-FR')} PC.` : 'Pour vous, c\'est gratuit, patron.'}${r.restored ? ` Le butin (${r.restored} PC) a été rendu.` : ''}`, choices: [{ label: '😎 Merci Maître', action: (m) => m.close() }] });
+      g.ui.dialog({ name: 'Maître Plaidetout', role: 'Avocat (très) cher', text: `${court ? 'Objection retenue ! Le témoin principal était... un pigeon. Relaxe générale' : 'Vice de procédure : l\'agent avait mis son képi à l\'envers ! Affaire classée'}, vous êtes libre${g.vehicles.current ? ', et votre voiture aussi' : ''}. ${r.cost ? `Mes honoraires : ${r.cost.toLocaleString('fr-FR')} PC.` : 'Pour vous, c\'est gratuit, patron.'}${r.restored ? ` Le butin (${r.restored} PC) a été rendu.` : ''}`, choices: [{ label: '😎 Merci Maître', action: (x) => x.close() }] });
       return true;
     } catch (e) { g.ui.toast(e.message, 'bad', 4000); return false; }
+  }
+
+  // Audience au Palais de Justice : trois juges, on peut plaider devant la cour (une fois) ou prendre
+  // un avocat (honoraires doublés). Renvoie true si libéré·e.
+  async hearing(why) {
+    const g = this.game;
+    let r;
+    if (!this.j?.court) {
+      if (g.vehicles.current) g.vehicles.exit(true);
+      try { r = await g.net.request('police.court', {}); } catch { return false; }
+      this.clearUnits();
+      g.player.teleport(r.at.x, r.at.z, 0);
+      g.cam.snap?.(g.player.pos, 0);
+      g.ui.toast('⚖️ Déféré·e au Palais de Justice : la cour va vous juger.', 'bad', 4000);
+    }
+    const B = BUILDING_BY_ID.tribunal;
+    if (Math.hypot(g.player.pos.x - B.x, g.player.pos.z - B.z) > 4) g.player.teleport(B.x, B.z, 0);
+    let minutes = r?.minutes ?? sentence(this.j?.crimes || []);
+    const crimes = (this.j?.crimes || []).map((c) => CRIMES[c.type]?.name || c.type);
+    return new Promise((res) => {
+      let done = false, pleaded = false, m = null;
+      const fin = (v) => { if (done) return; done = true; m.close(); res(v); };
+      const choices = () => [
+        !pleaded && { label: '✍️ Plaider devant la cour', action: async () => {
+          const text = await g.ui.ask('⚖️ Votre défense', 'Accusé·e, levez-vous. Vous avez la parole : la cour écoute vos explications (et n\'aime ni le mensonge ni l\'insolence).', { placeholder: 'Madame la Présidente, je...' });
+          if (!text || done) return;
+          try {
+            const p = await g.net.request('police.plea', { text });
+            pleaded = true; minutes = p.minutes;
+            g.sfx(p.factor > 0 ? 'success' : p.factor < 0 ? 'fail' : 'click');
+            m.show(`« ${p.reply} » La cour se retire pour délibérer... Peine envisagée : ${minutes} minute${minutes > 1 ? 's' : ''} de prison.`, choices());
+          } catch (e) { g.ui.toast(e.message, 'bad'); }
+        } },
+        { label: `🧑‍⚖️ Avocat (${this.lawyerLabel(minutes)}, tarif tribunal ×2)`, action: async () => { if (await this.callLawyer()) fin(true); } },
+        { label: '🔨 Entendre le verdict', ghost: true, action: () => fin(false) },
+      ].filter(Boolean);
+      m = g.ui.dialog({ name: 'La Présidente du tribunal', role: 'Palais de Justice · audience', text: `Affaire « PLAYZONE contre vous ». ${why} Chefs d'accusation : ${crimes.join(', ') || 'divers'}. Le parquet requiert ${minutes} minute${minutes > 1 ? 's' : ''} de prison. Avez-vous quelque chose à déclarer ?`, choices: choices() });
+      const close = m.close; m.close = () => { close(); if (!done) { done = true; res(false); } };
+    });
+  }
+
+  // Greffe du tribunal (visite libre) : casier judiciaire.
+  courtDesk() {
+    const g = this.game, j = this.j, rec = (j?.record || []).filter((c) => c.end === 'condamné');
+    g.ui.dialog({ name: 'Le greffier', role: 'Palais de Justice', text: rec.length ? `Votre casier : ${rec.length} condamnation${rec.length > 1 ? 's' : ''} (${[...new Set(rec.map((c) => CRIMES[c.type]?.name || c.type))].join(', ')}). Les crimes graves (braquage, peines lourdes) sont jugés ici, en audience.` : 'Casier judiciaire vierge. Félicitations ! Ici, on juge les crimes graves : braquages et grosses peines.', choices: [{ label: 'Merci', ghost: true, action: (m) => m.close() }] });
   }
 
   onArrested(r, why) {
@@ -243,7 +318,7 @@ export class Police {
     }
     if (r.at) g.player.teleport(r.at.x, r.at.z, Math.PI);
     g.cam.snap?.(g.player.pos, 0);
-    g.ui.dialog({ name: 'Le juge', role: 'Tribunal de PLAYZONE', text: `${why} Délits : ${r.crimes.map((c) => CRIMES[c]?.name || c).join(', ')}. Peine : ${r.minutes} minutes de prison (temps réel).${r.fined ? ` Amendes payées : ${r.fined} PC.` : ''}${r.seized ? ` Butin saisi : ${r.seized} PC.` : ''}${r.fired ? ' Et vous êtes renvoyé·e de la police !' : ''}`, choices: [{ label: '⛓️ D\'accord...', ghost: true, action: (m) => m.close() }] });
+    g.ui.dialog({ name: r.court ? 'La Présidente du tribunal' : 'Le juge', role: r.court ? 'Palais de Justice · verdict' : 'Tribunal de PLAYZONE', text: `${r.court ? '🔨 La cour a délibéré. ' : ''}${why} Délits : ${r.crimes.map((c) => CRIMES[c]?.name || c).join(', ')}. Peine : ${r.minutes} minutes de prison (temps réel ; hors du jeu, le temps compte trois fois moins).${r.fined ? ` Amendes payées : ${r.fined} PC.` : ''}${r.seized ? ` Butin saisi : ${r.seized} PC.` : ''}${r.fired ? ' Et vous êtes renvoyé·e de la police !' : ''}`, choices: [{ label: '⛓️ D\'accord...', ghost: true, action: (m) => m.close() }] });
     this.renderStars();
   }
 
@@ -256,9 +331,11 @@ export class Police {
       g.player.teleport(PRISON_CELL.x, PRISON_CELL.z, Math.PI);
       g.ui.toast('💂 Un gardien te ramène gentiment (mais fermement) en cellule.', 'bad');
     }
+    // signe de vie régulier : le temps passé hors ligne ne compte qu'au tiers
+    if (!this.tickAt || g.now() - this.tickAt > 10_000) { this.tickAt = g.now(); g.net.request('jail.tick', {}).catch(() => {}); }
     if (left <= 0 && !this.releasing) {
       this.releasing = true;
-      g.net.request('jail.release', {}).then((r) => { g.player.teleport(r.at.x, r.at.z, Math.PI); g.sfx('success'); g.ui.toast('🔓 Libéré·e ! Tu as payé ta dette à la société. Essaie de rester sage...', 'good', 5000); }).catch(() => {}).finally(() => { this.releasing = false; });
+      g.net.request('jail.release', {}).then((r) => { g.player.teleport(r.at.x, r.at.z, Math.PI); g.sfx('success'); g.ui.toast('🔓 Libéré·e ! Tu as payé ta dette à la société. Essaie de rester sage...', 'good', 5000); }).catch(() => new Promise((ok) => setTimeout(ok, 2000))).finally(() => { this.releasing = false; });
     }
   }
 
@@ -363,7 +440,14 @@ export class Police {
     this.examUpdate();
     if (g.player.zone === 'world') this.trafficChecks(dt);
     const stars = j.stars;
-    if (!stars || j.jail) { if (this.units.length) this.clearUnits(); this.dispatchAt = 0; return; }
+    if (!stars || j.jail || j.court) {
+      if (this.units.length) this.clearUnits();
+      this.dispatchAt = 0;
+      if (j.court && !j.jail) this.wantedTxt.textContent = '⚖️ Audience en cours au Palais de Justice';
+      // audience interrompue (rechargement) : elle reprend
+      if (j.court && !j.jail && !this.arresting) this.arrestMe('Reprise de l\'audience.');
+      return;
+    }
     const P = g.vehicles.current ? g.vehicles.current.pos : g.player.pos;
     // un témoin appelle : la police met du temps à arriver (≈ 30 s, un peu moins pour un délit grave),
     // puis les voitures partent de loin et viennent par les routes

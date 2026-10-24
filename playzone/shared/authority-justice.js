@@ -3,7 +3,8 @@
 // travail et évasion, code de la route et permis. Fonctions appelées avec `this` = l'Authority.
 import { BUILDING_BY_ID, BUILDINGS } from './world-layout.js';
 import { VEHICLES } from './content/vehicles.js';
-import { CRIMES, FINES, BOUNTY, BOUNTY_COOLDOWN, ASSIST, MAX_STARS, sentence, lawyerCost, loseTime, LICENCE, CODE_QUESTIONS, codeTest, CODE_PASS, EXAM_ROUTE, EXAM_MIN_SECONDS, EXAM_MAX_ERRORS } from './justice.js';
+import { analyzePlea, isGrave, OFFLINE_RATE } from './plea.js';
+import { CRIMES, MAX_JAIL, FINES, BOUNTY, BOUNTY_COOLDOWN, ASSIST, MAX_STARS, sentence, lawyerCost, loseTime, LICENCE, CODE_QUESTIONS, codeTest, CODE_PASS, EXAM_ROUTE, EXAM_MIN_SECONDS, EXAM_MAX_ERRORS } from './justice.js';
 
 const err = (error) => ({ ok: false, error });
 // Téléportation décidée par l'autorité : la position validée suit (sinon l'anti-triche la refuserait).
@@ -134,7 +135,7 @@ export const JUSTICE_HANDLERS = {
     for (const c of j.crimes) j.record.push({ ...c, end: 'impuni' });
     const stars = j.stars, p = ctx.profile;
     const dropped = (j.pending || []).reduce((s, x) => s + x.amount, 0);
-    j.crimes = []; j.stars = 0; j.pending = [];
+    j.crimes = []; j.stars = 0; j.pending = []; j.plea = null; j.court = null;
     // prime d'évasion (en liquide), pas plus d'une toutes les 4 minutes
     let bounty = 0;
     if (ctx.now - (p.cooldowns['police:bounty'] || 0) > BOUNTY_COOLDOWN) { bounty = BOUNTY[Math.min(5, stars)] || 0; p.cooldowns['police:bounty'] = ctx.now; p.cash = (p.cash || 0) + bounty; }
@@ -158,20 +159,56 @@ export const JUSTICE_HANDLERS = {
     const p = ctx.profile, j = p.justice;
     if (j.jail) return err('Trop tard : tu es déjà en prison (le gardien accepte peut-être un billet...).');
     if (!j.stars && !j.crimes.length) return err('Personne ne te recherche : pas besoin d\'avocat.');
-    const minutes = sentence(j.crimes);
-    const cost = p.admin ? 0 : lawyerCost(minutes, j.stars);   // sans prison en vue : tarif de base (les amendes restent dues)
+    const minutes = pleaMinutes(j);
+    const cost = p.admin ? 0 : lawyerCost(minutes, j.stars) * (j.court ? 2 : 1);   // au tribunal : honoraires doublés   // sans prison en vue : tarif de base (les amendes restent dues)
     if (p.coins < cost) return err(`Maître Plaidetout demande ${cost} PC d'honoraires.`);
     this.addCoins(p, -cost);
     const restored = Math.min(Math.round(p.cash || 0), Math.round(j.loot || 0));
     p.cash = Math.max(0, (p.cash || 0) - restored); j.loot = 0;
     for (const c of j.crimes) j.record.push({ ...c, end: 'avocat' });
     if (j.record.length > 40) j.record.splice(0, j.record.length - 40);
-    j.crimes = []; j.stars = 0;
+    j.crimes = []; j.stars = 0; j.plea = null;
+    const out = j.court ? BUILDING_BY_ID.tribunal.door : null;
+    j.court = null;
     ctx.session.stolen = null; ctx.session.robbery = null;
-    return { ok: true, changed: true, data: { cost, avoided: minutes, restored } };
+    if (out) moveTo(ctx, out);
+    return { ok: true, changed: true, data: { cost, avoided: minutes, restored, at: out } };
+  },
+
+  // Plaidoirie écrite : à l'agent (au moment de l'arrestation) puis, pour un crime grave, au juge.
+  // Une seule plaidoirie par interlocuteur ; le meilleur des deux facteurs est retenu (une insulte au
+  // juge, elle, compte).
+  'police.plea'(ctx, { text }) {
+    const p = ctx.profile, j = p.justice;
+    if (j.jail) return err('Le jugement est rendu : il fallait parler avant.');
+    if (!j.stars && !j.crimes.length) return err('Personne ne t\'accuse de rien.');
+    const judge = !!j.court;
+    j.plea = j.plea || {};
+    if (judge ? j.plea.judge !== undefined : j.plea.agent !== undefined) return err(judge ? 'La cour vous a déjà entendu·e.' : 'L\'agent a déjà pris votre déposition.');
+    const before = pleaMinutes(j);
+    const r = analyzePlea(String(text || '').slice(0, 600), j.crimes.map((c) => c.type), judge);
+    j.plea[judge ? 'judge' : 'agent'] = r.factor;
+    return { ok: true, changed: true, data: { ...r, judge, before, minutes: pleaMinutes(j) } };
+  },
+  // Crime grave : déferrement au Palais de Justice (audience devant les juges avant la prison).
+  'police.court'(ctx) {
+    const p = ctx.profile, j = p.justice;
+    if (j.jail) return err('Déjà en prison.');
+    const types = j.crimes.map((c) => c.type);
+    if (!isGrave(types, sentence(j.crimes))) return err('Pas besoin du tribunal pour ça.');
+    j.court = { at: ctx.now };
+    ctx.session.stolen = null; ctx.session.robbery = null; ctx.session.shift = null;
+    const b = BUILDING_BY_ID.tribunal;
+    moveTo(ctx, { x: b.x, z: b.z });
+    return { ok: true, changed: true, data: { at: { x: b.x, z: b.z }, minutes: pleaMinutes(j) } };
   },
 
   // ---------------------------------------------------------------- prison
+  // Signe de vie pendant la peine (le temps hors ligne ne compte qu'au tiers : cf. jailTick).
+  'jail.tick'(ctx) {
+    const jl = ctx.profile.justice.jail;
+    return { ok: true, changed: !!jl, data: { until: jl?.until || 0 } };
+  },
   'jail.release'(ctx) {
     const p = ctx.profile, jl = p.justice.jail;
     if (!jl) return err('Tu n\'es pas en prison.');
@@ -289,7 +326,8 @@ export function arrest(self, p, now) {
   if (j.fines.length > 20) j.fines.splice(0, j.fines.length - 20);
   if (fined) { const paid = Math.min(fined, p.coins); self.addCoins(p, -paid); if (paid < fined) p.debt = (p.debt || 0) + (fined - paid); }
   j.pending = [];
-  const minutes = sentence(j.crimes);
+  const minutes = pleaMinutes(j), court = !!j.court;
+  j.plea = null; j.court = null;
   // simple contrôle routier : amendes, pas de prison
   if (!minutes) {
     for (const c of j.crimes) j.record.push({ ...c, end: 'amende' });
@@ -301,13 +339,33 @@ export function arrest(self, p, now) {
   p.cash = Math.max(0, (p.cash || 0) - seized); j.loot = 0;
   for (const c of j.crimes) j.record.push({ ...c, end: 'condamné' });
   if (j.record.length > 40) j.record.splice(0, j.record.length - 40);
-  j.jail = { since: now, until: now + minutes * 60_000, minutes, crimes: j.crimes.map((c) => c.type) };
+  j.jail = { since: now, lastSeen: now, until: now + minutes * 60_000, minutes, crimes: j.crimes.map((c) => c.type), court };
   j.crimes = []; j.stars = 0; j.arrests++;
   // un policier qui se fait arrêter perd son poste
   let fired = false;
   if (p.career?.job?.id === 'policier') { p.career.history.push({ id: 'policier', building: p.career.job.building, from: p.career.job.since, to: now, end: 'renvoi (condamnation)' }); p.career.job = null; fired = true; }
   p.record = j.record.filter((c) => c.end === 'condamné').map((c) => c.type);
-  return { minutes, seized, fined, suspended, at: PRISON_CELL, crimes: j.jail.crimes, fired };
+  return { minutes, seized, fined, suspended, at: PRISON_CELL, crimes: j.jail.crimes, fired, court };
+}
+
+// Peine après plaidoirie(s) : le meilleur facteur positif retenu, les aggravations s'additionnent.
+// Arrondie à la demi-minute ; au moins 1 minute, au plus MAX_JAIL + 3.
+export function pleaMinutes(j) {
+  const base = sentence(j.crimes);
+  if (!base || !j.plea) return base;
+  const f = [j.plea.agent, j.plea.judge].filter((x) => typeof x === 'number');
+  const factor = Math.max(0, ...f) + f.filter((x) => x < 0).reduce((a, b) => a + b, 0);
+  return Math.max(1, Math.min(MAX_JAIL + 3, Math.round(base * (1 - factor) * 2) / 2));
+}
+
+// Prison : le temps passé hors du jeu (pas de requête depuis 30 s) ne compte qu'au tiers.
+export function jailTick(p, now) {
+  const jl = p?.justice?.jail;
+  if (!jl) return false;
+  const gap = now - (jl.lastSeen ?? jl.since);
+  if (gap > 30_000) jl.until += (gap - 30_000) * (1 - OFFLINE_RATE);
+  jl.lastSeen = now;
+  return gap > 30_000;
 }
 
 export { BUILDINGS };

@@ -47,10 +47,13 @@ test('arrestation → prison en minutes réelles, butin saisi, libération, éva
   assert.equal(r.data.seized, 100, 'seul le butin est saisi');
   assert.equal(p.cash, 240);
   assert.ok(inPrison(ctx.pos), 'la position validée suit le joueur en cellule');
+  const alive = (t) => auth.handle(mk(p, null, t), 'jail.tick', {});   // en ligne : signe de vie régulier
+  alive(NOW + 30_000);
   assert.equal(auth.handle(mk(p, null, NOW + 60_000), 'jail.release', {}).ok, false, 'pas avant la fin');
   // laverie : remise de peine
   const w = auth.handle(mk(p, null, NOW + 61_000), 'jail.work', {});
   assert.ok(w.ok && p.justice.jail.until === NOW + 2 * 60_000 - 15_000);
+  alive(NOW + 90_000);
   assert.ok(auth.handle(mk(p, null, NOW + 2 * 60_000), 'jail.release', {}).ok);
   // évasion (plusieurs essais avec un générateur qui finit par réussir)
   auth.handle(mk(p, null, NOW + 11 * 60_000), 'crime.report', { type: 'coups', witnessed: true });
@@ -133,4 +136,49 @@ test('prison : l\'admin donne un billet au gardien et sort tout de suite', () =>
   auth.handle(mk(q, { x: 0, y: 0, z: 0 }), 'police.arrest', {});
   const b = auth.handle(mk(q, { x: 0, y: 0, z: 0 }, NOW + 1000), 'jail.bribe', {});
   assert.ok(b.ok && b.data.cost === 300 && q.cash === 700);
+});
+
+test('plaidoirie : urgence et excuses réduisent la peine, les insultes l\'aggravent', async () => {
+  const { analyzePlea } = await import('../../shared/plea.js');
+  const good = analyzePlea('Je suis vraiment désolé, ma femme accouche, je devais aller à l\'hôpital en urgence !', ['grand-exces']);
+  assert.ok(good.factor >= 0.3 && good.themes.includes('urgence') && good.themes.includes('regret'), JSON.stringify(good));
+  const bad = analyzePlea('Espèce de connard, c\'est pas moi', ['vol-voiture']);
+  assert.ok(bad.factor < 0 && /Outrage|pigeon|témoins/.test(bad.reply), JSON.stringify(bad));
+  assert.ok(analyzePlea('ok', []).factor <= 0.05, 'trois mots ne suffisent pas');
+  // au serveur : la peine baisse
+  const p = prof('j-plea');
+  auth.handle(mk(p, null), 'crime.report', { type: 'vol-voiture', witnessed: true, model: 'berline' });
+  auth.handle(mk(p, null), 'crime.report', { type: 'coups', witnessed: true });
+  const r = auth.handle(mk(p, null), 'police.plea', { text: 'Pardon, je regrette, il m\'a agressé et menacé, je devais me défendre. Je rembourserai tout.' });
+  assert.ok(r.ok && r.data.minutes < r.data.before, JSON.stringify(r));
+  assert.equal(auth.handle(mk(p, null), 'police.plea', { text: 'encore' }).ok, false, 'une seule déposition');
+  const a = auth.handle(mk(p, at(BUILDING_BY_ID.police)), 'police.arrest', {});
+  assert.equal(a.data.minutes, r.data.minutes);
+});
+
+test('crime grave : audience au tribunal, avocat ×2 ; prison hors ligne au tiers', () => {
+  const p = prof('j-court');
+  p.justice.crimes = [{ type: 'braquage', at: NOW }]; p.justice.stars = 4;
+  const c = auth.handle(mk(p, null), 'police.court', {});
+  assert.ok(c.ok && p.justice.court, 'déféré·e');
+  const B = BUILDING_BY_ID.tribunal;
+  assert.ok(Math.abs(c.data.at.x - B.x) < 1);
+  const r = auth.handle(mk(p, null), 'police.plea', { text: 'Je plaide coupable, j\'avais faim, plus d\'argent pour nourrir mes enfants. Pardon.' });
+  assert.ok(r.ok && r.data.judge && r.data.minutes < 8, JSON.stringify(r.data));
+  const a = auth.handle(mk(p, null), 'police.arrest', {});
+  assert.ok(a.data.court && p.justice.jail && !p.justice.court);
+  // 10 min de peine : 1 h hors ligne n'en retire que ~20
+  const p2 = prof('j-off');
+  p2.justice.crimes = [{ type: 'braquage', at: NOW }, { type: 'coups', at: NOW }]; p2.justice.stars = 4;
+  auth.handle(mk(p2, null), 'police.arrest', {});
+  const until0 = p2.justice.jail.until, left0 = until0 - NOW;
+  auth.handle(mk(p2, null, NOW + 30 * 60_000), 'jail.tick', {});
+  const left = p2.justice.jail.until - (NOW + 30 * 60_000);
+  assert.ok(left0 === 10 * 60_000 && Math.abs(left - (left0 - 10 * 60_000 - 20_000)) < 1000, `reste ${left / 60_000} min`);
+  // en ligne (signe de vie toutes les 10 s) : le temps compte plein
+  const p3 = prof('j-on');
+  p3.justice.crimes = [{ type: 'coups', at: NOW }]; p3.justice.stars = 1;
+  auth.handle(mk(p3, null), 'police.arrest', {});
+  for (let t = 10_000; t <= 120_000; t += 10_000) auth.handle(mk(p3, null, NOW + t), 'jail.tick', {});
+  assert.equal(auth.handle(mk(p3, null, NOW + 121_000), 'jail.release', {}).ok, true);
 });

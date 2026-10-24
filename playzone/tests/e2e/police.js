@@ -42,7 +42,7 @@ await ev(async () => { const g = window.playzone; if (!g.profile.justice.stars &
 await ev(() => { if (!window.playzone.police.arresting) window.playzone.police.arrestMe('Arrêté·e !'); });
 const lawyer = await page.getByText(/Appeler Maître Plaidetout/).waitFor({ timeout: 8000 }).then(() => true, () => false);
 check(lawyer, 'l\'avocat est proposé à l\'interpellation');
-await page.getByText(/Suivre l'agent au tribunal/).click();
+await page.getByText(/Suivre l'agent/).click();
 await sleep(900);
 p = await prof();
 check(!!p.justice.jail && p.justice.jail.minutes >= 2 && p.justice.jail.minutes <= 12, `en prison pour ${p.justice.jail?.minutes} min (peine courte)`);

@@ -93,6 +93,23 @@ export class UI {
     this.promptEl.classList.add('show');
   }
 
+  // Saisie de texte libre (plaidoirie, discussion...). Renvoie le texte, ou null si annulé.
+  ask(title, text, { placeholder = '', ok = 'Envoyer', max = 400 } = {}) {
+    return new Promise((resolve) => {
+      let done = false;
+      const fin = (v) => { if (done) return; done = true; resolve(v); m.close(); };
+      const ta = h('textarea.ask-input', { placeholder, maxLength: max, rows: 4 });
+      ta.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); fin(ta.value.trim() || null); } });
+      const m = this.modal({
+        title, width: 'min(480px, 94vw)', className: 'ask',
+        build: (b) => b.append(text ? h('p', text) : null, ta),
+        foot: (f) => f.append(h('button.btn.ghost', { onclick: () => fin(null) }, 'Annuler'), h('button.btn', { onclick: () => fin(ta.value.trim() || null) }, ok)),
+        onClose: () => { if (!done) { done = true; resolve(null); } },
+      });
+      setTimeout(() => ta.focus(), 30);
+    });
+  }
+
   // Petite boîte de confirmation.
   confirm(title, text, okLabel = 'Confirmer') {
     return new Promise((resolve) => {

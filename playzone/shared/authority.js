@@ -23,7 +23,7 @@ import { BANK_HANDLERS } from './authority-bank.js';
 import { CAREER_HANDLERS, careerOnPosition, defaultCareer } from './authority-careers.js';
 import { BUSINESS_HANDLERS } from './authority-business.js';
 import { BODY_HANDLERS } from './authority-body.js';
-import { JUSTICE_HANDLERS } from './authority-justice.js';
+import { JUSTICE_HANDLERS, jailTick } from './authority-justice.js';
 import { LEISURE_HANDLERS, defaultLeisure } from './authority-leisure.js';
 import { CALENDAR_HANDLERS, defaultCalendar, tournamentSubmit } from './authority-calendar.js';
 import { KARTING_HANDLERS, defaultKarting, kartOnPosition } from './authority-karting.js';
@@ -172,8 +172,9 @@ export class Authority {
     if (!fn) return err('Action inconnue.');
     try {
       const expired = ctx.profile && expireRentals(ctx.profile, ctx.now);
+      const away = ctx.profile && jailTick(ctx.profile, ctx.now);
       const res = fn.call(this, ctx, payload || {}) || err('Erreur.');
-      if (expired && res.ok) res.changed = true;
+      if ((expired || away) && res.ok) res.changed = true;
       if (ctx.profile?.admin && res.ok) { adminTopUp(ctx.profile); res.changed = true; }
       return res;
     } catch (e) {

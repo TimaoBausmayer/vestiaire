@@ -357,6 +357,37 @@ export const TEMPLATES = {
     }
   },
 
+  // Palais de Justice : estrade des juges au fond, box des accusé·es au centre, bancs du public.
+  court(t) {
+    const I = t.inner, mz = (I.z1 + I.z2) / 2;
+    lightsAround(t);
+    // estrade et grand bureau des trois juges
+    t.box(0, 0, I.z1 + 2.2, 11, 0.45, 4, '#6b4226');
+    t.box(0, 0.45, I.z1 + 3.4, 10, 0.7, 0.6, '#7a4b2a'); t.box(0, 1.15, I.z1 + 3.4, 10.2, 0.08, 0.75, '#4a2c17');
+    t.solid(0, I.z1 + 2.6, 11, 3.4, 1.7);
+    for (const x of [-3, 0, 3]) {
+      t.furn('chaise', x, I.z1 + 1.6, 0); t.box(x, 0.45, I.z1 + 1.15, 0.8, 1.9, 0.12, '#3a1f10');
+      t.staff(x, I.z1 + 2.5, 0, 'juge');
+    }
+    t.box(0, 2.1, I.z1 + 0.15, 2.6, 2.6, 0.06, '#1d3557'); t.box(0, 3.2, I.z1 + 0.2, 1.2, 0.5, 0.04, '#ffd23f', 'glow');   // tenture et balance dorée
+    // greffier et avocat
+    t.furn('bureau', I.x1 + 3, I.z1 + 6, Math.PI / 2); t.solid(I.x1 + 3, I.z1 + 6, 1, 1.8, 1); t.staff(I.x1 + 2.1, I.z1 + 6, Math.PI / 2, 'greffier');
+    t.spot(I.x1 + 4.2, I.z1 + 6, { label: '⚖️ Greffe : mon casier judiciaire', action: 'court', r: 1.8, priority: 2 });
+    t.furn('bureau', I.x2 - 3, I.z1 + 6, -Math.PI / 2); t.solid(I.x2 - 3, I.z1 + 6, 1, 1.8, 1);
+    // box des accusé·es (barre en bois sur trois côtés, ouvert vers le public)
+    t.box(0, 0, mz - 1.4, 3.2, 1.1, 0.12, '#7a4b2a'); t.solid(0, mz - 1.4, 3.2, 0.2, 1.1);
+    for (const sx of [-1.6, 1.6]) { t.box(sx, 0, mz - 0.6, 0.12, 1.1, 1.6, '#7a4b2a'); t.solid(sx, mz - 0.6, 0.2, 1.6, 1.1); }
+    // bancs du public
+    for (let z = mz + 2.5; z < I.z2 - 1.5; z += 1.8) for (const sx of [-1, 1]) {
+      const bx = sx * (I.x2 - I.x1) / 4 + sx * 0.6;
+      t.box(bx, 0, z, (I.x2 - I.x1) / 2 - 3.5, 0.45, 0.5, '#8d5a34'); t.box(bx, 0.45, z + 0.25, (I.x2 - I.x1) / 2 - 3.5, 0.5, 0.08, '#8d5a34');
+      t.solid(bx, z, (I.x2 - I.x1) / 2 - 3.5, 0.6, 0.9);
+    }
+    // colonnes et drapeaux
+    for (const x of [I.x1 + 0.8, I.x2 - 0.8]) for (const z of [I.z1 + 5, mz + 3]) { t.cyl(x, 0, z, 0.35, 4.2, '#f8f3e3', 10); t.solid(x, z, 0.7, 0.7, 4); }
+    for (const [x, c] of [[-5.2, '#1d3557'], [5.2, '#e63946']]) { t.cyl(x, 0.45, I.z1 + 1, 0.04, 2.6, '#d0d4da', 6); t.box(x + 0.35, 2.3, I.z1 + 1, 0.7, 0.5, 0.03, c); }
+  },
+
   hospital(t) {
     const I = t.inner;
     lightsAround(t);
