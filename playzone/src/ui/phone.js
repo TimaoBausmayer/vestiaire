@@ -18,6 +18,7 @@ import { socialApp } from './social-app.js';
 import { adminApp } from './admin.js';
 import { premiumApp } from './premium-app.js';
 import { gearApp, meteoApp, lawyerApp, quickActions } from './gear-app.js';
+import { lottoApp } from './lotto-app.js';
 import { shoppingApp } from './shopping-app.js';
 import { windAt } from '../../shared/wingfoil.js';
 import { calNow } from '../events/agenda.js';
@@ -44,6 +45,7 @@ const APPS = [
   { id: 'gear', name: 'Équipement', icon: '🎛️', bg: '#0096c7' },
   { id: 'meteo', name: 'Météo', icon: '🌤️', bg: '#48cae4' },
   { id: 'avocat', name: 'Avocat', icon: '⚖️', bg: '#495057' },
+  { id: 'loto', name: 'Loto', icon: '🎰', bg: '#f4a261' },
   { id: 'admin', name: 'Admin', icon: '👑', bg: '#d4a017', admin: true },
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'code', name: 'Espace code', icon: '🔐', bg: '#2b2d42', hidden: true },
@@ -62,7 +64,7 @@ export class Phone {
     this.app = null;
     this.mapBase = game.hud?.mapBase || drawMapBase(MAP_PX);
     this.badges = {};
-    game.on('profile', () => { if (this.el && this.app && this.app !== 'map') this.render(); });
+    game.on('profile', () => { if (this.el && this.app && this.app !== 'map' && !this.freeze) this.render(); });
   }
 
   get isOpen() { return !!this.el; }
@@ -278,6 +280,7 @@ export class Phone {
   app_achats(b) { shoppingApp(this.game, b, this); }
   app_meteo(b) { meteoApp(this.game, b); }
   app_avocat(b) { lawyerApp(this.game, b, this); }
+  app_loto(b) { lottoApp(this.game, b, this); }
 
   // Espace code : on tape un code secret (mode admin...).
   app_code(b) {

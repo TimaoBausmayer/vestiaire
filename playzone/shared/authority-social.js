@@ -14,7 +14,7 @@ export const SOCIAL_HANDLERS = {
     if (!t && !photo) return err('Écris quelque chose ou prends une photo.');
     if (t && !isClean(t)) return err('Ce message n\'est pas autorisé.');
     if (ctx.now - (p.cooldowns['social:post'] || 0) < 20_000) return err('Doucement ! Attends un peu avant de republier.');
-    const ph = typeof photo === 'string' && photo.startsWith('data:image/jpeg;base64,') && photo.length < 7000 ? photo : null;
+    const ph = typeof photo === 'string' && photo.startsWith('data:image/jpeg;base64,') && photo.length < 40000 ? photo : null;
     p.cooldowns['social:post'] = ctx.now;
     p.social ||= { posts: [] };
     p.social.posts.push({ id: ctx.newId(), text: t, photo: ph, at: ctx.now, seed: Math.floor(ctx.rand() * 1000) });

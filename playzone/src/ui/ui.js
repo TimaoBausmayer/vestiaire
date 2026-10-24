@@ -46,20 +46,28 @@ export class UI {
   }
 
   // Boîte de dialogue de PNJ (en bas de l'écran). choices = [{ label, action }]
-  dialog({ name, role, text, choices = [] }) {
+  dialog({ name, role, text, choices = [], input = null }) {
     const el = h('div.dialog-box');
     const m = {
       el, blocking: true,
       close: () => { if (m.closed) return; m.closed = true; el.remove(); this.stack = this.stack.filter((x) => x !== m); this.game.onUiChange?.(); },
-      show: (t, ch) => {
+      // input : { placeholder, submit(text, m) } → champ de saisie libre (discussion)
+      show: (t, ch, input) => {
         clear(el);
         el.append(h('div', h('span.who', name), role ? h('span.role', role) : null), h('p', t));
+        if (input) {
+          const f = h('input.dlg-input', { type: 'text', maxLength: 200, placeholder: input.placeholder || 'Écris ton message...' });
+          const send = () => { const v = f.value.trim(); if (v) input.submit(v, m); };
+          f.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') send(); if (e.key === 'Escape') m.close(); });
+          el.append(h('div.dlg-chat', f, h('button.btn.small', { onclick: send }, 'Envoyer')));
+          setTimeout(() => f.focus(), 20);
+        }
         const row = h('div.choices');
         for (const c of ch) row.append(h(`button.btn.small${c.ghost ? '.ghost' : ''}`, { onclick: () => c.action(m) }, c.label));
         el.append(row);
       },
     };
-    m.show(text, choices.length ? choices : [{ label: 'Au revoir', ghost: true, action: () => m.close() }]);
+    m.show(text, choices.length ? choices : [{ label: 'Au revoir', ghost: true, action: () => m.close() }], input);
     this.stack.push(m);
     this.root.append(el);
     this.game.onUiChange?.();

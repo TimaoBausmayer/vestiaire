@@ -1,6 +1,8 @@
 import { h } from '../ui/dom.js';
 import { openShop, openWardrobe, openBasket } from '../ui/shop.js';
 import { STAFF_LINES } from './templates.js';
+import { chatMode } from '../characters/chat-ui.js';
+import { ROLE_NAME as ROLE_LABEL } from './interiors.js';
 import { quizOfDay } from '../../shared/activities.js';
 import { VEHICLES } from '../../shared/content/vehicles.js';
 import { dealerPanel, usedCarsPanel, rentalPanel, immoPanel, secondHandPanel, isSecondHand, scrapPanel } from '../property/panels.js';
@@ -88,9 +90,10 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'talk': {
       const who = staff || (g.interiors.loaded.get(b.id)?.people[0]);
       const lines = STAFF_LINES[who?.role] || ['Bonjour ! Belle journée, n\'est-ce pas ?'];
-      const say = (m) => m.show(pick(lines), [{ label: 'Encore une !', action: (mm) => say(mm) }, { label: 'Au revoir', ghost: true, action: (mm) => mm.close() }]);
-      const m = g.ui.dialog({ name: who?.name || 'Quelqu\'un', role: b.name, text: pick(lines), choices: [{ label: 'Encore une !', action: (mm) => say(mm) }, { label: 'Au revoir', ghost: true, action: (mm) => mm.close() }] });
-      void m;
+      const chat = { id: `${b.id}:${who?.name}`, name: who?.name || 'Quelqu\'un', role: ROLE_LABEL[who?.role] || b.name, root: who?.av?.root };
+      const choices = [{ label: 'Encore une !', action: (mm) => say(mm) }, { label: '⌨️ Écrire', action: (mm) => chatMode(g, mm, chat, say) }, { label: 'Au revoir', ghost: true, action: (mm) => mm.close() }];
+      const say = (m) => m.show(pick(lines), choices);
+      g.ui.dialog({ name: chat.name, role: b.name, text: pick(lines), choices });
       break;
     }
     case 'tv': {

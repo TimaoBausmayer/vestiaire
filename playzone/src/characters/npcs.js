@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Avatar } from './avatar.js';
 import { NPCS, CONVERSATIONS, BUMP_LINES, NIGHT_LINES } from './npc-data.js';
 import { h } from '../ui/dom.js';
+import { chatMode } from './chat-ui.js';
 import { SECRETS, groundHeight, ROAD_GRAPH, BUILDINGS } from '../../shared/world-layout.js';
 import { CHARACTERS, PASSERS } from './crowd-data.js';
 import { DEFAULT_APPEARANCE, SKINS, HAIR_STYLES, HAIR_COLORS, COLORS } from '../../shared/appearance.js';
@@ -225,6 +226,7 @@ export class NPCs {
     const choices = [
       { label: '💬 Discuter', action: (m) => m.show(pick(n.lines()), choices) },
       { label: '💡 Un conseil ?', action: (m) => m.show(this.hint(n), choices) },
+      { label: '⌨️ Écrire', action: (m) => chatMode(g, m, { id: d.id, name: d.name, role: d.role, root: n.avatar.root }, (x) => x.show(pick(n.lines()), choices)) },
       { label: 'Au revoir', ghost: true, action: (m) => { m.close(); n.state = 'idle'; n.timer = 1; } },
     ];
     const dlg = g.ui.dialog({ name: d.name, role: d.role, text: pick(n.lines()), choices });

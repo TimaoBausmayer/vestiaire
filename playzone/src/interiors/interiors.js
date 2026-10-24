@@ -38,7 +38,7 @@ const ROLE_LOOK = {
   croupier: { top: 'costume', topColor: '#14532d' }, vigile: { top: 'costume', topColor: '#111111' }, hotesse: { top: 'costume', topColor: '#7a1027' },
   moniteur: { hat: 'casquette', top: 'chemise', topColor: '#6b705c' }, juge: { top: 'costume', topColor: '#111111', glasses: 'lunettes-rondes' }, greffier: { top: 'costume', topColor: '#2b2d42' }, commissaire: { hat: 'casquette', top: 'gilet-livreur', topColor: '#ff9f1c' },
 };
-const ROLE_NAME = {
+export const ROLE_NAME = {
   vendeur: 'Vendeur·se', geek: 'Technicien·ne', soigneur: 'Soigneur·se', boulanger: 'Boulanger·ère', serveur: 'Serveur·se', cuisinier: 'Cuisinier·ère',
   equipier: 'Équipier·ère', caissier: 'Caissier·ère', commercial: 'Commercial·e', mecano: 'Mécanicien·ne', manutentionnaire: 'Chef d\'entrepôt', ouvrier: 'Ouvrier·ère',
   accueil: 'Accueil', juge: 'Juge', greffier: 'Greffier·ère', agent: 'Agent·e', ferrailleur: 'Ferrailleur·se', policier: 'Policier·ère', infirmier: 'Infirmier·ère', medecin: 'Médecin', pompier: 'Pompier·ère',
