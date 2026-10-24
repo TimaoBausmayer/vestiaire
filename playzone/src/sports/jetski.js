@@ -97,8 +97,8 @@ export class Jetski {
     const s = this.s;
     if (!s || s.y > 0.05) return;
     const sp = Math.hypot(s.vx, s.vz);
-    if (sp < 8) { this.g.ui.toast('Trop lent pour décoller !', '', 1000); return; }
-    s.vy = 3.2 + sp * 0.18; s.y = 0.06; s.air = 0; s.spin = 0; s.liftYaw = s.yaw;
+    if (sp < 7) { this.g.ui.toast('Trop lent pour décoller !', '', 1000); return; }
+    s.vy = 4.6 + sp * 0.24; s.y = 0.06; s.air = 0; s.spin = 0; s.flip = 0; s.pitch = 0; s.liftYaw = s.yaw;
     this.g.sfx('whoosh');
   }
 
@@ -115,17 +115,21 @@ export class Jetski {
       if (on !== s.lastOn) { s.lastOn = on; g.sfx('beep'); }
     } else if (this.lights?.isConnected) { this.lights.remove(); g.sfx('go'); g.ui.toast('🟢 GO !', 'good', 1000); }
     const skill = g.profile.sports.jetski?.skill || 5;
-    const maxV = 21 + skill / 12;
+    const maxV = 28 + skill / 9;   // jusqu'à ≈ 140 km/h pour un pilote confirmé
     if (s.y > 0) {
       s.air += dt; s.vy -= 9.8 * dt; s.y += s.vy * dt;
-      if (I.move.x) { const sp = I.move.x * 6 * dt; s.vis -= sp; s.spin += Math.abs(sp); }
+      // figures : gauche / droite ou souris = 360, souris vers le bas ou avant / arrière = salto
+      const sp = I.move.x * 6 * dt + (I.mouse.dx + I.look.dx) * 0.011;
+      if (sp) { s.vis -= sp; s.spin += Math.abs(sp); }
+      const fl = I.move.y * -5 * dt + (I.mouse.dy + I.look.dy) * 0.011;
+      if (fl) { s.pitch = (s.pitch || 0) + fl; s.flip = (s.flip || 0) + Math.abs(fl); }
       if (s.y <= 0) this.land();
     } else if (!waiting) {
       // propulsion dans l'axe, dérapage latéral amorti
       const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
       const along = s.vx * fx + s.vz * fz;
-      const thr = I.move.y > 0.1 ? I.move.y * 11 : I.move.y < -0.1 ? I.move.y * 9 : 0;
-      let na = along + (thr - along * 0.18) * dt;
+      const thr = I.move.y > 0.1 ? I.move.y * 15 : I.move.y < -0.1 ? I.move.y * 10 : 0;
+      let na = along + (thr - along * 0.14) * dt;
       na = clamp(na, -5, maxV);
       const lx = s.vx - along * fx, lz = s.vz - along * fz;
       const keep = Math.max(0, 1 - dt * 2.2);
@@ -142,10 +146,10 @@ export class Jetski {
     const wy = wave(s.x, s.z, t);
     const y = WATER_LEVEL + 0.05 + wy * (sp > 12 ? 0.4 : 1) + Math.max(0, s.y);
     this.rig.position.set(s.x, y, s.z);
-    this.rig.rotation.set(-Math.min(0.25, sp / 70) + (s.y > 0 ? -0.15 : 0), s.vis, -I.move.x * Math.min(0.35, sp / 50), 'YXZ');
+    this.rig.rotation.set(-Math.min(0.25, sp / 70) + (s.y > 0 ? -0.15 + (s.pitch || 0) : 0), s.vis, -I.move.x * Math.min(0.35, sp / 50), 'YXZ');
     const P = g.player;
     P.pos.set(s.x, y + 0.45, s.z); P.yaw = s.vis; P.vel.set(s.vx, s.vy, s.vz); P.speed = sp;
-    P.avatar.root.position.set(s.x - Math.sin(s.vis) * 0.35, y + 0.45, s.z - Math.cos(s.vis) * 0.35); P.avatar.root.rotation.set(0, s.vis, 0);
+    P.avatar.root.position.set(s.x - Math.sin(s.vis) * 0.35, y + 0.45, s.z - Math.cos(s.vis) * 0.35); P.avatar.root.rotation.set(s.y > 0 ? (s.pitch || 0) : 0, s.vis, 0, 'YXZ');
     P.avatar.update(dt, { speed: 0, grounded: true, pose: 'sit' });
     if (sp > 3 && s.y <= 0) { this.wake.push(s.x - Math.sin(s.vis) * 1.3, s.z - Math.cos(s.vis) * 1.3, s.vis, Math.min(1, sp / 16)); if (Math.random() < dt * 18) g.fx.emit({ x: s.x - Math.sin(s.vis) * 1.4, y: WATER_LEVEL + 0.3, z: s.z - Math.cos(s.vis) * 1.4, n: 3, colors: ['#ffffff', '#cfefff'], speed: 3, gravity: 9, life: 0.6, size: 0.18 }); }
     for (const b of this.buoys) b.position.y = WATER_LEVEL + wave(b.position.x, b.position.z, t) - 0.25;
@@ -184,13 +188,14 @@ export class Jetski {
 
   land() {
     const s = this.s, g = this.g;
-    const rots = Math.round(s.spin / (Math.PI * 2));
-    const err = Math.abs(wrap(s.vis - s.yaw));
-    s.y = 0; s.vy = 0;
-    if (err > 0.8 && s.spin > 0.5) { s.vx *= 0.2; s.vz *= 0.2; s.vis = s.yaw; g.sfx('splat'); g.ui.toast('💦 Plouf ! Réception ratée.', 'bad', 1200); return; }
+    const rots = Math.round(s.spin / (Math.PI * 2)), flips = Math.floor(((s.flip || 0) + 0.7) / (Math.PI * 2));
+    const err = Math.abs(wrap(s.vis - s.yaw)), perr = Math.abs(wrap(s.pitch || 0));
+    const tol = 0.8 + (g.profile.sports.jetski?.skill || 5) / 100 * 0.6;
+    s.y = 0; s.vy = 0; s.pitch = 0;
+    if ((err > tol && s.spin > 0.5) || (perr > tol && (s.flip || 0) > 0.6)) { s.vx *= 0.2; s.vz *= 0.2; s.vis = s.yaw; g.sfx('splat'); g.ui.toast('💦 Plouf ! Réception ratée.', 'bad', 1200); return; }
     s.vis = s.yaw;
     g.fx.emit({ x: s.x, y: WATER_LEVEL + 0.3, z: s.z, n: 14, colors: ['#ffffff', '#bfe9ff'], speed: 4, gravity: 9, life: 0.8, size: 0.2 });
-    if (s.air > 0.5) { s.tricks++; g.sfx('success'); g.ui.toast(`🌊 ${rots ? `${rots * 360}° !` : 'Joli saut !'} (${s.air.toFixed(1)} s en l'air)`, 'good', 1500); }
+    if (s.air > 0.5) { s.tricks++; g.sfx('success'); g.ui.toast(`🌊 ${[rots ? `${rots * 360}°` : '', flips ? `${flips} salto${flips > 1 ? 's' : ''}` : ''].filter(Boolean).join(' + ') || 'Joli saut'} ! (${s.air.toFixed(1)} s en l'air)`, 'good', 1600); }
   }
 
   async stop(abandon) {

@@ -152,7 +152,7 @@ export const DISC = {
     },
   },
   jetski: {
-    name: 'Jet ski', icon: '🚤', place: 'surf-shop', route: 'bouees', how: 'jet', ref: 15, vmax: 30, item: 'jetski',
+    name: 'Jet ski', icon: '🚤', place: 'surf-shop', route: 'bouees', how: 'jet', ref: 15, vmax: 42, item: 'jetski',
     member: { name: 'Abonnement Jet Club (ou achète ton jet ski)', price: 300, days: 7 },
     modes: {
       balade: { name: 'Balade libre en mer (5 min)', laps: 0, npcs: 0, fee: 0, prizes: [], free: 300 },
