@@ -13,6 +13,7 @@ import { recordActivity } from './rules.js';
 import { liveOcc } from './calendar.js';
 import { calTime } from './authority-calendar.js';
 
+import { GAMES, gamesFor } from './casino-games.js';
 const err = (error) => ({ ok: false, error });
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : NaN);
 const atKind = (self, ctx, interior) => BUILDINGS.some((b) => b.interior === interior && self.atBuilding(ctx, b, 1));
@@ -57,6 +58,23 @@ function bjFinish(self, ctx, bj) {
 }
 
 export const LEISURE_HANDLERS = {
+  // Les 40 jeux du casino (16 dans les petits casinos) : tirage par l'autorité, mise débitée puis gain crédité.
+  'casino.play'(ctx, { game, bet, choice }) {
+    const p = ctx.profile, G = GAMES[game];
+    if (!G || G.panel && game !== 'slots') return err('Jeu inconnu.');
+    const e = gate(this, ctx, bet);
+    if (e) return err(e);
+    const b = BUILDINGS.find((x) => x.interior === 'casino' && this.atBuilding(ctx, x, 1));
+    if (!gamesFor(b).includes(game)) return err('Ce jeu n\'existe qu\'au Grand Casino de PLAYZONE (Avenue de Prestige).');
+    if (G.choices && !G.choices.some((c) => c.id === choice)) return err('Choisis sur quoi tu mises.');
+    stake(this, p, bet);
+    const r = G.play(ctx.rand, G.choices ? choice : null);
+    const paid = Math.floor(bet * r.mult);
+    const net = payout(this, p, bet, paid);
+    p.casino.games = { ...(p.casino.games || {}), [game]: ((p.casino.games || {})[game] || 0) + 1 };
+    return { ok: true, changed: true, data: { game, mult: r.mult, show: r.show, paid, net, coins: p.coins } };
+  },
+
   'casino.slots'(ctx, { bet }) {
     const p = ctx.profile;
     const e = gate(this, ctx, bet);

@@ -329,6 +329,7 @@ add({ id: 'arcade2', name: 'Salle d\'arcade Mégapixel', kind: 'service', interi
 add({ id: 'circuit-stand', name: 'Karting du Circuit Turbo-Mamie', kind: 'service', interior: 'karting', x: 175, z: -352, w: 16, d: 10, h: 6, facing: 'S', color: '#f72585', roofColor: '#3a0ca3', sign: 'TURBO-MAMIE', district: 'circuit' });
 
 // --- Quartier des Paillettes (au nord du parc des loisirs, le long du boulevard des Paillettes)
+add({ id: 'grand-casino', name: 'Grand Casino de PLAYZONE', kind: 'service', interior: 'casino', grand: true, x: 656, z: -306, w: 50, d: 36, h: 16, floors: 2, facing: 'N', style: 'cinema', columns: true, color: '#14102b', roofColor: '#d4a017', sign: 'GRAND CASINO · 40 JEUX', neon: true, district: 'prestige' });
 add({ id: 'casino', name: 'Casino Royal Pomme', kind: 'service', interior: 'casino', x: 0, z: -452, w: 40, d: 28, h: 12, facing: 'S', style: 'cinema', color: '#1b1446', roofColor: '#d4a017', sign: 'CASINO ROYAL POMME', neon: true, district: 'paillettes' });
 add({ id: 'stand-tir', name: 'Stand de tir Dédé la Gâchette', kind: 'service', interior: 'range', x: -60, z: -453, w: 26, d: 30, h: 7, facing: 'S', style: 'warehouse', color: '#6b705c', roofColor: '#3a3a3a', sign: 'STAND DE TIR', district: 'paillettes' });
 

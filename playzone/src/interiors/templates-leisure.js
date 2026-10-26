@@ -57,6 +57,19 @@ export const LEISURE_TEMPLATES = {
       t.box(x, 0, I.z1 + 0.6, 1.0, 1.0, 0.7, '#2b2d42'); t.box(x, 1.0, I.z1 + 0.6, 0.9, 0.6, 0.65, '#29e6ff', 'glow'); t.solid(x, I.z1 + 0.6, 1.0, 0.7, 1.7);
       t.spot(x, I.z1 + 1.6, { label: '🂡 Vidéo poker', action: 'casino-poker', r: 0.75 });
     }
+    // salle des jeux : un comptoir par catégorie au Grand Casino (40 jeux), un seul dans les autres (16 jeux)
+    const cats = t.b.grand ? ['Cartes', 'Dés & pièces', 'Roues & loteries', 'Arcade', 'Courses', 'Machines'] : [null];
+    const icons = { Cartes: '🃏', 'Dés & pièces': '🎲', 'Roues & loteries': '🎡', Arcade: '🕹️', Courses: '🏇', Machines: '🎰' };
+    const tz = t.b.grand ? I.z2 - 9.5 : I.z2 - 6.5, span = t.b.grand ? (I.x2 - I.x1) - 24 : 0;
+    cats.forEach((cat, i) => {
+      const x = t.b.grand ? I.x1 + 12 + (span / (cats.length - 1)) * i : 1.5;
+      const col = ['#14532d', '#3a0ca3', '#7a1027', '#0077b6', '#5a3416', '#d4a017'][i % 6];
+      t.box(x, 0, tz, 2.6, 0.9, 1.4, col); t.box(x, 0.9, tz, 2.7, 0.06, 1.5, '#1f8a3b'); t.solid(x, tz, 2.6, 1.4, 1);
+      t.box(x, 2.2, tz - 0.6, 2.4, 0.5, 0.08, '#ffd23f', 'glow');
+      t.staff(x, tz - 1.1, 0, 'croupier');
+      t.spot(x, tz + 1.2, { label: cat ? `${icons[cat]} ${cat} (jeux)` : '🎲 Salle des jeux (16 jeux)', action: 'casino-hall', cat, r: 1.6, priority: 2 });
+    });
+    if (t.b.grand) t.spot(t.door.x, I.z2 - 1.5, { label: '🌟 Les 40 jeux du Grand Casino', action: 'casino-hall', r: 1.8, priority: 1 });
     // bar
     const bx = I.x2 - 4, bz = I.z2 - 3.2;
     t.box(bx, 0, bz, 5, 1.1, 0.9, '#5a3416'); t.box(bx, 1.1, bz, 5.1, 0.06, 1.0, '#d4a017'); t.solid(bx, bz, 5, 0.9, 1.2);

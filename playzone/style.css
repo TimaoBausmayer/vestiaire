@@ -522,3 +522,13 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 #ui .underwater { pointer-events: none !important; }
 .speak-bar { position: absolute; left: 50%; bottom: calc(110px + var(--safe-b, 0px)); transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(20,16,50,.88); padding: 8px 10px; border-radius: 14px; width: min(560px, 92vw); z-index: 20; pointer-events: auto; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 .speak-bar .text-input { flex: 1; min-width: 0; }
+/* salle des jeux du casino */
+.hall-cat { margin: 12px 0 6px; color: #ffd23f; }
+.hall-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.hall-game { display: grid; gap: 2px; text-align: left; padding: 10px; border-radius: 12px; border: 1px solid rgba(255,210,63,.25); background: linear-gradient(160deg, rgba(58,12,163,.35), rgba(20,16,43,.6)); color: inherit; cursor: pointer; }
+.hall-game:hover { border-color: #ffd23f; transform: translateY(-1px); }
+.hall-game .e { font-size: 26px; }
+.hall-game small { opacity: .75; font-size: 11px; line-height: 1.25; }
+.casino-table .game-show { font-size: 26px; text-align: center; padding: 18px 10px; min-height: 40px; border-radius: 14px; background: radial-gradient(circle at 50% 30%, #1f8a3b, #0d3b1c); margin-bottom: 8px; word-break: break-word; }
+.casino-table .game-msg { text-align: center; font-weight: 800; margin-bottom: 8px; }
+.casino-table .opt small { opacity: .75; }

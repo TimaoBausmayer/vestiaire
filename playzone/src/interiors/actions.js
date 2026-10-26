@@ -14,6 +14,7 @@ import { gymPassPanel, hairPanel, hospitalCarePanel } from '../life/body.js';
 import { policeDesk, prisonGuard, tryEscape } from '../police/panels.js';
 import { cookPanel, shower, sleep, showerFx } from '../life/home-life.js';
 import { slotsPanel, roulettePanel, blackjackPanel, pokerPanel, casinoDesk } from '../leisure/casino.js';
+import { casinoHall } from '../leisure/casino-hall.js';
 import { rangePanel } from '../leisure/range.js';
 import { kartingDesk } from '../sports/karting.js';
 import { adminKiosk } from '../ui/admin.js';
@@ -69,6 +70,7 @@ export async function runAction(game, action, { b, spot, staff }) {
     }
     case 'wardrobe': openWardrobe(g); break;
     case 'casino-desk': casinoDesk(g); break;
+    case 'casino-hall': casinoHall(g, b, spot.cat || null); break;
     case 'casino-slots': slotsPanel(g); break;
     case 'casino-roulette': roulettePanel(g); break;
     case 'casino-bj': blackjackPanel(g); break;
