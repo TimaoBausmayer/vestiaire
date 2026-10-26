@@ -50,6 +50,7 @@ import { Wingfoil } from './sports/wingfoil.js';
 import { Sailing } from './sports/sailing.js';
 import { TerraceDiners } from './world/terraces.js';
 import { Sea } from './world/sealife.js';
+import { SpeakBar } from './ui/speak.js';
 import { Floors } from './interiors/floors.js';
 import { Submarine } from './sports/submarine.js';
 import { Races } from './sports/races.js';
@@ -220,6 +221,8 @@ export class Game extends Emitter {
       this.remotes = this.addSystem(new Remotes(this));
       this.social = new Social(this);
     }
+    // en solo : barre « Parler » (Entrée) pour dire quelque chose aux habitants autour
+    if (!this.social) this.speak = new SpeakBar(this);
     this.hud.addButton('📱', 'Téléphone (P)', () => this.phone?.toggle());
     this.hud.addButton('👕', 'Garde-robe', () => openWardrobe(this));
     this.muteBtn = this.hud.addButton(this.sound.muted ? '🔇' : '🔊', 'Son', () => { this.sound.setMuted(!this.sound.muted); this.muteBtn.textContent = this.sound.muted ? '🔇' : '🔊'; });
@@ -320,7 +323,7 @@ export class Game extends Emitter {
     if (e.code === 'KeyE') this.interact();
     else if (k === 'p' || e.code === 'Tab') this.phone?.toggle();
     else if (k === 'm') this.phone?.open('map');
-    else if (e.code === 'Enter') this.chat?.focus();
+    else if (e.code === 'Enter') (this.chat || this.speak)?.focus();
     else if (['Digit1', 'Digit2', 'Digit3'].includes(e.code)) { this.player.dance = +e.code.slice(5) - 1; this.player.setPose('dance'); this.emit('dance'); }
     else if (e.code === 'Digit4') this.player.setPose('wave', 2);
   }

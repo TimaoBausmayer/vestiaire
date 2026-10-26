@@ -520,3 +520,5 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 .lift-btn.roof { background: linear-gradient(135deg, #ff9f1c, #ff3fa4); }
 .foot-btns .pump-big { font-size: 18px; padding: 16px 26px; background: linear-gradient(135deg, #2ec4b6, #3a86ff); color: #fff; font-weight: 900; }
 #ui .underwater { pointer-events: none !important; }
+.speak-bar { position: absolute; left: 50%; bottom: calc(110px + var(--safe-b, 0px)); transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(20,16,50,.88); padding: 8px 10px; border-radius: 14px; width: min(560px, 92vw); z-index: 20; pointer-events: auto; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.speak-bar .text-input { flex: 1; min-width: 0; }

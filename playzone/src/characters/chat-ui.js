@@ -4,18 +4,28 @@ import { windAtPos } from '../../shared/wingfoil.js';
 // Discussion libre dans une boîte de dialogue de PNJ : un champ de saisie, la réponse s'affiche à la
 // place du texte (avec ce qu'on vient de dire). La mémoire (prénom, humeur) reste attachée au PNJ.
 const MEMORY = new Map();
+export function npcMemory(key) { if (!MEMORY.has(key)) MEMORY.set(key, {}); return MEMORY.get(key); }
 export function chatMode(g, m, who, back) {
-  const key = who.id || who.name;
-  if (!MEMORY.has(key)) MEMORY.set(key, {});
-  const mem = MEMORY.get(key);
+  const mem = npcMemory(who.id || who.name);
   const ctx = () => ({ hour: g.world?.dayNight?.hour ?? 12, kts: windAtPos(Date.now(), g.player.pos.x, g.player.pos.z).kts, pos: { x: g.player.pos.x, z: g.player.pos.z }, player: g.profile?.name });
   const choices = [
     ...(back ? [{ label: '↩︎ Retour', ghost: true, action: (x) => back(x) }] : []),
     { label: 'Au revoir', ghost: true, action: (x) => x.close() },
   ];
   const input = {
-    placeholder: `Écris à ${who.name}... (où est la banque ? une blague ? ça va ?)`,
+    placeholder: who.npc ? `Écris à ${who.name}... (suis-moi, danse, assieds-toi, où est la banque ?)` : `Écris à ${who.name}... (où est la banque ? une blague ? ça va ?)`,
     submit: (text, x) => {
+      // un habitant dans la rue : il répond ET il agit (suit, danse, s'assoit, part...)
+      if (who.npc && g.npcs) {
+        const res = g.npcs.respond(who.npc, text, false);
+        const r = res.reply;
+        g.sfx?.('click');
+        if (who.root) g.labels?.bubble?.(who.root, r.length > 70 ? `${r.slice(0, 68)}…` : r, 3500);
+        // pour le voir faire, on ferme la discussion quand il bouge
+        if (res.act && ['follow', 'come', 'dance', 'sit', 'jump', 'leave', 'run', 'hug'].includes(res.act.type)) { x.close(); return; }
+        x.show(`« ${text} »\n${r}`, choices, input);
+        return;
+      }
       const r = npcReply(text, who, ctx(), mem);
       g.sfx?.('click');
       if (who.root) g.labels?.bubble?.(who.root, r.length > 70 ? `${r.slice(0, 68)}…` : r, 3500);

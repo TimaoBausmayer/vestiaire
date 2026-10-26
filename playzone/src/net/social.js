@@ -69,6 +69,7 @@ export class Social {
     this.net.chat(t, this.channel);
     this.input.value = '';
     this.game.labels.bubble(this.game.avatar.root, t, 4500, 'player');
+    this.game.npcs?.hear(t);   // les habitants autour entendent et réagissent
   }
 
   addLine(name, text, cls = '', mine = false) {

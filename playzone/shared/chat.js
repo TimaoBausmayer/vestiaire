@@ -121,3 +121,34 @@ export function npcReply(text, who, ctx = {}, mem = {}, rand = Math.random) {
   if (t.endsWith('?')) return pick([`Bonne question ! ${word ? `${cap(word)}... ` : ''}je n'en sais trop rien, honnêtement.`, 'Hmm... demande plutôt à quelqu\'un de plus savant que moi !', 'Je ne sais pas, mais si tu trouves, dis-le-moi !'], rand);
   return pick([word ? `${cap(word)} ? Intéressant... raconte-m'en plus !` : 'Ah oui ? Raconte !', 'Je vois, je vois...', 'Ha ! Elle est bonne, celle-là.', `Tu sais, moi, je suis juste ${who.role ? who.role.toLowerCase() : 'de passage'}, mais je t'écoute.`], rand);
 }
+
+// ACTIONS : ce que le PNJ FAIT après ce qu'on lui a écrit (suivre, danser, s'asseoir, sauter, venir,
+// partir, s'arrêter, fuir, se fâcher, être content, faire un câlin). Il accepte... ou pas, selon son humeur.
+const ACTIONS = [
+  ['stop', ['arrete', 'arretez', 'stop', 'reste la', 'reste ici', 'attends', 'attendez', 'ne bouge plus', 'bouge pas'], ['D\'accord, je m\'arrête.', 'OK, je reste là.', 'Je ne bouge plus !']],
+  ['follow', ['suis moi', 'suis-moi', 'suivez moi', 'suivez-moi', 'viens avec moi', 'accompagne moi', 'accompagne-moi', 'on y va', 'allons-y', 'allez viens'], ['C\'est parti, je te suis !', 'OK, je te suis. Pas trop vite, hein !', 'En route, chef !']],
+  ['come', ['viens', 'venez', 'approche', 'viens ici', 'viens la'], ['J\'arrive !', 'Me voilà !', 'Oui, oui, j\'arrive.']],
+  ['dance', ['danse', 'dansez', 'on danse', 'bouge ton corps', 'fais la fete', 'musique'], ['Ah, tu veux voir mes pas de danse ? Regarde ça !', 'Musique, maestro !', 'Je suis le roi (ou la reine) de la piste !']],
+  ['sit', ['assieds toi', 'assieds-toi', 'asseyez-vous', 'asseyez vous', 'assis', 'repose toi', 'repose-toi'], ['Bonne idée, mes pieds me tuent.', 'Hop, je m\'assois.', 'Ahhh, ça fait du bien.']],
+  ['jump', ['saute', 'sautez', 'sauter', 'fais un saut'], ['Hop ! Hop ! Hop !', 'Comme un kangourou !', 'Boing !']],
+  ['wave', ['fais coucou', 'fais signe', 'salue', 'dis bonjour'], ['Coucou tout le monde !', 'Salut, salut !']],
+  ['leave', ['va-t-en', 'va t en', 'vas-t-en', 'va t\'en', 'degage', 'pars', 'laisse moi', 'laisse-moi', 'fiche moi la paix', 'casse toi', 'dégage'], ['Bon, bon, je m\'en vais...', 'Pas besoin d\'être aussi méchant·e !', 'D\'accord, je pars. Vexé·e.']],
+  ['run', ['cours', 'courez', 'fuis', 'sauve toi', 'sauve-toi', 'au feu', 'attention', 'police', 'un monstre', 'au secours'], ['AAAH ! Je cours !', 'Sauve qui peut !', 'Pas besoin de me le dire deux fois !']],
+  ['hug', ['calin', 'câlin', 'faire un bisou', 'bisou', 'serre moi', 'embrasse'], ['Oh, un câlin ! Viens là !', 'Bon, d\'accord, un petit câlin.']],
+];
+const RUDE = ['con', 'conne', 'connard', 'idiot', 'debile', 'nul', 'nulle', 'moche', 'ta gueule', 'cretin', 'abruti', 'boloss'];
+const NICE = ['beau', 'belle', 'mignon', 'mignonne', 'sympa', 'gentil', 'gentille', 'cool', 'genial', 'merci', 'je t\'aime', 'bravo', 'super'];
+
+// Renvoie { type, reply } (ou null : pas d'action). mood : humeur du PNJ envers le joueur.
+export function npcAction(text, mood = 0, rand = Math.random) {
+  const t = norm(text);
+  if (any(t, RUDE)) return { type: rand() < 0.5 ? 'angry' : 'leave', reply: null };
+  for (const [type, words, replies] of ACTIONS) {
+    if (!any(t, words)) continue;
+    // de mauvaise humeur, on refuse les demandes (sauf partir ou s'arrêter)
+    if (mood <= -2 && !['leave', 'stop', 'run'].includes(type)) return { type: 'refuse', reply: pick(['Non. Pas après ce que tu m\'as dit.', 'Même pas en rêve.', 'Demande plus gentiment...'], rand) };
+    return { type, reply: pick(replies, rand) };
+  }
+  if (any(t, NICE)) return { type: 'happy', reply: null };
+  return null;
+}

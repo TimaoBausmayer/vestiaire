@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { Avatar } from './avatar.js';
 import { NPCS, CONVERSATIONS, BUMP_LINES, NIGHT_LINES } from './npc-data.js';
 import { h } from '../ui/dom.js';
-import { chatMode } from './chat-ui.js';
+import { chatMode, npcMemory } from './chat-ui.js';
+import { npcAction, npcReply } from '../../shared/chat.js';
 import { SECRETS, groundHeight, ROAD_GRAPH, BUILDINGS } from '../../shared/world-layout.js';
 import { CHARACTERS, PASSERS } from './crowd-data.js';
 import { DEFAULT_APPEARANCE, SKINS, HAIR_STYLES, HAIR_COLORS, COLORS } from '../../shared/appearance.js';
@@ -47,6 +48,20 @@ class NPC {
       this.avatar.update(dt, { speed: 0, grounded: true, pose: 'idle' });
       if (this.timer <= 0) { r.rotation.set(0, this.yaw, 0); this.state = 'react'; this.timer = 2; this.say(pick(['J\'appelle la police !', 'Vous allez avoir de mes nouvelles !', 'Espèce de malotru !']), 2500); }
       return;
+    }
+    // ordre écrit en cours (suivre, danser, s'asseoir...)
+    if (this.cmd) {
+      const r = this.runCommand(dt, t);
+      if (r) {
+        this.pos.y = (d.y ?? groundHeight(this.pos.x, this.pos.z)) + (r.y || 0);
+        this.avatar.root.position.copy(this.pos);
+        if (r.pose !== 'dance') this.avatar.root.rotation.y = this.yaw;
+        this.avatar.update(dt, { speed: r.moving ? r.speed || d.speed : 0, grounded: true, pose: r.pose, dance: 1 });
+        return;
+      }
+      // ordre terminé : on reprend sa vie (le piéton repart vers la rue la plus proche)
+      this.state = d.kind === 'crowd' ? 'walk' : 'idle'; this.timer = 1; this.target = null;
+      if (d.kind === 'crowd') this.mgr.nextLeg(this);
     }
     const dPlayer = Math.hypot(P.x - this.pos.x, P.z - this.pos.z);
     let pose = 'idle', moving = false;
@@ -125,6 +140,58 @@ class NPC {
   }
 
   say(text, ms = 4200) { this.mgr.game.labels.bubble(this.avatar.root, text, ms, '', 2.75); }
+
+  // Ordre donné par écrit (voir npcAction) : le PNJ le fait vraiment.
+  command(type) {
+    const g = this.mgr.game, P = g.player.pos;
+    const away = Math.atan2(this.pos.x - P.x, this.pos.z - P.z);
+    const dur = { follow: 120, come: 20, dance: 14, sit: 18, jump: 3.2, wave: 3, leave: 12, run: 9, hug: 6, angry: 4, happy: 3.5, refuse: 2.5, stop: 25 }[type];
+    if (!dur) return;
+    this.cmd = { type, t: 0, dur };
+    this.state = 'cmd';
+    if (type === 'leave' || type === 'run') { const d = type === 'run' ? 45 : 28; this.cmd.to = { x: this.pos.x + Math.sin(away) * d, z: this.pos.z + Math.cos(away) * d }; }
+    if (type === 'angry') this.say(pick(['😠 Non mais ça va pas ?!', '😤 Malpoli·e !', '😡 Je vais appeler ta mère !']), 3000);
+    if (type === 'happy') this.say(pick(['😊 Merci, c\'est gentil !', '🥰 Oh, tu me fais rougir !', '😄 Toi aussi, t\'es top !']), 3000);
+    if (type === 'hug') this.say('🤗', 3000);
+  }
+
+  // Exécution de l'ordre en cours. Renvoie { pose, moving } ou null quand c'est fini.
+  runCommand(dt, t) {
+    const c = this.cmd, g = this.mgr.game, P = g.player.pos;
+    c.t += dt;
+    const dPlayer = Math.hypot(P.x - this.pos.x, P.z - this.pos.z);
+    const face = () => { const want = Math.atan2(P.x - this.pos.x, P.z - this.pos.z); this.yaw += Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)) * Math.min(1, dt * 5); };
+    if (c.t > c.dur || (c.type === 'follow' && dPlayer > 60) || g.player.zone !== 'world') { this.cmd = null; return null; }
+    switch (c.type) {
+      case 'follow': case 'come': case 'hug': {
+        const near = c.type === 'hug' ? 0.9 : c.type === 'come' ? 1.8 : 2.4;
+        if (dPlayer > near) {
+          // derrière le joueur, en marchant (ou en courant s'il va vite)
+          this.target = { x: P.x - Math.sin(g.player.yaw) * near * 0.8, z: P.z - Math.cos(g.player.yaw) * near * 0.8 };
+          const sp = Math.max(this.def.speed || 1.4, Math.min(7, dPlayer > 8 ? 6.5 : g.player.speed || 2));
+          this.moveTo(dt, sp);
+          return { pose: 'idle', moving: true, speed: sp };
+        }
+        face();
+        if (c.type === 'come' && c.t > 2) c.dur = Math.min(c.dur, c.t + 6);
+        return { pose: c.type === 'hug' ? 'celebrate' : 'idle', moving: false };
+      }
+      case 'leave': case 'run': {
+        this.target = c.to;
+        const moving = this.moveTo(dt, c.type === 'run' ? 6 : (this.def.speed || 1.4) * 1.2);
+        if (!moving) c.dur = Math.min(c.dur, c.t);
+        return { pose: c.type === 'run' ? 'celebrate' : 'idle', moving, speed: c.type === 'run' ? 6 : 1.7 };
+      }
+      case 'dance': face(); return { pose: 'dance', moving: false };
+      case 'sit': return { pose: 'sit', moving: false, y: -0.42 };
+      case 'jump': { face(); return { pose: 'celebrate', moving: false, y: Math.abs(Math.sin(c.t * 3 * Math.PI / 1.05)) * 0.7 }; }
+      case 'wave': case 'happy': face(); return { pose: c.type === 'happy' ? 'celebrate' : 'wave', moving: false };
+      case 'angry': { face(); return { pose: Math.sin(c.t * 14) > 0 ? 'throw' : 'idle', moving: false }; }
+      case 'refuse': face(); return { pose: 'idle', moving: false };
+      case 'stop': face(); return { pose: 'idle', moving: false };
+    }
+    return null;
+  }
 }
 
 export class NPCs {
@@ -215,6 +282,34 @@ export class NPCs {
     setTimeout(() => b.say(conv[1] || '...', 3200), 3000);
   }
 
+  // Ce que le joueur dit à voix haute (barre « Parler » ou chat) : le PNJ le plus proche (ou celui
+  // dont on cite le prénom) répond et réagit.
+  hear(text) {
+    const g = this.game, P = g.player.pos, t = text.toLowerCase();
+    if (g.player.zone !== 'world') return null;
+    const near = this.list.filter((n) => n.avatar.root.visible && !n.home && Math.hypot(n.pos.x - P.x, n.pos.z - P.z) < 14);
+    let n = near.find((x) => t.includes(x.def.name.toLowerCase().split(' ')[0]));
+    // « tout le monde », « vous » : tous ceux qui sont autour
+    const all = /tout le monde|vous tous|tous ensemble|everybody/.test(t);
+    if (!n) n = near.sort((a, b) => Math.hypot(a.pos.x - P.x, a.pos.z - P.z) - Math.hypot(b.pos.x - P.x, b.pos.z - P.z))[0];
+    if (!n || Math.hypot(n.pos.x - P.x, n.pos.z - P.z) > 9 && !all) return null;
+    for (const x of all ? near.slice(0, 8) : [n]) this.respond(x, text, x === n);
+    return n;
+  }
+
+  respond(n, text, speak = true) {
+    const g = this.game;
+    const mem = npcMemory(n.def.id || n.def.name);
+    const act = npcAction(text, mem.mood || 0);
+    const r = npcReply(text, { name: n.def.name, role: n.def.role }, { hour: g.world?.dayNight?.hour ?? 12, kts: 10, pos: { x: n.pos.x, z: n.pos.z }, player: g.profile?.name }, mem);
+    if (act) n.command(act.type);
+    if (speak) {
+      const line = act?.reply || r;
+      if (!['angry', 'happy', 'hug'].includes(act?.type)) n.say(line.length > 90 ? `${line.slice(0, 88)}…` : line, 4500);
+    }
+    return { act, reply: act?.reply || r };
+  }
+
   // Dialogue avec un habitant : discussion, conseil, indices.
   talk(n) {
     if (!n) return;
@@ -226,7 +321,7 @@ export class NPCs {
     const choices = [
       { label: '💬 Discuter', action: (m) => m.show(pick(n.lines()), choices) },
       { label: '💡 Un conseil ?', action: (m) => m.show(this.hint(n), choices) },
-      { label: '⌨️ Écrire', action: (m) => chatMode(g, m, { id: d.id, name: d.name, role: d.role, root: n.avatar.root }, (x) => x.show(pick(n.lines()), choices)) },
+      { label: '⌨️ Écrire', action: (m) => chatMode(g, m, { id: d.id || d.name, name: d.name, role: d.role, root: n.avatar.root, npc: n }, (x) => x.show(pick(n.lines()), choices)) },
       { label: 'Au revoir', ghost: true, action: (m) => { m.close(); n.state = 'idle'; n.timer = 1; } },
     ];
     const dlg = g.ui.dialog({ name: d.name, role: d.role, text: pick(n.lines()), choices });
@@ -263,12 +358,12 @@ export class NPCs {
     for (const n of this.list) {
       // piétons « rentrés chez eux » selon l'heure : invisibles et figés ; ils ressortent loin du joueur
       if (n.def.kind === 'crowd') {
-        if (n.ci >= active) { if (!n.home) { n.home = true; n.avatar.root.visible = false; n.crossing = false; } continue; }
+        if (n.ci >= active && !n.cmd) { if (!n.home) { n.home = true; n.avatar.root.visible = false; n.crossing = false; } continue; }
         if (n.home) { n.home = false; this.place(n); }
       }
       let d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z);
       // piétons trop loin : ils réapparaissent plus près (hors de vue)
-      if (n.def.kind === 'crowd' && inWorld && d > 150 && n.state !== 'ko') { this.place(n); d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z); }
+      if (n.def.kind === 'crowd' && inWorld && d > 150 && n.state !== 'ko' && !n.cmd) { this.place(n); d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z); }
       const vis = inWorld && d < ({ low: 55, medium: 75 }[g.engine.quality] || 95);
       n.avatar.root.visible = vis;
       if (!vis && d > 140) continue; // très loin : on fige
