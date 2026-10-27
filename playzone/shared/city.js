@@ -647,6 +647,34 @@ GYM_SITES.forEach(([x, z, facing, name], i) => add({ id: `gym-${i + 1}`, name, k
 const BOXING_SITES = [[310, -180, 'W', 'Boxing Club des Affaires'], [-120, -400, 'W', 'Les Gants d\'Or'], [-90, -1430, 'N', 'Ring de Nordville'], [700, -310, 'N', 'Prestige Boxing'], [-240, 20, 'E', 'Boxe Fermière'], [270, -580, 'E', 'Le Punching-Ball'], [300, -1330, 'N', 'Uppercut Club'], [-380, -1150, 'W', 'Crochet du Gauche']];
 BOXING_SITES.forEach(([x, z, facing, name], i) => add({ id: `boxe-${i + 1}`, name, kind: 'service', interior: 'boxing', x, z, w: 18, d: 18, h: 7, facing, color: ['#d00000', '#14213d', '#9d0208', '#264653'][i % 4], roofColor: '#111111', sign: `🥊 ${name.toUpperCase()}`, neon: i % 2 === 0, district: 'sport' }));
 
+// --- LA CARTE MIEUX ÉQUIPÉE : commerces, restaurants, maisons et petits immeubles dans les quartiers
+// peu remplis ; un zoo, un musée, des parcs (jeux, basket, fontaines, bancs). Emplacements vérifiés
+// hors routes, bâtiments, parkings, pistes et circuits.
+const MORE_SITES = [[-2710, -720, 'S'], [-1670, -320, 'S'], [-980, -920, 'N'], [-930, -960, 'S'], [-900, -280, 'N'], [-860, -400, 'E'], [-860, -170, 'E'], [-420, -1860, 'E'], [-360, -1880, 'N'], [-260, -1880, 'N'], [-20, -2650, 'E'], [-20, -2170, 'E'], [-20, -2110, 'E'], [350, -1880, 'N'], [420, -1860, 'W'], [600, -1420, 'S'], [860, -960, 'S'], [920, -920, 'N'], [950, -2480, 'N'], [1700, -320, 'S'], [2250, -580, 'N'], [2300, -620, 'S'], [2880, -620, 'E'], [2880, 20, 'E'], [-2090, -720, 'S'], [-1040, -320, 'S'], [-860, -230, 'E'], [-200, -1880, 'N'], [-140, -1880, 'N'], [-70, -1880, 'N'], [-20, -2570, 'E'], [20, -1880, 'W'], [120, -1880, 'N'], [180, -1880, 'N'], [240, -1880, 'N'], [900, -2520, 'S'], [2360, -620, 'S'], [2580, -1010, 'E'], [2580, -950, 'E'], [2580, -850, 'E'], [2580, -790, 'E'], [2580, -730, 'E'], [2580, -670, 'E'], [-870, -960, 'S'], [-420, -1800, 'E'], [-20, -2510, 'E'], [380, -1810, 'E'], [-420, -1740, 'E'], [-360, -2620, 'S'], [-80, -2370, 'S'], [-20, -2260, 'E'], [40, -2520, 'S'], [420, -1760, 'W'], [1080, -320, 'S'], [2790, -620, 'S'], [2880, -560, 'E']];
+const MORE_SHOPS = [['bakery', 'bakery', 'Boulangerie', '#fefae0', 'BOULANGERIE'], ['cafe2', 'cafe', 'Café', '#a3c4bc', 'CAFÉ'], ['superette', 'supermarket', 'Supérette', '#e9edf2', 'SUPÉRETTE'], ['tacos', 'fastfood', 'Snack', '#ffb703', 'SNACK'], ['pizzeria', 'restaurant', 'Pizzeria', '#f6e7c8', 'PIZZERIA'], ['hair', 'salon', 'Salon de coiffure', '#cdb4db', 'COIFFEUR'], ['poisson', 'restaurant', 'Restaurant de la Marée', '#90e0ef', 'LA MARÉE'], ['pharmacie', 'shop', 'Pharmacie', '#ffffff', 'PHARMACIE']];
+const MORE_MIX = 'shshashshsahshs';   // s = commerce, h = maison, a = petit immeuble
+const nearDistrict = (x, z) => { let best = null, bd = 1e9; for (const b of B) { if (!b.district || b.district === 'sport') continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b.district; } } return best || 'campagne'; };
+MORE_SITES.forEach(([x, z, facing], i) => {
+  const type = MORE_MIX[i % MORE_MIX.length], district = nearDistrict(x, z);
+  const col = Q_COLORS[(i * 5) % Q_COLORS.length], roofColor = ['#8c3b2f', '#3d5a80', '#6b4226', '#2a6f4e', '#3d405b'][i % 5];
+  if (type === 's') {
+    const [shop, interior, name, color, sign] = MORE_SHOPS[Math.floor(i / 2) % MORE_SHOPS.length];
+    add({ id: `plus-shop${i + 1}`, name: `${name} ${['du Carrefour', 'de la Gare', 'des Pins', 'du Moulin', 'des Dunes', 'du Col', 'de l\'Étang', 'du Bout du Monde'][i % 8]}`, kind: 'shop', shop, interior, x, z, w: 14, d: 12, h: 6, facing, color, roofColor, sign, awning: ['#e63946', '#2a9d8f', '#3d5a80', '#f4a261'][i % 4], district });
+  } else if (type === 'a') {
+    add({ id: `plus-immeuble${i + 1}`, name: `Résidence ${['Bellevue', 'Les Glycines', 'Le Panorama', 'Les Hirondelles', 'Le Clos Fleuri'][i % 5]}`, kind: 'decor', interior: 'lobby', x, z, w: 14, d: 12, h: 13.3, floors: 4, facing, style: 'apartment', color: col, roofColor: '#3d405b', district });
+  } else {
+    add({ id: `plus-maison${i + 1}`, name: `Maison ${['des Lilas', 'du Puits', 'aux Volets Bleus', 'du Grand Chêne', 'de la Colline', 'des Vents'][i % 6]}`, kind: 'house', interior: 'house', x, z, w: 12, d: 11, h: 6, facing, roof: 'gable', color: col, roofColor, district });
+  }
+});
+// Zoo (entrée côté route) et musée
+export const ZOO = { x: 90, z: -1140, w: 150, d: 110 };
+add({ id: 'zoo', name: 'Zoo de PLAYZONE (entrée gratuite)', kind: 'decor', x: ZOO.x - ZOO.w / 2 + 6, z: ZOO.z, w: 10, d: 16, h: 6, facing: 'W', color: '#2d6a4f', roofColor: '#ffd166', sign: '🦁 ZOO DE PLAYZONE', district: 'nordville', lot: { x1: ZOO.x - ZOO.w / 2 + 12, z1: ZOO.z - ZOO.d / 2, x2: ZOO.x + ZOO.w / 2, z2: ZOO.z + ZOO.d / 2 } });
+add({ id: 'musee', name: 'Musée des Arts Rigolos', kind: 'service', interior: 'museum', x: 320, z: -250, w: 30, d: 26, h: 12, facing: 'W', color: '#f4f1ea', roofColor: '#6c757d', sign: 'MUSÉE DES ARTS RIGOLOS', columns: true, district: 'commerce' });
+// Parcs : aire de jeux, terrain de basket ou fontaine, bancs, kiosque à glaces
+export const PARKS = [[520, -200], [100, -500], [-60, -1380], [-180, -460], [520, -500], [-350, -1320], [-40, -1120], [760, -310], [230, -1410], [800, -50], [1270, -270], [180, -770], [1530, -270], [-1420, -270]]
+  .map(([x, z], i) => ({ id: `parc-${i + 1}`, name: ['Square des Bambins', 'Parc des Rigolos', 'Jardin Boréal', 'Square des Tilleuls', 'Parc Prestige', 'Square du Nord', 'Parc de la Glissade', 'Jardin du Casino', 'Parc des Aurores', 'Square des Embruns', 'Parc du Grand-Large', 'Square des Hauts', 'Jardin des Mouettes', 'Oasis du Désert'][i], x, z, w: 44, d: 34, kind: ['jeux', 'basket', 'fontaine'][i % 3] }));
+for (const P of PARKS) add({ id: `kiosque-${P.id}`, name: `Kiosque à glaces — ${P.name}`, kind: 'decor', x: P.x + P.w / 2 - 4, z: P.z - P.d / 2 + 4, w: 4, d: 4, h: 3.2, facing: 'W', color: '#ffc8dd', roofColor: '#ff5a5f', sign: 'GLACES', district: 'parc', lot: { x1: P.x - P.w / 2, z1: P.z - P.d / 2 + 7, x2: P.x + P.w / 2, z2: P.z + P.d / 2 } });
+
 export const GAS_STATIONS = CITY_BUILDINGS.filter((b) => b.gas).map((b) => ({ id: b.id, name: b.name, ...b.gas }));
 
 // Lieux spéciaux des nouveaux quartiers.

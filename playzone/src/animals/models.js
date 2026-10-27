@@ -21,6 +21,12 @@ const QUADS = {
   cochon: { L: 0.95, H: 0.6, W: 0.6, y: 0.55, leg: 0.35, legW: 0.12, col: '#ffb3c6', belly: '#ffc8dd', head: 0.36, headCol: '#ffb3c6', snout: [0.18, 0.14, 0.1], snoutCol: '#ff8fab', ears: 'floppy', earCol: '#ff8fab', tail: 'curly', nose: '#d65f86' },
   mouton: { L: 0.95, H: 0.65, W: 0.7, y: 0.7, leg: 0.5, legW: 0.1, col: '#f4f1ea', belly: '#f4f1ea', head: 0.28, headCol: '#2b2d42', snout: [0.12, 0.12, 0.12], snoutCol: '#2b2d42', ears: 'side', earCol: '#2b2d42', tail: 'short', wool: true, legCol: '#2b2d42', nose: '#111' },
   rat: { L: 0.32, H: 0.16, W: 0.15, y: 0.12, leg: 0.1, legW: 0.04, col: '#7d7d7d', belly: '#bdbdbd', head: 0.13, headCol: '#7d7d7d', snout: [0.05, 0.05, 0.1], snoutCol: '#9a9a9a', ears: 'round', earCol: '#ff8fab', tail: 'rat', nose: '#ff8fab', small: true },
+  // ---- animaux du zoo
+  lion: { L: 1.6, H: 0.72, W: 0.62, y: 0.95, leg: 0.75, legW: 0.17, col: '#d4a056', belly: '#e9c48a', head: 0.42, headCol: '#d4a056', snout: [0.16, 0.14, 0.16], snoutCol: '#f1d3a5', ears: 'round', earCol: '#b07d3a', tail: 'long', nose: '#5a2a10', lionMane: '#7a4a1c', scale: 1.35 },
+  elephant: { L: 2.5, H: 1.6, W: 1.55, y: 1.75, leg: 1.25, legW: 0.48, col: '#8d939b', belly: '#7d838b', head: 0.85, headCol: '#8d939b', snout: [0.18, 0.18, 0.1], snoutCol: '#8d939b', ears: 'elephant', earCol: '#a0a6ad', tail: 'cow', nose: '#6c757d', trunk: '#8d939b', tusks: '#fffaf0', scale: 1.3 },
+  girafe: { L: 1.5, H: 0.8, W: 0.6, y: 2.0, leg: 1.8, legW: 0.13, col: '#e9b44c', belly: '#f4d58d', head: 0.3, headCol: '#e9b44c', snout: [0.12, 0.12, 0.2], snoutCol: '#f4d58d', ears: 'side', earCol: '#e9b44c', horns: '#7a4a1c', tail: 'cow', spots: '#8b4513', nose: '#3a2a1e', hoof: '#3a2a1e', longNeck: 1.7, headUp: 1.55, headFwd: 0.45, scale: 1.25 },
+  zebre: { L: 1.45, H: 0.68, W: 0.52, y: 1.15, leg: 1.05, legW: 0.14, col: '#f8f9fa', belly: '#f8f9fa', head: 0.3, headCol: '#f8f9fa', snout: [0.18, 0.2, 0.42], snoutCol: '#2b2d42', ears: 'pointy', earCol: '#f8f9fa', tail: 'horse', mane: '#111111', nose: '#111', neck: 0.55, hoof: '#111', zebra: '#111111' },
+  singe: { L: 0.5, H: 0.45, W: 0.36, y: 0.5, leg: 0.45, legW: 0.09, col: '#7a4a24', belly: '#d4a373', head: 0.3, headCol: '#7a4a24', snout: [0.12, 0.1, 0.06], snoutCol: '#e9c49a', ears: 'round', earCol: '#d4a373', tail: 'long', nose: '#3a2a1e' },
   lapin: { L: 0.36, H: 0.3, W: 0.3, y: 0.2, leg: 0.12, legW: 0.06, col: '#e8e0d0', belly: '#ffffff', head: 0.18, headCol: '#e8e0d0', snout: [0.06, 0.06, 0.05], snoutCol: '#ffffff', ears: 'long', earCol: '#e8e0d0', tail: 'pompon', nose: '#ff8fab', small: true },
 };
 
@@ -31,6 +37,8 @@ function buildQuad(o) {
     if (o.spots) for (const [x, y, z, s] of [[0.2, 0.15, 0.2, 0.3], [-0.25, 0.1, -0.3, 0.35], [0.1, 0.3, -0.1, 0.25], [-0.15, 0.25, 0.35, 0.22]]) sb.add(B.sphere(8), { x: x * o.W * 2, y: o.y + y * o.H, z: z * o.L, sx: s, sy: s * 0.6, sz: s, color: o.spots });
     if (o.stripes) for (let i = 0; i < 3; i++) sb.add(B.box(), { y: o.y + o.H * 0.42, z: -o.L * 0.2 + i * o.L * 0.15, sx: o.W * 0.7, sy: 0.03, sz: 0.04, color: o.stripes });
     if (o.wool) for (let i = 0; i < 10; i++) { const a = i * 2.4; sb.add(B.ico1(), { x: Math.cos(a) * o.W * 0.35, y: o.y + 0.08 + (i % 3) * 0.1, z: Math.sin(a * 1.3) * o.L * 0.35, sx: 0.4, sy: 0.35, sz: 0.4, color: '#ffffff' }); }
+    if (o.zebra) for (let i = 0; i < 7; i++) sb.add(B.torus(), { y: o.y, z: -o.L * 0.36 + i * o.L * 0.12, sx: o.W * 1.02, sy: o.H * 1.02, sz: 0.6, color: o.zebra });
+    if (o.longNeck) { sb.add(B.cyl(8), { y: o.y + o.H * 0.2, z: o.L * 0.38, sx: 0.24, sy: o.longNeck, sz: 0.28, rx: 0.35, color: o.col }); for (let i = 0; i < 4; i++) sb.add(B.sphere(6), { x: 0.1, y: o.y + 0.5 + i * 0.35, z: o.L * 0.45 + i * 0.12, sx: 0.12, sy: 0.12, sz: 0.06, color: o.spots }); }
     if (o.mane) for (let i = 0; i < 5; i++) sb.add(B.box(), { y: o.y + o.H * 0.4 + i * 0.12, z: o.L * 0.35 + i * 0.06, sx: 0.06, sy: 0.18, sz: 0.18, color: o.mane });
     // queue
     const tz = -o.L / 2;
@@ -52,7 +60,10 @@ function buildQuad(o) {
   const head = (sb) => {
     const hs = o.head;
     if (o.neck) sb.add(B.box(), { y: -0.1, z: -0.12, sx: 0.26, sy: o.neck, sz: 0.3, rx: -0.5, color: o.headCol });
+    if (o.lionMane) sb.add(B.ico1(), { y: 0.02, z: -hs * 0.2, sx: hs * 2.1, sy: hs * 2.0, sz: hs * 1.3, color: o.lionMane });
     sb.add(B.sphere(12), { y: 0, sx: hs, sy: hs * 0.95, sz: hs * 1.05, color: o.headCol });
+    if (o.trunk) { for (let i = 0; i < 5; i++) sb.add(B.sphere(8), { y: -hs * 0.2 - i * 0.22, z: hs * 0.6 + Math.sin(i * 0.5) * 0.15, sx: 0.26 - i * 0.025, sy: 0.3, sz: 0.26 - i * 0.025, color: o.trunk }); }
+    if (o.tusks) for (const t of [-1, 1]) sb.add(B.cone(6), { x: t * hs * 0.32, y: -hs * 0.45, z: hs * 0.55, sx: 0.09, sy: 0.55, sz: 0.09, rx: 1.9, color: o.tusks });
     const [sw, sh, sl] = o.snout;
     sb.add(B.sphere(10), { y: -hs * 0.15, z: hs * 0.4 + sl * 0.35, sx: sw * 2, sy: sh * 2, sz: sl * 2 + 0.05, color: o.snoutCol });
     sb.add(B.sphere(6), { y: -hs * 0.05, z: hs * 0.45 + sl * 0.75 + 0.02, sx: 0.06 + sw * 0.3, sy: 0.05 + sh * 0.2, sz: 0.04, color: o.nose });
@@ -64,6 +75,7 @@ function buildQuad(o) {
         case 'floppy': sb.add(B.sphere(6), { x: s * hs * 0.48, y: hs * 0.0, z: -hs * 0.05, sx: hs * 0.18, sy: hs * 0.6, sz: hs * 0.3, rz: s * 0.3, color: o.earCol }); break;
         case 'round': sb.add(B.sphere(6), { x: s * hs * 0.36, y: hs * 0.42, sx: hs * 0.3, sy: hs * 0.3, sz: hs * 0.12, color: o.earCol }); break;
         case 'long': sb.add(B.sphere(6), { x: s * hs * 0.18, y: hs * 0.9, z: -hs * 0.1, sx: hs * 0.22, sy: hs * 1.1, sz: hs * 0.12, rz: -s * 0.12, color: o.earCol }); break;
+        case 'elephant': sb.add(B.sphere(8), { x: s * hs * 0.85, y: hs * 0.05, z: -hs * 0.2, sx: hs * 0.12, sy: hs * 1.1, sz: hs * 0.9, color: o.earCol }); break;
         case 'side': sb.add(B.sphere(6), { x: s * hs * 0.6, y: hs * 0.15, sx: hs * 0.4, sy: hs * 0.14, sz: hs * 0.2, color: o.earCol }); break;
         default: break;
       }
@@ -83,6 +95,7 @@ const BIRDS = {
   corbeau: { s: 0.3, col: '#1d1d26', head: '#1d1d26', belly: '#2b2b38', beak: '#333', legs: '#333' },
   canard: { s: 0.3, col: '#f4f1ea', head: '#2a7a4a', belly: '#ffffff', beak: '#ffb000', legs: '#ff9f1c', neck: '#ffffff', swim: true },
   poulet: { s: 0.3, col: '#ffffff', head: '#ffffff', belly: '#f4f1ea', beak: '#ffb000', legs: '#ffb000', comb: '#e63946' },
+  pingouin: { s: 0.34, col: '#1b1b24', head: '#1b1b24', belly: '#ffffff', beak: '#ffb000', legs: '#ffb000' },
   aigle: { s: 0.6, col: '#5b3a1e', head: '#ffffff', belly: '#6b4226', beak: '#ffd23f', legs: '#ffd23f' },
 };
 
@@ -119,7 +132,7 @@ export function buildAnimal(species, opts = {}) {
     out.body = mesh(cached(`${species}:body`, q.body));
     root.add(out.body);
     out.head = mesh(cached(`${species}:head`, q.head));
-    out.head.position.set(0, o.y + o.H * 0.45 + (o.neck ? o.neck * 0.4 : 0), o.L / 2 + o.head * 0.15 + (o.neck ? 0.25 : 0));
+    out.head.position.set(0, o.y + o.H * 0.45 + (o.neck ? o.neck * 0.4 : 0) + (o.headUp || 0), o.L / 2 + o.head * 0.15 + (o.neck ? 0.25 : 0) + (o.headFwd || 0));
     out.headBase = out.head.position.clone();
     root.add(out.head);
     if (!o.small) {
@@ -131,7 +144,8 @@ export function buildAnimal(species, opts = {}) {
         out.legs.push(l);
       }
     }
-    out.height = o.y + o.H;
+    out.height = (o.y + o.H) * (o.scale || 1);
+    if (o.scale) root.scale.setScalar(o.scale);
   } else if (BIRDS[species]) {
     const o = BIRDS[species];
     const bd = buildBird(o);

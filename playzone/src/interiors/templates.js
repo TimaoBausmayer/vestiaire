@@ -587,6 +587,35 @@ export const TEMPLATES = {
     t.staff(I.x2 - 2, I.z2 - 2.6, 0, 'gerant');
   },
 
+  // Musée des Arts Rigolos : tableaux encadrés, statues, squelette de dinosaure, vitrines.
+  museum(t) {
+    const I = t.inner;
+    lightsAround(t);
+    const ARTS = [['joconde', 'La Jocondinette', '#8d6e4a', '#d4a373'], ['cri', 'Le Cri (du pigeon)', '#ff7b00', '#3a86ff'], ['nympheas', 'Les Nymphéas en baskets', '#2a9d8f', '#c77dff'], ['nuit', 'La Nuit étoilée sur PLAYZONE', '#1d3557', '#ffd166'], ['baguette', 'Nature morte à la baguette', '#f4a261', '#6b4226'], ['pigeon', 'Portrait de Gérard et son pigeon', '#9aa5b1', '#5c677d']];
+    // tableaux le long des murs gauche et droit (avec cordon et cartel)
+    ARTS.forEach(([id, name, c1, c2], i) => {
+      const left = i % 2 === 0, x = left ? I.x1 + 0.12 : I.x2 - 0.12, z = I.z1 + 3 + Math.floor(i / 2) * ((I.z2 - I.z1 - 6) / 2);
+      t.box(x, 1.2, z, 0.08, 1.6, 2.2, '#d4a017'); t.box(x + (left ? 0.05 : -0.05), 1.3, z, 0.04, 1.4, 2.0, c1);
+      t.sphere(x + (left ? 0.08 : -0.08), 1.9, z + 0.3, 0.25, c2);
+      t.box(x + (left ? 1.2 : -1.2), 0, z, 0.06, 0.9, 2.6, '#c1121f');
+      t.spot(x + (left ? 1.8 : -1.8), z, { label: `🖼️ Admirer « ${name} »`, action: 'musee', art: id, r: 1.5 });
+    });
+    // squelette de dinosaure au centre
+    const cz = (I.z1 + I.z2) / 2;
+    t.box(0, 0, cz, 6, 0.3, 2.4, '#adb5bd'); t.solid(0, cz, 6, 2.4, 3);
+    for (let k = 0; k < 9; k++) t.box(-2.4 + k * 0.6, 1.6 + Math.sin(k * 0.5) * 0.4, cz, 0.18, 0.18, 0.18, '#f4f1ea');
+    for (let k = 0; k < 6; k++) t.box(-1.2 + k * 0.45, 1.25, cz, 0.06, 0.8, 1.0, '#f4f1ea');
+    t.box(2.8, 2.6, cz, 0.9, 0.5, 0.5, '#f4f1ea'); t.box(2.5, 2.2, cz, 0.12, 1.0, 0.12, '#f4f1ea');
+    for (const [lx, lz] of [[-1.5, -0.6], [-1.5, 0.6], [1.2, -0.6], [1.2, 0.6]]) t.box(lx, 0.3, cz + lz, 0.15, 1.2, 0.15, '#f4f1ea');
+    t.spot(0, cz + 2.4, { label: '🦖 Admirer le squelette de « Rigolosaurus »', action: 'musee', art: 'dino', r: 1.8 });
+    // statue sur socle et vitrines
+    t.box(0, 0, I.z1 + 2.5, 1.2, 1, 1.2, '#e9ecef'); t.sphere(0, 1.6, I.z1 + 2.5, 0.45, '#ced4da'); t.cyl(0, 1, I.z1 + 2.5, 0.35, 0.6, '#ced4da');
+    t.solid(0, I.z1 + 2.5, 1.2, 1.2, 1.8);
+    t.spot(0, I.z1 + 3.8, { label: '🗿 Admirer « Le Penseur (qui a oublié à quoi il pensait) »', action: 'musee', art: 'statue', r: 1.4 });
+    for (const sx of [-4, 4]) { t.box(sx, 0, cz + 4, 1.4, 0.9, 0.8, '#5c3d24'); t.box(sx, 0.9, cz + 4, 1.3, 0.7, 0.7, '#cfe8ff', 'windows'); t.sphere(sx, 1.15, cz + 4, 0.15, '#ffd166'); t.solid(sx, cz + 4, 1.4, 0.8, 1.6); }
+    t.staff(t.door.x + 2, I.z2 - 1.4, Math.PI, 'guide');
+  },
+
   // Club de boxe : ring au centre, sacs de frappe le long du mur, poire de vitesse, vestiaire.
   boxing(t) {
     const I = t.inner;
@@ -743,6 +772,7 @@ export const STAFF_LINES = {
   secretaire: ['Pour une réclamation, prenez un ticket. Il n\'y a plus de tickets.'],
   maire: ['Je déclare cette journée... ouverte !', 'Ma statue de poulet vous plaît ? Je l\'ai gagnée au loto.'],
   gerant: ['Le record de cette borne ? C\'est moi. Évidemment.', 'Une partie ? C\'est 1 PlayCoin, la gloire est gratuite.'],
+  guide: ['Bienvenue au musée ! On ne touche pas, même avec les yeux.', 'Ce tableau a été peint par un pigeon. Un pigeon très doué.'],
   entraineur: ['Les poings en haut ! Toujours !', 'Danse, esquive, frappe. Et respire, surtout.', 'Le sac, ça forge le caractère. Et les biceps.'],
   boxeur: ['Tu veux faire les gants ? Monte sur le ring.', 'Je m\'entraîne pour battre le Champion. Un jour.'],
   coach: ['ALLEZ ! Encore 47 ! Je compte en kilos de croissants.', 'Pas de muscle sans croquette protéinée.'],

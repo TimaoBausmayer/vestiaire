@@ -1,4 +1,5 @@
 import { ISLANDS } from '../../shared/islands.js';
+import { PARKS, ZOO } from '../../shared/city.js';
 import * as THREE from 'three';
 import { h, clear, fmt } from './dom.js';
 import { BUILDINGS, ROADS, POND, LAKE, MARINA, CAP_PORT, zoneAt, WORLD_BOUNDS, POI, MINIGAME_SPOTS, PARKINGS, CITY_POI, PORT_QUAY } from '../../shared/world-layout.js';
@@ -54,6 +55,7 @@ export function drawMapBase(px = 2) {
   g.fillStyle = '#e9d8a6'; g.beginPath(); g.arc(X(CITY_POI.arena.x), Y(CITY_POI.arena.z), CITY_POI.arena.r * px, 0, 7); g.fill();
   const C = CITY_POI.circuit;
   g.strokeStyle = '#5a5e6a'; g.lineWidth = 9 * px; g.beginPath(); g.ellipse(X(C.x), Y(C.z), C.rx * px, C.rz * px, 0, 0, 7); g.stroke();
+  for (const P of [...PARKS, ZOO]) rect(P.x - P.w / 2, P.z - P.d / 2, P.x + P.w / 2, P.z + P.d / 2, '#57b84a');   // parcs et zoo
   for (const p of PARKINGS) rect(p.x1, p.z1, p.x2, p.z2, '#8a8f96');
   g.fillStyle = '#5a5e6a';
   for (const [x1, z1, x2, z2] of ROADS) g.fillRect(X(x1), Y(z1), (x2 - x1) * px, (z2 - z1) * px);

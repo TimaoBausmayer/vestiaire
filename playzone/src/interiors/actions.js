@@ -131,6 +131,14 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'court': g.police.courtDesk(); break;
     case 'submarine': g.submarine.desk(); break;
     case 'boxbag': g.boxing.bag(); break;
+    case 'musee': {
+      try {
+        const r = await g.net.request('park.play', { kind: 'musee', art: spot.art });
+        if (r.needs) g.emit('needs', r.needs);
+        g.ui.toast(`🖼️ ${pick(['Magnifique. On ne comprend rien, mais c\'est magnifique.', 'Tu prends un air inspiré. Ça marche.', 'Un visiteur pleure d\'émotion. Ou d\'allergie.', 'Tu recules de trois pas pour mieux voir. Wow.'])}${r.first ? ` (+${r.xp} XP, œuvre découverte)` : ''}`, 'good', 4000);
+      } catch (e) { g.ui.toast(e.message, 'bad'); }
+      break;
+    }
     case 'boxring': case 'boxdesk': g.boxing.menu(spot.ring); break;
     case 'hospital': {
       const r = await activity(g, 'hospital', b);

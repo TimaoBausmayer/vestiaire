@@ -4,7 +4,13 @@
 // prowl (rôde en meute), follow (animal de compagnie).
 
 // Animaux supplémentaires dans les nouveaux quartiers : [espèce, nombre, zone].
+// Enclos du Zoo de PLAYZONE (x 15..165, z -1195..-1085) : [espèce, nombre, enclos, nom de l'enclos]
+export const ZOO_PENS = [
+  ['lion', 3, [30, -1190, 68, -1150], 'Savane des lions'], ['elephant', 2, [74, -1190, 112, -1150], 'Plaine des éléphants'], ['girafe', 3, [118, -1190, 160, -1150], 'Coin des girafes'],
+  ['zebre', 4, [30, -1130, 68, -1090], 'Prairie des zèbres'], ['singe', 5, [74, -1130, 112, -1090], 'Île aux singes'], ['pingouin', 6, [118, -1130, 160, -1090], 'Banquise des pingouins'],
+];
 export const EXTRA_HERDS = [
+  ...ZOO_PENS.map(([sp, n, [x1, z1, x2, z2]]) => [sp, n, [x1 + 2.5, z1 + 2.5, x2 - 2.5, z2 - 2.5]]),
   ['vache', 4, [-280, 12, -232, 46]], ['mouton', 5, [-280, 12, -232, 46]], ['cheval', 2, [-280, 12, -232, 46]],
   ['poulet', 5, [-258, -38, -236, -30]], ['cochon', 2, [-258, -38, -236, -30]],
   ['pigeon', 8, [-56, -226, -14, -202]], ['pigeon', 6, [150, 33, 198, 50]],
@@ -33,6 +39,13 @@ export const SPECIES = {
   tortue: { name: 'Tortue', emoji: '🐢', behavior: 'wander', speed: 0.5, count: 3, area: [-90, 78, 40, 92], adoptable: true, sound: '...', flee: 0 },
   serpent: { name: 'Serpent', emoji: '🐍', behavior: 'wander', speed: 1.3, count: 2, area: [-124, -60, -100, -30], adoptable: true, sound: 'Sssss.', flee: 0 },
   aigle: { name: 'Aigle', emoji: '🦅', behavior: 'fly', speed: 9, count: 1, area: [-128, -128, 128, 0], sound: 'Kiiiii !', flee: 0, high: true },
+  // zoo de PLAYZONE (uniquement dans leurs enclos)
+  lion: { name: 'Lion', emoji: '🦁', behavior: 'wander', speed: 1.6, count: 0, area: [0, 0, 1, 1], sound: 'ROAAAR ! (il bâille, en fait)', flee: 0 },
+  elephant: { name: 'Éléphant', emoji: '🐘', behavior: 'graze', speed: 0.9, count: 0, area: [0, 0, 1, 1], sound: 'Pouuuuh ! 🎺', flee: 0 },
+  girafe: { name: 'Girafe', emoji: '🦒', behavior: 'graze', speed: 1.1, count: 0, area: [0, 0, 1, 1], sound: '... (les girafes ne disent rien)', flee: 0 },
+  zebre: { name: 'Zèbre', emoji: '🦓', behavior: 'graze', speed: 1.6, count: 0, area: [0, 0, 1, 1], sound: 'Hiii ! (en noir et blanc)', flee: 2 },
+  singe: { name: 'Singe', emoji: '🐒', behavior: 'wander', speed: 3, count: 0, area: [0, 0, 1, 1], sound: 'Hou hou ha ha !', flee: 2 },
+  pingouin: { name: 'Pingouin', emoji: '🐧', behavior: 'wander', speed: 0.8, count: 0, area: [0, 0, 1, 1], sound: 'Coin ? (non, ça c\'est le canard)', flee: 0 },
   crocodile: { name: 'Crocodile', emoji: '🐊', behavior: 'bask', speed: 2.5, count: 1, area: [-38, -120, -22, -104], sound: 'Clac.', flee: 0, water: true },
 };
 
