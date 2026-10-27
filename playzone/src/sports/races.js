@@ -79,10 +79,17 @@ export class Races {
 
   // ------------------------------------------------------------------------------ accueils
   // Club-house du Stade des Crampons : foot, course à pied, vélo.
-  clubDesk() {
+  clubDesk(b = null) {
     const g = this.g;
+    if (b && b.id !== 'club-foot') {   // club de quartier : foot sur son propre terrain
+      g.ui.dialog({ name: 'Accueil', role: b.name, text: 'Bienvenue au club ! Le terrain est juste à côté : entraînements et matchs gratuits, ta licence vaut dans tous les clubs de la ville.', choices: [
+        { label: '⚽ Football (club gratuit)', action: (m) => { m.close(); g.football.desk(b); } },
+        { label: 'Au revoir', ghost: true, action: (m) => m.close() },
+      ] });
+      return;
+    }
     g.ui.dialog({ name: 'Accueil', role: 'Club-house du Stade des Crampons', text: 'Bienvenue à la Maison des Sports ! Foot et course à pied gratuits, vélo avec licence (essai gratuit).', choices: [
-      { label: '⚽ Football (club gratuit)', action: (m) => { m.close(); g.football.desk(); } },
+      { label: '⚽ Football (club gratuit)', action: (m) => { m.close(); g.football.desk(b); } },
       { label: '🏃 Course à pied (gratuit)', action: (m) => { m.close(); this.desk('course'); } },
       { label: '🚴 Cyclisme (Vélo Club)', action: (m) => { m.close(); this.desk('velo'); } },
       { label: 'Au revoir', ghost: true, action: (m) => m.close() },

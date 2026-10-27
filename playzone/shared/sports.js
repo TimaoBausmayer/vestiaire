@@ -1,3 +1,4 @@
+import { FOOT_SITES } from './city.js';
 // SPORTS : règles pures partagées (client + autorité). Football d'abord : stade, club gratuit,
 // entraînements gratuits, matchs contre des équipes PNJ, progression (compétences, endurance, niveau).
 // Les compétences montent en pratiquant : plus on joue, meilleur on devient.
@@ -6,6 +7,12 @@
 export const PITCH = { x: 450, z: -560, w: 64, d: 40, goalW: 7.3, goalH: 2.44, box: 12 };
 export const PITCH_RECT = [PITCH.x - PITCH.w / 2 - 16, PITCH.z - PITCH.d / 2 - 12, PITCH.x + PITCH.w / 2 + 16, PITCH.z + PITCH.d / 2 + 22];
 export const inPitch = (x, z, m = 0) => Math.abs(x - PITCH.x) <= PITCH.w / 2 + m && Math.abs(z - PITCH.z) <= PITCH.d / 2 + m;
+// Tous les terrains : le grand stade + les terrains des clubs de quartier (même taille). Côté client,
+// PITCH est déplacé sur le terrain du club où l'on joue ; l'autorité, elle, accepte n'importe lequel.
+export const PITCHES = [{ id: 'crampons', name: 'Stade des Crampons', x: PITCH.x, z: PITCH.z, club: 'club-foot', color: '#2a9d3a', main: true },
+  ...FOOT_SITES.map((f) => ({ id: f.id, name: f.name, x: f.x, z: f.z, club: `club-foot-${f.id}`, color: f.color }))];
+export const pitchAt = (x, z, m = 0) => PITCHES.find((p) => Math.abs(x - p.x) <= PITCH.w / 2 + m && Math.abs(z - p.z) <= PITCH.d / 2 + m) || null;
+export const pitchOfClub = (id) => PITCHES.find((p) => p.club === id) || PITCHES[0];
 
 export const FOOT_SKILLS = { tir: 'Tir', dribble: 'Dribble', passe: 'Passe', vitesse: 'Vitesse' };
 export const FOOT_LEVELS = [

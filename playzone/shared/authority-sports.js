@@ -3,11 +3,11 @@
 // aux compétences, à l'endurance (corps) et à l'XP foot ; primes en PlayCoins pour les matchs officiels.
 import { BUILDING_BY_ID } from './world-layout.js';
 import { randInt } from './rng.js';
-import { PITCH, inPitch, DRILLS, MATCHES, footLevel, levelIndex, drillGain, defaultFoot, SKILL_MAX, aiStrength, TEAMS } from './sports.js';
+import { PITCH, pitchAt, PITCHES, DRILLS, MATCHES, footLevel, levelIndex, drillGain, defaultFoot, SKILL_MAX, aiStrength, TEAMS } from './sports.js';
 
 const err = (error) => ({ ok: false, error });
-const atClub = (self, ctx) => self.atBuilding(ctx, BUILDING_BY_ID['club-foot'], 3) || (ctx.pos && inPitch(ctx.pos.x, ctx.pos.z, 10));
-const atPitch = (ctx) => ctx.pos && inPitch(ctx.pos.x, ctx.pos.z, 12);
+const atClub = (self, ctx) => PITCHES.some((p) => self.atBuilding(ctx, BUILDING_BY_ID[p.club], 3)) || (ctx.pos && !!pitchAt(ctx.pos.x, ctx.pos.z, 10));
+const atPitch = (ctx) => ctx.pos && !!pitchAt(ctx.pos.x, ctx.pos.z, 12);
 export function defaultSports() { return { foot: defaultFoot() }; }
 
 function gainEndurance(p, v) { p.body.endurance = Math.min(100, (p.body.endurance ?? 15) + v); }

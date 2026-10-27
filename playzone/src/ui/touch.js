@@ -18,9 +18,10 @@ export class TouchControls {
     this.actionBtn = btn('💦', '', 'Arroser (maintenir)', () => { input.actionHeld = true; }, () => { input.actionHeld = false; });
     this.sprintBtn = btn('🏃', '', 'Courir', (b) => { input.sprintToggle = !input.sprintToggle; b.classList.toggle('on', input.sprintToggle); });
     this.danceBtn = btn('💃', '', 'Danser', () => { const p = game.player; p.dance = p.pose === 'dance' ? (p.dance + 1) % 3 : 0; p.setPose('dance'); game.emit('dance'); });
+    this.punchBtn = btn('👊', '', 'Frapper (G)', () => { if (game.boxing?.f) game.boxing.punch('jab'); else if (game.boxing?.bagS) game.boxing.bagHit(false); else game.crimes?.punch(); });
     this.useBtn = btn('✋', 'big', 'Interagir', () => game.interact());
     this.jumpBtn = btn('⤒', 'big', 'Sauter', () => input.press('Space'));
-    this.el = h('div.touch', this.joy, h('div.tbtns', this.actionBtn, this.sprintBtn, this.danceBtn, this.useBtn, this.jumpBtn));
+    this.el = h('div.touch', this.joy, h('div.tbtns', this.actionBtn, this.punchBtn, this.sprintBtn, this.danceBtn, this.useBtn, this.jumpBtn));
     game.ui.root.append(this.el);
     this.el.classList.toggle('on', input.isTouch);
     input.on('joystick', (j) => {

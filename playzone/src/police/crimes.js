@@ -103,9 +103,10 @@ export class Crimes {
   // ------------------------------------------------------------------ actions
   punch() {
     const g = this.game, P = g.player.pos;
-    if (this.hitCd > 0) return;
-    this.hitCd = 0.8;
-    g.player.setPose('throw', 0.5);
+    if (this.hitCd > 0 || g.boxing?.busy) return;
+    this.hitCd = 0.45;
+    this.alt = !this.alt;
+    g.player.setPose(this.alt ? 'jab' : 'jabL', 0.25);   // enchaînement gauche-droite
     // voleur PNJ : on aide la police
     if (g.emergencies?.punchTarget(P)) return;
     // frapper un policier : il tombe (et ça coûte cher)
@@ -122,6 +123,7 @@ export class Crimes {
     for (const n of g.npcs?.list || []) { const d = Math.hypot(n.pos.x - P.x, n.pos.z - P.z); if (d < bd && n.state !== 'ko') { bd = d; target = n; } }
     if (!target) { g.sfx('throw'); return; }
     g.sfx('bump');
+    g.fx?.emit?.({ x: target.pos.x, y: 1.6, z: target.pos.z, n: 9, colors: ['#ffffff', '#ffd23f'], speed: 2.5, gravity: 4, life: 0.45, size: 0.08 });
     target.knock(P.x, P.z);
     const w = this.witnesses(P) > 1 || Math.random() < 0.5;
     g.police.crime('coups', w);

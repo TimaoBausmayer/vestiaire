@@ -532,3 +532,23 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 .casino-table .game-show { font-size: 26px; text-align: center; padding: 18px 10px; min-height: 40px; border-radius: 14px; background: radial-gradient(circle at 50% 30%, #1f8a3b, #0d3b1c); margin-bottom: 8px; word-break: break-word; }
 .casino-table .game-msg { text-align: center; font-weight: 800; margin-bottom: 8px; }
 .casino-table .opt small { opacity: .75; }
+
+/* Boxe : barres de vie, endurance, round, flash quand on encaisse, compteur du sac */
+.box-hud { position: absolute; top: calc(10px + var(--safe-t, 0px)); left: 50%; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; background: rgba(15, 12, 40, .82); padding: 8px 14px; border-radius: 16px; z-index: 12; color: #fff; width: min(620px, 94vw); pointer-events: none; }
+.box-side { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.box-side.r { text-align: right; }
+.box-bar { height: 12px; background: rgba(255, 255, 255, .15); border-radius: 8px; overflow: hidden; }
+.box-side.r .box-bar { direction: rtl; }
+.box-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ef476f, #ffd166); transition: width .15s; }
+.box-bar i.me { background: linear-gradient(90deg, #06d6a0, #3a86ff); }
+.box-bar.st { height: 6px; }
+.box-bar i.st { background: #ffd166; }
+.box-mid { text-align: center; min-width: 90px; }
+.box-round { font-size: 15px; letter-spacing: .5px; }
+.box-time { font-size: 20px; font-weight: 800; }
+.box-btns button { font-size: 15px; }
+.box-flash { position: absolute; inset: 0; pointer-events: none; z-index: 11; background: radial-gradient(circle, transparent 50%, rgba(220, 0, 0, .55)); opacity: 0; }
+.box-flash.on { animation: boxflash .35s ease-out; }
+@keyframes boxflash { from { opacity: 1; } to { opacity: 0; } }
+.box-bag { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); background: rgba(15, 12, 40, .85); color: #fff; padding: 12px 22px; border-radius: 18px; text-align: center; z-index: 12; pointer-events: none; display: flex; flex-direction: column; gap: 4px; }
+.box-count { font-size: 44px; font-weight: 900; color: #ffd166; }

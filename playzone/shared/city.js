@@ -631,6 +631,22 @@ const Q_COLORS = ['#f4d35e', '#ee964b', '#83c5be', '#e5989b', '#b5e48c', '#a2d2f
   }
 }
 
+// --- SPORT DANS TOUS LES QUARTIERS : clubs de foot (chacun avec son terrain), salles de sport et
+// clubs de boxe. Emplacements choisis hors routes, bâtiments, parkings, circuits et pistes.
+export const FOOT_SITES = [
+  { id: 'mouettes', name: 'FC des Mouettes', x: 350, z: -40, color: '#1d4ed8' },
+  { id: 'arena', name: 'Racing Club de l\'Arène', x: 10, z: -530, color: '#e63946' },
+  { id: 'nordville', name: 'Olympique de Nordville', x: -140, z: -1150, color: '#0ea5e9' },
+  { id: 'prestige', name: 'AS Prestige', x: 630, z: -490, color: '#7c3aed' },
+  { id: 'grandlarge', name: 'Grand-Large FC', x: 1220, z: -190, color: '#f59e0b' },
+  { id: 'desert', name: 'Dunes Sporting Club', x: -1500, z: -220, color: '#c2410c' },
+];
+for (const f of FOOT_SITES) add({ id: `club-foot-${f.id}`, name: `Club-house du ${f.name}`, kind: 'shop', shop: 'foot-club', interior: 'agency', x: f.x, z: f.z - 42, w: 24, d: 12, h: 6, facing: 'S', color: f.color, roofColor: '#ffffff', sign: f.name.toUpperCase(), district: 'sport', lot: { x1: f.x - 48, z1: f.z - 34, x2: f.x + 48, z2: f.z + 42 }, pitch: { x: f.x, z: f.z } });
+const GYM_SITES = [[270, -120, 'E', 'Fitness Park des Affaires'], [110, -450, 'S', 'Salle Gros Biceps'], [580, -290, 'W', 'Prestige Fitness Club'], [-120, -1330, 'N', 'Nordville Muscu'], [-270, -90, 'W', 'Salle de la Campagne'], [-240, -450, 'S', 'CrossFit des Tilleuls'], [230, -1370, 'S', 'Basic Fit-Fit'], [1340, -280, 'N', 'Salle du Grand-Large'], [870, -90, 'W', 'Club Forme des Embruns'], [2580, -340, 'E', 'Palm Gym Tropical']];
+GYM_SITES.forEach(([x, z, facing, name], i) => add({ id: `gym-${i + 1}`, name, kind: 'service', interior: 'gym', x, z, w: 20, d: 20, h: 8, facing, color: ['#ff70a6', '#3a86ff', '#06d6a0', '#ffbe0b', '#8338ec'][i % 5], roofColor: '#22223b', sign: name.toUpperCase(), district: 'sport' }));
+const BOXING_SITES = [[310, -180, 'W', 'Boxing Club des Affaires'], [-120, -400, 'W', 'Les Gants d\'Or'], [-90, -1430, 'N', 'Ring de Nordville'], [700, -310, 'N', 'Prestige Boxing'], [-240, 20, 'E', 'Boxe Fermière'], [270, -580, 'E', 'Le Punching-Ball'], [300, -1330, 'N', 'Uppercut Club'], [-380, -1150, 'W', 'Crochet du Gauche']];
+BOXING_SITES.forEach(([x, z, facing, name], i) => add({ id: `boxe-${i + 1}`, name, kind: 'service', interior: 'boxing', x, z, w: 18, d: 18, h: 7, facing, color: ['#d00000', '#14213d', '#9d0208', '#264653'][i % 4], roofColor: '#111111', sign: `🥊 ${name.toUpperCase()}`, neon: i % 2 === 0, district: 'sport' }));
+
 export const GAS_STATIONS = CITY_BUILDINGS.filter((b) => b.gas).map((b) => ({ id: b.id, name: b.name, ...b.gas }));
 
 // Lieux spéciaux des nouveaux quartiers.

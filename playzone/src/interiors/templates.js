@@ -587,6 +587,41 @@ export const TEMPLATES = {
     t.staff(I.x2 - 2, I.z2 - 2.6, 0, 'gerant');
   },
 
+  // Club de boxe : ring au centre, sacs de frappe le long du mur, poire de vitesse, vestiaire.
+  boxing(t) {
+    const I = t.inner;
+    lightsAround(t);
+    const cz = (I.z1 + I.z2) / 2 - 0.5, R = 3.2, H = 0.6;
+    // ring : plateau bleu, coins rouge / bleu, trois rangs de cordes, marches
+    t.box(0, 0, cz, R * 2 + 0.6, H, R * 2 + 0.6, '#14213d'); t.box(0, H, cz, R * 2, 0.04, R * 2, '#3d5a80');
+    t.solid(0, cz, R * 2 + 0.6, R * 2 + 0.6, H);
+    for (const [sx, sz, c] of [[-1, -1, '#d00000'], [1, 1, '#1d4ed8'], [-1, 1, '#f1f1f1'], [1, -1, '#f1f1f1']]) t.cyl(sx * R, H, cz + sz * R, 0.09, 1.3, c, 8);
+    for (const y of [H + 0.45, H + 0.8, H + 1.15]) {
+      t.box(0, y, cz - R, R * 2, 0.04, 0.04, '#f1f1f1'); t.box(0, y, cz + R, R * 2, 0.04, 0.04, '#f1f1f1');
+      t.box(-R, y, cz, 0.04, 0.04, R * 2, '#f1f1f1'); t.box(R, y, cz, 0.04, 0.04, R * 2, '#f1f1f1');
+    }
+    t.box(0, 0, cz + R + 0.6, 1.2, 0.3, 0.5, '#6c757d');
+    const [rx, rz] = t.F.L(0, cz);
+    t.spot(0, cz + R + 1.2, { label: '🥊 Monter sur le ring : combat d\'entraînement', action: 'boxring', r: 1.8, priority: 2, ring: { x: rx, z: rz, y: H, half: R - 0.5, th: t.F.th } });
+    // sacs de frappe (mur gauche) et poire de vitesse
+    for (let i = 0; i < 4; i++) {
+      const z = I.z1 + 2 + i * 2.6;
+      if (z > I.z2 - 3) break;
+      t.box(I.x1 + 1.4, 2.05, z, 0.05, Math.max(0.3, t.gH - 2.05), 0.05, '#adb5bd');
+      t.cyl(I.x1 + 1.4, 0.55, z, 0.32, 1.5, ['#d00000', '#14141c', '#1d4ed8', '#9d0208'][i], 14);
+      t.solid(I.x1 + 1.4, z, 0.7, 0.7, 2.1);
+      t.spot(I.x1 + 2.4, z, { label: '🥊 Taper dans le sac de frappe', action: 'boxbag', r: 1.2 });
+    }
+    t.box(I.x2 - 0.3, 1.5, I.z1 + 2, 0.6, 0.1, 0.6, '#5c3d24'); t.sphere(I.x2 - 0.5, 1.3, I.z1 + 2, 0.15, '#d00000');
+    t.spot(I.x2 - 1.4, I.z1 + 2, { label: '🥊 Poire de vitesse', action: 'boxbag', r: 1.1 });
+    // affiches, banc, entraîneur·e, sparring-partners
+    for (let i = 0; i < 3; i++) t.box(-3 + i * 3, 2, I.z1 + 0.08, 1.4, 1.9, 0.03, ['#ffd23f', '#d00000', '#f1f1f1'][i]);
+    t.box(I.x2 - 1, 0, I.z2 - 3.5, 0.5, 0.45, 2.6, '#8d5a2b'); t.solid(I.x2 - 1, I.z2 - 3.5, 0.5, 2.6, 0.45);
+    t.staff(I.x2 - 2.6, cz + R + 1.2, -Math.PI / 2, 'entraineur');
+    t.spot(I.x2 - 3.8, cz + R + 1.2, { label: '📋 Coach : mon palmarès, les adversaires', action: 'boxdesk', r: 1.4, ring: { x: rx, z: rz, y: H, half: R - 0.5, th: t.F.th } });
+    t.staff(I.x1 + 3.2, I.z1 + 4.6, -Math.PI / 2, 'boxeur');
+  },
+
   gym(t) {
     const I = t.inner;
     lightsAround(t);
@@ -708,6 +743,8 @@ export const STAFF_LINES = {
   secretaire: ['Pour une réclamation, prenez un ticket. Il n\'y a plus de tickets.'],
   maire: ['Je déclare cette journée... ouverte !', 'Ma statue de poulet vous plaît ? Je l\'ai gagnée au loto.'],
   gerant: ['Le record de cette borne ? C\'est moi. Évidemment.', 'Une partie ? C\'est 1 PlayCoin, la gloire est gratuite.'],
+  entraineur: ['Les poings en haut ! Toujours !', 'Danse, esquive, frappe. Et respire, surtout.', 'Le sac, ça forge le caractère. Et les biceps.'],
+  boxeur: ['Tu veux faire les gants ? Monte sur le ring.', 'Je m\'entraîne pour battre le Champion. Un jour.'],
   coach: ['ALLEZ ! Encore 47 ! Je compte en kilos de croissants.', 'Pas de muscle sans croquette protéinée.'],
   professeur: ['Silence au fond ! Oui, toi, la plante verte.', 'Question du jour : combien de pattes a un poulet en pyjama ?'],
   gardien: ['Pas de lime à ongles dans les gâteaux, merci.', 'Ici, l\'heure de promenade dure 15 minutes. Les escargots trouvent ça court.'],

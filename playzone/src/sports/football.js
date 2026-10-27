@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { h } from '../ui/dom.js';
 import { Avatar } from '../characters/avatar.js';
 import { DEFAULT_APPEARANCE, SKINS, HAIR_STYLES, HAIR_COLORS } from '../../shared/appearance.js';
-import { PITCH, DRILLS, MATCHES, FOOT_SKILLS, FOOT_LEVELS, footLevel, levelIndex } from '../../shared/sports.js';
+import { PITCH, PITCHES, pitchOfClub, DRILLS, MATCHES, FOOT_SKILLS, FOOT_LEVELS, footLevel, levelIndex } from '../../shared/sports.js';
 import { mulberry32 } from '../../shared/rng.js';
 
 // FOOTBALL : Stade des Crampons (terrain, buts, tribunes, projecteurs), club-house (inscription
@@ -28,8 +28,26 @@ export class Football {
   }
 
   // ------------------------------------------------------------------------------ stade
+  // un terrain par club (le grand stade a en plus le tableau d'affichage et les supporters)
   buildStadium() {
-    const g = this.g, root = new THREE.Group();
+    for (const p of PITCHES) { Object.assign(PITCH, { x: p.x, z: p.z }); this.buildPitch(p); }
+    this.usePitch(PITCHES[0]);
+    // ballon (caché hors activité)
+    const g = this.g;
+    const c = document.createElement('canvas'); c.width = 64; c.height = 32;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 64, 32); x.fillStyle = '#111';
+    for (let i = 0; i < 6; i++) { x.beginPath(); x.arc(6 + i * 11, i % 2 ? 9 : 23, 4.5, 0, 7); x.fill(); }
+    this.ball = new THREE.Mesh(new THREE.SphereGeometry(R, 16, 12), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c), roughness: 0.5 }));
+    this.ball.castShadow = true; this.ball.visible = false;
+    g.engine.scene.add(this.ball);
+    this.cones = new THREE.Group(); g.engine.scene.add(this.cones);
+  }
+
+  // terrain du club où l'on joue (toutes les positions du jeu sont relatives à PITCH)
+  usePitch(p) { if (!this.s) { this.pitch = p; Object.assign(PITCH, { x: p.x, z: p.z }); } }
+
+  buildPitch(site) {
+    const g = this.g, root = new THREE.Group(), main = !!site.main;
     root.name = 'stade';
     const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, ...o });
     const plane = (w, d, m, x, z, y = 0.04) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), m); p.position.set(x, y, z); p.receiveShadow = true; root.add(p); return p; };
@@ -67,7 +85,8 @@ export class Football {
       g.collision.addCyl(x, z, 0.3, 0, 14);
     }
     // panneau du club
-    const sign = new THREE.Mesh(new THREE.BoxGeometry(12, 2, 0.2), mat('#2a9d3a')); sign.position.set(PITCH.x, 5.6, PITCH.z + W + 16.5); root.add(sign);
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(12, 2, 0.2), mat(site.color || '#2a9d3a')); sign.position.set(PITCH.x, 5.6, PITCH.z + W + 16.5); root.add(sign);
+    if (!main) { g.engine.scene.add(root); return; }
     // tableau d'affichage (texture mise à jour pendant les matchs)
     this.board = document.createElement('canvas'); this.board.width = 512; this.board.height = 192;
     this.boardTex = new THREE.CanvasTexture(this.board);
@@ -88,14 +107,6 @@ export class Football {
     }
     this.cheer = 0;
     g.engine.scene.add(root);
-    // ballon (caché hors activité)
-    const c = document.createElement('canvas'); c.width = 64; c.height = 32;
-    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, 64, 32); x.fillStyle = '#111';
-    for (let i = 0; i < 6; i++) { x.beginPath(); x.arc(6 + i * 11, i % 2 ? 9 : 23, 4.5, 0, 7); x.fill(); }
-    this.ball = new THREE.Mesh(new THREE.SphereGeometry(R, 16, 12), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(c), roughness: 0.5 }));
-    this.ball.castShadow = true; this.ball.visible = false;
-    g.engine.scene.add(this.ball);
-    this.cones = new THREE.Group(); g.engine.scene.add(this.cones);
   }
 
   get active() { return !!this.s; }
@@ -110,12 +121,13 @@ export class Football {
   }
 
   // ------------------------------------------------------------------------------ club-house
-  desk() {
+  desk(b = null) {
     const g = this.g;
     if (this.s) { g.ui.toast('Termine d\'abord ton activité en cours.', 'bad'); return; }
+    if (b) this.usePitch(pitchOfClub(b.id));
     let tab = 'club', strength = 0.5;
     const m = g.ui.modal({
-      title: '⚽ Stade des Crampons', sub: 'Club GRATUIT : inscription, entraînements et petits matchs gratuits. Plus tu joues, meilleur tu deviens.',
+      title: `⚽ ${this.pitch?.name || 'Stade des Crampons'}`, sub: 'Club GRATUIT : inscription, entraînements et petits matchs gratuits. Plus tu joues, meilleur tu deviens.',
       width: 'min(640px, 96vw)',
       build: (body, mm) => {
         const f = g.profile.sports.foot, lv = footLevel(f.xp);
@@ -658,7 +670,7 @@ export class Football {
     const r = await req(g, 'foot.drillEnd', { score });
     if (!r) return;
     g.sfx('levelup');
-    g.ui.dialog({ name: 'Coach Jean-Mich', role: 'Stade des Crampons', text: `${DRILLS[drill].name} : ${r.score}/${DRILLS[drill].max}. ${FOOT_SKILLS[r.skill]} → ${Math.round(r.value)}/100, endurance ${r.endurance}/100.${r.tired ? ' (Tu enchaînes beaucoup : fais une pause, les progrès sont réduits.)' : ''} Encore une ?`, choices: [
+    g.ui.dialog({ name: 'Coach Jean-Mich', role: this.pitch?.name || 'Stade des Crampons', text: `${DRILLS[drill].name} : ${r.score}/${DRILLS[drill].max}. ${FOOT_SKILLS[r.skill]} → ${Math.round(r.value)}/100, endurance ${r.endurance}/100.${r.tired ? ' (Tu enchaînes beaucoup : fais une pause, les progrès sont réduits.)' : ''} Encore une ?`, choices: [
       { label: '🔁 Recommencer', action: (m) => { m.close(); this.startDrill(drill); } },
       { label: 'Ça ira', ghost: true, action: (m) => m.close() },
     ] });

@@ -47,7 +47,7 @@ export async function runAction(game, action, { b, spot, staff }) {
       const s = b.shop;
       if (s === 'cars-new' || s === 'cars-luxe') dealerPanel(g, b, () => openShop(g, s, b));
       else if (s === 'auto-ecole') policeDesk(g, true);
-      else if (s === 'foot-club') g.races?.clubDesk();
+      else if (s === 'foot-club') g.races?.clubDesk(b);
       else if (s === 'bikepark') g.races?.bikeDesk(b);
       else if (s === 'voile-club') g.sailing?.desk(b);
       else if (s === 'f1') g.races?.desk('f1');
@@ -130,6 +130,8 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'police': policeDesk(g); break;
     case 'court': g.police.courtDesk(); break;
     case 'submarine': g.submarine.desk(); break;
+    case 'boxbag': g.boxing.bag(); break;
+    case 'boxring': case 'boxdesk': g.boxing.menu(spot.ring); break;
     case 'hospital': {
       const r = await activity(g, 'hospital', b);
       if (r) { g.ui.dialog({ name: 'Dr Bobo', role: 'Hôpital Saint-Bobo', text: pick(DIAG), choices: [{ label: 'Merci docteur', ghost: true, action: (m) => m.close() }] }); needsToast(g, r, '🩺 Consultation terminée'); }

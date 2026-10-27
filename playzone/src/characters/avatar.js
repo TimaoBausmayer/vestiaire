@@ -394,6 +394,18 @@ export class Avatar {
     this.root.scale.setScalar(a.height || 1);
   }
 
+  // gants de boxe (couleur) ou null pour les retirer
+  gloves(color) {
+    for (const g of this._gloves || []) g.removeFromParent();
+    this._gloves = [];
+    if (!color) return;
+    for (const fore of [this.foreL, this.foreR]) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), new THREE.MeshStandardMaterial({ color, roughness: 0.35 }));
+      m.position.set(0, -0.3, 0.02); m.scale.set(1, 1.15, 1.1);
+      fore.add(m); this._gloves.push(m);
+    }
+  }
+
   hold(obj) {
     if (this.held) this.foreR.remove(this.held);
     this.held = obj;
@@ -462,6 +474,12 @@ export class Avatar {
     else if (pose === 'spray' || pose === 'hold-forward') { set(AL, -1.45, 0, -0.25); set(AR, -1.45, 0, 0.25); }
     else if (pose === 'wave') { set(AR, 0, 0, -2.7 + Math.sin(t * 10) * 0.35); }
     else if (pose === 'throw') { set(AR, -2.6, 0, -0.2); }
+    // boxe : garde, direct droit / gauche, crochet, coup encaissé
+    else if (pose === 'guard') { set(AL, -1.95, 0, 0.42); set(AR, -1.95, 0, -0.42); headX = 0.15; }
+    else if (pose === 'jab') { set(AR, -1.6, 0, 0.12); set(AL, -1.95, 0, 0.42); lean = 0.12; headY = -0.15; }
+    else if (pose === 'jabL') { set(AL, -1.6, 0, -0.12); set(AR, -1.95, 0, -0.42); lean = 0.12; headY = 0.15; }
+    else if (pose === 'hook') { set(AR, -1.45, -0.9, -1.1); set(AL, -1.95, 0, 0.42); lean = 0.18; headY = -0.35; }
+    else if (pose === 'hit') { set(AL, -1.8, 0, 0.5); set(AR, -1.8, 0, -0.5); lean = -0.3; headX = -0.45; }
     else if (pose === 'celebrate') { set(AL, 0, 0, 2.7 + Math.sin(t * 12) * 0.2); set(AR, 0, 0, -2.7 - Math.sin(t * 12) * 0.2); bob = Math.abs(Math.sin(t * 8)) * 0.25; }
     else if (pose === 'cook') { set(AL, -1.1 + Math.sin(t * 12) * 0.2, 0, 0.2); set(AR, -1.1 - Math.sin(t * 12) * 0.2, 0, -0.2); }
     else if (pose === 'phone') { set(AR, -2.0, 0, 0.55); set(AL, -0.5, 0, -0.1); headX = 0.38; }
@@ -497,6 +515,10 @@ export class Avatar {
     else if (pose === 'cook') { eL = eR = -0.7; }
     else if (pose === 'celebrate') { eL = eR = -0.2; }
     else if (pose === 'throw') { eR = -0.6; }
+    else if (pose === 'guard' || pose === 'hit') { eL = eR = -2.0; }
+    else if (pose === 'jab') { eR = -0.05; eL = -2.0; }
+    else if (pose === 'jabL') { eL = -0.05; eR = -2.0; }
+    else if (pose === 'hook') { eR = -1.4; eL = -2.0; }
     set(this.foreL.rotation, eL, 0, 0); set(this.foreR.rotation, eR, 0, 0);
     set(this.shinL.rotation, kL, 0, 0); set(this.shinR.rotation, kR, 0, 0);
 
