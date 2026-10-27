@@ -263,13 +263,14 @@ export class Home {
     const g = this.game;
     const items = g.net.content.items;
     const m = g.ui.modal({
-      title: '🛠️ Décoration', sub: `Logement : ${HOUSING_BY_ID[g.profile.home.place]?.name || 'studio'}${g.profile.home.place === 'studio' && g.profile.home.size === 'appart' ? ' (agrandi)' : ''} · ${g.profile.home.furniture.length}/60 meubles posés`,
+      title: '🛠️ Décoration', sub: `Logement : ${HOUSING_BY_ID[g.profile.home.place]?.name || 'studio'}${g.profile.home.place === 'studio' && g.profile.home.size === 'appart' ? ' (agrandi)' : ''} · ${g.profile.home.furniture.length}/120 éléments posés`,
       build: (b) => {
         const p = g.profile;
         const owned = Object.keys(p.inventory).filter((id) => items[id]?.furniture && p.inventory[id] > 0);
         if (!owned.length) b.append(h('p.muted', 'Tu n\'as encore aucun meuble. Va chez Meubles Mous, sur la Grande Place !'));
         if (p.home.furniture.length) b.append(h('button.btn.block', { style: { marginBottom: '10px' }, onclick: () => { const k = this.nearestPlaced(); if (k < 0) { g.ui.toast('Approche-toi d\'un meuble.', 'bad'); return; } m.close(); this.startGhost(p.home.furniture[k].i, k); } }, '✋ Déplacer le meuble le plus proche (touche M)'));
         b.append(h('p.muted', '🧱 Murs et cloisons (2 m, à tourner avec R) : Brico Dépôt ou Maison & Déco. Pose-les bout à bout pour créer des pièces.'));
+        if (this.houseB && gardenOf(this.houseB.id)) b.append(h('p.muted', '🌳 Ton jardin est derrière la maison : va dedans pour y poser piscine, jacuzzi, hamac, barbecue, palmiers... 🔧 Un atelier de garage (Brico) chez toi = réparations à moitié prix devant ta maison.'));
         b.append(h('div.grid', owned.map((id) => {
           const placed = p.home.furniture.filter((f) => f.i === id).length;
           const free = p.inventory[id] - placed;
