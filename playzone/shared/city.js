@@ -675,6 +675,10 @@ export const PARKS = [[520, -200], [100, -500], [-60, -1380], [-180, -460], [520
   .map(([x, z], i) => ({ id: `parc-${i + 1}`, name: ['Square des Bambins', 'Parc des Rigolos', 'Jardin Boréal', 'Square des Tilleuls', 'Parc Prestige', 'Square du Nord', 'Parc de la Glissade', 'Jardin du Casino', 'Parc des Aurores', 'Square des Embruns', 'Parc du Grand-Large', 'Square des Hauts', 'Jardin des Mouettes', 'Oasis du Désert'][i], x, z, w: 44, d: 34, kind: ['jeux', 'basket', 'fontaine'][i % 3] }));
 for (const P of PARKS) add({ id: `kiosque-${P.id}`, name: `Kiosque à glaces — ${P.name}`, kind: 'decor', x: P.x + P.w / 2 - 4, z: P.z - P.d / 2 + 4, w: 4, d: 4, h: 3.2, facing: 'W', color: '#ffc8dd', roofColor: '#ff5a5f', sign: 'GLACES', district: 'parc', lot: { x1: P.x - P.w / 2, z1: P.z - P.d / 2 + 7, x2: P.x + P.w / 2, z2: P.z + P.d / 2 } });
 
+// --- BOÎTES DE NUIT : piste lumineuse, DJ, bar à cocktails (sans alcool), carré VIP.
+const CLUB_SITES = [[110, -400, 'E', 'Le Bounce'], [590, -220, 'W', 'Prestige Night'], [-110, -1370, 'S', 'L\'Aurore Club'], [340, -1330, 'N', 'Le Frigo (boîte polaire)'], [1450, -280, 'N', 'Le Bateau Ivre... de joie']];
+CLUB_SITES.forEach(([x, z, facing, name], i) => add({ id: `club-${i + 1}`, name, kind: 'service', interior: 'club', x, z, w: 26, d: 22, h: 9, facing, color: ['#14213d', '#3a0ca3', '#03045e', '#1b263b', '#240046'][i], roofColor: '#0b0b10', sign: `🪩 ${name.toUpperCase()}`, neon: true, district: 'nuit' }));
+
 export const GAS_STATIONS = CITY_BUILDINGS.filter((b) => b.gas).map((b) => ({ id: b.id, name: b.name, ...b.gas }));
 
 // Lieux spéciaux des nouveaux quartiers.

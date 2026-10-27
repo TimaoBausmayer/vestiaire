@@ -80,6 +80,7 @@ export class Player {
         const sp = s.pose;
         if (sp === 'pushup') { r.position.set(s.x, 0.22 + (this.pushPhase || 0) * 0.32, s.z); r.rotation.set(Math.PI / 2 - 0.12 - (this.pushPhase || 0) * 0.25, s.yaw, 0); }
         else if (sp === 'run') { r.position.set(s.x, s.y ?? 0.25, s.z); r.rotation.set(0, s.yaw, 0); }
+        else if (s.stand) { r.position.set(s.x, s.y ?? 0, s.z); r.rotation.set(0, s.yaw, 0); }   // exercices debout (haltères, cordes, zumba...)
         else if (s.lie) { r.position.set(s.x + Math.sin(s.yaw) * 0.95, (s.y || 0.6) + 0.12, s.z + Math.cos(s.yaw) * 0.95); r.rotation.set(-Math.PI / 2, s.yaw, 0); }
         else { r.position.set(s.x, Math.max(0, (s.y ?? 0.5) - 0.48), s.z); r.rotation.set(0, s.yaw, 0); }
         if (this.poseTimer > 0) { this.poseTimer -= dt; if (this.poseTimer <= 0) this.pose = 'idle'; }

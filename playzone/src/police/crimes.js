@@ -103,7 +103,7 @@ export class Crimes {
   // ------------------------------------------------------------------ actions
   punch() {
     const g = this.game, P = g.player.pos;
-    if (this.hitCd > 0 || g.boxing?.busy) return;
+    if (this.hitCd > 0 || g.boxing?.busy || g.nightclub?.d) return;
     this.hitCd = 0.45;
     this.alt = !this.alt;
     g.player.setPose(this.alt ? 'jab' : 'jabL', 0.25);   // enchaînement gauche-droite

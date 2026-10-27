@@ -24,7 +24,7 @@ export const INTERIOR_STYLE = {
   house: { floor: '#b88a5a', alt: '#a97c4f', wall: '#f4ecdf' }, salon: { floor: '#f1e4f3', alt: '#e2cfe6', wall: '#fff0f6' }, lobby: { floor: '#d6ccc2', alt: '#c7bdb3', wall: '#f5ebe0' },
   bank: { floor: '#e9dfc4', alt: '#d4c49c', wall: '#fbf6e9' }, mairie: { floor: '#c9b38f', alt: '#b59f7b', wall: '#f8f0dd' },
   arcade: { floor: '#2b2350', alt: '#3b2f6e', wall: '#1d1838' }, cinema: { floor: '#5a1e2c', alt: '#4a1824', wall: '#2a1b3d' },
-  bowling: { floor: '#c9a46a', alt: '#b8945a', wall: '#24243e' }, gym: { floor: '#3a3a44', alt: '#2f2f38', wall: '#f1f1f1' }, boxing: { floor: '#2b2118', alt: '#3a2c20', wall: '#7f1d1d' }, museum: { floor: '#e9e4da', alt: '#d8d1c4', wall: '#fbf8f2' },
+  bowling: { floor: '#c9a46a', alt: '#b8945a', wall: '#24243e' }, gym: { floor: '#3a3a44', alt: '#2f2f38', wall: '#f1f1f1' }, boxing: { floor: '#2b2118', alt: '#3a2c20', wall: '#7f1d1d' }, museum: { floor: '#e9e4da', alt: '#d8d1c4', wall: '#fbf8f2' }, club: { floor: '#14121f', alt: '#1d1a2e', wall: '#120f1f' },
   school: { floor: '#e9c46a', alt: '#d9b45a', wall: '#fdf3e3' }, prison: { floor: '#9a9a9a', alt: '#8a8a8a', wall: '#c8c8c8' },
   barn: { floor: '#a47148', alt: '#94643e', wall: '#8a3b2a' }, cabin: { floor: '#7a5230', alt: '#6a4628', wall: '#8a6040' },
   casino: { floor: '#7a1027', alt: '#5e0c1e', wall: '#2a1b3d' }, range: { floor: '#8a8a84', alt: '#7a7a74', wall: '#b9b6ad' },

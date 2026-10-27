@@ -32,7 +32,7 @@ const ROLE_LOOK = {
   infirmier: { top: 'chemise', topColor: '#90e0ef' }, mecano: { hat: 'casquette', top: 'debardeur', topColor: '#495057' },
   commercial: { top: 'costume', topColor: '#14213d' }, banquier: { top: 'costume', topColor: '#2b2d42' }, agent: { top: 'costume', topColor: '#3d5a80' },
   maire: { hat: 'haut-de-forme', top: 'costume', topColor: '#14213d' }, fermier: { hat: 'paille', top: 'raye', topColor: '#7a5230' },
-  coach: { top: 'debardeur', topColor: '#ff70a6' }, entraineur: { top: 'sweat', topColor: '#d00000' }, guide: { top: 'chemise', topColor: '#6c757d' }, boxeur: { top: 'debardeur', topColor: '#1d4ed8' }, professeur: { top: 'chemise', topColor: '#f4f1ea' }, gerant: { top: 'hawai', topColor: '#ff3fa4' },
+  coach: { top: 'debardeur', topColor: '#ff70a6' }, entraineur: { top: 'sweat', topColor: '#d00000' }, guide: { top: 'chemise', topColor: '#6c757d' }, dj: { top: 'sweat', topColor: '#ff006e', glasses: 'lunettes-soleil' }, barman: { top: 'chemise', topColor: '#14141c' }, videur: { top: 'chemise', topColor: '#0b0b10', glasses: 'lunettes-soleil' }, danseur: { top: 'debardeur', topColor: '#06d6a0' }, boxeur: { top: 'debardeur', topColor: '#1d4ed8' }, professeur: { top: 'chemise', topColor: '#f4f1ea' }, gerant: { top: 'hawai', topColor: '#ff3fa4' },
   caissier: { top: 'tshirt', topColor: '#d00000' }, geek: { top: 'tshirt', topColor: '#2b2d42' }, ouvrier: { hat: 'casquette', top: 'gilet-livreur', topColor: '#ff9f1c' },
   manutentionnaire: { top: 'gilet-livreur', topColor: '#ffd23f' }, ferrailleur: { hat: 'casquette', top: 'debardeur', topColor: '#6c757d' },
   croupier: { top: 'costume', topColor: '#14532d' }, vigile: { top: 'costume', topColor: '#111111' }, hotesse: { top: 'costume', topColor: '#7a1027' },
@@ -42,7 +42,7 @@ export const ROLE_NAME = {
   vendeur: 'Vendeur·se', geek: 'Technicien·ne', soigneur: 'Soigneur·se', boulanger: 'Boulanger·ère', serveur: 'Serveur·se', cuisinier: 'Cuisinier·ère',
   equipier: 'Équipier·ère', caissier: 'Caissier·ère', commercial: 'Commercial·e', mecano: 'Mécanicien·ne', manutentionnaire: 'Chef d\'entrepôt', ouvrier: 'Ouvrier·ère',
   accueil: 'Accueil', juge: 'Juge', greffier: 'Greffier·ère', agent: 'Agent·e', ferrailleur: 'Ferrailleur·se', policier: 'Policier·ère', infirmier: 'Infirmier·ère', medecin: 'Médecin', pompier: 'Pompier·ère',
-  habitant: 'Habitant·e', concierge: 'Concierge', banquier: 'Banquier·ère', secretaire: 'Secrétaire de mairie', maire: 'Le Maire', gerant: 'Gérant·e', coach: 'Coach', entraineur: 'Entraîneur·e de boxe', guide: 'Guide du musée', boxeur: 'Boxeur·se',
+  habitant: 'Habitant·e', concierge: 'Concierge', banquier: 'Banquier·ère', secretaire: 'Secrétaire de mairie', maire: 'Le Maire', gerant: 'Gérant·e', coach: 'Coach', entraineur: 'Entraîneur·e de boxe', guide: 'Guide du musée', dj: 'DJ', barman: 'Barman·aid', videur: 'Videur·se', danseur: 'Danseur·se', boxeur: 'Boxeur·se',
   professeur: 'Professeur·e', gardien: 'Gardien·ne', fermier: 'Fermier·ère', coiffeur: 'Coiffeur·se',
   croupier: 'Croupier·ère', vigile: 'Vigile', hotesse: 'Hôte·sse d\'accueil', moniteur: 'Moniteur·rice de tir', commissaire: 'Commissaire de piste',
 };
@@ -300,7 +300,8 @@ export class Interiors {
         const want = d < 6 ? Math.atan2(P.x - p.x, P.z - p.z) : p.baseYaw;
         let dy = want - p.av.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
         p.av.root.rotation.y += dy * Math.min(1, dt * 4);
-        p.av.update(dt, { speed: 0, grounded: true, pose: d < 3.5 ? 'wave' : 'idle' });
+        if (p.role === 'danseur') { p.av.root.rotation.y += dt * 0.8; p.av.update(dt, { speed: 0, grounded: true, pose: 'dance', dance: (p.x * 7 | 0) % 2 }); }
+        else p.av.update(dt, { speed: 0, grounded: true, pose: p.role === 'dj' ? 'cook' : d < 3.5 ? 'wave' : 'idle' });
         if (d < 4 && performance.now() - p.greeted > 25000) {
           p.greeted = performance.now();
           const lines = STAFF_LINES[p.role] || ['Bonjour !'];

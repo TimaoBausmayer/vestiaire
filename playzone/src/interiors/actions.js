@@ -131,6 +131,10 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'court': g.police.courtDesk(); break;
     case 'submarine': g.submarine.desk(); break;
     case 'boxbag': g.boxing.bag(); break;
+    case 'clubdance': g.nightclub.dance(); break;
+    case 'clubbar': g.nightclub.bar(); break;
+    case 'clubvip': g.nightclub.vip(); break;
+    case 'clubdj': g.nightclub.dj(); break;
     case 'musee': {
       try {
         const r = await g.net.request('park.play', { kind: 'musee', art: spot.art });

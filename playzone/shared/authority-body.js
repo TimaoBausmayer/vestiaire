@@ -22,7 +22,8 @@ function train(p, gains, k, now) {
   const b = p.body;
   b.muscle = Math.min(100, b.muscle + gains.muscle * k * (1 - b.muscle / 130));
   b.weight = Math.max(45, b.weight + (gains.weight || 0) * k);
-  applyNeeds(p.needs, now, { energie: (gains.energie || 0) * k, hygiene: (gains.hygiene || 0) * k, faim: (gains.faim || 0) * k, humeur: 2 });
+  if (gains.endurance) b.endurance = Math.min(100, (b.endurance ?? 15) + gains.endurance * k);
+  applyNeeds(p.needs, now, { energie: (gains.energie || 0) * k, hygiene: (gains.hygiene || 0) * k, faim: (gains.faim || 0) * k, humeur: 2 + Math.min(20, (gains.humeur || 0) * k) });
 }
 
 export const BODY_HANDLERS = {

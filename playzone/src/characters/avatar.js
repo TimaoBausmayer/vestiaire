@@ -474,6 +474,14 @@ export class Avatar {
     else if (pose === 'spray' || pose === 'hold-forward') { set(AL, -1.45, 0, -0.25); set(AR, -1.45, 0, 0.25); }
     else if (pose === 'wave') { set(AR, 0, 0, -2.7 + Math.sin(t * 10) * 0.35); }
     else if (pose === 'throw') { set(AR, -2.6, 0, -0.2); }
+    // salle de sport : rameur, tractions, haltères, squats, cordes, abdos, yoga
+    else if (pose === 'row') { const k2 = Math.sin(t * 3.2); set(AL, -1.5 + k2 * 0.4, 0, 0.15); set(AR, -1.5 + k2 * 0.4, 0, -0.15); set(L, -1.3 - k2 * 0.3, 0, 0.05); set(R, -1.3 - k2 * 0.3, 0, -0.05); lean = -0.2 - k2 * 0.25; bodyY = -0.4; }
+    else if (pose === 'pullup') { const k2 = Math.max(0, Math.sin(t * 2.4)); set(AL, -3.0, 0, 0.25); set(AR, -3.0, 0, -0.25); set(L, 0.25, 0, 0); set(R, 0.25, 0, 0); bodyY = 0.35 + k2 * 0.45; }
+    else if (pose === 'curl') { set(AL, -0.2, 0, 0.12); set(AR, -0.2, 0, -0.12); }
+    else if (pose === 'squat') { const k2 = Math.max(0, Math.sin(t * 2.6)); set(L, -k2 * 1.2, 0, 0.1); set(R, -k2 * 1.2, 0, -0.1); set(AL, -1.2, 0, 0.1); set(AR, -1.2, 0, -0.1); bodyY = -k2 * 0.42; lean = k2 * 0.3; }
+    else if (pose === 'ropes') { set(AL, -1.2 + Math.sin(t * 14) * 0.45, 0, 0.2); set(AR, -1.2 - Math.sin(t * 14) * 0.45, 0, -0.2); set(L, -0.35, 0, 0.12); set(R, -0.35, 0, -0.12); bodyY = -0.15; lean = 0.25; }
+    else if (pose === 'situp') { const k2 = Math.max(0, Math.sin(t * 2.4)); bodyRotX = -1.4 + k2 * 1.0; bodyY = -0.62; set(L, -1.0, 0, 0.1); set(R, -1.0, 0, -0.1); set(AL, -2.6, 0, 0.5); set(AR, -2.6, 0, -0.5); }
+    else if (pose === 'yoga') { bodyY = -0.6; set(L, -1.45, 0, 0.9); set(R, -1.45, 0, -0.9); set(AL, 0, 0, 2.9 + Math.sin(t) * 0.05); set(AR, 0, 0, -2.9 - Math.sin(t) * 0.05); }
     // boxe : garde, direct droit / gauche, crochet, coup encaissé
     else if (pose === 'guard') { set(AL, -1.95, 0, 0.42); set(AR, -1.95, 0, -0.42); headX = 0.15; }
     else if (pose === 'jab') { set(AR, -1.6, 0, 0.12); set(AL, -1.95, 0, 0.42); lean = 0.12; headY = -0.15; }
@@ -516,6 +524,12 @@ export class Avatar {
     else if (pose === 'celebrate') { eL = eR = -0.2; }
     else if (pose === 'throw') { eR = -0.6; }
     else if (pose === 'guard' || pose === 'hit') { eL = eR = -2.0; }
+    else if (pose === 'curl') { eL = -0.3 - Math.max(0, Math.sin(t * 3)) * 2.0; eR = -0.3 - Math.max(0, -Math.sin(t * 3)) * 2.0; }
+    else if (pose === 'row') { eL = eR = -0.4 - Math.max(0, -Math.sin(t * 3.2)) * 1.4; kL = kR = 1.2 + Math.sin(t * 3.2) * 0.4; }
+    else if (pose === 'pullup') { eL = eR = -0.4 - Math.max(0, Math.sin(t * 2.4)) * 1.6; }
+    else if (pose === 'squat') { const k2 = Math.max(0, Math.sin(t * 2.6)); kL = kR = k2 * 2.0; eL = eR = -0.3; }
+    else if (pose === 'situp') { kL = kR = 1.9; eL = eR = -2.2; }
+    else if (pose === 'yoga') { kL = kR = 2.3; eL = eR = -0.1; }
     else if (pose === 'jab') { eR = -0.05; eL = -2.0; }
     else if (pose === 'jabL') { eL = -0.05; eR = -2.0; }
     else if (pose === 'hook') { eR = -1.4; eL = -2.0; }

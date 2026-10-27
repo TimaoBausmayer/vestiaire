@@ -139,7 +139,7 @@ export class Body {
     try { await g.net.request('gym.start', { machine: id }); } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad', 4500); if (/abonnement/i.test(e.message)) gymPassPanel(g); return; }
     const m = MACHINES[id];
     this.machine = { id, at: g.now() };
-    g.player.sit({ ...seat, pose: id === 'tapis' ? 'run' : id === 'velo' ? 'pedal' : 'bench', lie: id === 'banc' });
+    g.player.sit({ ...seat, pose: m.pose || 'bench', lie: !!m.lie, machine: id });
     g.ui.toast(`${m.emoji} ${m.name} lancé·e ! Tu peux lâcher le clavier : ça tourne tout seul (${MACHINE_MAX_MIN} min max). Bouge pour arrêter.`, 'good', 5000);
   }
 
@@ -148,7 +148,7 @@ export class Body {
     if (!mc) return;
     const s = g.player.seated;
     const elapsed = (g.now() - mc.at) / 60000;
-    if (!s || !['run', 'pedal'].includes(s.pose) && !(s.lie && mc.id === 'banc') || elapsed >= MACHINE_MAX_MIN) { this.stopMachine(); return; }
+    if (!s || s.machine !== mc.id || elapsed >= MACHINE_MAX_MIN) { this.stopMachine(); return; }
     const m = MACHINES[mc.id];
     g.hud.track('gym', { title: `${m.emoji} ${m.name}`, text: `${Math.floor(elapsed)}:${String(Math.floor((elapsed % 1) * 60)).padStart(2, '0')} / ${MACHINE_MAX_MIN}:00 · muscles +${(m.muscle * elapsed).toFixed(1)} · poids ${(m.weight * elapsed).toFixed(1)} kg`, bar: elapsed / MACHINE_MAX_MIN });
   }

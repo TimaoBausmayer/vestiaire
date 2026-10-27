@@ -75,9 +75,20 @@ export function attractiveness(p, items, now, hygiene = 80) {
 // Salle de sport : abonnements (durée réelle) et machines (gains par minute).
 export const GYM_PASSES = { jour: { name: 'Pass journée', price: 60, ms: 4 * 3600_000 }, semaine: { name: 'Abonnement semaine', price: 300, ms: 28 * 3600_000 }, mois: { name: 'Abonnement mois', price: 900, ms: 120 * 3600_000 } };
 export const MACHINES = {
-  tapis: { name: 'Tapis de course', emoji: '🏃', muscle: 0.12, weight: -0.14, energie: -3, hygiene: -2.5, faim: -1.5 },
-  banc: { name: 'Banc de musculation', emoji: '🏋️', muscle: 0.32, weight: -0.04, energie: -4, hygiene: -2, faim: -1.5 },
-  velo: { name: 'Vélo d\'appartement', emoji: '🚴', muscle: 0.1, weight: -0.16, energie: -3, hygiene: -2.5, faim: -1.5 },
+  tapis: { name: 'Tapis de course', emoji: '🏃', muscle: 0.12, weight: -0.14, energie: -3, hygiene: -2.5, faim: -1.5, endurance: 0.12, pose: 'run' },
+  banc: { name: 'Banc de musculation', emoji: '🏋️', muscle: 0.32, weight: -0.04, energie: -4, hygiene: -2, faim: -1.5, pose: 'bench', lie: true },
+  velo: { name: 'Vélo d\'appartement', emoji: '🚴', muscle: 0.1, weight: -0.16, energie: -3, hygiene: -2.5, faim: -1.5, endurance: 0.12, pose: 'pedal' },
+  rameur: { name: 'Rameur', emoji: '🚣', muscle: 0.2, weight: -0.15, energie: -3.5, hygiene: -2.5, faim: -1.5, endurance: 0.1, pose: 'row' },
+  elliptique: { name: 'Vélo elliptique', emoji: '🏃‍♀️', muscle: 0.1, weight: -0.18, energie: -3, hygiene: -2.5, faim: -1.5, endurance: 0.14, pose: 'run' },
+  presse: { name: 'Presse à cuisses', emoji: '🦵', muscle: 0.3, weight: -0.05, energie: -4, hygiene: -2, faim: -1.5, pose: 'pedal' },
+  traction: { name: 'Barre de traction', emoji: '🧗', muscle: 0.36, weight: -0.05, energie: -4.5, hygiene: -2, faim: -1.5, pose: 'pullup' },
+  halteres: { name: 'Haltères', emoji: '💪', muscle: 0.3, weight: -0.04, energie: -3.5, hygiene: -1.5, faim: -1.2, pose: 'curl' },
+  kettlebell: { name: 'Kettlebell (squats)', emoji: '🏋️‍♀️', muscle: 0.26, weight: -0.1, energie: -4, hygiene: -2, faim: -1.5, pose: 'squat' },
+  corde: { name: 'Cordes ondulatoires', emoji: '🪢', muscle: 0.2, weight: -0.2, energie: -4.5, hygiene: -2.5, faim: -1.8, endurance: 0.12, pose: 'ropes' },
+  abdos: { name: 'Abdos', emoji: '🔥', muscle: 0.22, weight: -0.08, energie: -3, hygiene: -1.5, faim: -1.2, pose: 'situp' },
+  zumba: { name: 'Cours de zumba', emoji: '💃', muscle: 0.06, weight: -0.2, energie: -3, hygiene: -2.5, faim: -1.5, humeur: 1.2, endurance: 0.1, pose: 'dance' },
+  yoga: { name: 'Cours de yoga', emoji: '🧘', muscle: 0.08, weight: -0.04, energie: 1, hygiene: -0.5, faim: -0.8, humeur: 1.5, pose: 'yoga' },
+  sauna: { name: 'Sauna', emoji: '🧖', muscle: 0, weight: -0.06, energie: 2, hygiene: -1, faim: -0.5, humeur: 1.6, pose: 'sit' },
 };
 export const MACHINE_MAX_MIN = 10;
 // Pompes : appuis sur Espace pour une pompe (moins quand on est musclé).

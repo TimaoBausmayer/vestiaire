@@ -587,6 +587,41 @@ export const TEMPLATES = {
     t.staff(I.x2 - 2, I.z2 - 2.6, 0, 'gerant');
   },
 
+  // Boîte de nuit : piste de danse lumineuse, cabine du DJ, enceintes, bar, carré VIP, danseurs.
+  club(t) {
+    const I = t.inner, cz = (I.z1 + I.z2) / 2 - 1;
+    const COLS = ['#ff006e', '#8338ec', '#3a86ff', '#06d6a0', '#ffbe0b', '#fb5607'];
+    for (let ix = -3; ix <= 3; ix++) for (let iz = -2; iz <= 2; iz++) t.box(ix * 1.2, 0.01, cz + iz * 1.2, 1.12, 0.06, 1.12, COLS[(ix * 7 + iz * 3 + 40) % COLS.length], 'glow');
+    t.spot(0, cz, { label: '💃 Danser sur la piste', action: 'clubdance', r: 3.5 });
+    // cabine du DJ (au fond) et enceintes
+    t.box(0, 0, I.z1 + 1.4, 4, 1.1, 1.4, '#22223b'); t.box(0, 1.1, I.z1 + 1.4, 3.6, 0.08, 1.2, '#14141c');
+    for (const s of [-0.9, 0.9]) t.cyl(s, 1.18, I.z1 + 1.4, 0.32, 0.04, '#adb5bd', 16);
+    t.box(0, 0.3, I.z1 + 2.12, 3.8, 0.4, 0.05, '#ff006e', 'glow');
+    t.solid(0, I.z1 + 1.4, 4, 1.4, 1.2);
+    t.staff(0, I.z1 + 0.6, 0, 'dj');
+    t.spot(0, I.z1 + 3, { label: '🎧 Demander un son au DJ', action: 'clubdj', r: 1.6 });
+    for (const sx of [-1, 1]) { const x = sx * (I.x2 - 1.2); t.box(x, 0, I.z1 + 1.2, 1.2, 2.6, 1, '#0b0b10'); for (const y of [0.7, 1.8]) t.cyl(x, y, I.z1 + 1.72, 0.35, 0.05, '#495057', 14, Math.PI / 2); t.solid(x, I.z1 + 1.2, 1.2, 1, 2.6); }
+    // bar (mur gauche) avec tabourets
+    const bx = I.x1 + 1.2;
+    t.box(bx, 0, cz + 1, 1, 1.1, 7, '#3a0ca3'); t.box(bx, 1.1, cz + 1, 1.2, 0.08, 7.2, '#d4a017'); t.box(bx, 0.4, cz + 1, 1.02, 0.06, 7, '#06d6a0', 'glow');
+    t.solid(bx, cz + 1, 1, 7, 1.2);
+    for (let k = 0; k < 8; k++) t.box(I.x1 + 0.2, 1.4 + (k % 2) * 0.5, cz - 2 + k * 0.8, 0.1, 0.35, 0.12, COLS[k % COLS.length], 'glow');
+    t.staff(I.x1 + 0.4, cz + 1, Math.PI / 2, 'barman');
+    for (let k = 0; k < 4; k++) { t.cyl(bx + 1.1, 0, cz - 1.5 + k * 1.6, 0.25, 0.75, '#adb5bd', 10); t.seat(bx + 1.1, cz - 1.5 + k * 1.6, -Math.PI / 2, 0.78); }
+    t.spot(bx + 1.6, cz + 1, { label: '🍹 Commander un cocktail (sans alcool)', action: 'clubbar', r: 2.2 });
+    // carré VIP (droite) : canapés, table, cordon doré
+    const vx = I.x2 - 2.6, vz = cz + 2.5;
+    t.box(vx, 0.01, vz, 4.2, 0.05, 4.4, '#5a189a');
+    t.furn('canape', vx + 1.2, vz, -Math.PI / 2); t.seat(vx + 1.2, vz, -Math.PI / 2, 0.45); t.solid(vx + 1.2, vz, 1, 2.2, 0.9);
+    t.box(vx - 0.4, 0, vz, 1.2, 0.45, 0.8, '#d4a017'); t.cyl(vx - 0.4, 0.45, vz, 0.12, 0.35, '#e0fbfc', 10);
+    for (const z of [vz - 2.2, vz + 2.2]) t.cyl(vx - 2, 0, z, 0.06, 1, '#d4a017', 8);
+    t.box(vx - 2, 0.9, vz, 0.04, 0.04, 4.4, '#c1121f');
+    t.spot(vx - 1, vz - 1.4, { label: '🍾 Réserver le carré VIP (200 PC)', action: 'clubvip', r: 1.6 });
+    // videur à l'entrée et danseurs sur la piste
+    t.staff(t.door.x + 2.2, I.z2 - 1.2, Math.PI, 'videur');
+    for (const [dx, dz] of [[-2.4, -1], [2.2, 0.6], [-0.8, 1.8], [1.2, -1.8]]) t.staff(dx, cz + dz, Math.random() * 6.28, 'danseur');
+  },
+
   // Musée des Arts Rigolos : tableaux encadrés, statues, squelette de dinosaure, vitrines.
   museum(t) {
     const I = t.inner;
@@ -652,35 +687,69 @@ export const TEMPLATES = {
   },
 
   gym(t) {
-    const I = t.inner;
+    const I = t.inner, W = I.x2 - I.x1;
     lightsAround(t);
-    const n = Math.floor((I.x2 - I.x1 - 4) / 3);
+    const spot = (x, z, machine, seat, label, r = 1.3) => t.spot(x, z, { label, action: 'machine', machine, r, seat });
+    // --- rangée du fond : cardio et machines guidées
+    const ROW = ['banc', 'tapis', 'rameur', 'presse', 'velo', 'elliptique', 'tapis', 'banc'];
+    const n = Math.max(3, Math.floor((W - 4) / 2.3));
     for (let i = 0; i < n; i++) {
-      const x = I.x1 + 2 + i * 3, kind = ['banc', 'tapis', 'velo'][i % 3];
+      const x = I.x1 + 2.4 + i * 2.3, kind = ROW[i % ROW.length], z0 = I.z1 + 1.5;
       if (kind === 'banc') {
-        t.box(x, 0, I.z1 + 1.5, 0.6, 0.5, 1.6, '#2b2d42'); t.box(x, 1.1, I.z1 + 1.1, 1.8, 0.06, 0.06, '#adb5bd');
-        for (const s of [-0.85, 0.85]) t.cyl(x + s, 0.95, I.z1 + 1.1, 0.25, 0.1, '#14141c', 12);
-        t.solid(x, I.z1 + 1.5, 1.8, 1.8, 0.5);
-        t.spot(x, I.z1 + 2.8, { label: '🏋️ Banc de musculation (tourne tout seul)', action: 'machine', machine: 'banc', r: 1.4, seat: { lx: x, lz: I.z1 + 1.5 - 0.95, ry: 0, y: 0.55 } });
-      } else if (kind === 'tapis') {
-        t.box(x, 0, I.z1 + 1.6, 0.9, 0.25, 2, '#14141c'); t.box(x, 0.25, I.z1 + 1.6, 0.7, 0.02, 1.8, '#495057');
-        t.box(x, 0, I.z1 + 0.6, 0.9, 1.3, 0.12, '#2b2d42'); t.box(x, 1.2, I.z1 + 0.7, 0.6, 0.3, 0.05, '#3d8ee8', 'glow');
-        t.spot(x, I.z1 + 3, { label: '🏃 Tapis de course (tourne tout seul)', action: 'machine', machine: 'tapis', r: 1.4, seat: { lx: x, lz: I.z1 + 1.8, ry: Math.PI, y: 0.27 } });
+        t.box(x, 0, z0, 0.6, 0.5, 1.6, '#2b2d42'); t.box(x, 1.1, z0 - 0.4, 1.8, 0.06, 0.06, '#adb5bd');
+        for (const s of [-0.85, 0.85]) t.cyl(x + s, 0.95, z0 - 0.4, 0.25, 0.1, '#14141c', 12);
+        t.solid(x, z0, 1.8, 1.8, 0.5);
+        spot(x, z0 + 1.3, 'banc', { lx: x, lz: z0 - 0.95, ry: 0, y: 0.55 }, '🏋️ Banc de musculation');
+      } else if (kind === 'tapis' || kind === 'elliptique') {
+        t.box(x, 0, z0 + 0.1, 0.9, 0.25, 2, '#14141c'); t.box(x, 0.25, z0 + 0.1, 0.7, 0.02, 1.8, kind === 'tapis' ? '#495057' : '#3a86ff');
+        t.box(x, 0, z0 - 0.9, 0.9, 1.3, 0.12, '#2b2d42'); t.box(x, 1.2, z0 - 0.8, 0.6, 0.3, 0.05, kind === 'tapis' ? '#3d8ee8' : '#06d6a0', 'glow');
+        spot(x, z0 + 1.5, kind, { lx: x, lz: z0 + 0.3, ry: Math.PI, y: 0.27 }, kind === 'tapis' ? '🏃 Tapis de course' : '🏃‍♀️ Vélo elliptique');
+      } else if (kind === 'velo') {
+        t.box(x, 0, z0, 0.3, 0.55, 1.2, '#2b2d42'); t.box(x, 0.55, z0 + 0.4, 0.4, 0.08, 0.4, '#14141c'); t.cyl(x, 0.2, z0 - 0.3, 0.25, 0.08, '#adb5bd', 12, Math.PI / 2);
+        t.box(x, 0.55, z0 - 0.5, 0.08, 0.6, 0.08, '#2b2d42'); t.box(x, 1.12, z0 - 0.5, 0.5, 0.05, 0.08, '#2b2d42');
+        t.solid(x, z0, 0.6, 1.4, 0.6);
+        spot(x, z0 + 1.4, 'velo', { lx: x, lz: z0 + 0.4, ry: Math.PI, y: 1.0 }, '🚴 Vélo d\'appartement');
+      } else if (kind === 'rameur') {
+        t.box(x, 0, z0 + 0.2, 0.4, 0.25, 2.2, '#14141c'); t.cyl(x, 0.3, z0 - 0.9, 0.3, 0.2, '#ff5a5f', 14, Math.PI / 2); t.box(x, 0.3, z0 + 0.3, 0.45, 0.08, 0.4, '#495057');
+        spot(x, z0 + 1.6, 'rameur', { lx: x, lz: z0 + 0.4, ry: Math.PI, y: 0.75 }, '🚣 Rameur');
       } else {
-        t.box(x, 0, I.z1 + 1.5, 0.3, 0.55, 1.2, '#2b2d42'); t.box(x, 0.55, I.z1 + 1.9, 0.4, 0.08, 0.4, '#14141c'); t.cyl(x, 0.2, I.z1 + 1.2, 0.25, 0.08, '#adb5bd', 12, Math.PI / 2);
-        t.box(x, 0.55, I.z1 + 1.0, 0.08, 0.6, 0.08, '#2b2d42'); t.box(x, 1.12, I.z1 + 1.0, 0.5, 0.05, 0.08, '#2b2d42');
-        t.solid(x, I.z1 + 1.5, 0.6, 1.4, 0.6);
-        t.spot(x, I.z1 + 2.9, { label: '🚴 Vélo d\'appartement (tourne tout seul)', action: 'machine', machine: 'velo', r: 1.4, seat: { lx: x, lz: I.z1 + 1.9, ry: Math.PI, y: 1.0 } });
+        t.box(x, 0, z0, 1, 0.5, 1.6, '#2b2d42'); t.box(x, 0.5, z0 + 0.4, 0.8, 0.5, 0.1, '#3a86ff'); t.box(x, 0.4, z0 - 0.6, 0.9, 0.9, 0.1, '#adb5bd');
+        t.solid(x, z0, 1, 1.6, 0.5);
+        spot(x, z0 + 1.3, 'presse', { lx: x, lz: z0 + 0.5, ry: Math.PI, y: 0.95 }, '🦵 Presse à cuisses');
       }
     }
-    // tapis de sol (pompes) et accueil (abonnements)
-    t.box(I.x2 - 3, 0.01, (I.z1 + I.z2) / 2 - 2, 1.2, 0.04, 2.2, '#2ec4b6');
-    t.spot(I.x2 - 3, (I.z1 + I.z2) / 2 - 2, { label: '💪 Tapis de sol : faire des pompes', action: 'pushups', r: 1.3 });
+    // --- poids libres le long du mur gauche (miroir)
+    const lx = I.x1 + 1.8;
+    t.box(I.x1 + 0.12, 0.4, (I.z1 + I.z2) / 2, 0.04, 2, I.z2 - I.z1 - 4, '#cfe8ff', 'windows'); // miroir
+    const FREE = [['traction', '🧗 Barre de traction'], ['halteres', '💪 Haltères (biceps)'], ['kettlebell', '🏋️‍♀️ Kettlebell (squats)'], ['corde', '🪢 Cordes ondulatoires']];
+    FREE.forEach(([kind, label], i) => {
+      const z = I.z1 + 4.6 + i * 2.6;
+      if (z > I.z2 - 3) return;
+      if (kind === 'traction') { for (const s of [-0.7, 0.7]) t.box(lx, 0, z + s, 0.1, 2.4, 0.1, '#495057'); t.box(lx, 2.35, z, 0.08, 0.08, 1.5, '#adb5bd'); }
+      else if (kind === 'halteres') { t.box(lx - 0.6, 0, z, 0.5, 0.8, 1.6, '#2b2d42'); for (let k = 0; k < 4; k++) t.cyl(lx - 0.6, 0.85, z - 0.6 + k * 0.4, 0.08, 0.1, '#14141c', 8); }
+      else if (kind === 'kettlebell') { for (let k = 0; k < 3; k++) t.sphere(lx - 0.7, 0.18, z - 0.5 + k * 0.5, 0.18, ['#ff5a5f', '#ffd166', '#3a86ff'][k]); }
+      else { t.box(lx - 0.8, 0.4, z, 0.2, 0.3, 0.2, '#495057'); for (const s of [-0.3, 0.3]) t.box(lx + 0.4, 0.05, z + s, 2.2, 0.08, 0.08, '#c9a46a'); }
+      spot(lx + 0.6, z, kind, { lx, lz: z, ry: Math.PI / 2, y: 0, stand: true }, label, 1.2);
+    });
+    // --- côté droit : pompes, abdos, sauna, accueil
+    const rx = I.x2 - 2.2;
+    t.box(rx, 0.01, I.z1 + 9, 1.2, 0.04, 2.2, '#2ec4b6');
+    t.spot(rx, I.z1 + 9, { label: '💪 Tapis de sol : faire des pompes', action: 'pushups', r: 1.3 });
+    t.box(rx, 0.01, I.z1 + 11.8, 1.2, 0.04, 2.2, '#ff9f1c');
+    spot(rx - 0.9, I.z1 + 11.8, 'abdos', { lx: rx, lz: I.z1 + 11.8, ry: -Math.PI / 2, y: 0, stand: true }, '🔥 Tapis d\'abdos');
+    const sz = I.z1 + 4.8;
+    t.box(I.x2 - 1.6, 0, sz, 2.8, 2.4, 2.8, '#b5835a'); t.box(I.x2 - 1.6, 2.4, sz, 3, 0.15, 3, '#8d5a2b'); t.box(I.x2 - 3.02, 0.9, sz, 0.05, 1.2, 0.6, '#ffd166', 'glow');
+    t.solid(I.x2 - 1.6, sz, 2.8, 2.8, 2.4);
+    spot(I.x2 - 3.6, sz, 'sauna', { lx: I.x2 - 3.6, lz: sz, ry: -Math.PI / 2, y: 0.5 }, '🧖 Sauna (détente)', 1.5);
     t.box(I.x2 - 2, 0, I.z2 - 1.2, 2, 1.05, 0.7, '#ff70a6'); t.solid(I.x2 - 2, I.z2 - 1.2, 2, 0.7, 1.1);
     t.spot(I.x2 - 3.4, I.z2 - 1.4, { label: '🎫 Accueil : abonnements', action: 'gympass', r: 1.3, priority: 2 });
-    t.box(0, 0.01, (I.z1 + I.z2) / 2 + 1, I.x2 - I.x1 - 4, 0.04, 3, '#ff70a6');
     t.staff(I.x2 - 2, I.z2 - 2.2, Math.PI, 'coach');
-    t.box(I.x1 + 0.12, 0.4, (I.z1 + I.z2) / 2, 0.04, 2, I.z2 - I.z1 - 4, '#cfe8ff', 'windows'); // miroir
+    // --- cours collectifs au centre : zumba et yoga
+    const cz = (I.z1 + I.z2) / 2 + 2.2;
+    t.box(-1.6, 0.01, cz, 2.6, 0.04, 2.6, '#ff70a6'); t.box(1.6, 0.01, cz, 2.6, 0.04, 2.6, '#8338ec');
+    spot(-1.6, cz, 'zumba', { lx: -1.6, lz: cz, ry: 0, y: 0, stand: true }, '💃 Cours de zumba', 1.3);
+    spot(1.6, cz, 'yoga', { lx: 1.6, lz: cz, ry: 0, y: 0, stand: true }, '🧘 Cours de yoga', 1.3);
+    t.staff(0, cz - 2.2, Math.PI, 'coach');
     // vestiaires : douches
     for (const dx of [0.7, 2.1]) t.furn('douche', I.x1 + dx, I.z2 - 0.8, Math.PI);
     t.spot(I.x1 + 1.4, I.z2 - 1.2, { label: '🚿 Douche des vestiaires (2 PC)', action: 'publicshower', r: 1.4 });
@@ -772,6 +841,10 @@ export const STAFF_LINES = {
   secretaire: ['Pour une réclamation, prenez un ticket. Il n\'y a plus de tickets.'],
   maire: ['Je déclare cette journée... ouverte !', 'Ma statue de poulet vous plaît ? Je l\'ai gagnée au loto.'],
   gerant: ['Le record de cette borne ? C\'est moi. Évidemment.', 'Une partie ? C\'est 1 PlayCoin, la gloire est gratuite.'],
+  dj: ['Ça vous plaît ?! Je monte le son !', 'Une demande ? Tant que ce n\'est pas la danse des canards...'],
+  barman: ['Un cocktail maison ? Sans alcool, avec beaucoup d\'amour.', 'Le « PLAYZONE Sunrise » : la boisson qui fait danser.'],
+  videur: ['Bonne soirée ! Pas de bagarre sur la piste.', 'Belle tenue. Tu peux entrer.'],
+  danseur: ['Wouhou !', 'Viens danser !', 'Ce son est trop bien !'],
   guide: ['Bienvenue au musée ! On ne touche pas, même avec les yeux.', 'Ce tableau a été peint par un pigeon. Un pigeon très doué.'],
   entraineur: ['Les poings en haut ! Toujours !', 'Danse, esquive, frappe. Et respire, surtout.', 'Le sac, ça forge le caractère. Et les biceps.'],
   boxeur: ['Tu veux faire les gants ? Monte sur le ring.', 'Je m\'entraîne pour battre le Champion. Un jour.'],

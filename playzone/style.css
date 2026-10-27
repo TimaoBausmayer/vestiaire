@@ -554,3 +554,10 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 .box-count { font-size: 44px; font-weight: 900; color: #ffd166; }
 .fade-ferry { position: absolute; inset: 0; background: linear-gradient(#0b3d91, #1e88e5); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; z-index: 40; animation: ferryfade 1.3s ease-in-out forwards; pointer-events: none; }
 @keyframes ferryfade { 0% { opacity: 0; } 30%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Boîte de nuit : anneau de rythme */
+.club-dance { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); background: rgba(20, 10, 40, .85); color: #fff; padding: 14px 24px; border-radius: 18px; text-align: center; z-index: 12; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.club-dance kbd { background: #ff006e; border-radius: 6px; padding: 1px 6px; }
+.club-dance b { font-size: 26px; color: #ffbe0b; }
+.club-ring { width: 54px; height: 54px; border-radius: 50%; border: 5px solid #ff006e; box-shadow: 0 0 18px #ff006e; }
+.club-ring.hit { border-color: #06d6a0; box-shadow: 0 0 26px #06d6a0; }
