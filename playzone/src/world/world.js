@@ -9,6 +9,7 @@ import { buildCityProps } from './city-props.js';
 import { buildExpansionProps, buildGiantProps } from './expansion-props.js';
 import { buildTerraces } from './terraces.js';
 import { buildSeabed } from './seabed.js';
+import { buildIslands } from './islands.js';
 import { buildRoofs } from '../interiors/floors.js';
 import { SignAtlas } from './signs.js';
 import { DayNight } from './daynight.js';
@@ -48,6 +49,7 @@ export class World {
     buildGiantProps(sb, collision);
     buildTerraces(sb, collision);
     buildSeabed(sb, collision);
+    buildIslands(sb, collision);
     buildRoofs(sb, collision);
     for (const fn of this.contributors) fn(sb, collision, scene);
     this.static = sb.build(MATS, { shadows: true });

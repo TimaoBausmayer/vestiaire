@@ -4,6 +4,7 @@
 // Le centre historique (-128..128) est complété par la grande ville décrite dans city.js.
 import { BOUNDS, STREETS, streetRect, CITY_ZONES, CITY_BUILDINGS, CITY_POI, PARKINGS, GAS_STATIONS } from './city.js';
 import { seaFloor } from './sea.js';
+import { islandHeight } from './islands.js';
 
 export { STREETS, STREET_BY_ID, ROAD_GRAPH, findRoute, nearestRoadPoint, nearestNode, PARKINGS, GAS_STATIONS, CITY_POI } from './city.js';
 export const WORLD_BOUNDS = BOUNDS;     // la carte va de -3000 à 3000 (X) et de -3400 à 400 (Z)
@@ -27,6 +28,8 @@ export function groundHeight(x, z) {
   let h = 0;
   if ((x > PORT_QUAY.x && x < 300 && z > 56) || (x > MARINA.x1 && x < MARINA.x2 && z > 56) || (x > CAP_PORT.x1 && x < CAP_PORT.x2 && z > 56)) { if (z > PORT_QUAY.z) h = -4.5; }
   else if (z > SEA_SLOPE_START) h = seaFloor(x, z, -Math.min(4.5, (z - SEA_SLOPE_START) * 0.2));   // large, récifs
+  // îles au large (plage, phare, jungle, volcan...)
+  if (z > 150) { const ih = islandHeight(x, z, WATER_LEVEL); if (ih !== null) h = Math.max(h, ih); }
   // côtes est et ouest : l'île plonge dans la mer
   const edge = Math.max(-x + BOUNDS.minX, x - BOUNDS.maxX);
   if (edge > 0) h = Math.min(h, -Math.min(4.5, edge * 0.35));

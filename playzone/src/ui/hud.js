@@ -1,3 +1,4 @@
+import { ISLANDS } from '../../shared/islands.js';
 import * as THREE from 'three';
 import { h, clear, fmt } from './dom.js';
 import { BUILDINGS, ROADS, POND, LAKE, MARINA, CAP_PORT, zoneAt, WORLD_BOUNDS, POI, MINIGAME_SPOTS, PARKINGS, CITY_POI, PORT_QUAY } from '../../shared/world-layout.js';
@@ -41,6 +42,10 @@ export function drawMapBase(px = 2) {
   g.fillStyle = '#2e9fd6'; g.beginPath(); g.ellipse(X(LAKE.x), Y(LAKE.z), LAKE.r * px, LAKE.r / 1.3 * px, 0, 0, 7); g.fill();   // lac
   rect(MARINA.x1, PORT_QUAY.z, MARINA.x2, B.maxZ, '#2e9fd6');
   rect(CAP_PORT.x1, PORT_QUAY.z, CAP_PORT.x2, B.maxZ, '#2e9fd6');
+  for (const I of ISLANDS) {   // îles : plage de sable, intérieur vert (ou roche du volcan)
+    g.fillStyle = '#f7e7c1'; g.beginPath(); g.arc(X(I.x), Y(I.z), I.r * px, 0, 7); g.fill();
+    g.fillStyle = I.kind === 'volcan' ? '#5a4a44' : I.kind === 'jungle' ? '#2f7a34' : '#6cc04a'; g.beginPath(); g.arc(X(I.x), Y(I.z), I.r * 0.72 * px, 0, 7); g.fill();
+  }
   rect(PITCH.x - PITCH.w / 2, PITCH.z - PITCH.d / 2, PITCH.x + PITCH.w / 2, PITCH.z + PITCH.d / 2, '#3f9a3a'); // stade
   rect(SKI.x1, SKI.top, SKI.x2, SKI.bottom, '#f4f8fb'); rect(SKI.x1 - 26, SKI.top, SKI.x1, SKI.bottom, '#c9d2d8'); rect(SKI.x2, SKI.top, SKI.x2 + 26, SKI.bottom, '#c9d2d8'); // station de ski
   g.strokeStyle = '#3a3d42'; g.lineWidth = 13 * px; g.beginPath(); ROUTES.f1.pts.forEach((p, i) => (i ? g.lineTo(X(p.x), Y(p.z)) : g.moveTo(X(p.x), Y(p.z)))); g.closePath(); g.stroke(); // circuit F1

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { groundHeight, WATER_LEVEL, POND, LAKE, MINIGAME_SPOTS, WORLD_BOUNDS } from '../../shared/world-layout.js';
 import { MATS, PALETTE } from '../core/materials.js';
+import { islandAt, coastR } from '../../shared/islands.js';
 
 // Sol (herbe, sable, terre des champs) avec couleurs par sommet, et eau animée (mer + étang).
 
@@ -85,6 +86,18 @@ function terrainPatch(px0, px1, pz0, pz1, step) {
     if (z < -2010 && z > -2960) c.lerp(new THREE.Color('#8fc46a'), 0.35 + n * 0.15);
     if (h > 3 && z > -2985) c.set('#6f6a64').lerp(new THREE.Color('#8a857c'), 0.5 + n * 0.5);   // falaise
     else if (h > 3) { c.copy(new THREE.Color('#7d7f7d')).lerp(new THREE.Color('#5e6b4f'), Math.max(0, 0.6 - h / 60) + n * 0.1); if (h > 55 + n * 12) c.set('#f4f7fb'); }
+    // îles : plage de sable blanc, herbe, jungle, roche volcanique et cendres
+    if (z > 150 && h > WATER_LEVEL) {
+      const I = islandAt(x, z, 2);
+      if (I) {
+        const t = 1 - Math.hypot(x - I.x, z - I.z) / coastR(I, x, z);
+        if (t < 0.2 || h < 0.75) c.set('#f7e7c1').lerp(wet, Math.max(0, 0.12 - t) * 4);
+        else if (I.kind === 'volcan') { c.set(t > 0.55 ? '#4a3f3a' : '#5e7d3f').lerp(new THREE.Color(t > 0.55 ? '#6b5a50' : '#476b2f'), 0.5 + n * 0.5); if (t > 0.86) c.set('#3a2a26'); }
+        else if (I.kind === 'jungle') c.set('#2f7a34').lerp(new THREE.Color('#1f5c2a'), 0.5 + n * 0.5);
+        else if (I.kind === 'phare' && h > 3.2) c.set('#8a857c').lerp(new THREE.Color('#6f6a64'), 0.5 + n * 0.5);
+        else c.set('#6cc04a').lerp(new THREE.Color('#4f9e3a'), 0.5 + n * 0.5);
+      }
+    }
     // sous l'eau
     if (h < WATER_LEVEL) { c.copy(wet).multiplyScalar(0.85); c.lerp(DEEP_SAND, Math.min(0.55, -h / 22)); }   // fond qui s'assombrit avec la profondeur
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;

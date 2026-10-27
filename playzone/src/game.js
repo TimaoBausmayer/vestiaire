@@ -54,6 +54,7 @@ import { SpeakBar } from './ui/speak.js';
 import { Floors } from './interiors/floors.js';
 import { Submarine } from './sports/submarine.js';
 import { Boxing } from './leisure/boxing.js';
+import { Islands } from './world/islands.js';
 import { Races } from './sports/races.js';
 import { Ski } from './sports/ski.js';
 import { Jetski } from './sports/jetski.js';
@@ -199,6 +200,7 @@ export class Game extends Emitter {
     this.sea = this.addSystem(new Sea(this));   // fonds marins : poissons, plongée, trésor
     this.submarine = this.addSystem(new Submarine(this));   // sous-marin du Centre de plongée
     this.boxing = this.addSystem(new Boxing(this));         // clubs de boxe : sac de frappe, ring
+    this.islands = this.addSystem(new Islands(this));       // îles, navette, merveilles à découvrir
     this.races = this.addSystem(new Races(this));
     this.ski = this.addSystem(new Ski(this));
     this.jetski = this.addSystem(new Jetski(this));
