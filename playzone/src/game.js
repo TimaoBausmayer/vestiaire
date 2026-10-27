@@ -322,7 +322,7 @@ export class Game extends Emitter {
     if (this.ui.blocking || this.cutscene) return;
     if (e.code === 'KeyE') this.interact();
     else if (k === 'p' || e.code === 'Tab') this.phone?.toggle();
-    else if (k === 'm') this.phone?.open('map');
+    else if (k === 'm') { if (this.home?.canDecorate()) this.home.moveNearest(); else this.phone?.open('map'); }   // chez soi : déplacer un meuble
     else if (e.code === 'Enter') (this.chat || this.speak)?.focus();
     else if (['Digit1', 'Digit2', 'Digit3'].includes(e.code)) { this.player.dance = +e.code.slice(5) - 1; this.player.setPose('dance'); this.emit('dance'); }
     else if (e.code === 'Digit4') this.player.setPose('wave', 2);

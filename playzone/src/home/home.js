@@ -1,15 +1,15 @@
 import * as THREE from 'three';
-import { HOME_INTERIOR, POI } from '../../shared/world-layout.js';
+import { HOME_INTERIOR, POI, BUILDING_BY_ID } from '../../shared/world-layout.js';
 import { buildMergedGeometry } from '../core/static-builder.js';
 import { actorMaterial } from '../core/materials.js';
-import { furnitureGeometry, furnitureFootprint } from './furniture.js';
+import { furnitureGeometry, furnitureBoxes, isWall } from './furniture.js';
 import { h } from '../ui/dom.js';
-import { HOUSING_BY_ID, HOME_SIZES, homeSize } from '../../shared/property.js';
+import { HOUSING_BY_ID, HOME_SIZES, homeSize, gardenOf, localInBuilding } from '../../shared/property.js';
 import { buildingFrame } from '../world/buildings.js';
 import { cookPanel, shower, sleep } from '../life/home-life.js';
 
 // Maison "dans le monde" (on y entre vraiment) : le logement habité est-il une maison / ferme ?
-export const isHousePlace = (place) => ['maison', 'ferme'].includes(HOUSING_BY_ID[place]?.kind);
+export const isHousePlace = (place) => ['maison', 'ferme', 'villa'].includes(HOUSING_BY_ID[place]?.kind);
 
 // LOGEMENT : intérieur visitable, décoration (placer/tourner/retirer des meubles), meubles interactifs.
 // En ligne, on peut inviter des amis : ils entrent dans la même "zone" et voient la même déco.
@@ -46,7 +46,7 @@ export class Home {
     this.exitInter = game.interactions.add({ zone: 'home', x: O.x, z: () => O.z + this.size().d / 2 - 1.2, r: 2.2, priority: 2, label: '🚪 Sortir', action: () => this.exit() });
     // maison dans le monde : bouton Décorer quand on est chez soi
     game.on('building.enter', (b) => { if (b.id === game.profile.home.place && isHousePlace(b.id)) this.enterHouse(b); });
-    game.on('building.exit', (b) => { if (this.houseB === b) this.leaveHouse(); });
+    game.on('building.exit', (b) => { if (this.houseB === b && !this.inGarden) this.leaveHouse(); });
     this.funInter = game.interactions.add({
       zone: 'home', r: 2.2, priority: 1,
       x: () => this.nearFun()?.mesh.position.x + O.x || 1e9, z: () => this.nearFun()?.mesh.position.z + O.z || 1e9,
@@ -64,7 +64,24 @@ export class Home {
     this.houseF = buildingFrame(b);
     this.decoBtn?.remove();
     this.decoBtn = this.game.hud.addButton('🛠️', 'Décorer', () => this.openDeco());
-    this.game.hud.track('home', { title: '🏠 Chez moi', text: 'Bouton 🛠️ pour décorer. Invite tes amis à passer !' });
+    this.game.hud.track('home', { title: this.inGarden ? '🌳 Mon jardin' : '🏠 Chez moi', text: this.inGarden ? 'Bouton 🛠️ : piscine, barbecue, hamac, palmiers... tout se pose dans le jardin.' : 'Bouton 🛠️ pour décorer. Le jardin est derrière la maison !' });
+  }
+
+  // Jardin derrière sa maison : on y décore comme à l'intérieur (même repère que la maison).
+  gardenTick() {
+    const g = this.game, place = g.profile?.home.place;
+    const gd = place && isHousePlace(place) ? gardenOf(place) : null;
+    const b = gd && BUILDING_BY_ID[HOUSING_BY_ID[place].building];
+    let inG = false;
+    if (b) {
+      const P = g.player.pos, l = localInBuilding(b, P.x, P.z);
+      inG = P.y < 4 && l.x > gd.x1 - 1 && l.x < gd.x2 + 1 && l.z > gd.z1 - 1 && l.z < gd.z2 + 0.3;
+    }
+    if (inG === !!this.inGarden) return;
+    this.inGarden = inG;
+    if (inG) this.enterHouse(b);
+    else if (this.houseB && g.interiors?.inside?.id !== this.houseB.id) this.leaveHouse();
+    else if (this.houseB) this.enterHouse(this.houseB);   // rentré dans la maison : on remet le bon titre
   }
 
   leaveHouse() {
@@ -178,16 +195,16 @@ export class Home {
   load(home) {
     const g = this.game;
     if (this.inside) { this.inside.dims = homeSize({ home }); this.buildRoom(this.inside.dims); }
-    for (const it of this.items) { this.group.remove(it.mesh); if (it.col) g.collision.remove(it.col); }
+    for (const it of this.items) { this.group.remove(it.mesh); for (const c of it.cols || []) g.collision.remove(c); }
     this.items = home.furniture.map((f, index) => {
       const mesh = new THREE.Mesh(furnitureGeometry(f.i), actorMaterial);
       mesh.position.set(f.x, 0, f.z);
       mesh.rotation.y = (f.r || 0) * Math.PI / 2;
       mesh.castShadow = true;
       this.group.add(mesh);
-      const [fw, fd] = furnitureFootprint(f.i, f.r || 0);
-      const col = fw > 0 && f.i !== 'tapis' ? g.collision.addBoxC(O.x + f.x, O.z + f.z, fw, fd, 0, 1.2, { noCamera: true }) : null;
-      return { mesh, f, col, index };
+      // murs : pleine hauteur (le mur avec porte laisse passer au milieu)
+      const cols = furnitureBoxes(f).map(([x, z, w, d, hh]) => g.collision.addBoxC(O.x + x, O.z + z, w, d, 0, hh, { noCamera: !isWall(f.i) }));
+      return { mesh, f, cols, index };
     });
   }
 
@@ -251,6 +268,8 @@ export class Home {
         const p = g.profile;
         const owned = Object.keys(p.inventory).filter((id) => items[id]?.furniture && p.inventory[id] > 0);
         if (!owned.length) b.append(h('p.muted', 'Tu n\'as encore aucun meuble. Va chez Meubles Mous, sur la Grande Place !'));
+        if (p.home.furniture.length) b.append(h('button.btn.block', { style: { marginBottom: '10px' }, onclick: () => { const k = this.nearestPlaced(); if (k < 0) { g.ui.toast('Approche-toi d\'un meuble.', 'bad'); return; } m.close(); this.startGhost(p.home.furniture[k].i, k); } }, '✋ Déplacer le meuble le plus proche (touche M)'));
+        b.append(h('p.muted', '🧱 Murs et cloisons (2 m, à tourner avec R) : Brico Dépôt ou Maison & Déco. Pose-les bout à bout pour créer des pièces.'));
         b.append(h('div.grid', owned.map((id) => {
           const placed = p.home.furniture.filter((f) => f.i === id).length;
           const free = p.inventory[id] - placed;
@@ -260,21 +279,46 @@ export class Home {
         if (p.home.furniture.length) {
           b.append(h('h3', { style: { marginTop: '16px' } }, 'Meubles posés'));
           b.append(h('div.list', p.home.furniture.map((f, i) => h('div.list-item', h('span', items[f.i]?.emoji || '📦'), h('div.grow', h('div.t', items[f.i]?.name || f.i)),
+            h('button.btn.small', { onclick: () => { m.close(); this.startGhost(f.i, i); } }, '✋ Déplacer'),
             h('button.btn.small.ghost', { onclick: async () => { try { await g.net.request('home.remove', { index: i }); m.refresh(); } catch (e) { g.ui.toast(e.message, 'bad'); } } }, 'Ranger')))));
         }
       },
     });
   }
 
-  startGhost(itemId) {
+  canDecorate() { return !!(this.inside?.mine || this.houseB) && !this.ghost; }
+  moveNearest() {
+    const k = this.nearestPlaced();
+    if (k < 0) { this.game.ui.toast('✋ Approche-toi du meuble (ou du mur) à déplacer, puis appuie sur M.', '', 3000); return; }
+    this.startGhost(this.game.profile.home.furniture[k].i, k);
+  }
+
+  // Meuble posé le plus proche du joueur (index dans home.furniture), ou -1.
+  nearestPlaced() {
+    const g = this.game, P = g.player.pos, list = g.profile.home.furniture;
+    let best = -1, bd = 3.5;
+    list.forEach((f, i) => {
+      let wx = O.x + f.x, wz = O.z + f.z;
+      if (this.houseB) [wx, wz] = this.houseF.L(f.x, f.z);
+      const d = Math.hypot(P.x - wx, P.z - wz);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+
+  startGhost(itemId, moveIndex = null) {
     const g = this.game;
     this.cancelGhost();
     const mat = actorMaterial.clone();
     mat.transparent = true; mat.opacity = 0.55;
     const mesh = new THREE.Mesh(furnitureGeometry(itemId), mat);
     (this.houseB ? g.engine.scene : this.group).add(mesh);
-    this.ghost = { itemId, mesh, r: 0 };
-    this.ghostBar = h('div.dialog-box', h('div', h('span.who', 'Placer le meuble'), h('span.role', 'déplace-toi pour le positionner')),
+    const moving = moveIndex !== null ? g.profile.home.furniture[moveIndex] : null;
+    this.ghost = { itemId, mesh, r: moving ? moving.r || 0 : 0, moveIndex };
+    // l'original disparaît pendant qu'on le déplace
+    if (moving && this.houseB) { g.interiors.hideFurn = moveIndex; g.interiors.reload(this.houseB.id); this.hiddenMove = { house: this.houseB.id }; }
+    else if (moving) { const it = this.items.find((x) => x.index === moveIndex); if (it) it.mesh.visible = false; this.hiddenMove = it; }
+    this.ghostBar = h('div.dialog-box', h('div', h('span.who', moving ? 'Déplacer le meuble' : isWall(itemId) ? 'Placer le mur' : 'Placer le meuble'), h('span.role', 'déplace-toi pour le positionner')),
       h('div.choices', { style: { marginTop: '10px' } },
         h('button.btn.small.ghost', { onclick: () => this.rotateGhost() }, '↻ Tourner (R)'),
         h('button.btn.small', { onclick: () => this.confirmGhost() }, '✔ Poser ici (E)'),
@@ -300,6 +344,11 @@ export class Home {
       lx = dx * Math.cos(th) - dz * Math.sin(th); lz = dx * Math.sin(th) + dz * Math.cos(th);
     }
     const snap = (v, lim) => Math.max(-lim, Math.min(lim, Math.round(v * 4) / 4));
+    const gd = this.houseB && gardenOf(this.houseB.id);
+    if (gd && (this.inGarden || lz < -this.houseF.D / 2)) {   // dans le jardin
+      const cl = (v, a, b) => Math.max(a, Math.min(b, Math.round(v * 4) / 4));
+      return { x: cl(lx, gd.x1 + 0.75, gd.x2 - 0.75), z: cl(lz, gd.z1 + 0.75, gd.z2 - 0.75) };
+    }
     return { x: snap(lx, S.w / 2 - 0.6), z: snap(lz, S.d / 2 - 0.6) };
   }
 
@@ -307,11 +356,17 @@ export class Home {
     if (!this.ghost) return;
     const g = this.game;
     const { x, z } = this.ghostPos();
-    const { itemId, r } = this.ghost;
-    try { await g.net.request('home.place', { itemId, x, z, r }); g.sfx('pop'); this.cancelGhost(); } catch (e) { g.ui.toast(e.message, 'bad'); }
+    const { itemId, r, moveIndex } = this.ghost;
+    try {
+      if (moveIndex !== null && moveIndex !== undefined) await g.net.request('home.move', { index: moveIndex, x, z, r });
+      else await g.net.request('home.place', { itemId, x, z, r });
+      g.sfx('pop'); this.cancelGhost();
+    } catch (e) { g.ui.toast(e.message, 'bad'); }
   }
 
   cancelGhost() {
+    if (this.hiddenMove?.house) { this.game.interiors.hideFurn = null; this.game.interiors.reload(this.hiddenMove.house); this.hiddenMove = null; }
+    else if (this.hiddenMove) { this.hiddenMove.mesh.visible = true; this.hiddenMove = null; }
     if (!this.ghost) return;
     this.ghost.mesh.removeFromParent();
     this.ghost = null;
@@ -320,6 +375,7 @@ export class Home {
   }
 
   update(dt, t) {
+    this.gardenTick();
     if (this.houseB && this.ghost) {
       const { x, z } = this.ghostPos();
       const [wx, wz] = this.houseF.L(x, z);

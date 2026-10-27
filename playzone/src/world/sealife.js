@@ -49,7 +49,7 @@ export class Sea {
   nearReefs(P) { return REEFS.map((rf) => ({ rf, d: Math.hypot(rf.x - P.x, rf.z - P.z) })).filter((x) => x.d < 260).sort((a, b) => a.d - b.d).slice(0, 2).map((x) => x.rf); }
 
   update(dt, t) {
-    const g = this.g, P = g.player, sub = g.submarine?.s;
+    const g = this.g, P = g.player, sub = g.submarine?.s || P.pool;   // dans sa piscine : pas de plongée
     // ---------------------------------------------------------------- plongée en nageant
     if (P.swimming && !sub) {
       const I = g.input, floor = groundHeight(P.pos.x, P.pos.z);

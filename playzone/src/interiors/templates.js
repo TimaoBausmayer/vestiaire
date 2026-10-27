@@ -1,3 +1,4 @@
+import { gardenOf } from '../../shared/property.js';
 // MODÈLES D'INTÉRIEURS : chaque type de bâtiment visitable a son aménagement (meubles, comptoirs,
 // rayons, produits, personnel, points d'interaction). Coordonnées locales : x le long de la façade
 // (-W/2..W/2), z de l'arrière (-D/2) vers la porte (+D/2). t = outils fournis par interiors.js.
@@ -473,15 +474,29 @@ export const TEMPLATES = {
   home(t) {
     lightsAround(t);
     const FUN = { tele: ['📺 Regarder la télé', 'tv'], 'tele-geante': ['📺 Regarder la télé géante', 'tv'], frigo: ['🧊 Ouvrir le frigo', 'fridge'] };
+    // le jardin derrière la maison : pelouse, dallage et haie (ouverte sur les côtés pour passer)
+    const G = gardenOf(t.b.id);
+    if (G) {
+      const cz = (G.z1 + G.z2) / 2, W = G.x2 - G.x1, D = G.z2 - G.z1;
+      t.box(0, -0.02, cz, W, 0.05, D, '#7cc96a', 'matte');
+      t.box(0, 0, G.z2 - 0.6, W - 0.4, 0.04, 1.2, '#d6ccc2', 'matte');   // terrasse au pied de la maison
+      const hedge = (x, z, w, d) => { t.box(x, 0, z, w, 0.95, d, '#2d6a4f', 'matte'); t.solid(x, z, w, d, 0.95); };
+      hedge(0, G.z1 + 0.2, W, 0.4);                                        // fond
+      for (const sx of [-1, 1]) hedge(sx * (W / 2 - 0.2), cz - 0.9, 0.4, D - 1.8);   // côtés (passage côté maison)
+    }
     for (const f of t.home.furniture) {
       const ry = (f.r || 0) * Math.PI / 2;
       t.furn(f.i, f.x, f.z, ry);
-      const [fw, fd] = t.footprint(f.i, f.r || 0);
-      if (fw > 0 && !['tapis', 'tapis-rond', 'lampe', 'douche'].includes(f.i)) t.solid(f.x, f.z, fw, fd, f.i === 'lit' || f.i === 'canape' ? 0.6 : 1.1);
+      for (const [x, z, w, d, hh] of t.boxes(f)) t.solid(x, z, w, d, hh);   // murs pleine hauteur, porte praticable
       if (f.i === 'lit') { const [x, z] = t.F.L(f.x, f.z); t.spot(f.x, f.z, { label: '🛏️ Dormir', action: 'sleep', r: 1.6, seat: { x, z, yaw: t.F.th + ry, y: 0.6, lie: true } }); }
       else if (f.i === 'cuisiniere') t.spot(f.x + Math.sin(ry) * 1, f.z + Math.cos(ry) * 1, { label: '🍳 Cuisiner', action: 'cook', r: 1.5 });
       else if (f.i === 'douche') t.spot(f.x, f.z, { label: '🚿 Prendre une douche', action: 'shower', r: 1.4 });
       else if (f.i === 'canape' || f.i === 'chaise' || f.i === 'trone') t.seat(f.x, f.z, ry + Math.PI, f.i === 'chaise' ? 0.5 : 0.45);
+      else if (f.i === 'piscine' || f.i === 'jacuzzi') {
+        const a = t.F.th + ry, [cx, cz] = t.F.L(f.x, f.z);
+        const [hx, hz] = f.i === 'piscine' ? [1.45, 0.75] : [0.6, 0.6];
+        t.spot(f.x + Math.sin(ry) * (f.i === 'piscine' ? 1.8 : 1.6), f.z + Math.cos(ry) * (f.i === 'piscine' ? 1.8 : 1.6), { label: f.i === 'piscine' ? '🏊 Se baigner dans la piscine' : '🛁 Se détendre dans le jacuzzi', action: 'swim', r: 2.2, pool: { cx, cz, a, hx, hz, y: 0.95, kind: f.i } });
+      }
       else if (FUN[f.i]) t.spot(f.x + Math.sin(ry) * 1.2, f.z + Math.cos(ry) * 1.2, { label: FUN[f.i][0], action: FUN[f.i][1], r: 1.5 });
       else if (t.funLabel(f.i)) t.spot(f.x, f.z, { label: t.funLabel(f.i), action: 'homefun', item: f.i, r: 1.6 });
     }

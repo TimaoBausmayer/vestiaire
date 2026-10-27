@@ -52,6 +52,7 @@ export class Player {
   }
 
   teleport(x, z, yaw, y) {
+    if (this.pool) this.leavePool?.();   // téléporté ailleurs : on sort de sa piscine
     if (this.seated) { this.seated = null; this.avatar.root.rotation.set(0, this.yaw, 0); }
     this.teleportedAt = performance.now();
     // on cherche le sol juste au-dessus du terrain : jamais sur un toit ou un auvent (sinon, en revenant
@@ -97,7 +98,7 @@ export class Player {
     const mlen = Math.hypot(mx, mz);
     const ground = groundHeight(p.x, p.z);
     const inHome = this.zone.startsWith('home');
-    this.swimming = !inHome && ground < WATER_LEVEL - 1.0 && p.y < WATER_LEVEL - 0.6;
+    this.swimming = !!this.pool || (!inHome && ground < WATER_LEVEL - 1.0 && p.y < WATER_LEVEL - 0.6);
     // sprint : plus on est musclé·e, plus on court vite et longtemps (jauge d'endurance)
     const m = this.muscle ?? 30;
     const wantSprint = input.sprint && !this.noSprint && !this.bodyNoSprint && mlen > 0.1 && !this.swimming;
@@ -125,7 +126,7 @@ export class Player {
       this.onJump?.();
     }
     if (this.swimming) {
-      const targetY = WATER_LEVEL - 1.05 - (this.dive || 0) + Math.sin(performance.now() / 400) * 0.05;
+      const targetY = (this.pool ? this.pool.y - 1.05 : WATER_LEVEL - 1.05 - (this.dive || 0)) + Math.sin(performance.now() / 400) * 0.05;
       v.y = (targetY - p.y) * 4;
     } else {
       v.y -= GRAVITY * dt;
@@ -134,7 +135,8 @@ export class Player {
     p.x += v.x * dt;
     p.z += v.z * dt;
     p.y += v.y * dt;
-    this.collision.pushOut(p, PLAYER_RADIUS, PLAYER_HEIGHT, 0.6);
+    if (this.pool) this.pool.clamp(p);   // dans sa piscine : le bassin nous contient
+    else this.collision.pushOut(p, PLAYER_RADIUS, PLAYER_HEIGHT, 0.6);
     const support = this.collision.supportAt(p.x, p.z, p.y, PLAYER_RADIUS, 0.6);
     if (!this.swimming && p.y <= support + 0.02 && v.y <= 0) {
       if (!this.grounded && v.y < -12) this.onLand?.(v.y);

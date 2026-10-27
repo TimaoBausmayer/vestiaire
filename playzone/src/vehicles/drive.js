@@ -84,12 +84,12 @@ export class DriveSim {
     let acc = 0;
     this.brake = 0; this.reverse = 0;
     if (thr > 0.05) {
-      if (vf < -0.4) { acc = 13 * thr; this.brake = 1; }
+      if (vf < -0.4) { acc = (sp.kind === 'f1' ? 30 : 13) * thr; this.brake = 1; }
       else acc = sp.acc * thr * Math.max(0.06, 1 - (vf / maxF) ** 2);
       // limiteur de vitesse : on coupe l'accélération en douceur à l'approche de la limite
       if (this.limit && vf > this.limit - 1.5) acc = Math.min(acc, (this.limit - vf) * 2.5);
     } else if (thr < -0.05) {
-      if (vf > 0.4) { acc = 13 * thr; this.brake = 1; }
+      if (vf > 0.4) { acc = (sp.kind === 'f1' ? 30 : 13) * thr; this.brake = 1; }
       else { acc = sp.acc * 0.55 * thr * Math.max(0, 1 - (vf / (maxF * 0.3)) ** 2); this.reverse = 1; }
     } else {
       const roll = 0.9 + Math.abs(vf) * 0.09;
@@ -102,21 +102,25 @@ export class DriveSim {
     const aspd = Math.abs(vf);
     // direction plus vive à basse vitesse, plus douce à haute vitesse ; le permis rend la conduite plus facile
     const L = this.licensed ? 1 : 0;
-    const maxSteer = (sp.kind === 'car' ? 0.72 : 0.78) * (1 - 0.58 * Math.min(1, aspd / Math.max(10, sp.max)));
+    // la F1 garde beaucoup de braquage à haute vitesse (appui aéro), une voiture de série un peu moins
+    const F1 = sp.kind === 'f1';
+    const maxSteer = (sp.kind === 'car' ? 0.74 : F1 ? 0.62 : 0.78) * (1 - (F1 ? 0.42 : 0.52) * Math.min(1, aspd / Math.max(10, sp.max)));
     const target = (inp.steer || 0) * maxSteer;
-    const T = sp.kind === 'car' ? this.tier : 0.5;
-    this.steer += (target - this.steer) * Math.min(1, dt * (Math.abs(target) > Math.abs(this.steer) ? 8 + 4 * T + 2 * L : 11 + 3 * T + 2 * L));
+    const T = sp.kind === 'car' ? this.tier : F1 ? 1 : 0.5;
+    this.steer += (target - this.steer) * Math.min(1, dt * (Math.abs(target) > Math.abs(this.steer) ? 10 + 5 * T + 2 * L : 13 + 4 * T + 2 * L) * (F1 ? 1.4 : 1));
     const wb = Math.max(0.6, D.zF - D.zR);
     let yawRate = -vf * Math.tan(this.steer) / wb * (sp.turn / 1.8);
     // l'adhérence plafonne la rotation : à haute vitesse la voiture vire large mais reste contrôlable
     // (au lieu de pivoter brutalement). Les voitures haut de gamme encaissent plus d'accélération latérale.
-    const latMax = (sp.kind === 'car' ? 15 + 8 * T + 3 * L : 15) * sp.grip * (inp.handbrake ? 1.8 : 1);
+    // F1 : ~4 g d'appui aérodynamique (de plus en plus avec la vitesse) ; voitures : 1,8 à 2,9 g selon la gamme
+    const aero = F1 ? 22 + 0.35 * aspd : 0;
+    const latMax = (sp.kind === 'car' ? 18 + 9 * T + 3 * L : F1 ? 18 + aero : 15) * sp.grip * (inp.handbrake ? 1.8 : 1);
     if (aspd > 1 && Math.abs(yawRate * vf) > latMax) yawRate = Math.sign(yawRate) * latMax / aspd;
     if (inp.handbrake && aspd > 4) yawRate *= 1.6;
     this.yawRate = yawRate;
     // adhérence latérale : le dérapage s'amortit plus ou moins vite
     const grip = sp.grip * (inp.handbrake ? 0.22 : 1) * (1 - this.damage * 0.25);
-    vl *= Math.exp(-dt * (1.5 + 11 * grip + (3 + 5 * T + 2 * L) * (inp.handbrake ? 0 : 1)));   // contrôle de stabilité (toutes, renforcé haut de gamme et avec le permis)
+    vl *= Math.exp(-dt * (1.5 + 11 * grip + (3 + 5 * T + 2 * L + (F1 ? 6 : 0)) * (inp.handbrake ? 0 : 1)));   // contrôle de stabilité (toutes, renforcé haut de gamme et avec le permis)
     this.slip = Math.abs(vl);
     this.latAcc = yawRate * vf;
     this.yaw += yawRate * dt;

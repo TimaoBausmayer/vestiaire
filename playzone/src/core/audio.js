@@ -85,6 +85,7 @@ export class Sfx {
       case 'go': this.tone('square', 1320, 1320, 0.35, 0.07); break;
       case 'door': this.noise(0.18, 0.1, 'lowpass', 500); this.tone('triangle', 200, 150, 0.12, 0.08, 0.05); break;
       case 'hiss': this.noise(0.4, 0.12, 'highpass', 3000); break;
+      case 'splash': this.noise(0.5, 0.22, 'lowpass', 2400, 0, 500); this.tone('sine', 300, 120, 0.25, 0.08); break;
       case 'secret': [784, 988, 1175, 1568, 1976].forEach((f, i) => this.tone('sine', f, f, 0.25, 0.08, i * 0.07)); break;
       case 'fail': [392, 330, 262].forEach((f, i) => this.tone('triangle', f, f * 0.95, 0.25, 0.08, i * 0.15)); break;
       case 'crash': this.noise(0.5, 0.45, 'lowpass', 1800, 0, 150); this.tone('sine', 110, 40, 0.3, 0.3); this.noise(0.25, 0.15, 'highpass', 4000, 0.05); break;

@@ -32,6 +32,7 @@ import { PREMIUM_HANDLERS } from './authority-premium.js';
 import { ONLINE_HANDLERS } from './authority-online.js';
 import { SAILING_HANDLERS } from './authority-sailing.js';
 import { LOTTERY_HANDLERS } from './authority-lottery.js';
+import { ROMANCE_HANDLERS } from './authority-romance.js';
 import { SEA_HANDLERS } from './authority-sea.js';
 import { defaultFoot } from './sports.js';
 import { defaultWing } from './wingfoil.js';
@@ -43,7 +44,7 @@ import { SOCIAL_HANDLERS } from './authority-social.js';
 import { defaultCasino } from './casino.js';
 import { defaultJustice } from './justice.js';
 import { defaultBody, eatWeight } from './body.js';
-import { deliverySpot, homeSize } from './property.js';
+import { deliverySpot, homeSize, gardenOf } from './property.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
 export const TRASH_SPOTS = [
@@ -708,7 +709,7 @@ const HANDLERS = {
     if (!it?.furniture) return err('Ce n\'est pas un meuble.');
     const placed = p.home.furniture.filter((f) => f.i === itemId).length;
     if ((p.inventory[itemId] || 0) <= placed) return err('Tu n\'as plus ce meuble en stock.');
-    if (p.home.furniture.length >= 60) return err('Ton logement est plein !');
+    if (p.home.furniture.length >= 120) return err('Ton logement est plein ! (120 éléments au maximum)');
     const pos = clampHome(p, x, z);
     if (!pos) return err('Position invalide.');
     p.home.furniture.push({ i: itemId, x: pos.x, z: pos.z, r: (r | 0) & 3 });
@@ -781,7 +782,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, SPORTS_HANDLERS, PREMIUM_HANDLERS, ONLINE_HANDLERS, SAILING_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS, LOTTERY_HANDLERS, SEA_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, SPORTS_HANDLERS, PREMIUM_HANDLERS, ONLINE_HANDLERS, SAILING_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS, LOTTERY_HANDLERS, SEA_HANDLERS, ROMANCE_HANDLERS);
 // Liste des entreprises de joueurs où investir (en ligne).
 HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 
@@ -803,7 +804,9 @@ function clampHome(p, x, z) {
   const S = homeSize(p);
   if (typeof x !== 'number' || typeof z !== 'number' || !Number.isFinite(x) || !Number.isFinite(z)) return null;
   const hx = S.w / 2 - 0.6, hz = S.d / 2 - 0.6;
-  if (Math.abs(x) > hx + 0.01 || Math.abs(z) > hz + 0.01) return null;
+  const g = gardenOf(p.home.place);   // ou dans le jardin, derrière la maison
+  const inGarden = g && x >= g.x1 + 0.59 && x <= g.x2 - 0.59 && z >= g.z1 + 0.59 && z <= g.z2 - 0.59;
+  if (!inGarden && (Math.abs(x) > hx + 0.01 || Math.abs(z) > hz + 0.01)) return null;
   return { x: Math.round(x * 4) / 4, z: Math.round(z * 4) / 4 };
 }
 

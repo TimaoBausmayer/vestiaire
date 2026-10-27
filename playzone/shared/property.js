@@ -1,7 +1,7 @@
 // PROPRIÉTÉ : logements (location, achat comptant ou à crédit), véhicules d'occasion, locations de
 // véhicules, réparations, carburant, factures. Règles pures partagées client / serveur (l'autorité
 // valide tout, le client s'en sert pour afficher les mêmes prix).
-import { BUILDINGS, BUILDING_BY_ID, facingVector } from './world-layout.js';
+import { BUILDINGS, BUILDING_BY_ID, ROADS, facingVector, isWater } from './world-layout.js';
 import { VEHICLES, CAR_PAINTS } from './content/vehicles.js';
 import { mulberry32, hashString } from './rng.js';
 import { todayKey } from './rules.js';
@@ -18,7 +18,15 @@ export const vehicleBase = (model) => VEHICLES[model]?.price || 3000;
 // Mécano mobile : il vient réparer où tu es, mais c'est bien plus cher qu'au garage (déplacement + urgence).
 export const MOBILE_FEE = 200;
 export const mobileRepairCost = (model, damage) => (damage <= 0.005 ? 0 : MOBILE_FEE + 2 * repairCost(model, damage));
-export const repairCost = (model, damage) => (damage <= 0.005 ? 0 : Math.max(25, round5(vehicleBase(model) * 0.16 * damage)));
+// Atelier de garage chez soi : moitié prix du garage (on fait le travail soi-même).
+export const HOME_GARAGE_RADIUS = 35;
+export const homeRepairCost = (model, damage) => (damage <= 0.005 ? 0 : Math.max(10, round5(repairCost(model, damage) * 0.5)));
+export function nearHomeGarage(p, x, z) {
+  if (!p.home?.furniture?.some((f) => f.i === 'atelier-garage')) return false;
+  const h = HOUSING_BY_ID[p.home.place], b = h && BUILDING_BY_ID[h.building];
+  return !!b && h.kind !== 'appart' && h.kind !== 'studio' && Math.hypot(x - b.x, z - b.z) < HOME_GARAGE_RADIUS;
+}
+export const repairCost = (model, damage) => (damage <= 0.005 ? 0 : Math.max(20, round5(vehicleBase(model) * 0.095 * damage)));
 // Valeur de revente : moitié du prix de base, moins l'usure (kilométrage) et les dégâts.
 export function resaleValue(v) {
   const km = v.km || 0;
@@ -158,6 +166,47 @@ const ROT = { S: 0, N: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 };
 export function localInBuilding(b, x, z) {
   const th = ROT[b.facing] || 0, c = Math.cos(th), s = Math.sin(th), dx = x - b.x, dz = z - b.z;
   return { x: dx * c - dz * s, z: dx * s + dz * c };
+}
+
+// ------------------------------------------------------------------------------------ jardin
+// Derrière chaque maison : la bande libre (ni route, ni eau, ni voisin) jusqu'à 10 m. Si un voisin est
+// derrière, on s'arrête à mi-chemin pour que chacun ait son jardin. Même repère local que la maison
+// (z vers la porte), donc le jardin est en z négatif. null = pas de jardin (appartement, trop serré).
+const gardens = new Map();
+export function gardenOf(placeId) {
+  if (gardens.has(placeId)) return gardens.get(placeId);
+  const h = HOUSING_BY_ID[placeId], b = h && BUILDING_BY_ID[h.building];
+  let g = null;
+  if (b && b.kind === 'house') {
+    const th = ROT[b.facing] || 0, c = Math.cos(th), s = Math.sin(th);
+    const W = b.facing === 'N' || b.facing === 'S' ? b.w : b.d, D = b.facing === 'N' || b.facing === 'S' ? b.d : b.w;
+    const blocked = (lx, lz) => {
+      const x = b.x + lx * c + lz * s, z = b.z - lx * s + lz * c;
+      if (isWater(x, z)) return 'eau';
+      for (const r of ROADS) if (x > r[0] - 2 && x < r[2] + 2 && z > r[1] - 2 && z < r[3] + 2) return 'route';
+      for (const o of BUILDINGS) if (o !== b && Math.abs(x - o.x) < o.w / 2 + 1 && Math.abs(z - o.z) < o.d / 2 + 1) return 'voisin';
+      return null;
+    };
+    let depth = 0, why = null;
+    for (let k = 1; k <= 16 && !why; k++) {
+      for (let lx = -W / 2; lx <= W / 2 && !why; lx += 1) why = blocked(lx, -(D / 2 + k));
+      if (!why) depth = k;
+    }
+    if (why === 'voisin') depth = Math.floor((depth + 1) / 2);
+    depth = Math.min(10, depth);
+    if (depth >= 3) g = { x1: -W / 2, x2: W / 2, z1: -(D / 2 + depth), z2: -D / 2, depth, W, D };
+  }
+  gardens.set(placeId, g);
+  return g;
+}
+// Position locale chez soi (maison ou jardin), sinon null.
+export function homeGroundsLocal(placeId, x, z) {
+  const h = HOUSING_BY_ID[placeId], b = h && BUILDING_BY_ID[h.building];
+  if (!b || !['maison', 'ferme', 'villa'].includes(h.kind)) return null;
+  const l = localInBuilding(b, x, z), W = b.facing === 'N' || b.facing === 'S' ? b.w : b.d, D = b.facing === 'N' || b.facing === 'S' ? b.d : b.w;
+  if (Math.abs(l.x) < W / 2 && Math.abs(l.z) < D / 2) return l;
+  const g = gardenOf(placeId);
+  return g && l.x > g.x1 - 0.5 && l.x < g.x2 + 0.5 && l.z > g.z1 - 0.5 && l.z < g.z2 + 0.5 ? l : null;
 }
 
 // ------------------------------------------------------------------------------------ banque, liquide

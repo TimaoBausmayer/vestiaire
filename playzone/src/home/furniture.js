@@ -2,6 +2,13 @@ import { buildMergedGeometry, SHAPES as B } from '../core/static-builder.js';
 
 // Modèles des meubles (construits en code). fp = emprise au sol [largeur, profondeur] pour les collisions.
 export const DEFS = {
+  // ---- murs et cloisons (2 m de long, pleine hauteur) : pour découper son logement en pièces
+  'mur-blanc': { fp: [2, 0.15], h: 2.6, wall: true, build: (sb) => { sb.box(0, 0, 0, 2, 2.6, 0.15, '#f4f1ea'); sb.box(0, 0, 0, 2.02, 0.12, 0.17, '#a0703c'); } },
+  'mur-brique': { fp: [2, 0.2], h: 2.6, wall: true, build: (sb) => { sb.box(0, 0, 0, 2, 2.6, 0.2, '#b5523b'); for (let r = 0; r < 10; r++) for (let k = 0; k < 4; k++) sb.box(-0.75 + k * 0.5 + (r % 2) * 0.25 - (r % 2 && k === 3 ? 2 : 0), 0.05 + r * 0.26, 0.101, 0.46, 0.22, 0.01, ['#c1643f', '#a84a32', '#b85a3a'][(r + k) % 3]); } },
+  'mur-bois': { fp: [2, 0.15], h: 2.6, wall: true, build: (sb) => { for (let k = 0; k < 8; k++) sb.box(-0.875 + k * 0.25, 0, 0, 0.24, 2.6, 0.15, k % 2 ? '#a0703c' : '#8d5a34'); } },
+  'mur-vitre': { fp: [2, 0.12], h: 2.6, wall: true, build: (sb) => { sb.box(0, 0, 0, 2, 0.1, 0.12, '#30343f'); sb.box(0, 2.5, 0, 2, 0.1, 0.12, '#30343f'); for (const x of [-0.97, 0, 0.97]) sb.box(x, 0, 0, 0.06, 2.6, 0.12, '#30343f'); sb.add(B.box(), { y: 0.1, sx: 1.9, sy: 2.4, sz: 0.04, color: '#bfe3ff', mat: 'windows' }); } },
+  'mur-porte': { fp: [2, 0.15], h: 2.6, wall: true, door: true, build: (sb) => { sb.box(-0.8, 0, 0, 0.4, 2.6, 0.15, '#f4f1ea'); sb.box(0.8, 0, 0, 0.4, 2.6, 0.15, '#f4f1ea'); sb.box(0, 2.1, 0, 1.2, 0.5, 0.15, '#f4f1ea'); for (const x of [-0.6, 0.6]) sb.box(x, 0, 0, 0.05, 2.1, 0.18, '#a0703c'); sb.box(0, 2.08, 0, 1.25, 0.06, 0.18, '#a0703c'); } },
+  muret: { fp: [2, 0.2], h: 1.1, wall: true, build: (sb) => { sb.box(0, 0, 0, 2, 1.05, 0.2, '#e9edf2'); sb.box(0, 1.05, 0, 2.06, 0.06, 0.26, '#a0703c'); } },
   canape: { fp: [2.4, 1.0], build: (sb) => { sb.box(0, 0, 0, 2.4, 0.45, 1.0, '#ff5a5f'); sb.box(0, 0.45, -0.38, 2.4, 0.6, 0.25, '#e04848'); for (const x of [-1.1, 1.1]) sb.box(x, 0.45, 0, 0.25, 0.35, 1.0, '#e04848'); for (const x of [-0.55, 0.55]) sb.box(x, 0.45, 0.05, 1.0, 0.12, 0.75, '#ff7a7f'); } },
   lit: { fp: [1.8, 2.3], build: (sb) => { sb.box(0, 0, 0, 1.8, 0.45, 2.3, '#a0703c'); sb.box(0, 0.45, 0.1, 1.7, 0.2, 2.0, '#f4f1ea'); sb.box(0, 0.62, 0.45, 1.68, 0.06, 1.3, '#3d8ee8'); sb.box(0, 0.62, -0.75, 1.2, 0.18, 0.4, '#ffffff'); sb.box(0, 0, -1.1, 1.8, 1.1, 0.12, '#7a5230'); } },
   table: { fp: [1.4, 0.9], build: (sb) => { sb.box(0, 0.38, 0, 1.4, 0.08, 0.9, '#a0703c'); for (const [x, z] of [[-0.6, -0.35], [0.6, -0.35], [-0.6, 0.35], [0.6, 0.35]]) sb.box(x, 0, z, 0.08, 0.38, 0.08, '#7a5230'); sb.cyl(0.3, 0.46, 0, 0.12, 0.12, '#ffffff', 10); } },
@@ -58,6 +65,13 @@ export const DEFS = {
   piscine: { fp: [4.0, 2.6], build: (sb) => { sb.box(0, 0, 0, 4.0, 0.9, 2.6, '#e9ecef'); sb.box(0, 0.8, 0, 3.7, 0.12, 2.3, '#3fa9f5'); sb.box(1.6, 0.9, 0, 0.1, 0.6, 0.5, '#c0c4ca'); sb.cyl(-1.2, 0.95, 0.6, 0.3, 0.06, '#ff3fa4', 14); } },
   // ---- Bricolage / jardinerie / sport
   etabli: { fp: [1.8, 0.8], build: (sb) => { sb.box(0, 0.85, 0, 1.8, 0.08, 0.8, '#c49a6c'); for (const x of [-0.8, 0.8]) sb.box(x, 0, 0, 0.08, 0.85, 0.7, '#8d5a2b'); sb.box(0, 0.93, -0.35, 1.8, 0.8, 0.05, '#6c757d'); for (let i = 0; i < 6; i++) sb.box(-0.6 + i * 0.25, 1.3, -0.32, 0.05, 0.3, 0.03, ['#e63946', '#ffd23f', '#1d4ed8'][i % 3]); sb.box(0.5, 0.93, 0.1, 0.4, 0.15, 0.25, '#e63946'); } },
+  'atelier-garage': { fp: [3.0, 1.2], build: (sb) => {   // établi, panneau d'outils, pneus, servante rouge, cric
+    sb.box(-0.4, 0.9, 0, 2.0, 0.08, 0.9, '#9c6b3c'); for (const x of [-1.3, 0.5]) sb.box(x, 0, 0, 0.08, 0.9, 0.8, '#5c3d24');
+    sb.box(-0.4, 0.98, -0.5, 2.0, 1.1, 0.06, '#495057'); for (let i = 0; i < 8; i++) sb.box(-1.2 + i * 0.22, 1.3 + (i % 2) * 0.25, -0.46, 0.05, 0.35, 0.03, ['#e63946', '#ffd23f', '#1d4ed8', '#adb5bd'][i % 4]);
+    for (let i = 0; i < 3; i++) sb.add(B.cyl(14), { x: 1.15, y: 0.12 + i * 0.24, sx: 0.62, sy: 0.22, sz: 0.62, color: '#1b1b1f' });
+    sb.box(0.3, 0.98, 0.15, 0.45, 0.22, 0.3, '#e63946'); sb.box(-1.0, 0, 0.35, 0.5, 0.75, 0.4, '#d62828'); sb.box(-1.0, 0.75, 0.35, 0.5, 0.03, 0.4, '#adb5bd');
+    sb.box(0.3, 0, 0.45, 0.25, 0.12, 0.6, '#ffb703');
+  } },
   hamac: { fp: [2.8, 1.0], build: (sb) => { for (const x of [-1.3, 1.3]) sb.box(x, 0, 0, 0.1, 1.5, 0.1, '#8d5a2b'); sb.add(B.sphere(12), { y: 0.8, sx: 2.4, sy: 0.25, sz: 0.8, color: '#f4a261' }); } },
   barbecue: { fp: [1.0, 0.7], build: (sb) => { sb.box(0, 0.7, 0, 0.9, 0.35, 0.55, '#14141c'); sb.box(0, 1.05, 0, 0.9, 0.03, 0.55, '#495057'); for (const x of [-0.4, 0.4]) sb.box(x, 0, 0, 0.05, 0.7, 0.5, '#2b2d33'); for (let i = 0; i < 3; i++) sb.box(-0.2 + i * 0.2, 1.1, 0, 0.12, 0.05, 0.08, '#8b3a1f'); } },
   'salon-jardin': { fp: [2.2, 2.2], build: (sb) => { sb.cyl(0, 0, 0, 0.6, 0.72, '#f1faee', 16); sb.cyl(0, 0, 0, 0.06, 2.3, '#adb5bd', 6); sb.add(B.cone(12), { y: 2.3, sx: 2.2, sy: 0.5, sz: 2.2, color: '#e63946' }); for (let i = 0; i < 4; i++) sb.box(Math.cos(i * 1.57) * 1.0, 0, Math.sin(i * 1.57) * 1.0, 0.5, 0.45, 0.5, '#f1faee'); } },
@@ -80,3 +94,19 @@ export function furnitureFootprint(id, r) {
   return r % 2 ? [fp[1], fp[0]] : fp;
 }
 export const FURNITURE_IDS = Object.keys(DEFS);
+
+// Boîtes de collision d'un meuble posé (repère local du logement) : [cx, cz, w, d, h]. Les murs vont
+// jusqu'au plafond ; le mur avec porte laisse un passage au milieu.
+export function furnitureBoxes(f) {
+  const D = DEFS[f.i], r = f.r || 0;
+  const [fw, fd] = furnitureFootprint(f.i, r);
+  if (!(fw > 0) || ['tapis', 'tapis-rond', 'lampe', 'douche'].includes(f.i)) return [];
+  const h = D?.h || (f.i === 'lit' || f.i === 'canape' ? 0.6 : 1.2);
+  // murs : collision un peu plus épaisse que le visuel pour qu'on ne les traverse pas en courant
+  const t = D?.wall ? 0.4 : 0, W = r % 2 ? Math.max(fw, t) : fw, Dd = r % 2 ? fd : Math.max(fd, t);
+  if (!D?.door) return [[f.x, f.z, W, Dd, h]];
+  // deux montants de 0,4 m de part et d'autre de l'ouverture
+  const along = r % 2 ? [0, 1] : [1, 0];
+  return [-0.8, 0.8].map((o) => [f.x + along[0] * o, f.z + along[1] * o, r % 2 ? W : 0.4, r % 2 ? 0.4 : Dd, h]);
+}
+export const isWall = (id) => !!DEFS[id]?.wall;

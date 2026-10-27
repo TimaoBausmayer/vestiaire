@@ -3,6 +3,7 @@ import { Avatar } from './avatar.js';
 import { NPCS, CONVERSATIONS, BUMP_LINES, NIGHT_LINES } from './npc-data.js';
 import { h } from '../ui/dom.js';
 import { chatMode, npcMemory } from './chat-ui.js';
+import { loveChoices, loveLine } from './romance-ui.js';
 import { npcAction, npcReply } from '../../shared/chat.js';
 import { SECRETS, groundHeight, ROAD_GRAPH, BUILDINGS } from '../../shared/world-layout.js';
 import { CHARACTERS, PASSERS } from './crowd-data.js';
@@ -142,10 +143,10 @@ class NPC {
   say(text, ms = 4200) { this.mgr.game.labels.bubble(this.avatar.root, text, ms, '', 2.75); }
 
   // Ordre donné par écrit (voir npcAction) : le PNJ le fait vraiment.
-  command(type) {
+  command(type, long = 0) {
     const g = this.mgr.game, P = g.player.pos;
     const away = Math.atan2(this.pos.x - P.x, this.pos.z - P.z);
-    const dur = { follow: 120, come: 20, dance: 14, sit: 18, jump: 3.2, wave: 3, leave: 12, run: 9, hug: 6, angry: 4, happy: 3.5, refuse: 2.5, stop: 25 }[type];
+    const dur = long || { follow: 120, come: 20, dance: 14, sit: 18, jump: 3.2, wave: 3, leave: 12, run: 9, hug: 6, angry: 4, happy: 3.5, refuse: 2.5, stop: 25 }[type];
     if (!dur) return;
     this.cmd = { type, t: 0, dur };
     this.state = 'cmd';
@@ -318,13 +319,17 @@ export class NPCs {
     n.yaw = Math.atan2(g.player.pos.x - n.pos.x, g.player.pos.z - n.pos.z);
     g.player.yaw = Math.atan2(n.pos.x - g.player.pos.x, n.pos.z - g.player.pos.z);
     const d = n.def;
-    const choices = [
-      { label: '💬 Discuter', action: (m) => m.show(pick(n.lines()), choices) },
-      { label: '💡 Un conseil ?', action: (m) => m.show(this.hint(n), choices) },
-      { label: '⌨️ Écrire', action: (m) => chatMode(g, m, { id: d.id || d.name, name: d.name, role: d.role, root: n.avatar.root, npc: n }, (x) => x.show(pick(n.lines()), choices)) },
+    let choices;
+    const build = () => (choices = [
+      { label: '💬 Discuter', action: (m) => m.show(pick(n.lines()), build()) },
+      { label: '💡 Un conseil ?', action: (m) => m.show(this.hint(n), build()) },
+      { label: '⌨️ Écrire', action: (m) => chatMode(g, m, { id: d.id || d.name, name: d.name, role: d.role, root: n.avatar.root, npc: n }, (x) => x.show(pick(n.lines()), build())) },
+      ...loveChoices(g, n, build),
       { label: 'Au revoir', ghost: true, action: (m) => { m.close(); n.state = 'idle'; n.timer = 1; } },
-    ];
-    const dlg = g.ui.dialog({ name: d.name, role: d.role, text: pick(n.lines()), choices });
+    ]);
+    build();
+    const line = loveLine(g, n);
+    const dlg = g.ui.dialog({ name: d.name, role: line ? `${d.role} · ${line}` : d.role, text: pick(n.lines()), choices });
     const off = setInterval(() => { if (dlg.closed) { clearInterval(off); n.state = 'idle'; n.timer = 1; } }, 300);
   }
 

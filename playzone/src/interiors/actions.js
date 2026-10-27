@@ -12,7 +12,7 @@ import { jobPanel, schoolPanel, poleEmploiPanel } from '../career/career.js';
 import { createCompanyPanel } from '../career/business.js';
 import { gymPassPanel, hairPanel, hospitalCarePanel } from '../life/body.js';
 import { policeDesk, prisonGuard, tryEscape } from '../police/panels.js';
-import { cookPanel, shower, sleep, showerFx } from '../life/home-life.js';
+import { cookPanel, shower, sleep, showerFx, swim } from '../life/home-life.js';
 import { slotsPanel, roulettePanel, blackjackPanel, pokerPanel, casinoDesk } from '../leisure/casino.js';
 import { casinoHall } from '../leisure/casino-hall.js';
 import { rangePanel } from '../leisure/range.js';
@@ -125,6 +125,7 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'care': hospitalCarePanel(g); break;
     case 'cook': cookPanel(g); break;
     case 'shower': shower(g); break;
+    case 'swim': swim(g, spot.pool); break;
     case 'sleep': sleep(g, spot.seat); break;
     case 'police': policeDesk(g); break;
     case 'court': g.police.courtDesk(); break;

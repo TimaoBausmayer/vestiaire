@@ -130,3 +130,38 @@ export async function sleep(g, seat) {
   }
   g.ui.toast(`😴 Bonne nuit de sommeil ! · ⚡ ${Math.round(res.needs.energie)}`, 'good', 3500);
 }
+
+// Baignade dans sa piscine (ou son jacuzzi) : on nage vraiment dedans, ça détend. Espace / E = sortir.
+export async function swim(g, pool) {
+  if (!pool || g.player.pool || performance.now() - (g.player.poolLeftAt || 0) < 800) return;
+  const res = await use(g, 'swim');
+  if (!res) return;
+  const P = g.player, c = Math.cos(pool.a), s = Math.sin(pool.a);
+  P.teleport(pool.cx, pool.cz, P.yaw);
+  P.pool = {
+    ...pool,
+    clamp(p) {   // reste dans le bassin (repère local tourné de la piscine)
+      const dx = p.x - pool.cx, dz = p.z - pool.cz;
+      const u = Math.max(-pool.hx, Math.min(pool.hx, dx * c - dz * s)), v = Math.max(-pool.hz, Math.min(pool.hz, dx * s + dz * c));
+      p.x = pool.cx + u * c + v * s; p.z = pool.cz - u * s + v * c;
+    },
+  };
+  P.pos.y = pool.y - 1.05;
+  g.sfx('splash');
+  g.fx?.emit?.({ x: pool.cx, y: pool.y + 0.2, z: pool.cz, n: 26, colors: ['#90e0ef', '#caf0f8', '#ffffff'], speed: 3, gravity: 9, life: 0.8, size: 0.1 });
+  g.labels.bubble(g.avatar.root, pick(pool.kind === 'jacuzzi' ? ['Ahhh... les bulles 😌', 'Je ne bouge plus d\'ici.', 'Zen. Total.'] : ['Plouf ! 🏊', 'L\'eau est trop bonne !', 'Personne ne me dérange, je fais des longueurs.']), 3000, 'player');
+  g.emit('needs', res.needs);
+  g.ui.toast(`${pool.kind === 'jacuzzi' ? '🛁 Moment de détente' : '🏊 Baignade'} · 🙂 humeur ${Math.round(res.needs.humeur)} · 🧼 ${Math.round(res.needs.hygiene)} — Espace ou E pour sortir`, 'good', 4500);
+  const out = () => {
+    if (!P.pool) return;
+    const pl = P.pool;
+    P.pool = null; P.poolLeftAt = performance.now();
+    bar.remove(); off?.();
+    P.teleport(pl.cx + s * (pl.hz + 1.6), pl.cz + c * (pl.hz + 1.6), P.yaw);   // on sort côté échelle
+    g.sfx('pop');
+  };
+  const bar = h('div.foot-btns', h('button', { onpointerdown: (e) => { e.preventDefault(); out(); } }, '🪜 Sortir de l\'eau'));
+  g.ui.root.append(bar);
+  const off = g.input.on('key', (e) => { if (e.code === 'Space' || e.code === 'KeyE' || e.code === 'Escape') out(); });
+  P.leavePool = out;
+}

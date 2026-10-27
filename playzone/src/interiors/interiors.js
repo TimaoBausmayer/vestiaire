@@ -4,7 +4,7 @@ import { StaticBuilder, SHAPES } from '../core/static-builder.js';
 import { MATS, CUT } from '../core/materials.js';
 import { buildingFrame, isEnterable, groundStorey, INTERIOR_STYLE, facadeOpenings } from '../world/buildings.js';
 import { TEMPLATES, STAFF_LINES } from './templates.js';
-import { furnitureGeometry, furnitureFootprint } from '../home/furniture.js';
+import { furnitureGeometry, furnitureFootprint, furnitureBoxes } from '../home/furniture.js';
 import { FUN_LABEL, isHousePlace } from '../home/home.js';
 import { jobsAt } from '../../shared/authority-careers.js';
 import { Avatar } from '../characters/avatar.js';
@@ -82,7 +82,7 @@ export class Interiors {
   homeView(b) {
     const g = this.game, p = g.profile;
     if (b.kind !== 'house') return null;
-    if (p && p.home.place === b.id && isHousePlace(b.id)) return { furniture: p.home.furniture, owner: p.name, mine: true };
+    if (p && p.home.place === b.id && isHousePlace(b.id)) return { furniture: p.home.furniture.map((f, i) => (i === this.hideFurn ? null : f)).filter(Boolean), owner: p.name, mine: true };
     if (g.net.mode !== 'online') return null;
     const d = this.houseData.get(b.id);
     if (!d || performance.now() - d.at > 60_000) { if (!d?.pending) { this.houseData.set(b.id, { ...(d || {}), pending: true, at: d?.at || -1e9 }); g.net.send({ t: 'house', id: b.id }); } }
@@ -168,7 +168,7 @@ export class Interiors {
     const view = this.homeView(b);
     const tt = {
       b, F, gH, st, rand, door, home: view,
-      footprint: furnitureFootprint, funLabel: (id) => FUN_LABEL[id],
+      footprint: furnitureFootprint, boxes: furnitureBoxes, funLabel: (id) => FUN_LABEL[id],
       inner: { x1: -W / 2 + 0.4, x2: W / 2 - 0.4, z1: -D / 2 + 0.4, z2: D / 2 - 0.4 },
       box: (lx, y, lz, w, h, d, color, mat = 'main', ry = 0) => { const [x, z] = L(lx, lz); sb.box(x, y + 0.04, z, w, h, d, color, th + ry, mat); },
       cyl: (lx, y, lz, r, h, color, seg = 10, rx = 0) => { const [x, z] = L(lx, lz); sb.add(SHAPES.cyl(seg), { x, y: y + 0.04, z, sx: r * 2, sy: h, sz: r * 2, rx, ry: th, color }); },

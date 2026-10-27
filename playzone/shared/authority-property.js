@@ -5,7 +5,7 @@ import { BUILDING_BY_ID, BUILDINGS, GAS_STATIONS, inBounds, dist2d } from './wor
 import { VEHICLES } from './content/vehicles.js';
 import { levelFromXp } from './rules.js';
 import {
-  FUEL_PRICE, TOW_FEE, REPAIR_SHOPS, SELL_SHOPS, repairCost, mobileRepairCost, POCKET_KINDS, resaleValue, usedOffers, RENTALS, RENTAL_DURATIONS, rentalPrice,
+  homeGroundsLocal, homeRepairCost, nearHomeGarage, FUEL_PRICE, TOW_FEE, REPAIR_SHOPS, SELL_SHOPS, repairCost, mobileRepairCost, POCKET_KINDS, resaleValue, usedOffers, RENTALS, RENTAL_DURATIONS, rentalPrice,
   deliverySpot, HOUSING_BY_ID, DEPOSIT_RATE, LOAN_RATE, loanHourly, sellValue, hourlyBills, EVICT_DEBT, homeSize,
   secondHandOffers, secondHandBuys, localInBuilding, SAVINGS_RATE,
 } from './property.js';
@@ -101,6 +101,20 @@ export const PROPERTY_HANDLERS = {
     const cost = mobileRepairCost(v.model, v.damage || 0);
     if (!cost) return err('Ton véhicule est déjà comme neuf !');
     if (p.coins < cost) return err(`Le mécano mobile demande ${cost} PC.`);
+    this.addCoins(p, -cost);
+    v.damage = 0;
+    return { ok: true, changed: true, data: { cost } };
+  },
+
+  // Atelier de garage chez soi : véhicule garé devant sa maison, on répare soi-même à moitié prix.
+  'vehicle.repairHome'(ctx, { vehicleId, x, z, damage }) {
+    const p = ctx.profile, v = p.vehicles.find((q) => q.id === vehicleId);
+    if (!v) return err('Véhicule introuvable.');
+    if (!num(x) || !num(z) || !nearHomeGarage(p, x, z) || (ctx.pos && !nearHomeGarage(p, ctx.pos.x, ctx.pos.z))) return err('Il faut un atelier de garage chez toi et y amener le véhicule.');
+    if (num(damage)) v.damage = Math.max(v.damage || 0, Math.min(1, damage));
+    const cost = p.admin ? 0 : homeRepairCost(v.model, v.damage || 0);
+    if (!(v.damage > 0.005)) return err('Ton véhicule est déjà comme neuf !');
+    if (p.coins < cost) return err(`Les pièces coûtent ${cost} PC.`);
     this.addCoins(p, -cost);
     v.damage = 0;
     return { ok: true, changed: true, data: { cost } };
@@ -308,19 +322,18 @@ export const PROPERTY_HANDLERS = {
   // Cuisiner (cuisinière), se doucher (douche), dormir (lit) : il faut être chez soi, à côté du meuble.
   'home.use'(ctx, { what, recipe, quality }) {
     const p = ctx.profile;
-    const need = { cook: 'cuisiniere', shower: 'douche', sleep: 'lit' }[what];
+    const need = { cook: ['cuisiniere'], shower: ['douche'], sleep: ['lit'], swim: ['piscine', 'jacuzzi'] }[what];
     if (!need) return err('Action inconnue.');
     // position locale dans le logement
     let local = null;
     if (ctx.zone === `home:${p.id}` && ctx.pos) local = { x: ctx.pos.x - HOME_INTERIOR.origin.x, z: ctx.pos.z - HOME_INTERIOR.origin.z };
     else {
-      const h = HOUSING_BY_ID[p.home.place], b = h && BUILDING_BY_ID[h.building];
-      if (b && ['maison', 'ferme'].includes(h.kind) && ctx.pos && Math.abs(ctx.pos.x - b.x) < b.w / 2 && Math.abs(ctx.pos.z - b.z) < b.d / 2) local = localInBuilding(b, ctx.pos.x, ctx.pos.z);
+      if (ctx.pos) local = homeGroundsLocal(p.home.place, ctx.pos.x, ctx.pos.z);   // maison ou jardin
     }
     if (!local) return err('Il faut être chez toi.');
-    const near = p.home.furniture.some((f) => f.i === need && Math.hypot(f.x - local.x, f.z - local.z) < 3.2);
-    if (!near) return err({ cook: 'Il faut une cuisinière (Meubles Mous) et se mettre devant.', shower: 'Il faut une douche (Meubles Mous) et se mettre dedans.', sleep: 'Il faut un lit (Meubles Mous) et s\'en approcher.' }[what]);
-    const cd = { cook: 15_000, shower: 30_000, sleep: 120_000 }[what];
+    const near = p.home.furniture.find((f) => need.includes(f.i) && Math.hypot(f.x - local.x, f.z - local.z) < 3.4);
+    if (!near) return err({ cook: 'Il faut une cuisinière (Meubles Mous) et se mettre devant.', shower: 'Il faut une douche (Meubles Mous) et se mettre dedans.', sleep: 'Il faut un lit (Meubles Mous) et s\'en approcher.', swim: 'Il faut une piscine ou un jacuzzi (Maison & Déco) et s\'en approcher.' }[what]);
+    const cd = { cook: 15_000, shower: 30_000, sleep: 120_000, swim: 20_000 }[what];
     const key = `home:${what}`;
     const wait = (p.cooldowns[key] || 0) + cd - ctx.now;
     if (wait > 0) return err(`Encore ${Math.ceil(wait / 1000)} s.`);
@@ -335,6 +348,11 @@ export const PROPERTY_HANDLERS = {
       p.stats.cooked = (p.stats.cooked || 0) + 1;
       data.recipe = r.id;
     } else if (what === 'shower') applyNeeds(p.needs, ctx.now, { hygiene: 100, humeur: 5 });
+    else if (what === 'swim') {   // baignade : ça détend (bonne humeur), ça rafraîchit
+      applyNeeds(p.needs, ctx.now, near.i === 'jacuzzi' ? { humeur: 30, hygiene: 10, energie: 8 } : { humeur: 24, hygiene: 15, energie: -4, faim: -3 });
+      p.stats.swims = (p.stats.swims || 0) + 1;
+      data.pool = near.i;
+    }
     else applyNeeds(p.needs, ctx.now, { energie: 70, humeur: 6, faim: -8 });
     p.cooldowns[key] = ctx.now;
     data.needs = needsStatus(p.needs, ctx.now);

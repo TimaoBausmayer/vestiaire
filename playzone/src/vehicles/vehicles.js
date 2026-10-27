@@ -3,7 +3,7 @@ import { CarVisual, seatOf, dimsOf } from './car-models.js';
 import { DriveSim } from './drive.js';
 import { SkidMarks } from './skidmarks.js';
 import { VEHICLES, CAR_PAINTS } from '../../shared/content/vehicles.js';
-import { TOW_FEE, FUEL_PRICE, resaleValue, repairCost, mobileRepairCost, POCKET_KINDS } from '../../shared/property.js';
+import { TOW_FEE, FUEL_PRICE, resaleValue, repairCost, mobileRepairCost, homeRepairCost, nearHomeGarage, POCKET_KINDS } from '../../shared/property.js';
 import { GAS_STATIONS, zoneAt } from '../../shared/world-layout.js';
 import { h } from '../ui/dom.js';
 
@@ -365,12 +365,25 @@ export class Vehicles {
   async repairHere(v) {
     const g = this.game;
     if (!v?.data || v.owner !== 'me') return;
+    if (nearHomeGarage(g.profile, v.sim.pos.x, v.sim.pos.z)) return this.repairHome(v);
     try {
       const garage = repairCost(v.model, v.sim.damage);
       const r = await g.net.request('vehicle.repairHere', { vehicleId: v.data.id, damage: Math.round(v.sim.damage * 1000) / 1000 });
       v.sim.damage = 0; v.data.damage = 0; v.sim.sunk = false; v.visual.clearDents();
       g.sfx('drill');
       g.ui.toast(`🔧 Le mécano mobile est arrivé en trottinette : réparé·e sur place ! -${r.cost.toLocaleString('fr-FR')} PC (au garage : ${garage.toLocaleString('fr-FR')} PC).`, 'money', 4500);
+    } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+  }
+
+  // Atelier de garage chez soi : on répare soi-même, moitié prix du garage.
+  async repairHome(v) {
+    const g = this.game;
+    try {
+      const garage = repairCost(v.model, v.sim.damage);
+      const r = await g.net.request('vehicle.repairHome', { vehicleId: v.data.id, x: v.sim.pos.x, z: v.sim.pos.z, damage: Math.round(v.sim.damage * 1000) / 1000 });
+      v.sim.damage = 0; v.data.damage = 0; v.sim.sunk = false; v.visual.clearDents();
+      g.sfx('drill');
+      g.ui.toast(`🔧 Clé à molette, cric, et hop : réparé·e dans ton atelier ! -${r.cost.toLocaleString('fr-FR')} PC (au garage : ${garage.toLocaleString('fr-FR')} PC).`, 'money', 4500);
     } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
   }
 
@@ -536,9 +549,10 @@ export class Vehicles {
       this.fuelBar.style.width = `${v.spec.fuel ? Math.round((s.fuel / v.spec.fuel) * 100) : 100}%`;
       this.fuelBar.parentElement.parentElement.style.display = v.spec.fuel ? '' : 'none';
       this.dmgBar.style.width = `${Math.round((1 - s.damage) * 100)}%`;
-      const fix = v.owner === 'me' && s.damage > 0.05 ? mobileRepairCost(v.model, s.damage) : 0;
-      this.dashFix.style.display = fix ? '' : 'none';
-      if (fix) this.dashFix.textContent = `🔧 Réparer ici (${fix.toLocaleString('fr-FR')} PC)`;
+      const home = v.owner === 'me' && s.damage > 0.05 && nearHomeGarage(g.profile, s.pos.x, s.pos.z);
+      const fix = v.owner === 'me' && s.damage > 0.05 ? (home ? (g.profile.admin ? 0 : homeRepairCost(v.model, s.damage)) : mobileRepairCost(v.model, s.damage)) : 0;
+      this.dashFix.style.display = v.owner === 'me' && s.damage > 0.05 ? '' : 'none';
+      this.dashFix.textContent = home ? `🔧 Mon atelier (${fix ? `${fix.toLocaleString('fr-FR')} PC` : 'gratuit'})` : `🔧 Réparer ici (${fix.toLocaleString('fr-FR')} PC)`;
     }
     // sauvegarde périodique de l'état
     this._saveT = (this._saveT || 0) + dt;
