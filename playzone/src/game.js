@@ -60,6 +60,7 @@ import { Nightclub } from './leisure/nightclub.js';
 import { Workout } from './life/workout.js';
 import { Tennis } from './sports/tennis.js';
 import { Swim } from './sports/swim.js';
+import { Golf } from './sports/golf.js';
 import { Races } from './sports/races.js';
 import { Ski } from './sports/ski.js';
 import { Jetski } from './sports/jetski.js';
@@ -211,6 +212,7 @@ export class Game extends Emitter {
     this.workout = this.addSystem(new Workout(this));       // exercices partout (appli Sport)
     this.tennis = this.addSystem(new Tennis(this));         // clubs de tennis : matchs contre PNJ
     this.swim = this.addSystem(new Swim(this));             // piscine olympique : courses de natation
+    this.golf = this.addSystem(new Golf(this));             // mini-golf 9 trous
     this.races = this.addSystem(new Races(this));
     this.ski = this.addSystem(new Ski(this));
     this.jetski = this.addSystem(new Jetski(this));

@@ -580,3 +580,9 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 .sw-hud b { color: #90e0ef; }
 .sw-bar { width: 200px; height: 8px; background: rgba(255, 255, 255, .15); border-radius: 6px; overflow: hidden; }
 .sw-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ef476f, #06d6a0); }
+
+/* Mini-golf */
+.gf-hud { position: absolute; top: calc(10px + var(--safe-t, 0px)); left: 50%; transform: translateX(-50%); background: rgba(27, 67, 50, .88); color: #fff; padding: 8px 18px; border-radius: 14px; z-index: 12; display: flex; flex-direction: column; align-items: center; gap: 3px; pointer-events: none; min-width: 300px; }
+.gf-hud b { color: #d8f3dc; }
+.gf-bar { width: 220px; height: 10px; background: rgba(255, 255, 255, .15); border-radius: 6px; overflow: hidden; }
+.gf-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #06d6a0, #ffd166, #ef476f); }

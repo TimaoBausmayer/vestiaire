@@ -684,6 +684,9 @@ for (const [id, name, x, z, facing] of [['tennis-1', 'Tennis Club des Affaires',
   add({ id, name, kind: 'shop', shop: 'tennis', interior: 'agency', x, z: z - 20, w: 14, d: 8, h: 6, facing, color: '#f1faee', roofColor: '#2a9d8f', sign: `🎾 ${name.toUpperCase()}`, district: 'sport', lot: { x1: x - 23, z1: z - 15.5, x2: x + 23, z2: z + 25 } });
 }
 
+// --- MINI-GOLF (9 trous derrière l'accueil, voir golf.js)
+add({ id: 'minigolf', name: 'Mini-golf « Le Trou Rigolo »', kind: 'shop', shop: 'golf', interior: 'agency', x: 510 + 33 - 5, z: -70 - 24 - 5, w: 10, d: 8, h: 5, facing: 'E', color: '#d8f3dc', roofColor: '#2d6a4f', sign: '⛳ MINI-GOLF', district: 'sport', lot: { x1: 510 - 34, z1: -70 - 24, x2: 510 + 34, z2: -70 + 25 } });
+
 // --- PISCINE OLYMPIQUE (bassin de 50 m devant l'accueil, voir swim.js)
 add({ id: 'piscine', name: 'Piscine olympique des Dauphins', kind: 'shop', shop: 'piscine', interior: 'agency', x: 228, z: -458, w: 12, d: 12, h: 7, facing: 'S', color: '#caf0f8', roofColor: '#0077b6', sign: '🏊 PISCINE OLYMPIQUE', district: 'sport', lot: { x1: 163, z1: -489, x2: 220.5, z2: -446 } });
 

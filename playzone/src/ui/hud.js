@@ -2,6 +2,7 @@ import { ISLANDS } from '../../shared/islands.js';
 import { PARKS, ZOO } from '../../shared/city.js';
 import { TENNIS_CLUBS, COURT } from '../../shared/tennis.js';
 import { POOL } from '../../shared/swim.js';
+import { GOLF } from '../../shared/golf.js';
 import * as THREE from 'three';
 import { h, clear, fmt } from './dom.js';
 import { BUILDINGS, ROADS, POND, LAKE, MARINA, CAP_PORT, zoneAt, WORLD_BOUNDS, POI, MINIGAME_SPOTS, PARKINGS, CITY_POI, PORT_QUAY } from '../../shared/world-layout.js';
@@ -59,6 +60,7 @@ export function drawMapBase(px = 2) {
   g.strokeStyle = '#5a5e6a'; g.lineWidth = 9 * px; g.beginPath(); g.ellipse(X(C.x), Y(C.z), C.rx * px, C.rz * px, 0, 0, 7); g.stroke();
   for (const C of TENNIS_CLUBS) for (const k of C.courts) rect(k.x - COURT.W / 2 - 3, k.z - COURT.L / 2 - 4, k.x + COURT.W / 2 + 3, k.z + COURT.L / 2 + 4, C.surface);   // courts de tennis
   rect(POOL.x - POOL.L / 2 - 5, POOL.z - POOL.W / 2 - 5, POOL.x + POOL.L / 2 + 5, POOL.z + POOL.W / 2 + 5, '#e9ecef'); rect(POOL.x - POOL.L / 2, POOL.z - POOL.W / 2, POOL.x + POOL.L / 2, POOL.z + POOL.W / 2, '#4cc9f0');   // piscine olympique
+  rect(GOLF.x - GOLF.w / 2, GOLF.z - GOLF.d / 2, GOLF.x + GOLF.w / 2, GOLF.z + GOLF.d / 2, '#2a9d3a');   // mini-golf
   for (const P of [...PARKS, ZOO]) rect(P.x - P.w / 2, P.z - P.d / 2, P.x + P.w / 2, P.z + P.d / 2, '#57b84a');   // parcs et zoo
   for (const p of PARKINGS) rect(p.x1, p.z1, p.x2, p.z2, '#8a8f96');
   g.fillStyle = '#5a5e6a';
