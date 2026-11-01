@@ -58,6 +58,8 @@ import { Islands } from './world/islands.js';
 import { Parks } from './world/parks.js';
 import { Nightclub } from './leisure/nightclub.js';
 import { Workout } from './life/workout.js';
+import { Tennis } from './sports/tennis.js';
+import { Swim } from './sports/swim.js';
 import { Races } from './sports/races.js';
 import { Ski } from './sports/ski.js';
 import { Jetski } from './sports/jetski.js';
@@ -207,6 +209,8 @@ export class Game extends Emitter {
     this.parks = this.addSystem(new Parks(this));           // parcs, zoo : jeux, basket, glaces, animaux
     this.nightclub = this.addSystem(new Nightclub(this));   // boîtes de nuit : danse, bar, VIP
     this.workout = this.addSystem(new Workout(this));       // exercices partout (appli Sport)
+    this.tennis = this.addSystem(new Tennis(this));         // clubs de tennis : matchs contre PNJ
+    this.swim = this.addSystem(new Swim(this));             // piscine olympique : courses de natation
     this.races = this.addSystem(new Races(this));
     this.ski = this.addSystem(new Ski(this));
     this.jetski = this.addSystem(new Jetski(this));

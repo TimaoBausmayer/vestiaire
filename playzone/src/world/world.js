@@ -11,6 +11,8 @@ import { buildTerraces } from './terraces.js';
 import { buildSeabed } from './seabed.js';
 import { buildIslands } from './islands.js';
 import { buildParks } from './parks.js';
+import { buildTennis } from '../sports/tennis.js';
+import { buildPool } from '../sports/swim.js';
 import { buildRoofs } from '../interiors/floors.js';
 import { SignAtlas } from './signs.js';
 import { DayNight } from './daynight.js';
@@ -52,6 +54,8 @@ export class World {
     buildSeabed(sb, collision);
     buildIslands(sb, collision);
     buildParks(sb, collision);
+    buildTennis(sb, collision);
+    buildPool(sb, collision);
     buildRoofs(sb, collision);
     for (const fn of this.contributors) fn(sb, collision, scene);
     this.static = sb.build(MATS, { shadows: true });
