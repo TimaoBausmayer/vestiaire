@@ -482,6 +482,11 @@ export class Avatar {
     else if (pose === 'ropes') { set(AL, -1.2 + Math.sin(t * 14) * 0.45, 0, 0.2); set(AR, -1.2 - Math.sin(t * 14) * 0.45, 0, -0.2); set(L, -0.35, 0, 0.12); set(R, -0.35, 0, -0.12); bodyY = -0.15; lean = 0.25; }
     else if (pose === 'situp') { const k2 = Math.max(0, Math.sin(t * 2.4)); bodyRotX = -1.4 + k2 * 1.0; bodyY = -0.62; set(L, -1.0, 0, 0.1); set(R, -1.0, 0, -0.1); set(AL, -2.6, 0, 0.5); set(AR, -2.6, 0, -0.5); }
     else if (pose === 'yoga') { bodyY = -0.6; set(L, -1.45, 0, 0.9); set(R, -1.45, 0, -0.9); set(AL, 0, 0, 2.9 + Math.sin(t) * 0.05); set(AR, 0, 0, -2.9 - Math.sin(t) * 0.05); }
+    // exercices partout : burpees, jumping jacks, corde à sauter, étirements
+    else if (pose === 'burpee') { const c = (t * 1.1) % 1; if (c < 0.33) { bodyY = -0.45; set(L, -1.3, 0, 0.1); set(R, -1.3, 0, -0.1); set(AL, -0.8, 0, 0.1); set(AR, -0.8, 0, -0.1); } else if (c < 0.66) { bodyRotX = 1.35; bodyY = -0.75; set(AL, -1.5, 0, 0.2); set(AR, -1.5, 0, -0.2); } else { bob = Math.sin((c - 0.66) / 0.34 * Math.PI) * 0.5; set(AL, 0, 0, 2.8); set(AR, 0, 0, -2.8); } }
+    else if (pose === 'jacks') { const o = (Math.sin(t * 7) + 1) / 2; set(AL, 0, 0, 0.2 + o * 2.6); set(AR, 0, 0, -0.2 - o * 2.6); set(L, 0, 0, 0.05 + o * 0.35); set(R, 0, 0, -0.05 - o * 0.35); bob = Math.abs(Math.sin(t * 7)) * 0.12; }
+    else if (pose === 'rope') { bob = Math.abs(Math.sin(t * 6.3)) * 0.2; set(AL, -0.5 + Math.sin(t * 12.6) * 0.3, 0, 0.5); set(AR, -0.5 + Math.sin(t * 12.6) * 0.3, 0, -0.5); set(L, 0.1, 0, 0.04); set(R, 0.1, 0, -0.04); }
+    else if (pose === 'stretch') { const s2 = Math.sin(t * 0.9); set(AL, 0, 0, 2.9); set(AR, 0, 0, -2.9); lean = 0; headY = s2 * 0.35; lean = s2 * 0.15; }
     // boxe : garde, direct droit / gauche, crochet, coup encaissé
     else if (pose === 'guard') { set(AL, -1.95, 0, 0.42); set(AR, -1.95, 0, -0.42); headX = 0.15; }
     else if (pose === 'jab') { set(AR, -1.6, 0, 0.12); set(AL, -1.95, 0, 0.42); lean = 0.12; headY = -0.15; }

@@ -57,6 +57,7 @@ import { Boxing } from './leisure/boxing.js';
 import { Islands } from './world/islands.js';
 import { Parks } from './world/parks.js';
 import { Nightclub } from './leisure/nightclub.js';
+import { Workout } from './life/workout.js';
 import { Races } from './sports/races.js';
 import { Ski } from './sports/ski.js';
 import { Jetski } from './sports/jetski.js';
@@ -205,6 +206,7 @@ export class Game extends Emitter {
     this.islands = this.addSystem(new Islands(this));       // îles, navette, merveilles à découvrir
     this.parks = this.addSystem(new Parks(this));           // parcs, zoo : jeux, basket, glaces, animaux
     this.nightclub = this.addSystem(new Nightclub(this));   // boîtes de nuit : danse, bar, VIP
+    this.workout = this.addSystem(new Workout(this));       // exercices partout (appli Sport)
     this.races = this.addSystem(new Races(this));
     this.ski = this.addSystem(new Ski(this));
     this.jetski = this.addSystem(new Jetski(this));

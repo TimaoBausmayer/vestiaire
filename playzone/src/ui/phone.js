@@ -11,6 +11,7 @@ import { bankApp } from '../property/bank.js';
 import { workApp } from '../career/career.js';
 import { businessApp } from '../career/business.js';
 import { healthApp } from '../life/body.js';
+import { sportApp } from '../life/workout.js';
 import { papersApp } from '../police/panels.js';
 import { helpApp } from './tutorial.js';
 import { agendaApp } from '../events/agenda.js';
@@ -37,6 +38,7 @@ const APPS = [
   { id: 'work', name: 'Travail', icon: '💼', bg: '#6c757d' },
   { id: 'business', name: 'Business', icon: '📈', bg: '#14213d' },
   { id: 'health', name: 'Santé', icon: '❤️', bg: '#ff4d6d' },
+  { id: 'sport', name: 'Sport', icon: '🏅', bg: '#06d6a0' },
   { id: 'papers', name: 'Papiers', icon: '🪪', bg: '#1d3557' },
   { id: 'help', name: 'Aide', icon: '📘', bg: '#4ea8de' },
   { id: 'social', name: 'PlayGram', icon: '📸', bg: '#ff3fa4' },
@@ -297,6 +299,7 @@ export class Phone {
   app_business(b) { businessApp(this.game, b, () => this.render()); }
 
   app_health(b) { healthApp(this.game, b); }
+  app_sport(b) { sportApp(this.game, b); }
 
   app_papers(b) { papersApp(this.game, b); }
 
