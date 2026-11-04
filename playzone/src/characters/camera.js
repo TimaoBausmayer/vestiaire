@@ -33,6 +33,14 @@ export class ThirdPersonCamera {
     this.pitch = Math.max(-0.15, Math.min(1.25, this.pitch + input.look.dy * sens * 0.8));
     if (input.zoom) this.dist = Math.max(this.minDist, Math.min(this.maxDist, this.dist * (1 + input.zoom * 0.12)));
 
+    // vue capot / cockpit (véhicule) : position et visée fournies chaque image par la conduite
+    if (this.first) {
+      const f = this.first;
+      this.camera.position.copy(f.pos);
+      if (this.shake > 0) { this.shake = Math.max(0, this.shake - dt * 2); this.camera.position.y += (Math.random() - 0.5) * this.shake * 0.15; }
+      this.camera.lookAt(f.look);
+      return;
+    }
     if (this.override) {
       const o = this.override;
       this.camera.position.lerp(o.pos, 1 - Math.exp(-dt * 5));

@@ -44,7 +44,7 @@ export class DriveSim {
   get speed() { return Math.hypot(this.vx, this.vz); }
   get forward() { return tmp.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
 
-  maxSpeed() { return this.spec.max * (this.boost || 1) * (1 - this.damage * 0.4); }
+  maxSpeed() { return this.spec.max * (this.boost || 1) * (this.nitroOn ? 1.22 : 1) * (1 - this.damage * 0.4); }
   // Gamme de la voiture (0 = petite voiture bon marché, 1 = hypercar) : plus elle est chère, plus elle
   // tient la route (adhérence en virage, direction vive, stabilité). Véhicules de service : milieu de gamme.
   get tier() {
@@ -106,7 +106,7 @@ export class DriveSim {
     this.brake = 0; this.reverse = 0;
     if (thr > 0.05) {
       if (vf < -0.4) { acc = (sp.kind === 'f1' ? 30 : 13) * thr; this.brake = 1; }
-      else acc = sp.acc * thr * gearK * Math.max(0.06, 1 - (vf / maxF) ** 2);
+      else acc = sp.acc * thr * gearK * (this.nitroOn ? 1.6 : 1) * Math.max(0.06, 1 - (vf / maxF) ** 2);
       if (vf > maxF) acc = Math.min(acc, -(vf - maxF) * 1.5);   // trop vite pour ce sol : on freine naturellement
       // limiteur de vitesse : on coupe l'accélération en douceur à l'approche de la limite
       if (this.limit && vf > this.limit - 1.5) acc = Math.min(acc, (this.limit - vf) * 2.5);
@@ -127,7 +127,17 @@ export class DriveSim {
     // la F1 garde beaucoup de braquage à haute vitesse (appui aéro), une voiture de série un peu moins
     const F1 = sp.kind === 'f1';
     const maxSteer = (sp.kind === 'car' ? 0.74 : F1 ? 0.62 : 0.78) * (1 - (F1 ? 0.42 : 0.52) * Math.min(1, aspd / Math.max(10, sp.max)));
-    const target = (inp.steer || 0) * maxSteer;
+    // direction progressive (joueur) : au clavier, le volant tourne en ~0,25 s à l'arrêt et ~0,5 s à
+    // pleine vitesse, puis revient vite au centre ; plus de coups de volant brutaux sur une touche
+    let sIn = inp.steer || 0;
+    if (this.smoothInput) {
+      const cur = this.steerIn || 0, k = Math.min(1, aspd / 40);
+      const back = Math.abs(sIn) < Math.abs(cur) || sIn * cur < 0;
+      const rate = back ? 8 : (F1 ? 4.2 - 2.2 * k : 4.5 - 2.3 * k);
+      this.steerIn = cur + Math.max(-rate * dt, Math.min(rate * dt, sIn - cur));
+      sIn = this.steerIn;
+    }
+    const target = sIn * maxSteer;
     const T = sp.kind === 'car' ? this.tier : F1 ? 1 : 0.5;
     this.steer += (target - this.steer) * Math.min(1, dt * (Math.abs(target) > Math.abs(this.steer) ? 10 + 5 * T + 2 * L : 13 + 4 * T + 2 * L) * (F1 ? 1.4 : 1));
     const wb = Math.max(0.6, D.zF - D.zR);
@@ -135,10 +145,22 @@ export class DriveSim {
     // l'adhérence plafonne la rotation : à haute vitesse la voiture vire large mais reste contrôlable
     // (au lieu de pivoter brutalement). Les voitures haut de gamme encaissent plus d'accélération latérale.
     // F1 : ~4 g d'appui aérodynamique (de plus en plus avec la vitesse) ; voitures : 1,8 à 2,9 g selon la gamme
-    const aero = F1 ? 22 + 0.35 * aspd : 0;
+    // F1 : appui aéro (~3 g, un peu plus avec la vitesse), précis plutôt que nerveux
+    const aero = F1 ? 12 + 0.12 * aspd : 0;
     const latMax = (sp.kind === 'car' ? 18 + 9 * T + 3 * L : F1 ? 18 + aero : 15) * sp.grip * (inp.handbrake ? 1.8 : 1) * (this.offroad ? 0.72 : 1);
     if (aspd > 1 && Math.abs(yawRate * vf) > latMax) yawRate = Math.sign(yawRate) * latMax / aspd;
     if (inp.handbrake && aspd > 4) yawRate *= 1.6;
+    // rotation maximale à basse vitesse (sinon la F1 pivote sur place) ; la caisse a de l'inertie :
+    // la rotation s'installe et se relâche en douceur au lieu de suivre la touche instantanément
+    const yawCap = (F1 ? 1.75 : sp.kind === 'car' ? 1.9 : 2.4) * (inp.handbrake ? 1.5 : 1);
+    yawRate = Math.max(-yawCap, Math.min(yawCap, yawRate));
+    if (this.smoothInput) yawRate = this.yawRate + (yawRate - this.yawRate) * Math.min(1, dt * (inp.handbrake ? 12 : F1 ? 9 : 7.5));
+    // aide au maintien de trajectoire (joueur, sur la route) : volant lâché, la voiture se recale
+    // doucement dans l'axe de la rue (toutes les rues sont orientées nord-sud ou est-ouest)
+    if (this.assist && onGround && !this.offroad && Math.abs(sIn) < 0.04 && aspd > 5 && !inp.handbrake) {
+      const ax = Math.round(this.yaw / (Math.PI / 2)) * (Math.PI / 2), d = ax - this.yaw;
+      if (Math.abs(d) < 0.2) yawRate += d * 1.6;
+    }
     this.yawRate = yawRate;
     // adhérence latérale : le dérapage s'amortit plus ou moins vite
     const grip = sp.grip * (inp.handbrake ? 0.22 : 1) * (1 - this.damage * 0.25) * (this.offroad ? 0.65 : 1);
@@ -195,10 +217,20 @@ export class DriveSim {
     const l = Math.hypot(cx, cz) || 1, nx = cx / l, nz = cz / l;
     const vn = this.vx * nx + this.vz * nz;
     if (vn < 0) {
-      const e = 0.25;
+      // choc rasant (on frotte le mur) : on glisse le long en gardant de la vitesse et la voiture
+      // se remet dans l'axe du mur ; choc de face : rebond et forte perte de vitesse
+      const sp = Math.hypot(this.vx, this.vz) || 1, glance = -vn / sp < 0.4;
+      const e = glance ? 0.1 : 0.25;
       this.vx -= (1 + e) * vn * nx; this.vz -= (1 + e) * vn * nz;
       const tx = -nz, tz = nx, vt = this.vx * tx + this.vz * tz;
-      this.vx -= vt * tx * 0.15; this.vz -= vt * tz * 0.15;
+      const fr = glance ? 0.04 : 0.15;
+      this.vx -= vt * tx * fr; this.vz -= vt * tz * fr;
+      if (glance && Math.abs(vt) > 3) {
+        const want = Math.atan2(tx * Math.sign(vt), tz * Math.sign(vt));
+        const fwdMatch = Math.cos(want - this.yaw) > 0;
+        const tgt = fwdMatch ? want : want + Math.PI, d = Math.atan2(Math.sin(tgt - this.yaw), Math.cos(tgt - this.yaw));
+        this.yaw += Math.max(-0.05, Math.min(0.05, d * 0.3));
+      }
     }
     return hits;
   }

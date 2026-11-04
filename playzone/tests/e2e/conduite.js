@@ -59,6 +59,33 @@ const drifting = await ev(() => window.playzone.vehicles.drifting?.pts || 0);
 await page.keyboard.up('Space'); await page.keyboard.up('KeyD'); await page.keyboard.up('KeyW');
 check(drifting > 0, `drift détecté (${Math.round(drifting)} points en cours)`);
 await step(1.5);
+// aide au maintien dans la rue : volant lâché, la voiture se recale dans l'axe
+await road();
+await ev(() => { const s = window.playzone.vehicles.current.sim; s.yaw = Math.PI / 2 + 0.12; s.yawRate = 0; });
+await page.keyboard.down('KeyW'); await step(1.5); await page.keyboard.up('KeyW');
+const yawErr = await ev(() => Math.abs(window.playzone.vehicles.current.sim.yaw - Math.PI / 2));
+check(yawErr < 0.05, `aide à la conduite : recalée dans l'axe de la rue (écart ${yawErr.toFixed(3)} rad)`);
+// direction progressive : un appui bref ne fait pas pivoter brutalement
+await road();
+await page.keyboard.down('KeyW'); await step(2);
+await page.keyboard.up('KeyW');
+const yr = await ev(() => { const s = window.playzone.vehicles.current.sim; s.steerIn = 0; s.yawRate = 0; for (let i = 0; i < 6; i++) s.update(1 / 60, { throttle: 0.3, steer: 1 }); return { wheel: s.steerIn, yaw: Math.abs(s.yawRate) }; });
+check(yr.wheel < 0.45, `direction progressive (volant à ${Math.round(yr.wheel * 100)} % après 0,1 s, rotation ${yr.yaw.toFixed(2)} rad/s)`);
+// nitro (Maj)
+await road();
+await page.keyboard.down('KeyW'); await step(1); await page.keyboard.down('ShiftLeft'); await step(1);
+const nit = await ev(() => { const g = window.playzone, s = g.vehicles.current.sim; return { on: s.nitroOn, fov: g.engine.camera.fov, kmh: s.speed * 3.6 }; });
+await shot('nitro');
+await page.keyboard.up('ShiftLeft'); await page.keyboard.up('KeyW');
+check(nit.on, `nitro activée (${nit.kmh.toFixed(0)} km/h, champ ${nit.fov.toFixed(1)}°)`);
+// vue capot (touche C ×2)
+await page.keyboard.press('KeyC'); await step(0.1); await page.keyboard.press('KeyC'); await step(0.3);
+const first = await ev(() => !!window.playzone.cam.first && !window.playzone.avatar.root.visible);
+check(first, 'vue capot');
+await page.keyboard.down('KeyW'); await step(1); await shot('vue-capot'); await page.keyboard.up('KeyW');
+await page.keyboard.press('KeyC'); await step(0.2);
+check(await ev(() => !window.playzone.cam.first && window.playzone.avatar.root.visible), 'retour à la vue arrière');
+await step(1.5);
 // nuit : phares
 await ev(() => { const g = window.playzone; g.world.dayNight.forcedHour = 22; g.debugStep(1); });
 await step(1);

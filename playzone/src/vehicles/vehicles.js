@@ -108,6 +108,9 @@ export class Vehicles {
         h('div.g', h('span', '⛽'), h('div.bar', this.fuelBar = h('div'))),
         h('div.g', h('span', '🔧'), h('div.bar.dmg', this.dmgBar = h('div')))),
       this.dashFix = h('button.fix', { title: 'Mécano mobile : réparation sur place', onclick: () => this.repairHere(this.current) }, '🔧'),
+      this.dashNitro = h('div.nitro', h('span', '🔥'), h('div.bar', this.nitroBar = h('i'))),
+      this.dashAssist = h('button.assist', { title: 'Aide au maintien dans la rue (touche X)', onclick: () => this.toggleAssist() }, '🛞 AIDE'),
+      this.dashView = h('button.view', { title: 'Changer de vue (touche C)', onclick: () => this.cycleView() }, '🎥'),
       this.dashLimit = h('button.limit', { title: 'Limiteur de vitesse (touche B)', onclick: () => this.cycleLimiter() }, 'LIM —'),
       this.dashName = h('div.name', ''));
     game.ui.root.append(this.dash);
@@ -137,6 +140,8 @@ export class Vehicles {
       if (!this.current) return;
       if (e.code === 'KeyH') this.honk();
       if (e.code === 'KeyB') this.cycleLimiter();
+      if (e.code === 'KeyC') this.cycleView();
+      if (e.code === 'KeyX') this.toggleAssist();
       if (e.code === 'KeyL') { this.current.lightsOn = !this.current.lightsOn; game.ui.toast(this.current.lightsOn ? 'Phares allumés' : 'Phares automatiques', '', 1200); }
     });
     // pompe à essence : à pied près de son véhicule, ou à l'arrêt au volant, dans une station-service
@@ -321,6 +326,10 @@ export class Vehicles {
     const g = this.game;
     if (g.player.carrying || g.jobs?.active?.job.id === 'cook') { g.ui.toast('Impossible de conduire maintenant.', 'bad'); return; }
     v.sim.licensed = !!this.game.profile.justice?.licence?.permis;   // avec le permis, la conduite est plus facile
+    v.sim.smoothInput = true;                                         // direction progressive
+    v.sim.steerIn = 0;
+    v.sim.assist = this.assistOn();
+    if (v.nitro == null) v.nitro = 1;
     this.current = v;
     v.driven = true;
     v.doorTarget = 1;
@@ -337,7 +346,14 @@ export class Vehicles {
     this.dashName.textContent = `${vehicleIcon(v.model)} ${vehicleName(v.model)}`;
     { const l = Math.round((v.sim.limit || 0) * 3.6); this.dashLimit.textContent = l ? `LIM ${l}` : 'LIM —'; this.dashLimit.classList.toggle('on', !!l); }
     const touch = g.input.isTouch;
-    g.hud.track('vehicle', { title: `${vehicleIcon(v.model)} ${vehicleName(v.model)}`, text: touch ? 'Joystick : avancer / tourner. ✋ : descendre.' : 'Z/S : avancer / freiner / reculer · Q/D : tourner · Espace : frein à main · H : klaxon · L : phares · E : descendre' });
+    this.dashNitro.style.display = this.nitroAllowed(v) ? '' : 'none';
+    this.dashAssist.classList.toggle('on', v.sim.assist);
+    this.applyView();
+    g.hud.track('vehicle', { title: `${vehicleIcon(v.model)} ${vehicleName(v.model)}`, text: touch ? 'Joystick : avancer / tourner. 🔥 : nitro · 🎥 : vue. ✋ : descendre.' : `Z/S : avancer / freiner / reculer · Q/D : tourner · Espace : frein à main${this.nitroAllowed(v) ? ' · Maj : nitro' : ''} · C : vue · X : aide · H : klaxon · L : phares · E : descendre` });
+    if (touch && this.nitroAllowed(v) && !this.nitroBtn) {
+      this.nitroBtn = h('button.nitro-btn', { onpointerdown: (e) => { e.preventDefault(); this.nitroHeld = true; }, onpointerup: () => { this.nitroHeld = false; }, onpointerleave: () => { this.nitroHeld = false; } }, '🔥');
+      g.ui.root.append(this.nitroBtn);
+    }
     this.emit('enter', v);
   }
 
@@ -357,6 +373,10 @@ export class Vehicles {
     if (v.sim.speed > 3 && !silent) { g.player.vel.set(v.sim.vx * 0.4, 5, v.sim.vz * 0.4); g.player.grounded = false; g.ui.toast('Cascade ! 🤸', '', 1500); }
     g.cam.dist = this.camDist || 9;
     this.camDistBase = 0;
+    g.cam.first = null;
+    g.avatar.root.visible = true;
+    v.sim.nitroOn = false;
+    this.nitroBtn?.remove(); this.nitroBtn = null; this.nitroHeld = false;
     this.speedFx.style.opacity = '0';
     this.headLight.intensity = 0;
     if (this.baseFov != null) { g.engine.camera.fov = this.baseFov; g.engine.camera.updateProjectionMatrix(); this.baseFov = null; }
@@ -543,6 +563,18 @@ export class Vehicles {
     av.rotation.set(v.visual.tilt.rotation.x, s.yaw, v.visual.tilt.rotation.z, 'YXZ');
     av.scale.setScalar((this.baseScale || 1) * seat.s);
     g.avatar.update(dt, { speed: 0, grounded: true, pose: seat.pose });
+    this.nitro(v, dt, ctl);
+    // vue capot / cockpit
+    if (this.view === 2) {
+      const k = v.spec.kind, big = v.dims.L > 5.5;
+      const fwd = k === 'car' ? v.dims.L / 2 - (big ? 0.6 : 1.0) : k === 'f1' ? 0.25 : 0.15;
+      const hy = k === 'car' ? (big ? 2.5 : 1.22) : k === 'f1' ? 1.0 : 1.4;
+      const f = g.cam.first || (g.cam.first = { pos: new THREE.Vector3(), look: new THREE.Vector3() });
+      f.pos.set(s.pos.x + fx * fwd, s.pos.y + hy, s.pos.z + fz * fwd);
+      const ly = -s.yawRate * 0.12;   // on regarde un peu dans le virage
+      f.look.set(f.pos.x + Math.sin(s.yaw + ly) * 25, f.pos.y - 0.9, f.pos.z + Math.cos(s.yaw + ly) * 25);
+      av.visible = false;
+    }
     // caméra : se replace derrière le véhicule en anticipant le virage, recule et s'élargit avec la vitesse
     if (Math.abs(s.vf) > 2 && !inp.look.dx) {
       const want = s.yaw + Math.PI - Math.max(-0.35, Math.min(0.35, s.yawRate * 0.22));
@@ -550,7 +582,7 @@ export class Vehicles {
     }
     const cam = g.engine.camera, kmh = s.speed * 3.6;
     if (this.baseFov == null) this.baseFov = cam.fov;
-    const wantFov = this.baseFov + Math.min(14, Math.max(0, kmh - 30) * 0.075);
+    const wantFov = this.baseFov + Math.min(14, Math.max(0, kmh - 30) * 0.075) + (s.nitroOn ? 7 : 0);
     if (Math.abs(cam.fov - wantFov) > 0.05) { cam.fov += (wantFov - cam.fov) * Math.min(1, dt * 2); cam.updateProjectionMatrix(); }
     if (this.camDistBase) g.cam.dist += ((this.camDistBase + Math.min(2.5, s.speed * 0.06)) - g.cam.dist) * Math.min(1, dt * 1.5);
     // hors route : ça secoue un peu, la poussière vole
@@ -581,6 +613,8 @@ export class Vehicles {
       this.dashGear.textContent = s.vf < -0.3 ? 'R' : s.speed < 0.3 ? 'N' : s.gears > 1 ? String((s.gear || 0) + 1) : 'D';
       this.rpmBar.style.width = `${Math.round(Math.min(1, s.rpm || 0) * 100)}%`;
       this.rpmBar.classList.toggle('red', (s.rpm || 0) > 0.9);
+      this.nitroBar.style.width = `${Math.round((v.nitro ?? 1) * 100)}%`;
+      this.dashNitro.classList.toggle('on', !!s.nitroOn);
       this.fuelBar.style.width = `${v.spec.fuel ? Math.round((s.fuel / v.spec.fuel) * 100) : 100}%`;
       this.fuelBar.parentElement.parentElement.style.display = v.spec.fuel ? '' : 'none';
       this.dmgBar.style.width = `${Math.round((1 - s.damage) * 100)}%`;
@@ -592,6 +626,50 @@ export class Vehicles {
     // sauvegarde périodique de l'état
     this._saveT = (this._saveT || 0) + dt;
     if (this._saveT > 15) { this._saveT = 0; this.saveState(v); }
+  }
+
+  // Aide à la conduite (maintien dans l'axe de la rue), mémorisée sur l'appareil
+  assistOn() { try { return localStorage.getItem('pz-assist') !== '0'; } catch { return true; } }
+  toggleAssist() {
+    const on = !this.assistOn();
+    try { localStorage.setItem('pz-assist', on ? '1' : '0'); } catch { /* stockage indisponible */ }
+    if (this.current) this.current.sim.assist = on;
+    this.dashAssist.classList.toggle('on', on);
+    this.game.ui.toast(on ? '🛞 Aide à la conduite activée (la voiture se recale dans la rue)' : '🛞 Aide à la conduite désactivée', '', 1800);
+  }
+
+  // Vues : 0 = derrière, 1 = loin, 2 = capot / cockpit
+  cycleView() {
+    if (!this.current) return;
+    this.view = ((this.view || 0) + 1) % 3;
+    this.applyView();
+    this.game.ui.toast(['🎥 Vue arrière', '🎥 Vue lointaine', '🎥 Vue capot'][this.view], '', 1000);
+  }
+  applyView() {
+    const g = this.game, v = this.current;
+    if (!v) return;
+    if (this.view !== 2) { g.cam.first = null; g.avatar.root.visible = true; }
+    const base = Math.max(this.camDist || 9, v.spec.kind === 'car' ? 6 + v.dims.L * 0.9 : 6);
+    this.camDistBase = base * (this.view === 1 ? 1.55 : 1);
+  }
+
+  // Nitro (voitures, hors compétitions) : Maj maintenue = poussée et vitesse max +22 % ; la jauge se
+  // recharge doucement et grâce aux drifts. L'admin a une jauge infinie.
+  nitroAllowed(v) { return v.spec.kind === 'car' && !this.game.races?.s && !this.game.karting?.s && v.owner === 'me'; }
+  nitro(v, dt, ctl) {
+    const g = this.game, s = v.sim;
+    if (!this.nitroAllowed(v)) { s.nitroOn = false; return; }
+    const want = (g.input.sprint || this.nitroHeld) && ctl.throttle > 0.1 && !s.broken && !s.outOfFuel && !g.ui.blocking;
+    const was = s.nitroOn;
+    s.nitroOn = want && v.nitro > 0.02;
+    if (s.nitroOn) {
+      if (!g.profile.admin) v.nitro = Math.max(0, v.nitro - dt * 0.22);
+      if (!was) { g.sfx('whoosh'); g.cam.shake = Math.max(g.cam.shake || 0, 0.12); }
+      // flammes bleues aux échappements
+      const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), back = -v.dims.L / 2 - 0.1;
+      if (Math.random() < dt * 40) g.fx.emit({ x: s.pos.x + fx * back, y: s.pos.y + 0.4, z: s.pos.z + fz * back, n: 1, colors: ['#4cc9f0', '#4361ee', '#ffffff', '#ff9e00'], speed: 2.5, gravity: 0, life: 0.25, size: 0.45, grow: 0.4, jitter: 0.2 });
+    } else v.nitro = Math.min(1, v.nitro + dt * 0.03);
+    if (was && !s.nitroOn && v.nitro <= 0.02) g.ui.toast('🔥 Nitro vide : elle se recharge en roulant et en driftant', '', 2000);
   }
 
   // Drift : quand la voiture glisse de travers à bonne vitesse, les points s'accumulent ; ils sont
@@ -617,7 +695,8 @@ export class Vehicles {
         if (pts >= 150) {
           d.best = Math.max(d.best, pts);
           g.sfx(pts >= 2000 ? 'levelup' : 'success');
-          g.ui.toast(`🔥 Drift : ${pts} points${pts >= d.best ? ' · record de la session !' : ''}`, 'good', 2500);
+          if (v.nitro != null) v.nitro = Math.min(1, v.nitro + pts / 3000);   // les drifts rechargent la nitro
+          g.ui.toast(`🔥 Drift : ${pts} points${pts >= d.best ? ' · record de la session !' : ''}${this.nitroAllowed(v) ? ' · nitro rechargée' : ''}`, 'good', 2500);
         }
         d.el?.remove(); d.el = null;
       }
