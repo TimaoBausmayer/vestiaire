@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { VEHICLES } from '../../shared/content/vehicles.js';
 import { dimsOf } from './car-models.js';
-import { groundHeight, WATER_LEVEL } from '../../shared/world-layout.js';
+import { groundHeight, WATER_LEVEL, isPaved } from '../../shared/world-layout.js';
 
 // Physique de conduite "arcade réaliste" commune au joueur et aux PNJ (police...) :
 // accélération selon la vitesse, freinage, marche arrière, braquage qui diminue avec la vitesse
@@ -80,12 +80,34 @@ export class DriveSim {
     let thr = inp.throttle || 0;
     const dead = this.broken || this.outOfFuel || this.sunk;
     if (dead && thr > 0) thr = 0.12 * thr;   // on pousse péniblement
-    const maxF = this.maxSpeed();
+    // sol : hors goudron (herbe, terre, sable), voitures et motos patinent et ralentissent
+    const onGround = ['car', 'moto', 'scooter', 'caddie'].includes(sp.kind);
+    this.offroad = onGround && !isPaved(this.pos.x, this.pos.z);
+    const surf = this.offroad ? (sp.kind === 'car' ? 0.72 : 0.8) : 1;
+    const maxF = this.maxSpeed() * surf;
+    // boîte de vitesses automatique : rapports courts = reprise forte, coupure pendant le passage
+    const nG = sp.kind === 'f1' ? 7 : sp.kind === 'car' ? (this.tier > 0.5 ? 7 : 6) : sp.kind === 'moto' ? 6 : 0;
+    let gearK = 1;
+    this.shiftT = Math.max(0, (this.shiftT || 0) - dt);
+    this.shifted = 0;
+    if (nG > 1) {
+      const top = (i) => maxF * Math.pow((i + 1) / nG, 0.8), av = Math.abs(vf);
+      this.gear = Math.min(this.gear || 0, nG - 1);
+      if (vf > -0.3) {
+        if (av / top(this.gear) > 0.94 && this.gear < nG - 1 && thr > 0.05) { this.gear++; this.shiftT = 0.16; this.shifted = 1; }
+        else if (this.gear > 0 && av < top(this.gear - 1) * 0.62) { this.gear--; this.shifted = -1; }
+      } else this.gear = 0;
+      const r = av / top(this.gear);
+      this.rpm = Math.min(1.05, 0.14 + r * 0.86);
+      gearK = (1.35 - (this.gear / (nG - 1)) * 0.5) * (0.8 + 0.3 * Math.sin(Math.min(1, r) * Math.PI * 0.85)) * (this.shiftT > 0 ? 0.3 : 1);
+    } else { this.gear = 0; this.rpm = Math.min(1, 0.15 + (Math.abs(vf) / Math.max(1, maxF)) * 0.85); }
+    this.gears = nG;
     let acc = 0;
     this.brake = 0; this.reverse = 0;
     if (thr > 0.05) {
       if (vf < -0.4) { acc = (sp.kind === 'f1' ? 30 : 13) * thr; this.brake = 1; }
-      else acc = sp.acc * thr * Math.max(0.06, 1 - (vf / maxF) ** 2);
+      else acc = sp.acc * thr * gearK * Math.max(0.06, 1 - (vf / maxF) ** 2);
+      if (vf > maxF) acc = Math.min(acc, -(vf - maxF) * 1.5);   // trop vite pour ce sol : on freine naturellement
       // limiteur de vitesse : on coupe l'accélération en douceur à l'approche de la limite
       if (this.limit && vf > this.limit - 1.5) acc = Math.min(acc, (this.limit - vf) * 2.5);
     } else if (thr < -0.05) {
@@ -114,12 +136,12 @@ export class DriveSim {
     // (au lieu de pivoter brutalement). Les voitures haut de gamme encaissent plus d'accélération latérale.
     // F1 : ~4 g d'appui aérodynamique (de plus en plus avec la vitesse) ; voitures : 1,8 à 2,9 g selon la gamme
     const aero = F1 ? 22 + 0.35 * aspd : 0;
-    const latMax = (sp.kind === 'car' ? 18 + 9 * T + 3 * L : F1 ? 18 + aero : 15) * sp.grip * (inp.handbrake ? 1.8 : 1);
+    const latMax = (sp.kind === 'car' ? 18 + 9 * T + 3 * L : F1 ? 18 + aero : 15) * sp.grip * (inp.handbrake ? 1.8 : 1) * (this.offroad ? 0.72 : 1);
     if (aspd > 1 && Math.abs(yawRate * vf) > latMax) yawRate = Math.sign(yawRate) * latMax / aspd;
     if (inp.handbrake && aspd > 4) yawRate *= 1.6;
     this.yawRate = yawRate;
     // adhérence latérale : le dérapage s'amortit plus ou moins vite
-    const grip = sp.grip * (inp.handbrake ? 0.22 : 1) * (1 - this.damage * 0.25);
+    const grip = sp.grip * (inp.handbrake ? 0.22 : 1) * (1 - this.damage * 0.25) * (this.offroad ? 0.65 : 1);
     vl *= Math.exp(-dt * (1.5 + 11 * grip + (3 + 5 * T + 2 * L + (F1 ? 6 : 0)) * (inp.handbrake ? 0 : 1)));   // contrôle de stabilité (toutes, renforcé haut de gamme et avec le permis)
     this.slip = Math.abs(vl);
     this.latAcc = yawRate * vf;

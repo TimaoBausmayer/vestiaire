@@ -69,8 +69,8 @@ export class WorldVehicle {
     v.roll(s.vf * dt, -s.steer);
     // caisse : tangage au freinage / à l'accélération, roulis en virage (deux-roues : inclinaison)
     const two = this.spec.kind !== 'car' && this.spec.kind !== 'caddie';
-    const pitch = Math.max(-0.045, Math.min(0.045, -s.accel * 0.0045));
-    const roll = two ? Math.max(-0.5, Math.min(0.5, s.latAcc * 0.05)) : Math.max(-0.05, Math.min(0.05, s.latAcc * 0.0045));
+    const pitch = Math.max(-0.065, Math.min(0.065, -s.accel * 0.0055));
+    const roll = two ? Math.max(-0.5, Math.min(0.5, s.latAcc * 0.05)) : Math.max(-0.07, Math.min(0.07, s.latAcc * 0.005));
     const k = Math.min(1, dt * 6);
     v.tilt.rotation.x += (pitch - v.tilt.rotation.x) * k;
     v.tilt.rotation.z += ((two && s.speed < 0.3 && !this.driven ? 0.18 : roll) - v.tilt.rotation.z) * k;
@@ -103,6 +103,7 @@ export class Vehicles {
     this.handbrake = false;
     this.dash = h('div.dash.hidden',
       this.dashSpeed = h('div.speed', '0'), h('div.unit', 'km/h'),
+      h('div.gearbox', this.dashGear = h('b.gear', 'N'), h('div.rpm', this.rpmBar = h('i'))),
       h('div.gauges',
         h('div.g', h('span', '⛽'), h('div.bar', this.fuelBar = h('div'))),
         h('div.g', h('span', '🔧'), h('div.bar.dmg', this.dmgBar = h('div')))),
@@ -110,6 +111,12 @@ export class Vehicles {
       this.dashLimit = h('button.limit', { title: 'Limiteur de vitesse (touche B)', onclick: () => this.cycleLimiter() }, 'LIM —'),
       this.dashName = h('div.name', ''));
     game.ui.root.append(this.dash);
+    // phares du véhicule conduit : une vraie lumière projetée sur la route la nuit
+    this.headLight = new THREE.SpotLight('#fff1d0', 0, 55, 0.62, 0.55, 1.1);
+    this.headLight.castShadow = false;
+    game.engine.scene.add(this.headLight, this.headLight.target);
+    this.speedFx = h('div.speed-lines');
+    game.ui.root.append(this.speedFx);
     game.interactions.add({
       r: 1.9, priority: 3,
       x: () => this.nearest?.doorPoint().x ?? 1e9, z: () => this.nearest?.doorPoint().z ?? 1e9,
@@ -324,6 +331,8 @@ export class Vehicles {
     if (ENGINE_KIND[v.spec.kind] !== null && v.spec.kind !== 'bike') setTimeout(() => g.sfx('start'), 350);
     this.camDist = g.cam.dist;
     g.cam.dist = Math.max(g.cam.dist, v.spec.kind === 'car' ? 6 + v.dims.L * 0.9 : 6);
+    this.camDistBase = g.cam.dist;
+    this.baseFov = null;
     this.dash.classList.remove('hidden');
     this.dashName.textContent = `${vehicleIcon(v.model)} ${vehicleName(v.model)}`;
     { const l = Math.round((v.sim.limit || 0) * 3.6); this.dashLimit.textContent = l ? `LIM ${l}` : 'LIM —'; this.dashLimit.classList.toggle('on', !!l); }
@@ -347,6 +356,11 @@ export class Vehicles {
     g.player.teleport(p.x, p.z, v.yaw + Math.PI / 2, g.collision.supportAt(p.x, p.z, v.pos.y + 1.6, 0.35));
     if (v.sim.speed > 3 && !silent) { g.player.vel.set(v.sim.vx * 0.4, 5, v.sim.vz * 0.4); g.player.grounded = false; g.ui.toast('Cascade ! 🤸', '', 1500); }
     g.cam.dist = this.camDist || 9;
+    this.camDistBase = 0;
+    this.speedFx.style.opacity = '0';
+    this.headLight.intensity = 0;
+    if (this.baseFov != null) { g.engine.camera.fov = this.baseFov; g.engine.camera.updateProjectionMatrix(); this.baseFov = null; }
+    if (this.drifting) { this.drifting.el?.remove(); this.drifting.el = null; this.drifting.pts = 0; }
     g.sound.engineStop();
     g.sound.skid(0);
     this.dash.classList.add('hidden');
@@ -432,7 +446,7 @@ export class Vehicles {
       if (now - v.lastHit > 250) {
         v.lastHit = now;
         g.sfx(sev > 0.25 ? 'crash' : 'bump');
-        if (v === this.current) { g.cam.shake = Math.min(1.2, 0.3 + sev * 1.5); if (hit.speed >= 15) g.emit('vehicle.crash', hit.speed); }
+        if (v === this.current) { g.cam.shake = Math.min(1.2, 0.3 + sev * 1.5); if (hit.speed >= 15) g.emit('vehicle.crash', hit.speed); if (this.drifting?.pts > 0 && hit.speed > 4) { this.drifting.pts = 0; this.drifting.el?.remove(); this.drifting.el = null; g.ui.toast('💥 Drift perdu !', 'bad', 1500); } }
         g.fx.emit({ x: hit.x, y: v.pos.y + 0.6, z: hit.z, n: 6 + Math.round(sev * 20), colors: ['#ffd23f', '#ff9f1c', '#ffffff'], speed: 4 + sev * 6, gravity: 12, life: 0.4, size: 0.12 });
         if (sev > 0.3) g.fx.emit({ x: hit.x, y: v.pos.y + 0.8, z: hit.z, n: 8, colors: ['#9aa0a8', '#c7ccd4'], speed: 2, gravity: -1, life: 1.2, size: 0.6, grow: 1 });
         // autre véhicule percuté : il prend aussi
@@ -529,15 +543,33 @@ export class Vehicles {
     av.rotation.set(v.visual.tilt.rotation.x, s.yaw, v.visual.tilt.rotation.z, 'YXZ');
     av.scale.setScalar((this.baseScale || 1) * seat.s);
     g.avatar.update(dt, { speed: 0, grounded: true, pose: seat.pose });
-    // caméra : se replace derrière le véhicule, recule avec la vitesse
+    // caméra : se replace derrière le véhicule en anticipant le virage, recule et s'élargit avec la vitesse
     if (Math.abs(s.vf) > 2 && !inp.look.dx) {
-      const want = s.yaw + Math.PI + (s.vf < 0 ? Math.PI : 0) * 0;
-      g.cam.yaw += Math.atan2(Math.sin(want - g.cam.yaw), Math.cos(want - g.cam.yaw)) * Math.min(1, dt * 2.4);
+      const want = s.yaw + Math.PI - Math.max(-0.35, Math.min(0.35, s.yawRate * 0.22));
+      g.cam.yaw += Math.atan2(Math.sin(want - g.cam.yaw), Math.cos(want - g.cam.yaw)) * Math.min(1, dt * 2.6);
     }
-    // son moteur / pneus
-    const ratio = Math.abs(s.vf) / v.spec.max;
-    const gears = 5, gpos = ratio * gears, gear = Math.min(gears - 1, Math.floor(gpos));
-    const rpm = s.broken ? 0.05 : Math.min(1, 0.18 + (gpos - gear) * 0.7 + gear * 0.04);
+    const cam = g.engine.camera, kmh = s.speed * 3.6;
+    if (this.baseFov == null) this.baseFov = cam.fov;
+    const wantFov = this.baseFov + Math.min(14, Math.max(0, kmh - 30) * 0.075);
+    if (Math.abs(cam.fov - wantFov) > 0.05) { cam.fov += (wantFov - cam.fov) * Math.min(1, dt * 2); cam.updateProjectionMatrix(); }
+    if (this.camDistBase) g.cam.dist += ((this.camDistBase + Math.min(2.5, s.speed * 0.06)) - g.cam.dist) * Math.min(1, dt * 1.5);
+    // hors route : ça secoue un peu, la poussière vole
+    if (s.offroad && s.speed > 3) {
+      g.cam.shake = Math.max(g.cam.shake || 0, Math.min(0.12, s.speed * 0.006));
+      if (Math.random() < dt * Math.min(30, s.speed * 1.6)) {
+        const back = -v.dims.L / 2, sand = s.pos.x < -1880;
+        g.fx.emit({ x: s.pos.x + fx * back + (Math.random() - 0.5) * v.dims.W, y: s.pos.y + 0.2, z: s.pos.z + fz * back + (Math.random() - 0.5) * v.dims.W, n: 1, colors: sand ? ['#e2c290', '#d9a066'] : ['#a3896b', '#8b7355', '#9c8a6a'], speed: 0.8, gravity: -0.6, life: 1.2, size: 0.55, grow: 1.6, jitter: 0.6 });
+      }
+    }
+    if (s.shifted === 1 && s.speed > 4) g.cam.shake = Math.max(g.cam.shake || 0, 0.05);
+    this.speedFx.style.opacity = String(Math.max(0, Math.min(0.55, (kmh - 110) / 160)));
+    this.drift(v, dt);
+    { const on = v.visual.u.uLights.value > 0.35 && v.spec.kind !== 'bike' && g.engine.quality !== 'low', hl = this.headLight;
+      hl.intensity += ((on ? 70 : 0) - hl.intensity) * Math.min(1, dt * 6);
+      hl.position.set(s.pos.x + fx * (v.dims.L / 2 - 0.2), s.pos.y + 0.9, s.pos.z + fz * (v.dims.L / 2 - 0.2));
+      hl.target.position.set(s.pos.x + fx * 22, s.pos.y, s.pos.z + fz * 22); }
+    // son moteur / pneus : le régime vient de la boîte de vitesses de la simulation
+    const rpm = s.broken ? 0.05 : Math.min(1, s.rpm ?? 0.2);
     const kind = v.spec.kind === 'car' ? (v.dims.L > 5.5 ? 'truck' : 'car') : ENGINE_KIND[v.spec.kind];
     g.sound.engine(s.outOfFuel || s.broken ? null : { kind, rpm, load: Math.max(0, ctl.throttle) });
     g.sound.skid(s.skid * Math.min(1, s.speed / 6));
@@ -546,6 +578,9 @@ export class Vehicles {
     if (this._dashT > 0.1) {
       this._dashT = 0;
       this.dashSpeed.textContent = Math.round(s.speed * 3.6);
+      this.dashGear.textContent = s.vf < -0.3 ? 'R' : s.speed < 0.3 ? 'N' : s.gears > 1 ? String((s.gear || 0) + 1) : 'D';
+      this.rpmBar.style.width = `${Math.round(Math.min(1, s.rpm || 0) * 100)}%`;
+      this.rpmBar.classList.toggle('red', (s.rpm || 0) > 0.9);
       this.fuelBar.style.width = `${v.spec.fuel ? Math.round((s.fuel / v.spec.fuel) * 100) : 100}%`;
       this.fuelBar.parentElement.parentElement.style.display = v.spec.fuel ? '' : 'none';
       this.dmgBar.style.width = `${Math.round((1 - s.damage) * 100)}%`;
@@ -557,6 +592,36 @@ export class Vehicles {
     // sauvegarde périodique de l'état
     this._saveT = (this._saveT || 0) + dt;
     if (this._saveT > 15) { this._saveT = 0; this.saveState(v); }
+  }
+
+  // Drift : quand la voiture glisse de travers à bonne vitesse, les points s'accumulent ; ils sont
+  // validés quand la glisse s'arrête proprement (perdus en cas de choc).
+  drift(v, dt) {
+    const g = this.game, s = v.sim;
+    if (v.spec.kind !== 'car' && v.spec.kind !== 'f1') return;
+    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
+    const along = s.vx * fx + s.vz * fz, side = Math.abs(s.vx * fz - s.vz * fx);
+    const angle = s.speed > 8 ? Math.atan2(side, Math.abs(along)) : 0;
+    const d = this.drifting || (this.drifting = { pts: 0, calm: 0, best: 0, el: null });
+    if (angle > 0.22) {
+      d.calm = 0;
+      d.pts += dt * s.speed * angle * 40;
+      if (!d.el) { d.el = h('div.drift-hud'); g.ui.root.append(d.el); }
+      d.el.textContent = `🔥 DRIFT ${Math.round(d.pts)}`;
+      d.el.style.transform = `translateX(-50%) scale(${1 + Math.min(0.4, d.pts / 4000)})`;
+    } else if (d.pts > 0) {
+      d.calm += dt;
+      if (d.calm > 0.7) {
+        const pts = Math.round(d.pts);
+        d.pts = 0;
+        if (pts >= 150) {
+          d.best = Math.max(d.best, pts);
+          g.sfx(pts >= 2000 ? 'levelup' : 'success');
+          g.ui.toast(`🔥 Drift : ${pts} points${pts >= d.best ? ' · record de la session !' : ''}`, 'good', 2500);
+        }
+        d.el?.remove(); d.el = null;
+      }
+    }
   }
 
   // Traces de pneus, fumée de dérapage, fumée de moteur abîmé.

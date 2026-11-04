@@ -586,3 +586,13 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 .gf-hud b { color: #d8f3dc; }
 .gf-bar { width: 220px; height: 10px; background: rgba(255, 255, 255, .15); border-radius: 6px; overflow: hidden; }
 .gf-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #06d6a0, #ffd166, #ef476f); }
+
+/* Conduite : rapport engagé, compte-tours, drift */
+.dash .gearbox { display: flex; align-items: center; gap: 6px; margin: 2px 0 4px; }
+.dash .gear { font-size: 20px; min-width: 22px; text-align: center; color: #ffd166; }
+.dash .rpm { width: 90px; height: 7px; background: rgba(255, 255, 255, .15); border-radius: 5px; overflow: hidden; }
+.dash .rpm i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #06d6a0, #ffd166); transition: width .08s; }
+.dash .rpm i.red { background: linear-gradient(90deg, #ffd166, #ef476f); }
+.drift-hud { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); pointer-events: none !important; color: #ffbe0b; font-size: 30px; font-weight: 900; text-shadow: 0 2px 10px rgba(0, 0, 0, .6), 0 0 18px rgba(255, 90, 0, .8); z-index: 12; pointer-events: none; font-style: italic; }
+.speed-lines { position: absolute; inset: -20%; pointer-events: none !important; z-index: 2; opacity: 0; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 255, 255, .0) 0deg 3.2deg, rgba(255, 255, 255, .35) 3.4deg 3.6deg, rgba(255, 255, 255, 0) 3.8deg 9deg); -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 32%, #000 62%); mask: radial-gradient(circle at 50% 50%, transparent 0 32%, #000 62%); animation: speedspin 0.6s linear infinite; transition: opacity .3s; }
+@keyframes speedspin { from { transform: rotate(0deg) scale(1); } 50% { transform: rotate(2deg) scale(1.03); } to { transform: rotate(0deg) scale(1); } }

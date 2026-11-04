@@ -243,3 +243,31 @@ export const SECRET_BY_ID = Object.fromEntries(SECRETS.map((s) => [s.id, s]));
 
 
 export function dist2d(ax, az, bx, bz) { return Math.hypot(ax - bx, az - bz); }
+
+// Surfaces goudronnées (routes et trottoirs, parkings, stations, Grande Place) : ailleurs, les voitures
+// roulent sur l'herbe, la terre ou le sable (moins d'adhérence, plus lentes, poussière).
+const PAVED_CELL = 64;
+const PAVED = new Map();
+{
+  const rects = [
+    ...ROADS.map((r) => [r[0] - 2, r[1] - 2, r[2] + 2, r[3] + 2]),
+    ...PARKINGS.map((p) => [p.x1 - 1, p.z1 - 1, p.x2 + 1, p.z2 + 1]),
+    ...GAS_STATIONS.map((g) => [g.x - g.w / 2 - 2, g.z - g.d / 2 - 2, g.x + g.w / 2 + 2, g.z + g.d / 2 + 2]),
+    [-24, -24, 24, 24],
+  ];
+  for (const r of rects) {
+    for (let cx = Math.floor(r[0] / PAVED_CELL); cx <= Math.floor(r[2] / PAVED_CELL); cx++) {
+      for (let cz = Math.floor(r[1] / PAVED_CELL); cz <= Math.floor(r[3] / PAVED_CELL); cz++) {
+        const k = `${cx},${cz}`;
+        if (!PAVED.has(k)) PAVED.set(k, []);
+        PAVED.get(k).push(r);
+      }
+    }
+  }
+}
+export function isPaved(x, z) {
+  const list = PAVED.get(`${Math.floor(x / PAVED_CELL)},${Math.floor(z / PAVED_CELL)}`);
+  if (!list) return false;
+  for (const r of list) if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) return true;
+  return false;
+}
