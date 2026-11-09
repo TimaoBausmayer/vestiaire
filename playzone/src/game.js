@@ -336,7 +336,7 @@ export class Game extends Emitter {
 
   interact() {
     if (!this.playing || this.ui.blocking || this.cutscene) return;
-    if (this.wingfoil?.s || this.sailing?.s || this.surf?.s) return;   // sur l'eau, E sert à pomper
+    if (this.wingfoil?.s || this.sailing?.s || this.surf?.s || this.football?.s) return;   // E sert au jeu en cours   // sur l'eau, E sert à pomper
     if (this.interactions.trigger()) this.sfx('click');
   }
 
