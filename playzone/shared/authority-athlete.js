@@ -1,7 +1,8 @@
 // AUTORITÉ — ATHLÈTE ET CARRIÈRES : choix de la spécialité (sprint / endurance / polyvalent),
 // progression en courant en ville (mètres plafonnés par le temps réel), salaire de sponsor du jour.
 import { PROFILS, runGain, RUN_CAP } from './athlete.js';
-import { dailySalary, salaryClaimable } from './career.js';
+import { dailySalary, salaryClaimable, careerDiv } from './career.js';
+import { SPORT_CLUBS, STARS, CLUB_WEEK, clubOf, myClub } from './clubs.js';
 import { todayKey } from './rules.js';
 import { applyNeeds } from './needs.js';
 
@@ -40,10 +41,32 @@ export const ATHLETE_HANDLERS = {
     return { ok: true, changed: true, data: { meters: m, endurance: b.endurance, vitesse: b.vitesse } };
   },
 
+  // CLUBS : rejoindre (ou renouveler la cotisation d'une semaine) un club d'un sport ; le quitter
+  'club.join'(ctx, { sport, club }) {
+    const p = ctx.profile, c = clubOf(sport, club);
+    if (!c) return err('Club inconnu.');
+    const S = STARS[c.stars], div = careerDiv(p, sport);
+    if (div.i < S.need && !p.admin) return err(`${c.name} ne recrute qu'à partir de la division ${['Amateur', 'Régional', 'National', 'Pro'][S.need]} (tu es ${div.name}). Gagne des compétitions !`);
+    const fee = p.admin ? 0 : S.fee;
+    if (p.coins < fee) return err(`La cotisation coûte ${fee} PC par semaine.`);
+    this.addCoins(p, -fee);
+    p.clubs = p.clubs || {};
+    const cur = p.clubs[sport];
+    const from = cur && cur.id === club && cur.until > ctx.now ? cur.until : ctx.now;
+    p.clubs[sport] = { id: club, until: from + CLUB_WEEK, since: cur?.id === club ? cur.since : ctx.now };
+    return { ok: true, changed: true, data: { club: c.name, fee, until: p.clubs[sport].until } };
+  },
+  'club.leave'(ctx, { sport }) {
+    const p = ctx.profile;
+    if (!p.clubs?.[sport]) return err('Tu n\'as pas de club dans ce sport.');
+    delete p.clubs[sport];
+    return { ok: true, changed: true, data: {} };
+  },
+
   'career.salary'(ctx) {
     const p = ctx.profile;
-    if (!salaryClaimable(p, ctx.now)) return err(dailySalary(p) ? 'Salaire du jour déjà touché. Reviens demain !' : 'Pas encore de sponsor : monte en division Régionale dans un sport.');
-    const amount = dailySalary(p);
+    if (!salaryClaimable(p, ctx.now)) return err(dailySalary(p, ctx.now) ? 'Salaire du jour déjà touché. Reviens demain !' : 'Pas encore de sponsor : monte en division Régionale dans un sport.');
+    const amount = dailySalary(p, ctx.now);
     p.career = p.career || {};
     p.career.salaryDay = todayKey(ctx.now);
     this.addCoins(p, amount);

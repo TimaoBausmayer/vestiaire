@@ -3,6 +3,7 @@
 // un sponsor verse un salaire chaque jour de jeu, et les adversaires PNJ deviennent plus forts.
 // Règles pures partagées (client + autorité).
 import { todayKey } from './rules.js';
+import { clubPerks, SPORT_CLUBS } from './clubs.js';
 
 export const CAREER_SPORTS = {
   course: { name: 'Athlétisme', icon: '🏃' },
@@ -58,7 +59,7 @@ export function careerPoints(rank, of) {
 export function careerResult(p, sport, rank, of, fixed = null) {
   const c = careerOf(p, sport);
   const before = divisionOf(c.pts).i;
-  const pts = fixed ?? careerPoints(rank, of);
+  const pts = Math.round((fixed ?? careerPoints(rank, of)) * clubPerks(p, sport, Date.now()).pts);
   c.pts += pts;
   if (of > 1) { c.comps++; if (rank === 1) c.wins++; if (rank <= 3) c.podiums++; }
   const d = divisionOf(c.pts);
@@ -66,9 +67,12 @@ export function careerResult(p, sport, rank, of, fixed = null) {
 }
 
 // Salaire de sponsor du jour : la somme des salaires de toutes les carrières.
-export function dailySalary(p) {
+export function dailySalary(p, now = Date.now()) {
   let s = 0;
-  for (const k of Object.keys(CAREER_SPORTS)) s += careerDiv(p, k).salary;
+  for (const k of Object.keys(CAREER_SPORTS)) s += careerDiv(p, k).salary + (SPORT_CLUBS[k] ? clubPerks(p, k, now).daily : 0);
   return s;
 }
-export const salaryClaimable = (p, now) => dailySalary(p) > 0 && p.career?.salaryDay !== todayKey(now);
+// multiplicateur des primes : division de carrière × réputation du club
+export const prizeMult = (p, sport, now = Date.now()) => careerDiv(p, sport).mult * clubPerks(p, sport, now).prize;
+// bonus de force des PNJ adverses (division) — les grands clubs jouent contre de grands adversaires
+export const salaryClaimable = (p, now) => dailySalary(p, now) > 0 && p.career?.salaryDay !== todayKey(now);

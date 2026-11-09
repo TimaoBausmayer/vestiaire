@@ -1,6 +1,6 @@
 // AUTORITÉ — MINI-GOLF : entrée du parcours, carte de score validée (coups possibles, durée), prime.
 import { BUILDING_BY_ID } from './world-layout.js';
-import { careerResult, careerDiv } from './career.js';
+import { careerResult, careerDiv, prizeMult } from './career.js';
 import { GOLF, HOLES, PAR, MAX_STROKES, defaultGolf, golfPrize } from './golf.js';
 
 const err = (error) => ({ ok: false, error });
@@ -29,7 +29,7 @@ export const GOLF_HANDLERS = {
     g.rounds++; g.aces += aces;
     const record = !g.best || total < g.best;
     if (record) g.best = total;
-    const prize = Math.round(golfPrize(total, aces) * careerDiv(p, 'golf').mult);
+    const prize = Math.round(golfPrize(total, aces) * prizeMult(p, 'golf'));
     // carrière : la carte compte comme une compétition (plus on est sous le par, mieux on est classé)
     const career = careerResult(p, 'golf', 0, 0, Math.max(3, Math.min(45, 10 + (PAR - total) * 4 + aces * 5)));
     if (prize) this.addCoins(p, prize);

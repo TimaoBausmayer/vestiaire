@@ -15,8 +15,16 @@ function roundedRect(cx, cz, hx, hz, r, n = 6) {
 }
 // piste d'athlétisme (400 m environ) autour du terrain de foot ; départ en bas à droite
 export const ATHLE = { cx: PITCH.x, cz: PITCH.z, hx: PITCH.w / 2 + 6, hz: PITCH.d / 2 + 5, r: 13, w: 4.4 };
+// autres stades d'athlétisme (même piste de ~230 m, club-house au sud)
+export const ATHLE_TRACKS = [
+  { id: 'piste', name: 'Stade des Crampons', cx: ATHLE.cx, cz: ATHLE.cz, club: 'club-foot' },
+  { id: 'piste-est', name: 'Stade d\'athlétisme de l\'Est', cx: 920, cz: -440, club: 'athle-est' },
+  { id: 'piste-vignes', name: 'Stade des Vignes', cx: -720, cz: -480, club: 'athle-vignes' },
+];
 export const ROUTES = {
   piste: { name: 'Piste d\'athlétisme du Stade des Crampons', pts: roundedRect(ATHLE.cx, ATHLE.cz, ATHLE.hx, ATHLE.hz, ATHLE.r).reverse(), width: ATHLE.w },
+  'piste-est': { name: 'Piste du Stade de l\'Est', pts: roundedRect(920, -440, ATHLE.hx, ATHLE.hz, ATHLE.r).reverse(), width: ATHLE.w },
+  'piste-vignes': { name: 'Piste du Stade des Vignes', pts: roundedRect(-720, -480, ATHLE.hx, ATHLE.hz, ATHLE.r).reverse(), width: ATHLE.w },
   hauts: { name: 'Boucle cycliste des Hauts', width: 9, pts: [{ x: 450, z: -430 }, { x: 140, z: -430 }, { x: 140, z: -700 }, { x: 560, z: -700 }, { x: 560, z: -430 }] },
   bouees: { name: 'Parcours de bouées de la Côte des Villas', width: 14, pts: [{ x: 360, z: 128 }, { x: 520, z: 128 }, { x: 572, z: 165 }, { x: 520, z: 205 }, { x: 440, z: 185 }, { x: 360, z: 208 }, { x: 318, z: 168 }] },
   // Bike Park des Géants : sentier VTT en terre qui serpente vers la montagne, et la Route des Cols (asphalte)
@@ -63,7 +71,7 @@ export function distToRoute(r, x, z) {
   }
   return best;
 }
-export const GATE_R = { dunes: 26, collines: 26, nord: 26, sprint: 6, piste: 7, hauts: 12, f1: 16, bouees: 14, vtt: 11, cols: 14 };
+export const GATE_R = { 'piste-est': 7, 'piste-vignes': 7, dunes: 26, collines: 26, nord: 26, sprint: 6, piste: 7, hauts: 12, f1: 16, bouees: 14, vtt: 11, cols: 14 };
 
 // ------------------------------------------------------------------------------ station de ski du Mont-Pinard
 // 5 pistes côte à côte qui descendent du nord (sommet) vers le sud (front de neige) : verte, bleue,
@@ -131,6 +139,10 @@ export const DISC = {
       course: { name: 'Course du quartier (3 tours de piste)', laps: 3, npcs: 7, fee: 0, prizes: [120, 60, 30], run: 'piste' },
       km5: { name: '5 km (2 tours de piste)', laps: 2, npcs: 9, fee: 5, prizes: [200, 100, 50], pace: 1.05, run: 'piste', km: 5 },
       km10: { name: '10 km (4 tours de piste)', laps: 4, npcs: 11, fee: 10, prizes: [400, 200, 100], pace: 0.98, run: 'long', km: 10 },
+      'est-footing': { name: '🏟️ Stade de l\'Est · footing (3 tours, gratuit)', route: 'piste-est', laps: 3, npcs: 0, fee: 0, prizes: [], run: 'piste' },
+      'est-meeting': { name: '🏟️ Meeting du Stade de l\'Est (4 tours, 9 coureurs)', route: 'piste-est', laps: 4, npcs: 8, fee: 10, prizes: [300, 150, 75], pace: 1.02, run: 'piste' },
+      'vignes-footing': { name: '🍇 Stade des Vignes · footing (3 tours, gratuit)', route: 'piste-vignes', laps: 3, npcs: 0, fee: 0, prizes: [], run: 'piste' },
+      'vignes-meeting': { name: '🍇 Meeting des Vignes (6 tours, 11 coureurs)', route: 'piste-vignes', laps: 6, npcs: 10, fee: 15, prizes: [450, 220, 110], pace: 1.0, run: 'long' },
       semi: { name: '🏅 Semi-marathon (1 boucle des Hauts)', route: 'hauts', laps: 1, npcs: 14, fee: 25, prizes: [1200, 600, 300], pace: 0.9, run: 'long', km: 21.1 },
       marathon: { name: '🏆 Marathon de PLAYZONE (2 boucles des Hauts)', route: 'hauts', laps: 2, npcs: 19, fee: 50, prizes: [3500, 1700, 850], pace: 0.86, run: 'marathon', km: 42.195 },
     },

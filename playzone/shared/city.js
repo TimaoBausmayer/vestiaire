@@ -689,6 +689,9 @@ add({ id: 'minigolf', name: 'Mini-golf « Le Trou Rigolo »', kind: 'shop', shop
 
 // --- PISCINE OLYMPIQUE (bassin de 50 m devant l'accueil, voir swim.js)
 add({ id: 'piscine', name: 'Piscine olympique des Dauphins', kind: 'shop', shop: 'piscine', interior: 'agency', x: 228, z: -458, w: 12, d: 12, h: 7, facing: 'S', color: '#caf0f8', roofColor: '#0077b6', sign: '🏊 PISCINE OLYMPIQUE', district: 'sport', lot: { x1: 163, z1: -489, x2: 220.5, z2: -446 } });
+// stades d'athlétisme supplémentaires (piste rouge autour d'une pelouse, club-house au sud)
+add({ id: 'athle-est', name: 'Club d\'athlétisme du Stade de l\'Est', kind: 'shop', shop: 'athle-club', interior: 'agency', x: 920, z: -400, w: 22, d: 10, h: 6, facing: 'N', color: '#b5452f', roofColor: '#ffffff', sign: 'STADE DE L\'EST · ATHLÉTISME', district: 'est', lot: { x1: 858, z1: -484, x2: 982, z2: -406 } });
+add({ id: 'athle-vignes', name: 'Club d\'athlétisme du Stade des Vignes', kind: 'shop', shop: 'athle-club', interior: 'agency', x: -720, z: -519, w: 22, d: 8, h: 6, facing: 'S', color: '#7b2d8b', roofColor: '#ffffff', sign: 'STADE DES VIGNES · ATHLÉTISME', district: 'hauts', lot: { x1: -782, z1: -514, x2: -658, z2: -439 } });
 
 export const GAS_STATIONS = CITY_BUILDINGS.filter((b) => b.gas).map((b) => ({ id: b.id, name: b.name, ...b.gas }));
 

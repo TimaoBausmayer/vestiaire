@@ -1,6 +1,6 @@
 // AUTORITÉ — TENNIS : location du court, match contre un PNJ, victoire validée par la durée.
 import { BUILDING_BY_ID } from './world-layout.js';
-import { careerResult, careerDiv } from './career.js';
+import { careerResult, careerDiv, prizeMult } from './career.js';
 import { TENNIS_CLUBS, T_OPP_BY_ID, TENNIS_FEE, MIN_WIN_SECS, defaultTennis, COURT } from './tennis.js';
 
 const err = (error) => ({ ok: false, error });
@@ -34,7 +34,7 @@ export const TENNIS_HANDLERS = {
     t.wins++;
     const first = O.rank > t.beaten;
     t.beaten = Math.max(t.beaten, O.rank);
-    const prize = Math.round(O.prize * (first ? 1 : 0.4) * careerDiv(p, 'tennis').mult);
+    const prize = Math.round(O.prize * (first ? 1 : 0.4) * prizeMult(p, 'tennis'));
     this.addCoins(p, prize); this.addXp?.(p, O.xp);
     p.rep = (p.rep || 0) + (first ? 1 : 0);
     return { ok: true, changed: true, data: { won: true, prize, first, xp: O.xp, career } };

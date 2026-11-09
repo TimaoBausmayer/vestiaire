@@ -209,7 +209,7 @@ export class Football {
     const M = MATCHES[kind];
     const rand = mulberry32(r.seed);
     const f = g.profile.sports.foot;
-    const mate = clamp(0.25 + footLevel(f.xp).i * 0.12, 0.2, 0.9);
+    const mate = clamp(0.25 + footLevel(f.xp).i * 0.12 + (r.mate || 0), 0.2, 0.95);   // un grand club = de meilleurs coéquipiers
     this.begin({ mode: 'match', kind, opponent: r.opponent, mins: r.mins });
     const form = this.formation(r.size);
     const names = [...NAMES].sort(() => rand() - 0.5);
@@ -224,7 +224,7 @@ export class Football {
     this.kickoff(0);
     if (kind === 'organise' && g.net.mode !== 'solo') g.net.chat?.(`📣 ${g.profile.name} organise un match de foot au Stade des Crampons ! Venez voir !`);
     g.sfx('whistle');
-    g.ui.toast(`⚽ ${M.name} contre ${r.opponent} ! J = tirer · K = passe · L = tacle · Espace = dribble · Maj = sprint`, 'event', 6000);
+    g.ui.toast(`⚽ ${M.name}${r.team ? ` · ${r.team}` : ''} contre ${r.opponent} ! J = tirer · K = passe · L = tacle · Espace = dribble · Maj = sprint`, 'event', 6000);
   }
 
   async startDrill(drill) {

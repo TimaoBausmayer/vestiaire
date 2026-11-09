@@ -7,7 +7,7 @@ import { Avatar } from '../characters/avatar.js';
 import { DEFAULT_APPEARANCE, SKINS, HAIR_STYLES, HAIR_COLORS, COLORS } from '../../shared/appearance.js';
 import { HOUR_MS } from '../../shared/clock.js';
 import { mulberry32, hashString } from '../../shared/rng.js';
-import { DISC, ROUTES, ATHLE, GATE_R, routeAt, distToRoute, fmtTime, modeRoute } from '../../shared/courses.js';
+import { DISC, ROUTES, ATHLE, ATHLE_TRACKS, GATE_R, routeAt, distToRoute, fmtTime, modeRoute } from '../../shared/courses.js';
 import { fatigueCapacity, PROFILS, profilOf } from '../../shared/athlete.js';
 import { divisionOf, CAREER_SPORTS } from '../../shared/career.js';
 import { buildCircuits } from './f1-circuits.js';
@@ -39,11 +39,16 @@ export class Races {
     const w = ATHLE.w / 2;
     const outer = ring(ATHLE.hx + w, ATHLE.hz + w, ATHLE.r + w);
     outer.holes.push(ring(ATHLE.hx - w, ATHLE.hz - w, ATHLE.r - w));
-    const track = new THREE.Mesh(new THREE.ShapeGeometry(outer, 16).rotateX(-Math.PI / 2), mat('#b5452f'));
-    track.position.set(ATHLE.cx, 0.03, ATHLE.cz); track.receiveShadow = true; root.add(track);
-    for (const k of [-1, 0, 1]) {
-      const ln = new THREE.Mesh(new THREE.ShapeGeometry((() => { const o = ring(ATHLE.hx + k * 1.1 + 0.04, ATHLE.hz + k * 1.1 + 0.04, ATHLE.r + k * 1.1 + 0.04); o.holes.push(ring(ATHLE.hx + k * 1.1 - 0.04, ATHLE.hz + k * 1.1 - 0.04, ATHLE.r + k * 1.1 - 0.04)); return o; })(), 16).rotateX(-Math.PI / 2), mat('#f4f1ea'));
-      ln.position.set(ATHLE.cx, 0.035, ATHLE.cz); root.add(ln);
+    const trackGeo = new THREE.ShapeGeometry(outer, 16).rotateX(-Math.PI / 2), trackMat = mat('#b5452f'), lineMat = mat('#f4f1ea');
+    const lineGeos = [-1, 0, 1].map((k) => { const o = ring(ATHLE.hx + k * 1.1 + 0.04, ATHLE.hz + k * 1.1 + 0.04, ATHLE.r + k * 1.1 + 0.04); o.holes.push(ring(ATHLE.hx + k * 1.1 - 0.04, ATHLE.hz + k * 1.1 - 0.04, ATHLE.r + k * 1.1 - 0.04)); return new THREE.ShapeGeometry(o, 16).rotateX(-Math.PI / 2); });
+    const infield = new THREE.ShapeGeometry(ring(ATHLE.hx - w, ATHLE.hz - w, ATHLE.r - w), 16).rotateX(-Math.PI / 2), grass = mat('#4caf50');
+    for (const T of ATHLE_TRACKS) {
+      const track = new THREE.Mesh(trackGeo, trackMat); track.position.set(T.cx, 0.03, T.cz); track.receiveShadow = true; root.add(track);
+      for (const lg of lineGeos) { const ln = new THREE.Mesh(lg, lineMat); ln.position.set(T.cx, 0.035, T.cz); root.add(ln); }
+      if (T.id !== 'piste') {   // nouveaux stades : pelouse au centre, petite tribune au nord
+        const f = new THREE.Mesh(infield, grass); f.position.set(T.cx, 0.025, T.cz); f.receiveShadow = true; root.add(f);
+        for (let k = 0; k < 3; k++) { const st = new THREE.Mesh(new THREE.BoxGeometry(50, 0.5, 1.6), mat(k % 2 ? '#c9ced6' : T.id === 'piste-est' ? '#b5452f' : '#7b2d8b')); st.position.set(T.cx, 0.35 + k * 0.55, T.cz + (T.id === 'piste-est' ? -31 - k * 1.6 : 31 + k * 1.6)); root.add(st); }
+      }
     }
     // lignes de départ / arrivée
     const finish = (route, w) => {
@@ -54,7 +59,7 @@ export class Races {
       m.position.set(p.x, 0.06, p.z); m.rotation.y = p.yaw + Math.PI / 2; root.add(m);
       return p;
     };
-    finish(ROUTES.piste, ATHLE.w);
+    for (const T of ATHLE_TRACKS) finish(ROUTES[T.id], ATHLE.w);
     // ligne droite du 100 m : 8 couloirs rouges, lignes blanches, arrivée en damier
     { const S = ROUTES.sprint, a = S.pts[0], b = S.pts[1], cx = (a.x + b.x) / 2, len = S.len + 16;
       const strip = new THREE.Mesh(new THREE.PlaneGeometry(len, S.width).rotateX(-Math.PI / 2), mat('#b5452f'));

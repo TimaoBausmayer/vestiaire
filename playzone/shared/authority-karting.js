@@ -6,7 +6,7 @@ import { CYCLE_MS, gameWeek, gameDay } from './clock.js';
 import { liveOcc, liveOf } from './calendar.js';
 import { calTime } from './authority-calendar.js';
 import { randInt } from './rng.js';
-import { careerResult, careerDiv } from './career.js';
+import { careerResult, careerDiv, prizeMult } from './career.js';
 import { recordActivity } from './rules.js';
 import {
   GATES, GATE_R, MIN_LAP, COUNTDOWN, KARTS, MEMBERSHIPS, FORMULAS, RACES, raceField, sessionPrice, memberOk,
@@ -126,7 +126,7 @@ export const KARTING_HANDLERS = {
     const ranking = [...field.map((d) => ({ name: d.name, level: d.level, time: d.laps[R.laps - 1], npc: true })), { name: p.name, time: total, me: true }]
       .sort((a, b) => (a.time ?? 1e9) - (b.time ?? 1e9));
     const place = finished ? ranking.findIndex((x) => x.me) + 1 : null;
-    const prize = place ? Math.round((R.prizes[place - 1] || 0) * careerDiv(p, 'karting').mult) : 0;
+    const prize = place ? Math.round((R.prizes[place - 1] || 0) * prizeMult(p, 'karting')) : 0;
     const career = place ? careerResult(p, 'karting', place, ranking.length) : null;
     st.races++;
     if (place === 1) { st.wins++; p.rep += 4; const t = `Vainqueur : ${R.name}`; if (!p.titles.includes(t)) p.titles.push(t); }

@@ -4,6 +4,8 @@ import { todayKey } from '../../shared/rules.js';
 import { OPPONENTS } from '../../shared/boxing.js';
 import { CAREER_SPORTS, DIVISIONS, divisionOf, dailySalary, salaryClaimable } from '../../shared/career.js';
 import { PROFILS, profilOf } from '../../shared/athlete.js';
+import { SPORT_CLUBS, STARS, myClub, stars as starTxt } from '../../shared/clubs.js';
+import { BUILDING_BY_ID } from '../../shared/world-layout.js';
 import { weightLabel, IDEAL_WEIGHT } from '../../shared/body.js';
 
 // EXERCICES PARTOUT : un mini-jeu par type d'exercice.
@@ -148,6 +150,15 @@ export function sportApp(g, b, refresh) {
   const sal = dailySalary(P);
   b.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, '💼'), h('div.grow', h('div.t', `Salaire de sponsor : ${fmt(sal)} PC / jour`), h('div.d', sal ? 'La somme de tous tes sports en division Régionale ou plus.' : 'Monte en division Régionale dans un sport pour avoir un sponsor.')),
     salaryClaimable(P, g.now()) ? h('button.btn.small', { onclick: async () => { try { const r = await g.net.request('career.salary', {}); g.sfx('cash'); g.ui.toast(`💼 Salaire de sponsor : +${fmt(r.amount)} PC`, 'money'); refresh?.(); } catch (e) { g.ui.toast(e.message, 'bad'); } } }, 'Toucher') : h('span.pill', sal ? 'touché ✅' : '—')));
+  // ---- clubs (4 par sport, réputations différentes)
+  b.append(h('h3', { style: { marginTop: '12px' } }, '🏟️ Mes clubs'));
+  b.append(h('p.muted', 'Petit club = gratuit et ouvert à tous. Grand club = division exigée et cotisation, mais plus de points de carrière, de plus grosses primes, une prime de club chaque jour et (au foot) de meilleurs coéquipiers.'));
+  for (const [sp, list] of Object.entries(SPORT_CLUBS)) {
+    const S = CAREER_SPORTS[sp], mine = myClub(P, sp, g.now()), m = P.clubs?.[sp];
+    b.append(h('div.list-item', h('span', { style: { fontSize: '22px' } }, S.icon), h('div.grow', h('div.t', `${S.name} · ${mine ? `${mine.name} ${starTxt(mine.stars)}` : m ? 'cotisation expirée' : 'sans club'}`),
+      h('div.d', mine && STARS[mine.stars].fee ? `Cotisation à jour encore ${Math.max(1, Math.ceil((m.until - g.now()) / 600_000))} h de jeu` : `${list.length} clubs : ${list.map((c) => `${c.name} ${'★'.repeat(c.stars)}`).join(' · ')}`)),
+      h('button.btn.small', { onclick: () => clubPicker(g, sp, refresh) }, mine ? 'Gérer' : 'Choisir')));
+  }
   for (const [id, S] of Object.entries(CAREER_SPORTS)) {
     const c = P.career?.[id] || { pts: 0, comps: 0, wins: 0 }, d = divisionOf(c.pts);
     const prog = d.next ? (c.pts - d.pts) / (d.next.pts - d.pts) : 1;
@@ -184,4 +195,27 @@ export function sportApp(g, b, refresh) {
   ];
   b.append(h('h3', { style: { marginTop: '12px' } }, '🏅 Mon palmarès'));
   for (const [t, d] of rows) b.append(h('div.list-item', h('div.grow', h('div.t', t), h('div.d', d))));
+}
+
+// Choix d'un club pour un sport : réputation, conditions, cotisation, avantages
+export function clubPicker(g, sport, refresh) {
+  const P = g.profile, div = divisionOf(P.career?.[sport]?.pts || 0);
+  const m = g.ui.modal({
+    title: `${CAREER_SPORTS[sport].icon} Clubs de ${CAREER_SPORTS[sport].name}`,
+    sub: `Ta division : ${div.name}. Cotisation pour une semaine de jeu, renouvelable.`,
+    width: 'min(600px, 96vw)',
+    build: (body) => {
+      const mine = myClub(P, sport, g.now());
+      for (const c of SPORT_CLUBS[sport]) {
+        const S = STARS[c.stars], locked = div.i < S.need && !P.admin, site = c.site && BUILDING_BY_ID[c.site];
+        body.append(h('div.list-item', h('span', { style: { fontSize: '15px', color: '#ffbe0b', minWidth: '74px' } }, starTxt(c.stars)),
+          h('div.grow', h('div.t', `${c.name}${mine?.id === c.id ? ' ✅' : ''}`), h('div.d', c.desc),
+            h('div.d', `${S.fee ? `${S.fee} PC / semaine` : 'Gratuit'}${S.need ? ` · division ${['Amateur', 'Régional', 'National', 'Pro'][S.need]} exigée` : ''} · points ×${S.pts} · primes ×${S.prize}${S.daily ? ` · prime de club ${S.daily} PC/jour` : ''}${sport === 'foot' && S.mate ? ' · coéquipiers plus forts' : ''}`)),
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
+            site ? h('button.btn.small.ghost', { onclick: () => { m.close(); g.phone?.goTo?.({ x: site.door?.x ?? site.x, z: site.door?.z ?? site.z, name: c.name }); } }, '📍 GPS') : null,
+            h('button.btn.small', { disabled: locked, onclick: async () => { try { const r = await g.net.request('club.join', { sport, club: c.id }); g.sfx('levelup'); g.ui.toast(`🏟️ Bienvenue au ${r.club} !${r.fee ? ` Cotisation : ${r.fee} PC.` : ''}`, 'good', 4000); m.close(); refresh?.(); } catch (e) { g.ui.toast(e.message, 'bad'); } } }, locked ? '🔒' : mine?.id === c.id ? (S.fee ? 'Renouveler' : 'Membre') : 'Rejoindre'))));
+      }
+      if (P.clubs?.[sport]) body.append(h('button.btn.small.ghost', { style: { marginTop: '8px' }, onclick: async () => { try { await g.net.request('club.leave', { sport }); g.ui.toast('Tu as quitté ton club.', '', 2500); m.close(); refresh?.(); } catch (e) { g.ui.toast(e.message, 'bad'); } } }, 'Quitter mon club'));
+    },
+  });
 }

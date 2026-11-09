@@ -2,7 +2,7 @@
 import { BUILDINGS } from './world-layout.js';
 import { BOX, OPP_BY_ID, defaultBoxing, bagGain, minWinSeconds } from './boxing.js';
 import { applyNeeds, needsStatus } from './needs.js';
-import { careerResult, careerDiv } from './career.js';
+import { careerResult, careerDiv, prizeMult } from './career.js';
 
 const err = (error) => ({ ok: false, error });
 const atClub = (self, ctx) => BUILDINGS.some((b) => b.interior === 'boxing' && self.atBuilding(ctx, b, 1));
@@ -54,7 +54,7 @@ export const BOXING_HANDLERS = {
     B.wins++; if (ko) B.kos++;
     const first = O.rank > B.beaten;
     B.beaten = Math.max(B.beaten, O.rank);
-    const prize = Math.round(O.prize * (first ? 1 : 0.4) * (ko ? 1.25 : 1) * careerDiv(p, 'boxe').mult);
+    const prize = Math.round(O.prize * (first ? 1 : 0.4) * (ko ? 1.25 : 1) * prizeMult(p, 'boxe'));
     this.addCoins(p, prize);
     this.addXp?.(p, O.xp);
     B.xp += O.xp;

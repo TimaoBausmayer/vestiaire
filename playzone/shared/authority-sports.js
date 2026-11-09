@@ -67,7 +67,8 @@ export const SPORTS_HANDLERS = {
     const sz = custom && Number.isFinite(Number(size)) ? Math.max(3, Math.min(6, Math.round(Number(size)))) : M.size;
     const mn = custom && Number.isFinite(Number(mins)) ? Math.max(2, Math.min(8, Math.round(Number(mins)))) : M.mins;
     ctx.session.foot = { kind: 'match', match: kind, at: ctx.now, seed, str, mins: mn };
-    return { ok: true, changed: false, data: { seed, strength: str, opponent: opp, mins: mn, size: sz } };
+    const club = myClub(p, 'foot', ctx.now);
+    return { ok: true, changed: false, data: { seed, strength: str, opponent: opp, mins: mn, size: sz, team: club?.name || null, mate: clubPerks(p, 'foot', ctx.now).mate } };
   },
   'foot.matchEnd'(ctx, { gf, ga, goals, abandon }) {
     const s = ctx.session.foot, p = ctx.profile, f = p.sports.foot;
@@ -88,7 +89,7 @@ export const SPORTS_HANDLERS = {
     // un match fait progresser un peu tout le monde (et beaucoup l'endurance)
     for (const k of Object.keys(f.skills)) f.skills[k] = Math.min(SKILL_MAX, Math.round((f.skills[k] + 0.6 + (k === 'tir' ? goals * 0.5 : 0)) * 10) / 10);
     gainEndurance(p, 2.5);
-    const fprize = Math.round(prize * careerDiv(p, 'foot').mult);
+    const fprize = Math.round(prize * prizeMult(p, 'foot'));
     if (fprize) this.addCoins(p, fprize);
     p.rep = (p.rep || 0) + (result === 'victoire' ? (s.match === 'gros' ? 8 : 2) : 0);
     f.history = [...(f.history || []), { t: 'match', m: s.match, gf, ga, goals, at: ctx.now }].slice(-20);
@@ -186,13 +187,15 @@ Object.assign(SPORTS_HANDLERS, {
 
 // ------------------------------------------------------------------------------ course à pied, vélo, F1, ski
 import { DISC, ROUTES, SKI, BIGAIR_MAX, discLen, npcField, defaultDisc, modeRoute, finishPoint } from './courses.js';
-import { careerResult, careerDiv } from './career.js';
+import { careerResult, careerDiv, prizeMult } from './career.js';
+import { myClub, clubPerks } from './clubs.js';
 import { raceGain } from './athlete.js';
 import { CYCLE_MS } from './clock.js';
 const SKI_HUT = { x: SKI.hut.x, z: SKI.hut.z };
 function atDiscPlace(self, ctx, disc, mode) {
   const D = DISC[disc];
   if (D.place === 'ski-hut') return self.near(ctx, SKI_HUT.x, SKI_HUT.z, 14);
+  if (disc === 'course' && ['athle-est', 'athle-vignes'].some((id) => self.atBuilding(ctx, BUILDING_BY_ID[id], 4))) return true;   // tous les stades d'athlétisme
   const st = ROUTES[D.route]?.pts[0], st2 = mode && D.modes[mode]?.route ? ROUTES[D.modes[mode].route].pts[0] : null;
   return self.atBuilding(ctx, BUILDING_BY_ID[D.place], 4) || (st && self.near(ctx, st.x, st.z, 45)) || (st2 && self.near(ctx, st2.x, st2.z, 45));
 }
@@ -284,7 +287,7 @@ Object.assign(SPORTS_HANDLERS, {
     }
     // carrière : points selon la place, primes multipliées par la division
     let career = null;
-    if (M.npcs) { const mult = careerDiv(p, s.disc).mult; prize = Math.round(prize * mult); career = careerResult(p, s.disc, rank, M.npcs + 1); }
+    if (M.npcs) { const mult = prizeMult(p, s.disc); prize = Math.round(prize * mult); career = careerResult(p, s.disc, rank, M.npcs + 1); }
     if (prize) this.addCoins(p, prize);
     const key = s.mode;
     const prev = d.best[key];
