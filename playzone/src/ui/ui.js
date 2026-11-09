@@ -1,4 +1,5 @@
 import { h, clear } from './dom.js';
+const MINOR = /infraction|amende|feu rouge|★|police|témoin|réputation|excès de vitesse|radar|point\(s\)|flashé/i;
 
 // Gestionnaire d'interface : fenêtres (modales), notifications, textes flottants, invite d'interaction.
 export class UI {
@@ -78,10 +79,21 @@ export class UI {
   closeAll() { [...this.stack].forEach((m) => m.close()); }
 
   toast(text, kind = '', ms = 3200) {
+    // infractions, police, réputation : petite note discrète en bas de l'écran (ne cache pas le jeu)
+    if (typeof text === 'string' && MINOR.test(text) && !/Examen/.test(text)) return this.note(text, kind, ms);
     const el = h(`div.toast${kind ? `.${kind}` : ''}`, text);
     this.toasts.append(el);
     while (this.toasts.children.length > 4) this.toasts.firstChild.remove();
     setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 450); }, ms);
+    return el;
+  }
+
+  note(text, kind = '', ms = 3200) {
+    if (!this.notes || !this.notes.isConnected) { this.notes = h('div.notes'); this.root.append(this.notes); }
+    const el = h(`div.note${kind ? `.${kind}` : ''}`, text);
+    this.notes.append(el);
+    while (this.notes.children.length > 3) this.notes.firstChild.remove();
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 450); }, Math.min(ms, 3500));
     return el;
   }
 

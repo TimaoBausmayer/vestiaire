@@ -299,7 +299,7 @@ export class Phone {
   app_business(b) { businessApp(this.game, b, () => this.render()); }
 
   app_health(b) { healthApp(this.game, b); }
-  app_sport(b) { sportApp(this.game, b); }
+  app_sport(b) { sportApp(this.game, b, () => this.render()); }
 
   app_papers(b) { papersApp(this.game, b); }
 
@@ -336,7 +336,7 @@ export class Phone {
     const st = g.life?.status;
     if (st) b.append(h('p.muted', `🍔 Faim ${Math.round(st.faim)} · ⚡ Énergie ${Math.round(st.energie)} · 🙂 Humeur ${Math.round(st.humeur)} · 🧼 Propreté ${Math.round(st.hygiene)}`));
     const eat = async (k) => {
-      try { const r = await g.net.request('food.eat', { itemId: k }); this.close(); g.eating?.play(items[k]); g.emit('needs', r.needs); } catch (e) { g.ui.toast(e.message, 'bad'); }
+      try { const r = await g.net.request('food.eat', { itemId: k }); g.emit('weight', r); this.close(); g.eating?.play(items[k]); g.emit('needs', r.needs); } catch (e) { g.ui.toast(e.message, 'bad'); }
     };
     const group = (title, f, action) => { const list = owned.filter((k) => f(items[k])); if (list.length) b.append(h('h4', { style: { margin: '14px 0 6px' } }, title), h('div.list', list.map((k) => h('div.list-item', h('span', { style: { fontSize: '22px' } }, items[k].emoji), h('div.grow', h('div.t', items[k].name), items[k].food ? h('div.d', `🍔 +${items[k].food.faim} · ⚡ ${items[k].food.energie} · 🙂 ${items[k].food.humeur}`) : null), h('span.pill', `x${p.inventory[k]}`), action ? h('button.btn.small', { onclick: () => action(k) }, action === eat ? 'Manger' : 'Utiliser') : null)))); };
     group('Nourriture et boissons', (it) => !!it.food && !it.ingredient, eat);

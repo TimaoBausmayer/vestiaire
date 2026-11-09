@@ -11,7 +11,7 @@ const PERFECT = ['Un chef étoilé ! ⭐', 'Mamie Turbo serait fière.', 'Je dev
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 async function use(g, what, extra = {}) {
-  try { return await g.net.request('home.use', { what, ...extra }); } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad', 4000); return null; }
+  try { const r = await g.net.request('home.use', { what, ...extra }); if (r?.dw) g.emit('weight', r); return r; } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad', 4000); return null; }
 }
 
 // Choix de la recette.

@@ -2,6 +2,7 @@
 import { BUILDING_BY_ID } from './world-layout.js';
 import { POOL, SWIM_RACES, SWIM_VMAX, swimField, defaultSwim } from './swim.js';
 import { randInt } from './rng.js';
+import { careerResult, careerDiv } from './career.js';
 import { applyNeeds, needsStatus } from './needs.js';
 
 const err = (error) => ({ ok: false, error });
@@ -38,7 +39,8 @@ export const SWIM_HANDLERS = {
     time = Number(time) || 0;
     if (!(time >= R.dist / SWIM_VMAX) || time > real + 2) return { ok: true, changed: true, data: { ...data, invalid: true } };
     const place = 1 + ses.field.filter((n) => n.time < time).length;
-    const prize = R.prizes[place - 1] || 0;
+    const prize = Math.round((R.prizes[place - 1] || 0) * careerDiv(p, 'natation').mult);
+    const career = ses.field.length ? careerResult(p, 'natation', place, ses.field.length + 1) : null;
     if (prize) this.addCoins(p, prize);
     if (place === 1) s.wins++;
     if (place <= 3) s.podiums++;
@@ -46,6 +48,6 @@ export const SWIM_HANDLERS = {
     const record = !s[key] || time < s[key];
     if (record) s[key] = Math.round(time * 100) / 100;
     this.addXp?.(p, place === 1 ? 50 : 20);
-    return { ok: true, changed: true, data: { ...data, place, prize, record, time } };
+    return { ok: true, changed: true, data: { ...data, place, prize, record, time, career } };
   },
 };

@@ -3,6 +3,7 @@ import { CarVisual, seatOf, dimsOf } from './car-models.js';
 import { DriveSim } from './drive.js';
 import { SkidMarks } from './skidmarks.js';
 import { VEHICLES, CAR_PAINTS } from '../../shared/content/vehicles.js';
+import { PLANS, premium, activeIns, insurable, insuredCost, towFree } from '../../shared/insurance.js';
 import { TOW_FEE, FUEL_PRICE, resaleValue, repairCost, mobileRepairCost, homeRepairCost, nearHomeGarage, POCKET_KINDS } from '../../shared/property.js';
 import { GAS_STATIONS, zoneAt } from '../../shared/world-layout.js';
 import { h } from '../ui/dom.js';
@@ -347,6 +348,7 @@ export class Vehicles {
     { const l = Math.round((v.sim.limit || 0) * 3.6); this.dashLimit.textContent = l ? `LIM ${l}` : 'LIM —'; this.dashLimit.classList.toggle('on', !!l); }
     const touch = g.input.isTouch;
     this.dashNitro.style.display = this.nitroAllowed(v) ? '' : 'none';
+    if (v.owner === 'me' && v.data && insurable(v.model) && !v.data.rentUntil && !activeIns(v.data, g.now())) g.ui.note('🛡️ Véhicule non assuré : téléphone → Garage → Assurance', 'bad', 3000);
     this.dashAssist.classList.toggle('on', v.sim.assist);
     this.applyView();
     g.hud.track('vehicle', { title: `${vehicleIcon(v.model)} ${vehicleName(v.model)}`, text: touch ? 'Joystick : avancer / tourner. 🔥 : nitro · 🎥 : vue. ✋ : descendre.' : `Z/S : avancer / freiner / reculer · Q/D : tourner · Espace : frein à main${this.nitroAllowed(v) ? ' · Maj : nitro' : ''} · C : vue · X : aide · H : klaxon · L : phares · E : descendre` });
@@ -405,7 +407,7 @@ export class Vehicles {
       const r = await g.net.request('vehicle.repairHere', { vehicleId: v.data.id, damage: Math.round(v.sim.damage * 1000) / 1000 });
       v.sim.damage = 0; v.data.damage = 0; v.sim.sunk = false; v.visual.clearDents();
       g.sfx('drill');
-      g.ui.toast(`🔧 Le mécano mobile est arrivé en trottinette : réparé·e sur place ! -${r.cost.toLocaleString('fr-FR')} PC (au garage : ${garage.toLocaleString('fr-FR')} PC).`, 'money', 4500);
+      g.ui.toast(`🔧 Le mécano mobile est arrivé en trottinette : réparé·e sur place ! -${r.cost.toLocaleString('fr-FR')} PC${r.covered ? ` (🛡️ l'assurance a payé ${r.covered.toLocaleString('fr-FR')} PC)` : ` (au garage : ${garage.toLocaleString('fr-FR')} PC)`}.`, 'money', 4500);
     } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
   }
 
@@ -543,6 +545,7 @@ export class Vehicles {
     if (fuelBefore > 0 && s.fuel <= 0 && s.spec.fuel > 0) g.ui.toast('⛽ Panne sèche ! Pousse ton véhicule jusqu\'à une station-service, ou appelle la dépanneuse.', 'bad', 5000);
     if (s.sunk) {
       g.ui.toast('Glouglou... ton véhicule a coulé. La dépanneuse le ramène (rappelle-le depuis le téléphone).', 'bad', 5000);
+      if (v.data && activeIns(v.data, g.now())?.plan === 'tous') g.net.request('insurance.sunk', { vehicleId: v.data.id }).then((r) => { if (r.covered) g.ui.toast('🛡️ Assurance tous risques : ton véhicule sera remis en état gratuitement.', 'good', 4500); }).catch(() => {});
       g.sfx('splat');
       s.damage = Math.max(s.damage, 0.6);
       const back = s.pos.clone().sub(new THREE.Vector3(Math.sin(s.yaw), 0, Math.cos(s.yaw)).multiplyScalar(6));
@@ -619,7 +622,7 @@ export class Vehicles {
       this.fuelBar.parentElement.parentElement.style.display = v.spec.fuel ? '' : 'none';
       this.dmgBar.style.width = `${Math.round((1 - s.damage) * 100)}%`;
       const home = v.owner === 'me' && s.damage > 0.05 && nearHomeGarage(g.profile, s.pos.x, s.pos.z);
-      const fix = v.owner === 'me' && s.damage > 0.05 ? (home ? (g.profile.admin ? 0 : homeRepairCost(v.model, s.damage)) : mobileRepairCost(v.model, s.damage)) : 0;
+      const fix = v.owner === 'me' && s.damage > 0.05 ? (home ? (g.profile.admin ? 0 : homeRepairCost(v.model, s.damage)) : g.profile.admin ? 0 : insuredCost(v.data, mobileRepairCost(v.model, s.damage), g.now()).pay) : 0;
       this.dashFix.style.display = v.owner === 'me' && s.damage > 0.05 ? '' : 'none';
       this.dashFix.textContent = home ? `🔧 Mon atelier (${fix ? `${fix.toLocaleString('fr-FR')} PC` : 'gratuit'})` : `🔧 Réparer ici (${fix.toLocaleString('fr-FR')} PC)`;
     }
@@ -753,8 +756,9 @@ export function garagePanel(game, container, refresh) {
         h('div.d', `${v.locked ? '🔒' : '🔓'} ${where}`)),
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
         pos && vs.current?.data?.id !== v.id ? h('button.btn.small.ghost', { onclick: () => { game.phone?.goTo({ x: pos.x, z: pos.z, name: spec.name }); } }, '📍 GPS') : null,
-        vs.current?.data?.id !== v.id ? h('button.btn.small', { title: POCKET_KINDS.includes(spec.kind) ? 'Gratuit : il tient dans le sac' : `${TOW_FEE} PC`, onclick: () => { game.phone?.close(); vs.deliver(v.id); } }, POCKET_KINDS.includes(spec.kind) ? '🎒 Sortir' : `🚚 ${TOW_FEE} PC`) : null,
-        wv && wv.sim.damage > 0.05 ? h('button.btn.small', { title: 'Mécano mobile : réparation sur place (plus cher qu\'au garage)', onclick: async () => { await vs.repairHere(wv); refresh?.(); } }, `🔧 ${mobileRepairCost(v.model, wv.sim.damage).toLocaleString('fr-FR')} PC`) : null)));
+        vs.current?.data?.id !== v.id ? h('button.btn.small', { title: POCKET_KINDS.includes(spec.kind) ? 'Gratuit : il tient dans le sac' : `${TOW_FEE} PC`, onclick: () => { game.phone?.close(); vs.deliver(v.id); } }, POCKET_KINDS.includes(spec.kind) ? '🎒 Sortir' : towFree(v, game.now()) ? '🚚 Gratuit (assurance)' : `🚚 ${TOW_FEE} PC`) : null,
+        insurable(v.model) && !v.rentUntil ? h('button.btn.small.ghost', { onclick: () => insurancePanel(game, v, refresh) }, activeIns(v, game.now()) ? `${PLANS[v.ins.plan].icon} Assuré` : '🛡️ Assurer') : null,
+        wv && wv.sim.damage > 0.05 ? h('button.btn.small', { title: 'Mécano mobile : réparation sur place (plus cher qu\'au garage)', onclick: async () => { await vs.repairHere(wv); refresh?.(); } }, `🔧 ${insuredCost(v, mobileRepairCost(v.model, wv.sim.damage), game.now()).pay.toLocaleString('fr-FR')} PC`) : null)));
   }
   container.append(h('p.muted', { style: { marginTop: '8px' } }, 'Touche K près de ton véhicule : verrouiller / déverrouiller. Pleins : stations-service. Réparations : Garage du Piston Fou, Clé à Molette ou Roule-Toujours, ou le mécano mobile (🔧, partout, mais plus cher). Revente : concession, Occaz\' du Siècle ou casse.'));
   container.append(h('p.muted', { style: { marginTop: '10px' } }, `Peintures en stock : ${p.inventory.peinture || 0} (Garage Roule-Toujours, 150 PC).`));
@@ -776,19 +780,38 @@ export function repairPanel(game, b) {
       const near = [...vs.owned.values()].filter((v) => Math.hypot(v.pos.x - b.x, v.pos.z - b.z) < Math.max(b.w, b.d) / 2 + 16);
       if (!near.length) { body.append(h('p', 'Aucun de tes véhicules n\'est garé ici. Gare-le devant l\'atelier puis reviens au comptoir.')); return; }
       for (const v of near) {
-        const cost = repairCost(v.model, v.sim.damage);
+        const need = repairCost(v.model, v.sim.damage), cost = game.profile.admin ? 0 : insuredCost(v.data, need, game.now()).pay;
         body.append(h('div.list-item', h('span', { style: { fontSize: '26px' } }, vehicleIcon(v.model)),
           h('div.grow', h('div.t', vehicleName(v.model)), h('div.d', `État : ${Math.round((1 - v.sim.damage) * 100)} % · réparation ${cost ? `${cost} PC` : 'inutile'} · reprise ≈ ${resaleValue({ ...v.data, damage: v.sim.damage }).toLocaleString('fr-FR')} PC`)),
-          h('button.btn.small', { disabled: !cost, onclick: async () => {
+          h('button.btn.small', { disabled: !need, onclick: async () => {
             try {
               vs.saveState(v);
               const r = await game.net.request('vehicle.repair', { vehicleId: v.data.id, x: v.pos.x, z: v.pos.z });
               v.sim.damage = 0; v.visual.clearDents();
               game.sfx('drill');
-              game.ui.toast(`🔧 Réparé·e comme neuf·ve ! -${r.cost} PC. Le mécano a même retrouvé une frite sous le siège.`, 'money', 4000);
+              game.ui.toast(`🔧 Réparé·e comme neuf·ve ! -${r.cost} PC${r.covered ? ` (🛡️ assurance : ${r.covered} PC remboursés)` : ''}. Le mécano a même retrouvé une frite sous le siège.`, 'money', 4000);
               m.refresh();
             } catch (e) { game.sfx('error'); game.ui.toast(e.message, 'bad'); }
-          } }, cost ? `Réparer (${cost} PC)` : 'Comme neuf')));
+          } }, need ? `Réparer (${cost} PC)` : 'Comme neuf')));
+      }
+    },
+  });
+}
+
+// Assurance d'un véhicule : formules, prime selon le bonus-malus, souscription / renouvellement.
+export function insurancePanel(game, v, refresh) {
+  const now = game.now(), cur = activeIns(v, now), bonus = v.ins?.bonus ?? 1;
+  const m = game.ui.modal({
+    title: `🛡️ Assurance · ${VEHICLES[v.model]?.name || v.model}`,
+    sub: `Bonus-malus : ${Math.round(bonus * 100)} % (chaque sinistre l'augmente, chaque semaine sans sinistre le baisse). Contrat d'une semaine de jeu, renouvelable.`,
+    width: 'min(560px, 96vw)',
+    build: (body) => {
+      if (cur) body.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, '✅'), h('div.grow', h('div.t', `Assuré·e : ${PLANS[cur.plan].name}`), h('div.d', `Encore ${Math.max(1, Math.ceil((cur.until - now) / 600_000))} h de jeu · ${cur.claims || 0} sinistre(s)`)),
+        h('button.btn.small.ghost', { onclick: async () => { try { await game.net.request('insurance.cancel', { vehicleId: v.id }); game.ui.toast('Assurance résiliée.', '', 2500); m.close(); refresh?.(); } catch (e) { game.ui.toast(e.message, 'bad'); } } }, 'Résilier')));
+      for (const [id, P] of Object.entries(PLANS)) {
+        const price = game.profile.admin ? 0 : premium(v.model, id, bonus);
+        body.append(h('div.list-item', h('span', { style: { fontSize: '20px' } }, P.icon), h('div.grow', h('div.t', `${P.name} · ${price.toLocaleString('fr-FR')} PC / semaine`), h('div.d', P.desc)),
+          h('button.btn.small', { onclick: async () => { try { const r = await game.net.request('insurance.subscribe', { vehicleId: v.id, plan: id }); game.sfx('cash'); game.ui.toast(`🛡️ ${P.name} : assuré·e pour une semaine (${r.price} PC).`, 'good', 3500); m.close(); refresh?.(); } catch (e) { game.ui.toast(e.message, 'bad'); } } }, cur?.plan === id ? 'Renouveler' : 'Choisir')));
       }
     },
   });

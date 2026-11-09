@@ -2,6 +2,9 @@ import { h, fmt } from '../ui/dom.js';
 import { EXOS, EXO_IDS, EXO_LEVELS, exoLevel, tapsPer, dailyProgram, PROGRAM_BONUS, defaultWorkout } from '../../shared/workout.js';
 import { todayKey } from '../../shared/rules.js';
 import { OPPONENTS } from '../../shared/boxing.js';
+import { CAREER_SPORTS, DIVISIONS, divisionOf, dailySalary, salaryClaimable } from '../../shared/career.js';
+import { PROFILS, profilOf } from '../../shared/athlete.js';
+import { weightLabel, IDEAL_WEIGHT } from '../../shared/body.js';
 
 // EXERCICES PARTOUT : un mini-jeu par type d'exercice.
 //  tap  : appuyer vite sur Espace (pompes, squats, burpees)
@@ -120,8 +123,38 @@ export class Workout {
 }
 
 // ------------------------------------------------------------------ appli Sport
-export function sportApp(g, b) {
+export function sportApp(g, b, refresh) {
   const w = { ...defaultWorkout(), ...(g.profile.workout || {}) }, day = todayKey(g.now());
+  const P = g.profile, B = P.body;
+  // ---- mon physique : ce qui sert dans tous les sports
+  const meter = (label, v, color, hint) => h('div.list-item', h('div.grow', h('div.t', `${label} : ${Math.round(v)}/100`), h('div', { style: { height: '8px', background: 'rgba(255,255,255,.12)', borderRadius: '6px', marginTop: '4px' } }, h('div', { style: { width: `${Math.max(0, Math.min(100, v))}%`, height: '100%', background: color, borderRadius: '6px' } })), hint ? h('div.d', hint) : null));
+  b.append(h('h3', '🧬 Mon physique'));
+  b.append(meter('⚡ Vitesse', B.vitesse ?? 10, '#ffbe0b', 'Pointe en sprint : 100 m, foot, tennis... Monte en sprintant et au 100 m.'));
+  b.append(meter('🫁 Endurance', B.endurance ?? 15, '#2ec4b6', 'Souffle et fatigue : footing, 10 km, semi, marathon, matchs, natation.'));
+  b.append(meter('💪 Muscles', B.muscle ?? 15, '#e63946', 'Force : boxe, tirs au foot, salle de sport, exercices.'));
+  b.append(h('div.list-item', h('span', { style: { fontSize: '22px' } }, '⚖️'), h('div.grow', h('div.t', `Poids : ${B.weight.toFixed(1).replace('.', ',')} kg (${weightLabel(B.weight)})`), h('div.d', `Idéal ≈ ${IDEAL_WEIGHT} kg. Trop manger (surtout burgers, pizzas, tacos, sodas) fait grossir ; manger sain et faire du sport fait maigrir. Les kilos en trop t'essoufflent et te ralentissent.`))));
+  // ---- spécialité
+  const cur = profilOf(B);
+  b.append(h('h3', { style: { marginTop: '12px' } }, '🎯 Ma spécialité'));
+  for (const [id, Pf] of Object.entries(PROFILS)) {
+    const on = (B.profil || 'polyvalent') === id;
+    b.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, Pf.icon), h('div.grow', h('div.t', `${Pf.name}${on ? ' ✅' : ''}`), h('div.d', Pf.desc)),
+      on ? null : h('button.btn.small', { onclick: async () => { try { await g.net.request('athle.profil', { profil: id }); g.sfx('success'); g.ui.toast(`${Pf.icon} Nouvelle spécialité : ${Pf.name}`, 'good'); refresh?.(); } catch (e) { g.ui.toast(e.message, 'bad'); } } }, 'Choisir')));
+  }
+  void cur;
+  // ---- carrières
+  b.append(h('h3', { style: { marginTop: '12px' } }, '🏅 Mes carrières'));
+  b.append(h('p.muted', `Chaque compétition rapporte des points de carrière. Divisions : ${DIVISIONS.map((d) => d.name).join(' → ')}. Plus haut = primes ×${DIVISIONS[1].mult} à ×${DIVISIONS[DIVISIONS.length - 1].mult}, adversaires plus forts et salaire de sponsor chaque jour.`));
+  const sal = dailySalary(P);
+  b.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, '💼'), h('div.grow', h('div.t', `Salaire de sponsor : ${fmt(sal)} PC / jour`), h('div.d', sal ? 'La somme de tous tes sports en division Régionale ou plus.' : 'Monte en division Régionale dans un sport pour avoir un sponsor.')),
+    salaryClaimable(P, g.now()) ? h('button.btn.small', { onclick: async () => { try { const r = await g.net.request('career.salary', {}); g.sfx('cash'); g.ui.toast(`💼 Salaire de sponsor : +${fmt(r.amount)} PC`, 'money'); refresh?.(); } catch (e) { g.ui.toast(e.message, 'bad'); } } }, 'Toucher') : h('span.pill', sal ? 'touché ✅' : '—')));
+  for (const [id, S] of Object.entries(CAREER_SPORTS)) {
+    const c = P.career?.[id] || { pts: 0, comps: 0, wins: 0 }, d = divisionOf(c.pts);
+    const prog = d.next ? (c.pts - d.pts) / (d.next.pts - d.pts) : 1;
+    b.append(h('div.list-item', h('span', { style: { fontSize: '22px' } }, S.icon), h('div.grow', h('div.t', `${S.name} · ${d.name}`),
+      h('div', { style: { height: '6px', background: 'rgba(255,255,255,.12)', borderRadius: '6px', margin: '4px 0' } }, h('div', { style: { width: `${Math.round(prog * 100)}%`, height: '100%', background: '#8338ec', borderRadius: '6px' } })),
+      h('div.d', `${c.pts} pts${d.next ? ` · ${d.next.name} à ${d.next.pts}` : ' · sommet atteint !'} · ${c.comps || 0} compétitions · ${c.wins || 0} victoires · primes ×${d.mult}`))));
+  }
   const prog = dailyProgram(day), done = w.day === day ? w.done : {};
   b.append(h('h3', '🏆 Programme du jour'));
   b.append(h('p.muted', `3 exercices, les mêmes pour tout le monde aujourd'hui. Tout réussi : +${PROGRAM_BONUS.coins} PC (plus encore en enchaînant les jours) · série actuelle : ${w.streak || 0} 🔥`));

@@ -1,4 +1,5 @@
 import { h, fmt } from '../ui/dom.js';
+import { careerToast } from '../sports/races.js';
 import { Avatar } from '../characters/avatar.js';
 import { DEFAULT_APPEARANCE } from '../../shared/appearance.js';
 import { BOX, OPPONENTS, OPP_BY_ID, defaultBoxing, jabDmg, hookDmg } from '../../shared/boxing.js';
@@ -161,6 +162,7 @@ export class Boxing {
     const off = f.L(0, f.ring.half + 2.2);
     g.player.teleport(off.x, off.z, g.player.yaw);
     const r = await req(g, 'boxing.end', { won: !!won && !abandon, ko: !!ko });
+    careerToast(g, r?.career);
     if (!r) return;
     if (r.needs) g.emit('needs', r.needs);
     if (r.won) {

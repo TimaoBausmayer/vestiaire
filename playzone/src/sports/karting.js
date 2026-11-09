@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { careerToast } from './races.js';
 import { h, fmt } from '../ui/dom.js';
 import { WorldVehicle } from '../vehicles/vehicles.js';
 import { CarVisual } from '../vehicles/car-models.js';
@@ -273,6 +274,7 @@ export class Karting {
     this.lights?.remove();
     let r = null;
     try { r = await g.net.request('kart.finish', {}); } catch (e) { g.ui.toast(e.message, 'bad'); }
+    careerToast(g, r?.career);
     if (g.vehicles.current === s.v) g.vehicles.exit(true);
     g.vehicles.despawn(s.v, false);
     for (const n of s.npcs) { g.engine.scene.remove(n.vis.root); n.vis.dispose?.(); g.engine.scene.remove(n.av.root); g.labels.remove?.(n.lab); g.collision.remove(n.col); }

@@ -13,7 +13,8 @@ import { HOME_INTERIOR } from './world-layout.js';
 import { applyNeeds, needsStatus } from './needs.js';
 import { RECIPE_BY_ID, recipeEffect, canCook } from './recipes.js';
 import { companyTick } from './authority-business.js';
-import { bodyTick } from './body.js';
+import { bodyTick, eatWeight, foodRichness } from './body.js';
+import { PLANS, premium, activeIns, insurable, insuredCost, towFree, WEEK_MS, BONUS_MIN, BONUS_MAX } from './insurance.js';
 import { DEFAULT_APPEARANCE } from './appearance.js';
 
 const err = (error) => ({ ok: false, error });
@@ -47,6 +48,39 @@ const propOf = (p, id) => p.properties.find((x) => x.id === id);
 export const PROPERTY_HANDLERS = {
   // ---------------------------------------------------------------- véhicules
   // Stationnement : on retrouve son véhicule là où on l'a laissé (et on le verrouille).
+  // ASSURANCE : souscrire / renouveler (une semaine de jeu) ou résilier, depuis le téléphone.
+  'insurance.subscribe'(ctx, { vehicleId, plan }) {
+    const p = ctx.profile, v = p.vehicles.find((q) => q.id === vehicleId);
+    if (!v) return err('Véhicule introuvable.');
+    if (!PLANS[plan]) return err('Formule inconnue.');
+    if (!insurable(v.model) || v.rentUntil) return err('Ce véhicule n\'a pas besoin d\'assurance (vélo, location...).');
+    const cur = activeIns(v, ctx.now);
+    // une semaine sans sinistre : le bonus baisse de 5 %
+    let bonus = v.ins?.bonus ?? 1;
+    if (v.ins && !v.ins.claims && v.ins.until <= ctx.now) bonus = Math.max(BONUS_MIN, bonus * 0.95);
+    const price = p.admin ? 0 : premium(v.model, plan, bonus);
+    if (p.coins < price) return err(`La prime coûte ${price} PC.`);
+    this.addCoins(p, -price);
+    const start = cur && cur.plan === plan ? cur.until : ctx.now;
+    v.ins = { plan, until: start + WEEK_MS, bonus, claims: cur && cur.plan === plan ? cur.claims || 0 : 0, since: v.ins?.since || ctx.now };
+    return { ok: true, changed: true, data: { price, until: v.ins.until, bonus } };
+  },
+  'insurance.cancel'(ctx, { vehicleId }) {
+    const p = ctx.profile, v = p.vehicles.find((q) => q.id === vehicleId);
+    if (!v?.ins) return err('Pas d\'assurance sur ce véhicule.');
+    v.ins = { ...v.ins, until: 0 };
+    return { ok: true, changed: true, data: {} };
+  },
+  // véhicule coulé : tous risques = remis en état gratuitement
+  'insurance.sunk'(ctx, { vehicleId }) {
+    const p = ctx.profile, v = p.vehicles.find((q) => q.id === vehicleId);
+    if (!v) return err('Véhicule introuvable.');
+    const ins = activeIns(v, ctx.now);
+    if (ins?.plan !== 'tous') return { ok: true, changed: false, data: { covered: false } };
+    v.damage = 0; v.park = null; claim(v);
+    return { ok: true, changed: true, data: { covered: true } };
+  },
+
   'vehicle.park'(ctx, { vehicleId, x, z, yaw, locked = true }) {
     const v = ctx.profile.vehicles.find((q) => q.id === vehicleId);
     if (!v) return err('Véhicule introuvable.');
@@ -69,7 +103,7 @@ export const PROPERTY_HANDLERS = {
     const p = ctx.profile, v = p.vehicles.find((q) => q.id === vehicleId);
     if (!v) return err('Véhicule introuvable.');
     // vélos, VTT, trottinettes : ils tiennent dans le sac, on les sort gratuitement où on veut
-    const fee = POCKET_KINDS.includes(VEHICLES[v.model]?.kind) ? 0 : TOW_FEE;
+    const fee = POCKET_KINDS.includes(VEHICLES[v.model]?.kind) || towFree(v, ctx.now) || p.admin ? 0 : TOW_FEE;
     if (p.coins < fee) return err(`La dépanneuse coûte ${fee} PC.`);
     this.addCoins(p, -fee);
     v.park = null;
@@ -84,12 +118,14 @@ export const PROPERTY_HANDLERS = {
     const b = shops.find((s) => this.atBuilding(ctx, s, 6));
     if (!b) return err('Il faut être dans un garage.');
     if (!num(x) || !num(z) || dist2d(x, z, b.x, b.z) > Math.max(b.w, b.d) / 2 + 16 || (ctx.pos && dist2d(ctx.pos.x, ctx.pos.z, x, z) > 18)) return err('Amène ton véhicule devant le garage.');
-    const cost = repairCost(v.model, v.damage || 0);
-    if (!cost) return err('Ton véhicule est déjà comme neuf !');
+    const full = repairCost(v.model, v.damage || 0);
+    if (!full) return err('Ton véhicule est déjà comme neuf !');
+    const { pay: cost, covered } = p.admin ? { pay: 0, covered: full } : insuredCost(v, full, ctx.now);
     if (p.coins < cost) return err(`La réparation coûte ${cost} PC.`);
     this.addCoins(p, -cost);
+    if (covered) claim(v);
     v.damage = 0;
-    return { ok: true, changed: true, data: { cost } };
+    return { ok: true, changed: true, data: { cost, covered } };
   },
 
   // Mécano mobile : réparation sur place, n'importe où (plus cher qu'au garage). damage : état actuel
@@ -98,12 +134,14 @@ export const PROPERTY_HANDLERS = {
     const p = ctx.profile, v = p.vehicles.find((q) => q.id === vehicleId);
     if (!v) return err('Véhicule introuvable.');
     if (num(damage)) v.damage = Math.max(v.damage || 0, Math.min(1, damage));
-    const cost = mobileRepairCost(v.model, v.damage || 0);
-    if (!cost) return err('Ton véhicule est déjà comme neuf !');
+    const full = mobileRepairCost(v.model, v.damage || 0);
+    if (!full) return err('Ton véhicule est déjà comme neuf !');
+    const { pay: cost, covered } = p.admin ? { pay: 0, covered: full } : insuredCost(v, full, ctx.now);
     if (p.coins < cost) return err(`Le mécano mobile demande ${cost} PC.`);
     this.addCoins(p, -cost);
+    if (covered) claim(v);
     v.damage = 0;
-    return { ok: true, changed: true, data: { cost } };
+    return { ok: true, changed: true, data: { cost, covered } };
   },
 
   // Atelier de garage chez soi : véhicule garé devant sa maison, on répare soi-même à moitié prix.
@@ -344,7 +382,7 @@ export const PROPERTY_HANDLERS = {
       if (!canCook(r, p.inventory)) return err('Il manque des ingrédients.');
       for (const [id, n] of Object.entries(r.needs)) p.inventory[id] -= n;
       const q = typeof quality === 'number' && Number.isFinite(quality) ? Math.max(0, Math.min(1, quality)) : 0.75;
-      applyNeeds(p.needs, ctx.now, recipeEffect(r, q));
+      { const eff = recipeEffect(r, q); data.dw = eatWeight(p.body, needsStatus(p.needs, ctx.now).faim, eff, foodRichness(r.id, r.healthy)); applyNeeds(p.needs, ctx.now, eff); }
       p.stats.cooked = (p.stats.cooked || 0) + 1;
       data.recipe = r.id;
     } else if (what === 'shower') applyNeeds(p.needs, ctx.now, { hygiene: 100, humeur: 5 });
@@ -415,3 +453,6 @@ export const PROPERTY_HANDLERS = {
 };
 
 export { BUILDING_BY_ID };
+
+// un sinistre fait monter le bonus-malus de 12 % (plafonné)
+function claim(v) { if (v.ins) { v.ins.claims = (v.ins.claims || 0) + 1; v.ins.bonus = Math.min(BONUS_MAX, (v.ins.bonus ?? 1) * 1.12); } }

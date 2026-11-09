@@ -83,6 +83,7 @@ export function openShop(game, shopId, building = null) {
   async function eat(it) {
     try {
       const r = await game.net.request('food.eat', { itemId: it.id });
+      game.emit('weight', r);
       game.eating?.play(it);
       game.emit('needs', r.needs);
       game.ui.toast(`${it.emoji} Miam ! 🍔 ${Math.round(r.needs.faim)} · ⚡ ${Math.round(r.needs.energie)} · 🙂 ${Math.round(r.needs.humeur)}`, 'good');

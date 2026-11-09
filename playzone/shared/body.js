@@ -22,6 +22,7 @@ export function bodyTick(b, st, mins, now) {
   if (st.faim < 8 || st.energie < 5) b.health -= 0.6 * mins;
   else if (st.faim > 35 && st.energie > 25) b.health += 0.35 * mins;
   if (st.faim < 15) { b.weight -= 0.1 * mins; b.muscle -= 0.06 * mins; }     // trop peu manger : on maigrit, on s'affaiblit
+  else b.weight -= (st.faim < 50 ? 0.018 : 0.009) * mins;                     // le corps brûle en continu (plus le ventre vide)
   b.muscle -= 0.008 * mins;                                                  // sans entraînement, ça fond doucement
   if (b.injury && now >= b.injury.until) b.injury = null;                    // guérison naturelle
   const cap = b.injury ? 100 - INJURIES[b.injury.kind].health : 100;
@@ -33,10 +34,27 @@ export function bodyTick(b, st, mins, now) {
   return b;
 }
 
-// Manger alors qu'on n'a plus faim fait grossir.
-export function eatWeight(b, faimBefore, food) {
-  if (faimBefore > 85 && (food.faim || 0) > 8) b.weight = clamp(b.weight + 0.3 * ((food.faim || 0) / 40), 45, 150);
+// POIDS : chaque repas apporte des « calories » (selon sa taille, la malbouffe compte beaucoup plus,
+// le sain beaucoup moins) ; manger alors qu'on n'a plus faim fait vite grossir. Le corps en brûle
+// en continu (plus si on a faim) et le sport en brûle encore plus : manger trop = on grossit,
+// pas assez = on maigrit.
+const JUNK = ['burger', 'frites', 'soda', 'menu-geant', 'pizza', 'pizza-ananas', 'tacos-xl', 'burrito', 'nachos', 'tiramisu', 'eclair', 'glace', 'donut', 'muffin', 'pain-choc', 'croissant', 'chocolat', 'kebab', 'hot-dog', 'gaufre', 'crepe', 'bonbons', 'chips', 'pates-gratin', 'cocktail'];
+const LIGHT = ['salade', 'soupe', 'jus-orange', 'fruit', 'pomme', 'banane', 'legumes', 'eau', 'smoothie', 'cafe-noir', 'cafe-bureau', 'the', 'yaourt', 'poisson', 'sushi'];
+export function foodRichness(id = '', healthy = false) {
+  if (healthy || LIGHT.some((k) => id.includes(k))) return 0.45;
+  if (JUNK.some((k) => id === k || id.startsWith(k))) return 1.7;
+  return 1;
 }
+// Renvoie la variation de poids (kg).
+export function eatWeight(b, faimBefore, food, rich = 1) {
+  const f = Math.max(0, food.faim || 0);
+  const excess = Math.max(0, faimBefore + f - 100);            // ce qu'on mange au-delà de la satiété
+  const dw = (f * 0.0045 + excess * 0.022) * rich;
+  const before = b.weight;
+  b.weight = clamp(b.weight + dw, 45, 150);
+  return Math.round((b.weight - before) * 100) / 100;
+}
+export const weightLabel = (w) => (w > 105 ? 'obésité' : w > 90 ? 'surpoids' : w > 80 ? 'un peu enrobé·e' : w < 52 ? 'trop maigre' : w < 60 ? 'mince' : 'poids de forme');
 
 // Effets sur le personnage.
 export function bodyEffects(b) {

@@ -38,6 +38,7 @@ import { ISLAND_HANDLERS } from './authority-islands.js';
 import { PARK_HANDLERS } from './authority-parks.js';
 import { CLUB_HANDLERS } from './authority-club.js';
 import { WORKOUT_HANDLERS } from './authority-workout.js';
+import { ATHLETE_HANDLERS } from './authority-athlete.js';
 import { TENNIS_HANDLERS } from './authority-tennis.js';
 import { SWIM_HANDLERS } from './authority-swim.js';
 import { GOLF_HANDLERS } from './authority-golf.js';
@@ -51,7 +52,7 @@ import { ADMIN_HANDLERS, adminTopUp } from './authority-admin.js';
 import { SOCIAL_HANDLERS } from './authority-social.js';
 import { defaultCasino } from './casino.js';
 import { defaultJustice } from './justice.js';
-import { defaultBody, eatWeight } from './body.js';
+import { defaultBody, eatWeight, foodRichness } from './body.js';
 import { deliverySpot, homeSize, gardenOf } from './property.js';
 
 export const SHOP_BUILDING = { clothes: 'fringues', furniture: 'meubles', pets: 'animalerie', vehicles: 'garage' };
@@ -640,9 +641,9 @@ const HANDLERS = {
     const st = needsStatus(p.needs, ctx.now);
     if (st.faim >= 98 && it.food.faim > 10) return err('Tu n\'as vraiment plus faim.');
     p.inventory[itemId]--;
-    eatWeight(p.body, st.faim, it.food);
+    const dw = eatWeight(p.body, st.faim, it.food, foodRichness(itemId, it.healthy));
     applyNeeds(p.needs, ctx.now, it.food);
-    return { ok: true, changed: true, data: { needs: needsStatus(p.needs, ctx.now), weight: p.body.weight } };
+    return { ok: true, changed: true, data: { needs: needsStatus(p.needs, ctx.now), weight: p.body.weight, dw } };
   },
 
   'pet.feed'(ctx, { petId }) {
@@ -790,7 +791,7 @@ const HANDLERS = {
   },
 };
 
-Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, SPORTS_HANDLERS, PREMIUM_HANDLERS, ONLINE_HANDLERS, SAILING_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS, LOTTERY_HANDLERS, SEA_HANDLERS, ROMANCE_HANDLERS, BOXING_HANDLERS, ISLAND_HANDLERS, PARK_HANDLERS, CLUB_HANDLERS, WORKOUT_HANDLERS, TENNIS_HANDLERS, SWIM_HANDLERS, GOLF_HANDLERS);
+Object.assign(HANDLERS, PROPERTY_HANDLERS, BANK_HANDLERS, CAREER_HANDLERS, BUSINESS_HANDLERS, BODY_HANDLERS, JUSTICE_HANDLERS, LEISURE_HANDLERS, CALENDAR_HANDLERS, KARTING_HANDLERS, SPORTS_HANDLERS, PREMIUM_HANDLERS, ONLINE_HANDLERS, SAILING_HANDLERS, MARKET_HANDLERS, COUR_HANDLERS, ADMIN_HANDLERS, SOCIAL_HANDLERS, LOTTERY_HANDLERS, SEA_HANDLERS, ROMANCE_HANDLERS, BOXING_HANDLERS, ISLAND_HANDLERS, PARK_HANDLERS, CLUB_HANDLERS, WORKOUT_HANDLERS, TENNIS_HANDLERS, SWIM_HANDLERS, GOLF_HANDLERS, ATHLETE_HANDLERS);
 // Liste des entreprises de joueurs où investir (en ligne).
 HANDLERS['invest.list'] = (ctx) => ({ ok: true, changed: false, data: ctx.companies ? ctx.companies.list(ctx.now) : [] });
 

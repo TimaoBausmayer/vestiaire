@@ -50,7 +50,7 @@ export const SPORTS_HANDLERS = {
     return { ok: true, changed: true, data: { score: sc, skill: g.skill, value: f.skills[g.skill], endurance: Math.round(p.body.endurance), xp: f.xp, tired: k < 1 } };
   },
 
-  'foot.matchStart'(ctx, { kind, strength }) {
+  'foot.matchStart'(ctx, { kind, strength, size, mins }) {
     const p = ctx.profile, f = p.sports.foot, M = MATCHES[kind];
     if (!M) return err('Match inconnu.');
     if (!atClub(this, ctx)) return err('Les matchs se lancent au club-house ou sur le terrain.');
@@ -62,8 +62,12 @@ export const SPORTS_HANDLERS = {
     const seed = randInt(ctx.rand, 1, 2 ** 31 - 2);
     const str = aiStrength(lv.i, kind, kind === 'organise' ? Number(strength) : null);
     const opp = TEAMS[seed % TEAMS.length];
-    ctx.session.foot = { kind: 'match', match: kind, at: ctx.now, seed, str };
-    return { ok: true, changed: false, data: { seed, strength: str, opponent: opp, mins: M.mins, size: M.size } };
+    // match organisé : on choisit aussi le nombre de joueurs (3 à 6 par équipe) et la durée (2 à 8 min)
+    const custom = kind === 'organise';
+    const sz = custom && Number.isFinite(Number(size)) ? Math.max(3, Math.min(6, Math.round(Number(size)))) : M.size;
+    const mn = custom && Number.isFinite(Number(mins)) ? Math.max(2, Math.min(8, Math.round(Number(mins)))) : M.mins;
+    ctx.session.foot = { kind: 'match', match: kind, at: ctx.now, seed, str, mins: mn };
+    return { ok: true, changed: false, data: { seed, strength: str, opponent: opp, mins: mn, size: sz } };
   },
   'foot.matchEnd'(ctx, { gf, ga, goals, abandon }) {
     const s = ctx.session.foot, p = ctx.profile, f = p.sports.foot;
@@ -75,7 +79,7 @@ export const SPORTS_HANDLERS = {
     gf = Math.max(0, Math.min(cap, Math.floor(Number(gf) || 0)));
     ga = Math.max(0, Math.min(cap, Math.floor(Number(ga) || 0)));
     goals = Math.max(0, Math.min(gf, Math.floor(Number(goals) || 0)));
-    if (abandon || secs < M.mins * 60 * 0.8) { f.losses++; f.matches++; return { ok: true, changed: true, data: { result: 'forfait', gf, ga, prize: 0, xp: 0 } }; }
+    if (abandon || secs < (s.mins || M.mins) * 60 * 0.8) { f.losses++; f.matches++; return { ok: true, changed: true, data: { result: 'forfait', gf, ga, prize: 0, xp: 0 } }; }
     const result = gf > ga ? 'victoire' : gf === ga ? 'nul' : 'defaite';
     const xp = M.xp[result === 'victoire' ? 0 : result === 'nul' ? 1 : 2] + goals * 5;
     const prize = result === 'victoire' ? M.prize : result === 'nul' ? Math.floor(M.prize / 3) : 0;
@@ -84,10 +88,13 @@ export const SPORTS_HANDLERS = {
     // un match fait progresser un peu tout le monde (et beaucoup l'endurance)
     for (const k of Object.keys(f.skills)) f.skills[k] = Math.min(SKILL_MAX, Math.round((f.skills[k] + 0.6 + (k === 'tir' ? goals * 0.5 : 0)) * 10) / 10);
     gainEndurance(p, 2.5);
-    if (prize) this.addCoins(p, prize);
+    const fprize = Math.round(prize * careerDiv(p, 'foot').mult);
+    if (fprize) this.addCoins(p, fprize);
     p.rep = (p.rep || 0) + (result === 'victoire' ? (s.match === 'gros' ? 8 : 2) : 0);
     f.history = [...(f.history || []), { t: 'match', m: s.match, gf, ga, goals, at: ctx.now }].slice(-20);
-    return { ok: true, changed: true, data: { result, gf, ga, goals, prize, xp, level: footLevel(f.xp).name } };
+    const base = { amical: 20, organise: 20, championnat: 40, gros: 60 }[s.match] || 20;
+    const career = careerResult(p, 'foot', result === 'victoire' ? 1 : 2, 2, Math.round(result === 'victoire' ? base : result === 'nul' ? base * 0.4 : 5));
+    return { ok: true, changed: true, data: { result, gf, ga, goals, prize: fprize, xp, level: footLevel(f.xp).name, career } };
   },
 };
 
@@ -178,14 +185,16 @@ Object.assign(SPORTS_HANDLERS, {
 });
 
 // ------------------------------------------------------------------------------ course à pied, vélo, F1, ski
-import { DISC, ROUTES, SKI, BIGAIR_MAX, discLen, npcField, defaultDisc } from './courses.js';
+import { DISC, ROUTES, SKI, BIGAIR_MAX, discLen, npcField, defaultDisc, modeRoute, finishPoint } from './courses.js';
+import { careerResult, careerDiv } from './career.js';
+import { raceGain } from './athlete.js';
 import { CYCLE_MS } from './clock.js';
 const SKI_HUT = { x: SKI.hut.x, z: SKI.hut.z };
-function atDiscPlace(self, ctx, disc) {
+function atDiscPlace(self, ctx, disc, mode) {
   const D = DISC[disc];
   if (D.place === 'ski-hut') return self.near(ctx, SKI_HUT.x, SKI_HUT.z, 14);
-  const st = ROUTES[D.route]?.pts[0];
-  return self.atBuilding(ctx, BUILDING_BY_ID[D.place], 4) || (st && self.near(ctx, st.x, st.z, 45));
+  const st = ROUTES[D.route]?.pts[0], st2 = mode && D.modes[mode]?.route ? ROUTES[D.modes[mode].route].pts[0] : null;
+  return self.atBuilding(ctx, BUILDING_BY_ID[D.place], 4) || (st && self.near(ctx, st.x, st.z, 45)) || (st2 && self.near(ctx, st2.x, st2.z, 45));
 }
 const memberOf = (d, now) => (d.member && d.member.until > now ? d.member : null);
 export function discOf(p, disc) { p.sports[disc] = { ...defaultDisc(), ...(p.sports[disc] || {}) }; return p.sports[disc]; }
@@ -214,7 +223,7 @@ Object.assign(SPORTS_HANDLERS, {
       if (typeof at.x !== 'number' || typeof at.z !== 'number' || groundHeight(at.x, at.z) > WATER_LEVEL - 1) return err('Il faut de l\'eau profonde.');
       if (ctx.pos && Math.hypot(ctx.pos.x - at.x, ctx.pos.z - at.z) > 60) return err('Approche-toi de l\'eau.');
       if (ctx.pos) { ctx.pos.x = at.x; ctx.pos.z = at.z; }
-    } else if (!atDiscPlace(this, ctx, disc)) return err('Ça se lance depuis le club (accueil).');
+    } else if (!atDiscPlace(this, ctx, disc, mode)) return err('Ça se lance depuis le club (accueil).');
     if (p.body.injury) return err('Tu es blessé·e : repos d\'abord.');
     if (p.justice?.jail) return err('Pas depuis la prison !');
     const d = discOf(p, disc);
@@ -227,7 +236,7 @@ Object.assign(SPORTS_HANDLERS, {
     if (p.coins < fee) return err(`Inscription : ${fee} PC.`);
     if (fee) this.addCoins(p, -fee);
     const seed = randInt(ctx.rand, 1, 2 ** 31 - 2);
-    const field = npcField(disc, mode, seed, d.skill);
+    const field = npcField(disc, mode, seed, d.skill, M.npcs ? careerDiv(p, disc).npc : 0);
     ctx.session.race = { disc, mode, at: ctx.now, go: ctx.now + 3000, field };
     d.sessions++;
     return { ok: true, changed: true, data: { seed, field, trial, fee, laps: M.laps, go: ctx.now + 3000, grid: mode === 'course' ? d.grid : null } };
@@ -244,14 +253,14 @@ Object.assign(SPORTS_HANDLERS, {
     if (!(time >= minT)) return err('Temps impossible : course non validée.');
     // arrivée : il faut être sur la ligne (bas de la piste pour le ski)
     if (ctx.pos) {
-      const fin = D.how === 'ski' ? { x: (SKI.x1 + SKI.x2) / 2, z: SKI.bottom } : ROUTES[D.route].pts[0];
+      const fin = D.how === 'ski' ? { x: (SKI.x1 + SKI.x2) / 2, z: SKI.bottom } : finishPoint(modeRoute(s.disc, s.mode));
       const tol = D.how === 'ski' ? 120 : 45;
       if (Math.hypot(ctx.pos.x - fin.x, ctx.pos.z - fin.z) > tol) return err('Tu n\'es pas sur la ligne d\'arrivée.');
     }
     // ski : portes manquées = +5 s chacune
     const missed = M.gates ? Math.max(0, 10 - Math.max(0, Math.min(10, Math.floor(Number(gates) || 0)))) : 0;
     const total = Math.round((time + missed * 5) * 100) / 100;
-    const minLap = D.route ? ROUTES[D.route].len / D.vmax : 0;
+    const minLap = D.route ? modeRoute(s.disc, s.mode).len / D.vmax : 0;
     const lapTimes = Array.isArray(laps) ? laps.map(Number).filter((x) => x >= minLap) : [];
     const bestLap = lapTimes.length ? Math.min(...lapTimes) : null;
     let rank = null, prize = 0, grid = null;
@@ -272,6 +281,9 @@ Object.assign(SPORTS_HANDLERS, {
       grid = 1 + field.filter((n) => n.total / 5 * 0.985 < bestLap).length;
       d.grid = grid;
     }
+    // carrière : points selon la place, primes multipliées par la division
+    let career = null;
+    if (M.npcs) { const mult = careerDiv(p, s.disc).mult; prize = Math.round(prize * mult); career = careerResult(p, s.disc, rank, M.npcs + 1); }
     if (prize) this.addCoins(p, prize);
     const key = s.mode;
     const prev = d.best[key];
@@ -281,9 +293,18 @@ Object.assign(SPORTS_HANDLERS, {
     const g = (1.2 + M.laps * 0.4) * (M.npcs ? 1.3 : 1) * (1 - d.skill / 125);
     d.skill = Math.min(100, Math.round((d.skill + g) * 10) / 10);
     const endu = { foot: 2.6, bike: 2.0, ski: 0.9, f1: 0.4, jet: 0.5 }[D.how] || 0.3;
-    p.body.endurance = Math.min(100, (p.body.endurance ?? 15) + endu);
+    let vit = 0;
+    if (D.how === 'foot') {
+      // course à pied : le sprint fait progresser la vitesse, les longues distances l'endurance
+      const gn = raceGain(p.body, M.run);
+      p.body.endurance = Math.min(100, (p.body.endurance ?? 15) + gn.endurance);
+      p.body.vitesse = Math.min(100, (p.body.vitesse ?? 10) + gn.vitesse); vit = gn.vitesse;
+      p.body.weight = Math.max(45, p.body.weight - discLen(s.disc, s.mode) / 1000 * 0.25);   // ça brûle !
+      if (p.sports.foot?.skills) p.sports.foot.skills.vitesse = Math.min(100, Math.round((p.sports.foot.skills.vitesse + gn.vitesse * 0.5) * 10) / 10);
+    } else p.body.endurance = Math.min(100, (p.body.endurance ?? 15) + endu);
     if (D.how === 'foot' || D.how === 'bike') p.body.muscle = Math.min(100, p.body.muscle + endu * 0.25);
+    if (D.how === 'bike') p.body.weight = Math.max(45, p.body.weight - 0.3);
     p.rep = (p.rep || 0) + (rank === 1 ? 2 : 0);
-    return { ok: true, changed: true, data: { total, missed, score: pts, rank, of: M.npcs + 1, prize, record, best: d.best[key], skill: d.skill, endurance: Math.round(p.body.endurance), grid, bestLap } };
+    return { ok: true, changed: true, data: { total, missed, score: pts, rank, of: M.npcs + 1, prize, record, best: d.best[key], skill: d.skill, endurance: Math.round(p.body.endurance), vitesse: Math.round(p.body.vitesse ?? 10), vit, grid, bestLap, career } };
   },
 });

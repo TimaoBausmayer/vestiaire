@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { careerToast } from './races.js';
 import { h, fmt } from '../ui/dom.js';
 import { GOLF, HOLES, PAR, MAX_STROKES, holeCenter, defaultGolf, golfPrize } from '../../shared/golf.js';
 
@@ -156,6 +157,7 @@ export class Golf {
     g.player.teleport(GOLF.x + GOLF.w / 2 + 2, GOLF.z - GOLF.d / 2 - 2, 0);
     if (abandon) { await req(g, 'golf.end', { strokes: null }); g.ui.toast('⛳ Parcours abandonné.', '', 2500); return; }
     const r = await req(g, 'golf.end', { strokes: s.strokes });
+    careerToast(g, r?.career);
     if (!r?.done) return;
     const diff = r.total - r.par;
     g.sfx(diff <= 0 ? 'levelup' : 'success');

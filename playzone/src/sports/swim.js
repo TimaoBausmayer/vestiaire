@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { careerToast } from './races.js';
 import { h, fmt } from '../ui/dom.js';
 import { Avatar } from '../characters/avatar.js';
 import { DEFAULT_APPEARANCE } from '../../shared/appearance.js';
@@ -115,6 +116,7 @@ export class Swim {
     P.teleport(POOL.x, POOL.z + POOL.W / 2 + 2.5, 0);
     if (this.saved) { g.cam.dist = this.saved.dist; g.cam.pitch = this.saved.pitch; }
     const res = await req(g, 'swim.end', { time: r.time, abandon: abandon && r.R.dist > 0, meters: Math.round(r.dist) });
+    careerToast(g, res?.career);
     if (!res) return;
     if (res.needs) g.emit('needs', res.needs);
     if (!r.R.dist) { g.ui.toast(`🌊 ${Math.round(res.swum)} m nagés ! Endurance en hausse · niveau ${Math.round(res.skill)}`, 'good', 4500); return; }

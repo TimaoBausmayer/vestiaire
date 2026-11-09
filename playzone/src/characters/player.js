@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sprintFactor, staminaSecs } from '../../shared/athlete.js';
 import { groundHeight, WATER_LEVEL, POI, WORLD_BOUNDS, BUILDINGS } from '../../shared/world-layout.js';
 
 // Contrôleur du joueur : déplacement relatif à la caméra, sprint, saut (avec "coyote time"),
@@ -104,11 +105,14 @@ export class Player {
     const m = this.muscle ?? 30;
     const wantSprint = input.sprint && !this.noSprint && !this.bodyNoSprint && mlen > 0.1 && !this.swimming;
     const sprinting = wantSprint && this.stamina > 0.02 && !(this.winded > 0);
-    this.stamina = Math.max(0, Math.min(1, (this.stamina ?? 1) + (sprinting ? -dt / (6 + m * 0.14 + (this.endurance ?? 15) * 0.12) : dt * 0.22)));
+    // souffle : endurance, spécialité (sprint / endurance) et poids (les kilos en trop essoufflent)
+    const ab = { muscle: m, endurance: this.endurance ?? 15, vitesse: this.vitesse ?? 10, profil: this.profil };
+    const over = Math.max(0, (this.weight ?? 72) - 82);
+    this.stamina = Math.max(0, Math.min(1, (this.stamina ?? 1) + (sprinting ? -dt / (staminaSecs(ab) * (1 - Math.min(0.5, over * 0.012))) : dt * (0.18 + (this.endurance ?? 15) * 0.0012))));
     if (this.stamina <= 0.02 && sprinting) this.winded = 1.5; // essoufflé·e : on doit marcher un instant
     this.winded = Math.max(0, (this.winded || 0) - dt);
     this.sprinting = sprinting;
-    let target = this.swimming ? 3.6 * (this.swimBoost || 1) : sprinting ? this.runSpeed * (0.82 + m / 220) : this.walkSpeed;
+    let target = this.swimming ? 3.6 * (this.swimBoost || 1) : sprinting ? this.runSpeed * sprintFactor(ab) : this.walkSpeed * (1 + Math.min(0.08, (this.endurance ?? 15) / 1250));
     target *= this.speedBonus * this.needsSpeed * (this.bodySpeed || 1);
     if (this.pose === 'carry') target *= 0.85;
     const accel = this.grounded || this.swimming ? 14 : 4;

@@ -7,7 +7,9 @@ import { Avatar } from '../characters/avatar.js';
 import { DEFAULT_APPEARANCE, SKINS, HAIR_STYLES, HAIR_COLORS, COLORS } from '../../shared/appearance.js';
 import { HOUR_MS } from '../../shared/clock.js';
 import { mulberry32, hashString } from '../../shared/rng.js';
-import { DISC, ROUTES, ATHLE, GATE_R, routeAt, distToRoute, fmtTime } from '../../shared/courses.js';
+import { DISC, ROUTES, ATHLE, GATE_R, routeAt, distToRoute, fmtTime, modeRoute } from '../../shared/courses.js';
+import { fatigueCapacity, PROFILS, profilOf } from '../../shared/athlete.js';
+import { divisionOf, CAREER_SPORTS } from '../../shared/career.js';
 
 // COURSES SUR PARCOURS : course à pied (piste d'athlétisme), cyclisme (boucle des Hauts, vélo prêté),
 // Formule 1 (circuit de l'Académie, monoplace prêtée). Feux de départ, portes de contrôle, tours,
@@ -51,6 +53,15 @@ export class Races {
       return p;
     };
     finish(ROUTES.piste, ATHLE.w);
+    // ligne droite du 100 m : 8 couloirs rouges, lignes blanches, arrivée en damier
+    { const S = ROUTES.sprint, a = S.pts[0], b = S.pts[1], cx = (a.x + b.x) / 2, len = S.len + 16;
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(len, S.width).rotateX(-Math.PI / 2), mat('#b5452f'));
+      strip.position.set(cx, 0.03, a.z); strip.receiveShadow = true; root.add(strip);
+      for (let k = 0; k <= 8; k++) { const ln = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.07).rotateX(-Math.PI / 2), mat('#f4f1ea')); ln.position.set(cx, 0.035, a.z - 3.8 + k * 0.95); root.add(ln); }
+      const end = finish({ ...S, open: false, pts: [b, { x: b.x + 1, z: b.z }], len: 1, cum: [0, 1] }, S.width);
+      for (const sd of [-1, 1]) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.2, 0.3), mat('#ffd23f')); m.position.set(end.x, 1.6, a.z + sd * 4.4); root.add(m); }
+      const ban = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, 9), mat('#e63946')); ban.position.set(end.x, 3.2, a.z); root.add(ban);
+      finish(S, S.width); }
     // cyclisme : arche de départ sur le boulevard des Paillettes
     const hp = finish(ROUTES.hauts, 9);
     for (const s of [-1, 1]) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6, 0.5), mat('#ffd23f')); m.position.set(hp.x, 3, hp.z + s * 6.2); root.add(m); }
@@ -116,7 +127,7 @@ export class Races {
       build: (body) => {
         const d = g.profile.sports[disc], now = g.now();
         const mem = d.member && d.member.until > now ? d.member : null;
-        body.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, '📈'), h('div.grow', h('div.t', `Niveau ${Math.round(d.skill)}/100 · endurance ${Math.round(g.profile.body.endurance ?? 15)}/100`),
+        body.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, '📈'), h('div.grow', h('div.t', `Niveau ${Math.round(d.skill)}/100 · endurance ${Math.round(g.profile.body.endurance ?? 15)}/100${D.how === 'foot' ? ` · vitesse ${Math.round(g.profile.body.vitesse ?? 10)}/100 · ${profilOf(g.profile.body).icon} ${profilOf(g.profile.body).name}` : ''} · carrière ${divisionOf(g.profile.career?.[disc]?.pts || 0).name}`),
           h('div.d', `${d.sessions} séance(s) · ${d.races} course(s) · ${d.wins} victoire(s) · ${d.podiums} podium(s)${d.grid ? ` · grille du prochain GP : P${d.grid}` : ''}`))));
         if (D.member) {
           body.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, mem ? '🎫' : d.trial ? '🔒' : '🎁'),
@@ -130,7 +141,7 @@ export class Races {
             h('div.grow', h('div.t', M.name), h('div.d', `${M.npcs ? `${M.npcs + 1} participants · prix ${M.prizes.join(' / ')} PC` : 'Chronométré, sans adversaire'}${M.fee ? ` · inscription ${M.fee} PC` : ''} · record ${fmtTime(d.best[id])}`)),
             h('button.btn.small', { onclick: () => { m.close(); D.how === 'ski' ? g.ski.go(id) : D.how === 'jet' ? g.jetski.go(id) : this.start(disc, id); } }, 'Y aller')));
         }
-        body.append(h('p.muted', D.how === 'foot' ? 'Maj = sprint. Ton endurance décide combien de temps tu tiens à fond.' : D.how === 'bike' ? 'Le club te prête un vélo de course. Attention aux voitures sur la boucle !' : D.how === 'f1' ? 'Attends l\'extinction des 5 feux rouges. Les qualifications décident de ta place sur la grille du Grand Prix.' : D.how === 'jet' ? 'Avant = gaz, Arrière = frein / marche arrière, gauche / droite = virer, Espace = saut sur la vague (rotations en l\'air). Si tu possèdes un jet ski, pas besoin d\'abonnement.' : 'A / D pour tourner, Avant = position de recherche de vitesse, Arrière = chasse-neige.'));
+        body.append(h('p.muted', D.how === 'foot' ? 'Maj = sprint. La vitesse fait gagner le 100 m ; sur 10 km, semi et marathon la fatigue monte (le sprint fatigue 2,5× plus) : ton endurance et la spécialité « endurance » la repoussent. Change de spécialité dans l\'Appli Sport. Les distances des longues courses sont à l\'échelle du jeu.' : D.how === 'bike' ? 'Le club te prête un vélo de course. Attention aux voitures sur la boucle !' : D.how === 'f1' ? 'Attends l\'extinction des 5 feux rouges. Les qualifications décident de ta place sur la grille du Grand Prix.' : D.how === 'jet' ? 'Avant = gaz, Arrière = frein / marche arrière, gauche / droite = virer, Espace = saut sur la vague (rotations en l\'air). Si tu possèdes un jet ski, pas besoin d\'abonnement.' : 'A / D pour tourner, Avant = position de recherche de vitesse, Arrière = chasse-neige.'));
       },
     });
   }
@@ -142,14 +153,14 @@ export class Races {
 
   // ------------------------------------------------------------------------------ départ
   async start(disc, mode) {
-    const g = this.g, D = DISC[disc], M = D.modes[mode], route = ROUTES[D.route];
+    const g = this.g, D = DISC[disc], M = D.modes[mode], route = modeRoute(disc, mode);
     const r = await req(g, 'sport.start', { disc, mode });
     if (!r) return;
     if (r.trial) g.ui.toast('🎁 Essai gratuit !', 'good', 2500);
     if (g.vehicles?.current) g.vehicles.exit(true);
     // place sur la grille : derrière la ligne (les qualifs F1 améliorent la position)
     const myGrid = D.how === 'f1' && M.npcs ? Math.max(0, Math.min(M.npcs, (r.grid || M.npcs + 1) - 1)) : M.npcs;
-    const slot = (i) => { const back = 4 + Math.floor(i / 2) * (D.how === 'f1' ? 8 : D.how === 'bike' ? 3 : 2); const lat = (i % 2 ? 1 : -1) * (D.how === 'f1' ? 3 : D.how === 'bike' ? 2 : 1.1); return { back, lat }; };
+    const slot = M.run === 'sprint' ? (i) => ({ back: 0.6, lat: (i - 3.5) * 0.95 }) : (i) => { const back = 4 + Math.floor(i / 2) * (D.how === 'f1' ? 8 : D.how === 'bike' ? 3 : 2); const lat = (i % 2 ? 1 : -1) * (D.how === 'f1' ? 3 : D.how === 'bike' ? 2 : 1.1); return { back, lat }; };
     const place = (sl) => { const p = routeAt(route, -sl.back); return { x: p.x + Math.cos(p.yaw) * sl.lat, z: p.z - Math.sin(p.yaw) * sl.lat, yaw: p.yaw }; };
     const me = place(slot(myGrid));
     const s = this.s = { disc, mode, D, M, route, go: r.go, laps: [], lapStart: r.go, next: 1, lap: 0, hudT: 0, off: 0, npcs: [], start: me, prevSpeed: g.player.speedBonus };
@@ -157,6 +168,8 @@ export class Races {
     if (D.how === 'foot') {
       g.player.teleport(me.x, me.z, me.yaw);
       g.player.speedBonus = (g.player.speedBonus || 1) * (1 + d.skill / 450);
+      s.baseSpeed = g.player.speedBonus;
+      if (M.run === 'long' || M.run === 'marathon') s.fatigue = 0;
     } else {
       const v = new WorldVehicle(g, { model: D.model || MODEL[D.how], color: D.how === 'f1' ? '#d00000' : '#e63946', x: me.x, z: me.z, yaw: me.yaw, owner: 'course' });
       g.vehicles.list.push(v); g.vehicles.enter(v);
@@ -218,7 +231,8 @@ export class Races {
     // portes de contrôle et tours
     if (left <= 0) {
       const gt = s.route.gates[s.next];
-      if (Math.hypot(P.x - gt.x, P.z - gt.z) < GATE_R[s.D.route]) {
+      if (Math.hypot(P.x - gt.x, P.z - gt.z) < (GATE_R[s.M.route || s.D.route] || 10)) {
+        if (s.route.open && s.next === s.route.gates.length - 1) { s.laps.push((now - s.lapStart) / 1000); s.lap++; g.sfx('success'); this.finish(false); return; }
         if (s.next === 0) {
           const lap = (now - s.lapStart) / 1000;
           s.laps.push(lap); s.lapStart = now; s.lap++;
@@ -233,13 +247,24 @@ export class Races {
       s.off = off ? s.off + dt : 0;
       if (s.off > 6) { this.finish(true, 'Tu as quitté le parcours.'); return; }
     }
+    // longues courses à pied : la fatigue monte avec les mètres (le sprint fatigue 2,5× plus) et
+    // ralentit dans le dernier tiers ; l'endurance et la spécialité « endurance » la repoussent
+    if (s.D.how === 'foot' && (s.M.run === 'long' || s.M.run === 'marathon') && left <= 0) {
+      const P2 = g.player, b = g.profile.body;
+      const lp = s.lastP || { x: P2.pos.x, z: P2.pos.z }, d = Math.hypot(P2.pos.x - lp.x, P2.pos.z - lp.z);
+      s.lastP = { x: P2.pos.x, z: P2.pos.z };
+      if (d < 3) s.fatigue = Math.min(1, (s.fatigue || 0) + d * (P2.sprinting ? 2.5 : 1) / fatigueCapacity(b, s.route.len * s.M.laps));
+      const slow = Math.max(0, (s.fatigue || 0) - 0.6) / 0.4;   // 0 → 1 sur la fin
+      g.player.speedBonus = s.baseSpeed * (1 - 0.35 * slow);
+      if (slow > 0.6 && !s.warnedFat) { s.warnedFat = true; g.ui.toast('🥵 Tu fatigues ! Évite de sprinter pour tenir jusqu\'au bout.', 'bad', 3500); }
+    }
     // PNJ
     for (const n of s.npcs) {
       const prog = this.npcProg(n, t, n.sl.back);
       const moved = prog - n.prog; n.prog = prog;
       // dépassements : on se décale
-      const ahead = s.npcs.find((o) => o !== n && o.prog > prog && o.prog - prog < (s.D.how === 'f1' ? 7 : 3) && Math.abs(o.lat - n.lat) < 1.4);
-      const target = ahead ? -Math.sign(n.lat || 1) * (s.D.how === 'f1' ? 3 : 1.4) : n.sl.lat * 0.5;
+      const ahead = s.route.open ? null : s.npcs.find((o) => o !== n && o.prog > prog && o.prog - prog < (s.D.how === 'f1' ? 7 : 3) && Math.abs(o.lat - n.lat) < 1.4);
+      const target = s.route.open ? n.sl.lat : ahead ? -Math.sign(n.lat || 1) * (s.D.how === 'f1' ? 3 : 1.4) : n.sl.lat * 0.5;
       n.lat += (target - n.lat) * Math.min(1, dt * 1.2);
       const p = routeAt(s.route, prog);
       n.root.position.set(p.x + Math.cos(p.yaw) * n.lat, 0, p.z - Math.sin(p.yaw) * n.lat);
@@ -253,11 +278,14 @@ export class Races {
     if (s.hudT <= 0) {
       s.hudT = 0.2;
       const gt = s.route.gates[s.next];
-      const gs = s.next === 0 ? s.route.len : (s.next / s.route.gates.length) * s.route.len;
+      const gs = s.route.open ? ((s.next + 1) / s.route.gates.length) * s.route.len : s.next === 0 ? s.route.len : (s.next / s.route.gates.length) * s.route.len;
       const myProg = s.lap * s.route.len + gs - Math.min(Math.hypot(P.x - gt.x, P.z - gt.z), s.route.len / s.route.gates.length);
+      s.myProg = myProg;
       const pos = 1 + s.npcs.filter((n) => n.prog > myProg).length;
       const best = s.laps.length ? Math.min(...s.laps) : null;
-      g.hud.track('race', { title: `${s.D.icon} ${s.M.name}`, timer: fmtTime(t), text: `Tour ${Math.min(s.M.laps, s.lap + 1)}/${s.M.laps}${s.npcs.length ? ` · position ${pos}/${s.npcs.length + 1}` : ''} · meilleur tour ${fmtTime(best)}${s.v ? ` · ${Math.round(Math.abs(s.v.sim.speed) * 3.6)} km/h` : ''}`, button: { label: 'Abandonner', onclick: () => this.finish(true) } });
+      const km = s.M.km ? ` · ${Math.max(0, Math.min(s.M.km, myProg / (s.route.len * s.M.laps) * s.M.km)).toFixed(s.M.km < 1 ? 2 : 1).replace('.', ',')} / ${String(s.M.km).replace('.', ',')} km` : '';
+      const fat = s.fatigue != null ? ` · fatigue ${Math.round(s.fatigue * 100)} %` : '';
+      g.hud.track('race', { title: `${s.D.icon} ${s.M.name}`, timer: fmtTime(t), text: `${s.route.open ? '' : `Tour ${Math.min(s.M.laps, s.lap + 1)}/${s.M.laps}`}${km}${fat}${s.npcs.length ? ` · position ${pos}/${s.npcs.length + 1}` : ''} · meilleur tour ${fmtTime(best)}${s.v ? ` · ${Math.round(Math.abs(s.v.sim.speed) * 3.6)} km/h` : ''}`, button: { label: 'Abandonner', onclick: () => this.finish(true) } });
     }
   }
 
@@ -277,10 +305,18 @@ export class Races {
     if (abandon) { g.ui.toast(`🏳️ Abandon. ${why}`, 'bad', 3000); return; }
     if (!r) return;
     g.sfx(r.rank === 1 || r.record ? 'levelup' : 'success');
+    careerToast(g, r.career);
     const pos = r.rank ? `${r.rank === 1 ? '🥇 VICTOIRE' : r.rank === 2 ? '🥈 2e' : r.rank === 3 ? '🥉 3e' : `${r.rank}e`} sur ${r.of}. ` : '';
-    g.ui.dialog({ name: s.D.how === 'f1' ? 'Ton ingénieur·e de course' : 'Coach Jean-Mich', role: s.M.name, text: `${pos}Temps : ${fmtTime(r.total)}${r.bestLap ? ` · meilleur tour ${fmtTime(r.bestLap)}` : ''}.${r.record ? ' NOUVEAU RECORD PERSO !' : ` Record : ${fmtTime(r.best)}.`}${r.prize ? ` Prix : ${fmt(r.prize)} PC.` : ''}${r.grid ? ` Tu partiras P${r.grid} au prochain Grand Prix.` : ''} Niveau ${Math.round(r.skill)}/100, endurance ${r.endurance}/100.`, choices: [
+    g.ui.dialog({ name: s.D.how === 'f1' ? 'Ton ingénieur·e de course' : 'Coach Jean-Mich', role: s.M.name, text: `${pos}Temps : ${fmtTime(r.total)}${r.bestLap ? ` · meilleur tour ${fmtTime(r.bestLap)}` : ''}.${r.record ? ' NOUVEAU RECORD PERSO !' : ` Record : ${fmtTime(r.best)}.`}${r.prize ? ` Prix : ${fmt(r.prize)} PC.` : ''}${r.grid ? ` Tu partiras P${r.grid} au prochain Grand Prix.` : ''} Niveau ${Math.round(r.skill)}/100, endurance ${r.endurance}/100${s.D.how === 'foot' ? `, vitesse ${r.vitesse}/100` : ''}.${r.career ? ` Carrière : +${r.career.pts} pts (${r.career.div}).` : ''}`, choices: [
       { label: '🔁 Recommencer', action: (m) => { m.close(); g.player.teleport(s.start.x, s.start.z, s.start.yaw); this.desk(s.disc); } },
       { label: 'OK', ghost: true, action: (m) => m.close() },
     ] });
   }
+}
+
+// Promotion de division (toutes les carrières) : grosse annonce.
+export function careerToast(g, c) {
+  if (!c?.up) return;
+  const S = CAREER_SPORTS[c.sport];
+  setTimeout(() => { g.sfx('levelup'); g.ui.toast(`🏅 PROMOTION ! ${S?.icon || ''} ${S?.name || c.sport} : tu passes en division ${c.up} ! Primes plus grosses et salaire de sponsor (Appli Sport).`, 'good', 7000); }, 1200);
 }

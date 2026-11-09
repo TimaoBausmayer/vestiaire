@@ -27,7 +27,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 #ui > * { pointer-events: auto; }
 #ui .passthrough { pointer-events: none; }
 /* calques d'affichage : ils ne doivent jamais intercepter les clics destinés au jeu */
-#ui > .labels, #ui > .toasts, #ui > .floater, #ui > .crosshair, #ui > .countdown, #ui > .mg-hud, #ui > .compass,
+#ui > .labels, #ui > .toasts, #ui > .notes, #ui > .rep-mini, #ui > .floater, #ui > .crosshair, #ui > .countdown, #ui > .mg-hud, #ui > .compass,
 #ui > .dash, #ui > .hud-zone, #ui > .touch, #ui > .tracker, #ui > .hud-tl, #ui > .event-banner { pointer-events: none; }
 #ui .tbtns, #ui .tracker > div, #ui .hud-tl > *, #ui .toast button { pointer-events: auto; }
 button { font-family: inherit; }
@@ -604,3 +604,13 @@ body.camera-mode #ui > *:not(.toasts) { visibility: hidden !important; }
 .dash .assist, .dash .view { pointer-events: auto; margin-top: 6px; margin-right: 4px; padding: 4px 8px; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; background: rgba(255,255,255,.06); color: #fff; font: 700 12px/1.2 inherit; cursor: pointer; }
 .dash .assist.on { background: #2ec4b6; border-color: #2ec4b6; color: #1b1b24; }
 .nitro-btn { position: absolute; right: 186px; bottom: calc(210px + var(--safe-b, 0px)); width: 64px; height: 64px; border-radius: 50%; border: 2px solid #4cc9f0; background: rgba(67, 97, 238, .45); color: #fff; font-size: 28px; pointer-events: auto; z-index: 6; touch-action: none; }
+/* petites notes discrètes en bas (infractions, police, réputation) */
+.notes { position: absolute; left: 50%; bottom: calc(28px + var(--safe-b, 0px)); transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; align-items: center; pointer-events: none; z-index: 3; width: min(420px, 90vw); }
+.note { background: rgba(12, 10, 35, .62); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 10px; border-left: 3px solid var(--teal); animation: toastIn .3s; text-align: center; }
+.note.bad { border-color: var(--danger); }
+.note.good { border-color: var(--green); }
+.note.money { border-color: var(--sun); }
+.note.out { opacity: 0; transition: .4s; }
+.rep-mini { position: absolute; left: 50%; bottom: calc(6px + var(--safe-b, 0px)); transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #fff; background: rgba(12, 10, 35, .5); padding: 2px 9px; border-radius: 9px; opacity: .85; z-index: 2; white-space: nowrap; }
+.rep-mini small { opacity: .75; font-weight: 600; }
+body.camera-mode #ui > .rep-mini { visibility: hidden !important; }

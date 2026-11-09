@@ -1,4 +1,5 @@
 import { h } from '../ui/dom.js';
+import { weightLabel } from '../../shared/body.js';
 import { bodyEffects, attractiveness, INJURIES, GYM_PASSES, MACHINES, MACHINE_MAX_MIN, tapsPerPushup, CLINIC, HAIR_PRICES } from '../../shared/body.js';
 import { needsStatus } from '../../shared/needs.js';
 import { HAIR_STYLES, HAIR_COLORS } from '../../shared/appearance.js';
@@ -18,6 +19,12 @@ export class Body {
     this.ko = false;
     this.bar = h('div.need.sante', { title: 'Santé' }, h('span', '❤️'), h('div.nb', this.fill = h('div')));
     game.life?.el.prepend(this.bar);
+    // prise / perte de poids après un repas
+    game.on('weight', (r) => {
+      if (!r?.dw || Math.abs(r.dw) < 0.15) return;
+      const w = r.weight ?? game.profile.body.weight;
+      game.ui.toast(`⚖️ ${r.dw > 0 ? '+' : ''}${r.dw.toFixed(1).replace('.', ',')} kg · ${w.toFixed(1).replace('.', ',')} kg (${weightLabel(w)})${r.dw > 0.5 ? ' · trop manger fait grossir !' : ''}`, r.dw > 0.5 ? 'bad' : '', 3200);
+    });
     game.on('vehicle.crash', (sp) => this.hurt('crash', sp));
   }
 
@@ -60,6 +67,26 @@ export class Body {
     }, 1600);
   }
 
+  // Footing en ville : chaque mètre couru à pied fait progresser endurance et vitesse (le sprint compte
+  // plus). Envoyé à l'autorité toutes les ~12 s, qui plafonne selon le temps réel.
+  trackRun() {
+    const g = this.game, P = g.player;
+    const ok = !P.vehicle && !P.swimming && !P.seated && g.player.zone === 'world' && !g.minigames?.active;
+    const last = this.runLast;
+    this.runLast = { x: P.pos.x, z: P.pos.z };
+    if (ok && last) {
+      const d = Math.hypot(P.pos.x - last.x, P.pos.z - last.z);
+      if (d > 1.6 && d < 7) this.runAcc = (this.runAcc || 0) + d * (P.sprinting ? 1.5 : 0.7);
+    }
+    this.runT = (this.runT || 0) + 0.5;
+    if (this.runT >= 12) {
+      this.runT = 0;
+      const m = Math.round(this.runAcc || 0);
+      this.runAcc = 0;
+      if (m >= 40) g.net.request('athle.run', { meters: m }).catch(() => {});
+    }
+  }
+
   // Chutes : hauteur entre le point le plus haut en l'air et l'atterrissage.
   trackFalls() {
     const g = this.game, P = g.player;
@@ -85,6 +112,10 @@ export class Body {
     g.player.bodyNoJump = fx.noJump;
     g.player.muscle = b.muscle;
     g.player.endurance = b.endurance ?? 15;
+    g.player.vitesse = b.vitesse ?? 10;
+    g.player.profil = b.profil;
+    g.player.weight = b.weight;
+    this.trackRun();
     this.fill.style.width = `${Math.round(b.health)}%`;
     this.bar.classList.toggle('low', b.health < 25);
     this.bar.title = `Santé : ${Math.round(b.health)} / 100${b.injury ? ` · ${INJURIES[b.injury.kind].name}` : ''}`;

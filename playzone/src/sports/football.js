@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { careerToast } from './races.js';
 import { h } from '../ui/dom.js';
 import { Avatar } from '../characters/avatar.js';
 import { DEFAULT_APPEARANCE, SKINS, HAIR_STYLES, HAIR_COLORS } from '../../shared/appearance.js';
@@ -125,7 +126,7 @@ export class Football {
     const g = this.g;
     if (this.s) { g.ui.toast('Termine d\'abord ton activité en cours.', 'bad'); return; }
     if (b) this.usePitch(pitchOfClub(b.id));
-    let tab = 'club', strength = 0.5;
+    let tab = 'club', strength = 0.5, size = 5, mins = 3;
     const m = g.ui.modal({
       title: `⚽ ${this.pitch?.name || 'Stade des Crampons'}`, sub: 'Club GRATUIT : inscription, entraînements et petits matchs gratuits. Plus tu joues, meilleur tu deviens.',
       width: 'min(640px, 96vw)',
@@ -151,8 +152,10 @@ export class Football {
             const off = locked || (!f.club && (id !== 'amical' || f.matches >= 1));
             body.append(h('div.list-item', h('span', { style: { fontSize: '24px' } }, id === 'gros' ? '🏟️' : id === 'championnat' ? '🏆' : id === 'organise' ? '📣' : '⚽'),
               h('div.grow', h('div.t', `${M.name}${trial ? ' (essai gratuit)' : ''}`), h('div.d', `${M.desc} ${M.size} contre ${M.size}, ${M.mins} min.${M.prize ? ` Prime : ${M.prize} PC.` : ''}${locked ? ` 🔒 Niveau ${FOOT_LEVELS[levelIndex(M.need)].name}` : ''}`),
-                id === 'organise' ? h('div.row', { style: { gap: '6px', alignItems: 'center' } }, h('span.d', 'Niveau des adversaires'), h('input', { type: 'range', min: 15, max: 100, value: Math.round(strength * 100), oninput: (e) => { strength = e.target.value / 100; } })) : null),
-              h('button.btn.small', { disabled: off, onclick: () => { m.close(); this.startMatch(id, strength); } }, 'Jouer')));
+                id === 'organise' ? h('div', h('div.row', { style: { gap: '6px', alignItems: 'center' } }, h('span.d', '🤖 Niveau des bots IA'), h('input', { type: 'range', min: 15, max: 100, value: Math.round(strength * 100), oninput: (e) => { strength = e.target.value / 100; } })),
+                  h('div.row', { style: { gap: '6px', alignItems: 'center' } }, h('span.d', '👥 Joueurs par équipe'), ...[3, 4, 5, 6].map((n) => h(`button.opt${size === n ? '.sel' : ''}`, { onclick: () => { size = n; mm.refresh(); } }, `${n} vs ${n}`))),
+                  h('div.row', { style: { gap: '6px', alignItems: 'center' } }, h('span.d', '⏱️ Durée'), ...[2, 3, 5, 8].map((n) => h(`button.opt${mins === n ? '.sel' : ''}`, { onclick: () => { mins = n; mm.refresh(); } }, `${n} min`)))) : null),
+              h('button.btn.small', { disabled: off, onclick: () => { m.close(); this.startMatch(id, strength, size, mins); } }, 'Jouer')));
           }
           if (g.net.mode !== 'solo') body.append(h('p.muted', '📣 Un match organisé envoie une invitation dans le chat : les joueurs proches peuvent venir regarder et encourager.'));
         }
@@ -199,9 +202,9 @@ export class Football {
   setHome(a, fx, fz) { const d = this.dir(a.team); a.home = { x: PITCH.x + d * fx, z: PITCH.z + d * fz }; }
 
   // ------------------------------------------------------------------------------ démarrages
-  async startMatch(kind, strength) {
+  async startMatch(kind, strength, size, mins) {
     const g = this.g;
-    const r = await req(g, 'foot.matchStart', { kind, strength });
+    const r = await req(g, 'foot.matchStart', { kind, strength, size, mins });
     if (!r) return;
     const M = MATCHES[kind];
     const rand = mulberry32(r.seed);
@@ -703,6 +706,7 @@ export class Football {
     const res = { gf: s.score[0], ga: s.score[1], goals: s.myGoals, abandon };
     this.cleanup();
     const r = await req(g, 'foot.matchEnd', res);
+    careerToast(g, r?.career);
     if (!r) return;
     const t = { victoire: '🏆 Victoire !', nul: '🤝 Match nul.', defaite: '😞 Défaite.', forfait: '🏳️ Abandon (compté comme défaite).' }[r.result];
     g.sfx(r.result === 'victoire' ? 'levelup' : 'fail');

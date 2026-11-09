@@ -41,7 +41,7 @@ export const DRILLS = {
 // Matchs. mins = durée en minutes réelles ; size = joueurs par équipe (toi compris).
 export const MATCHES = {
   amical: { name: 'Petit match amical', mins: 3, size: 4, need: 'debutant', prize: 0, xp: [30, 18, 10], desc: 'Contre des joueurs PNJ de ton niveau. Gratuit.' },
-  organise: { name: 'Match organisé par toi', mins: 3, size: 5, need: 'debutant', prize: 0, xp: [30, 18, 10], desc: 'Tu choisis le niveau des adversaires et tu invites du monde.' },
+  organise: { name: 'Match perso contre des bots IA', mins: 3, size: 5, need: 'debutant', prize: 0, xp: [30, 18, 10], desc: 'Tu crées ton match : niveau des bots IA, nombre de joueurs, durée. Les joueurs proches sont invités.' },
   championnat: { name: 'Match de championnat', mins: 4, size: 5, need: 'amateur', prize: 300, xp: [70, 40, 20], desc: 'Compte pour le classement du club. Prime de victoire.' },
   gros: { name: 'Gros match (tribunes pleines)', mins: 5, size: 5, need: 'semipro', prize: 1500, xp: [150, 80, 40], desc: 'Finale de coupe devant le public. Grosse prime.' },
 };

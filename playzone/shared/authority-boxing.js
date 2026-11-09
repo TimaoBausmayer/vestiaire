@@ -2,6 +2,7 @@
 import { BUILDINGS } from './world-layout.js';
 import { BOX, OPP_BY_ID, defaultBoxing, bagGain, minWinSeconds } from './boxing.js';
 import { applyNeeds, needsStatus } from './needs.js';
+import { careerResult, careerDiv } from './career.js';
 
 const err = (error) => ({ ok: false, error });
 const atClub = (self, ctx) => BUILDINGS.some((b) => b.interior === 'boxing' && self.atBuilding(ctx, b, 1));
@@ -48,15 +49,16 @@ export const BOXING_HANDLERS = {
     const O = OPP_BY_ID[S.opp], secs = (ctx.now - S.at) / 1000;
     const win = !!won && secs >= minWinSeconds(O, p.body.muscle);
     applyNeeds(p.needs, ctx.now, { energie: -18, faim: -10, hygiene: -20, humeur: win ? 15 : -5 });
-    if (!win) { B.losses++; return { ok: true, changed: true, data: { won: false, needs: needsStatus(p.needs, ctx.now) } }; }
+    if (!win) { B.losses++; const career = careerResult(p, 'boxe', 2, 2); return { ok: true, changed: true, data: { won: false, career, needs: needsStatus(p.needs, ctx.now) } }; }
+    const career = careerResult(p, 'boxe', 1, 2, ko ? 38 : 30);
     B.wins++; if (ko) B.kos++;
     const first = O.rank > B.beaten;
     B.beaten = Math.max(B.beaten, O.rank);
-    const prize = Math.round(O.prize * (first ? 1 : 0.4) * (ko ? 1.25 : 1));
+    const prize = Math.round(O.prize * (first ? 1 : 0.4) * (ko ? 1.25 : 1) * careerDiv(p, 'boxe').mult);
     this.addCoins(p, prize);
     this.addXp?.(p, O.xp);
     B.xp += O.xp;
     p.body.muscle = Math.min(100, p.body.muscle + 0.6);
-    return { ok: true, changed: true, data: { won: true, ko: !!ko, prize, first, xp: O.xp, needs: needsStatus(p.needs, ctx.now) } };
+    return { ok: true, changed: true, data: { won: true, ko: !!ko, prize, first, xp: O.xp, career, needs: needsStatus(p.needs, ctx.now) } };
   },
 };

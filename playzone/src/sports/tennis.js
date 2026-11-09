@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { careerToast } from './races.js';
 import { h, fmt } from '../ui/dom.js';
 import { Avatar } from '../characters/avatar.js';
 import { DEFAULT_APPEARANCE } from '../../shared/appearance.js';
@@ -204,6 +205,7 @@ export class Tennis {
     g.avatar.hold(null); g.player.noJump = false;
     if (this.saved) { g.cam.dist = this.saved.dist; g.cam.pitch = this.saved.pitch; }
     const r = await req(g, 'tennis.end', { won: !!won && !abandon, aces: m.aces });
+    careerToast(g, r?.career);
     if (!r) return;
     if (r.won) g.ui.dialog({ name: 'Arbitre', role: m.club.name, text: `Jeu, set et match ! ${m.games[0]}–${m.games[1]} contre ${m.O.name}. Prime : ${fmt(r.prize)} PC, +${r.xp} XP.${r.first ? ' Adversaire suivant débloqué !' : ''}${m.aces ? ` (${m.aces} ace${m.aces > 1 ? 's' : ''} !)` : ''}`, choices: [{ label: '🎾 Super !', ghost: true, action: (x) => x.close() }] });
     else g.ui.dialog({ name: 'Arbitre', role: m.club.name, text: abandon ? 'Abandon. Le court reste à toi la prochaine fois !' : `Défaite ${m.games[0]}–${m.games[1]}. Conseil : frappe la balle quand elle est à un pas de toi, et vise les côtés avec A / D !`, choices: [{ label: 'D\'accord', ghost: true, action: (x) => x.close() }] });

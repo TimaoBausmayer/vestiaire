@@ -21,19 +21,28 @@ export const ROUTES = {
   // Bike Park des Géants : sentier VTT en terre qui serpente vers la montagne, et la Route des Cols (asphalte)
   vtt: { name: 'Sentier VTT du Bike Park des Géants', width: 7, pts: [{ x: 880, z: -2550 }, { x: 780, z: -2570 }, { x: 720, z: -2620 }, { x: 630, z: -2600 }, { x: 560, z: -2650 }, { x: 570, z: -2730 }, { x: 650, z: -2770 }, { x: 610, z: -2830 }, { x: 710, z: -2860 }, { x: 790, z: -2800 }, { x: 850, z: -2830 }, { x: 900, z: -2760 }, { x: 870, z: -2690 }, { x: 910, z: -2620 }] },
   cols: { name: 'Route des Cols', width: 9, pts: [{ x: 1060, z: -2490 }, { x: 1700, z: -2490 }, { x: 1950, z: -2300 }, { x: 2400, z: -2300 }, { x: 2450, z: -2600 }, { x: 2000, z: -2780 }, { x: 1500, z: -2720 }, { x: 1250, z: -2620 }] },
+  // ligne droite de 100 m au nord du stade (course « ouverte » : on part d'un bout, on finit à l'autre)
+  sprint: { name: 'Ligne droite du 100 m', width: 8, open: true, pts: [{ x: 395, z: -600 }, { x: 495, z: -600 }] },
   f1: { name: 'Circuit de l\'Académie F1', width: 13, pts: [{ x: 640, z: -748 }, { x: 790, z: -748 }, { x: 806, z: -762 }, { x: 806, z: -792 }, { x: 790, z: -806 }, { x: 735, z: -812 }, { x: 722, z: -826 }, { x: 735, z: -840 }, { x: 790, z: -846 }, { x: 806, z: -862 }, { x: 806, z: -888 }, { x: 790, z: -902 }, { x: 640, z: -902 }, { x: 622, z: -886 }, { x: 622, z: -764 }] },
 };
 // longueurs cumulées
 for (const r of Object.values(ROUTES)) {
   r.cum = [0];
-  for (let i = 1; i <= r.pts.length; i++) { const a = r.pts[i - 1], b = r.pts[i % r.pts.length]; r.cum.push(r.cum[i - 1] + Math.hypot(b.x - a.x, b.z - a.z)); }
-  r.len = r.cum[r.pts.length];
-  // portes de contrôle : un point tous les ~ len/8, dans l'ordre
-  const n = Math.max(4, Math.min(10, Math.round(r.len / 60)));
-  r.gates = Array.from({ length: n }, (_, k) => routeAt(r, (k / n) * r.len));
+  const segs = r.open ? r.pts.length - 1 : r.pts.length;
+  for (let i = 1; i <= segs; i++) { const a = r.pts[i - 1], b = r.pts[i % r.pts.length]; r.cum.push(r.cum[i - 1] + Math.hypot(b.x - a.x, b.z - a.z)); }
+  r.len = r.cum[segs];
+  // portes de contrôle : un point tous les ~ len/8, dans l'ordre (course ouverte : la dernière = arrivée)
+  const n = r.open ? 2 : Math.max(4, Math.min(10, Math.round(r.len / 60)));
+  r.gates = r.open ? Array.from({ length: n }, (_, k) => routeAt(r, ((k + 1) / n) * r.len)) : Array.from({ length: n }, (_, k) => routeAt(r, (k / n) * r.len));
 }
+export const finishPoint = (r) => (r.open ? r.pts[r.pts.length - 1] : r.pts[0]);
 export function routeAt(r, s) {
-  s = ((s % r.len) + r.len) % r.len;
+  if (r.open) {
+    // avant le départ / après l'arrivée : on prolonge la ligne droite
+    const a = r.pts[0], b = r.pts[1], z = r.pts[r.pts.length - 2], e = r.pts[r.pts.length - 1];
+    if (s <= 0) { const l = Math.hypot(b.x - a.x, b.z - a.z) || 1; return { x: a.x + (b.x - a.x) / l * s, z: a.z + (b.z - a.z) / l * s, yaw: Math.atan2(b.x - a.x, b.z - a.z) }; }
+    if (s >= r.len) { const l = Math.hypot(e.x - z.x, e.z - z.z) || 1, o = s - r.len; return { x: e.x + (e.x - z.x) / l * o, z: e.z + (e.z - z.z) / l * o, yaw: Math.atan2(e.x - z.x, e.z - z.z) }; }
+  } else s = ((s % r.len) + r.len) % r.len;
   let i = 1;
   while (i < r.cum.length - 1 && r.cum[i] < s) i++;
   const a = r.pts[i - 1], b = r.pts[i % r.pts.length];
@@ -43,7 +52,7 @@ export function routeAt(r, s) {
 // distance d'un point au tracé
 export function distToRoute(r, x, z) {
   let best = Infinity;
-  for (let i = 0; i < r.pts.length; i++) {
+  for (let i = 0; i < (r.open ? r.pts.length - 1 : r.pts.length); i++) {
     const a = r.pts[i], b = r.pts[(i + 1) % r.pts.length];
     const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1;
     const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2));
@@ -51,7 +60,7 @@ export function distToRoute(r, x, z) {
   }
   return best;
 }
-export const GATE_R = { piste: 7, hauts: 12, f1: 16, bouees: 14, vtt: 11, cols: 14 };
+export const GATE_R = { sprint: 6, piste: 7, hauts: 12, f1: 16, bouees: 14, vtt: 11, cols: 14 };
 
 // ------------------------------------------------------------------------------ station de ski du Mont-Pinard
 // 5 pistes côte à côte qui descendent du nord (sommet) vers le sud (front de neige) : verte, bleue,
@@ -113,9 +122,14 @@ export const DISC = {
     name: 'Course à pied', icon: '🏃', place: 'club-foot', route: 'piste', how: 'foot', ref: 6.4, vmax: 13,
     member: null,  // la course à pied est gratuite
     modes: {
-      seance: { name: 'Séance de footing (gratuite)', laps: 2, npcs: 0, fee: 0, prizes: [] },
-      fractionne: { name: 'Fractionné : 4 tours à fond (gratuit)', laps: 4, npcs: 0, fee: 0, prizes: [] },
-      course: { name: 'Course du quartier (contre des coureurs PNJ)', laps: 3, npcs: 7, fee: 0, prizes: [120, 60, 30] },
+      seance: { name: 'Séance de footing (gratuite)', laps: 2, npcs: 0, fee: 0, prizes: [], run: 'piste' },
+      fractionne: { name: 'Fractionné : 4 tours à fond (gratuit)', laps: 4, npcs: 0, fee: 0, prizes: [], run: 'piste' },
+      sprint100: { name: '⚡ 100 m (sprint, 8 couloirs)', route: 'sprint', laps: 1, npcs: 7, fee: 0, prizes: [150, 80, 40], pace: 1.42, run: 'sprint', km: 0.1 },
+      course: { name: 'Course du quartier (3 tours de piste)', laps: 3, npcs: 7, fee: 0, prizes: [120, 60, 30], run: 'piste' },
+      km5: { name: '5 km (2 tours de piste)', laps: 2, npcs: 9, fee: 5, prizes: [200, 100, 50], pace: 1.05, run: 'piste', km: 5 },
+      km10: { name: '10 km (4 tours de piste)', laps: 4, npcs: 11, fee: 10, prizes: [400, 200, 100], pace: 0.98, run: 'long', km: 10 },
+      semi: { name: '🏅 Semi-marathon (1 boucle des Hauts)', route: 'hauts', laps: 1, npcs: 14, fee: 25, prizes: [1200, 600, 300], pace: 0.9, run: 'long', km: 21.1 },
+      marathon: { name: '🏆 Marathon de PLAYZONE (2 boucles des Hauts)', route: 'hauts', laps: 2, npcs: 19, fee: 50, prizes: [3500, 1700, 850], pace: 0.86, run: 'marathon', km: 42.195 },
     },
   },
   velo: {
@@ -174,20 +188,21 @@ export const DISC = {
   },
 };
 export const SKI_LEN = 100;   // descente la plus courte (verte), pour le temps minimal
-export const discLen = (d, mode) => (DISC[d].how === 'ski' ? SKI_LEN : ROUTES[DISC[d].route].len * DISC[d].modes[mode].laps);
+export const modeRoute = (d, mode) => ROUTES[DISC[d].modes[mode]?.route || DISC[d].route];
+export const discLen = (d, mode) => (DISC[d].how === 'ski' ? SKI_LEN : modeRoute(d, mode).len * DISC[d].modes[mode].laps);
 export function defaultDisc() { return { skill: 5, trial: false, member: null, races: 0, wins: 0, podiums: 0, best: {}, sessions: 0, grid: null }; }
 
 const NPC_FIRST = ['Usain', 'Jojo', 'Mo', 'Paula', 'Eliud', 'Marie-Jo', 'Bernard', 'Fausto', 'Jeannie', 'Lance-Pierre', 'Ayrton', 'Alain', 'Lewis', 'Max', 'Michou', 'Fernando', 'Seb', 'Charlotte', 'Lindsey', 'Alberto', 'Mikaela', 'Tessa'];
 const NPC_LAST = ['Bolide', 'Pédale', 'Mollet', 'Turbo', 'Chrono', 'Godasse', 'Patate', 'Freinard', 'Dérapage', 'Schuss', 'Raclette', 'Piston'];
 // Adversaires PNJ : temps total (s) et temps par tour, selon le niveau du joueur (ils progressent avec lui).
-export function npcField(disc, mode, seed, skill) {
+export function npcField(disc, mode, seed, skill, divBonus = 0) {
   const D = DISC[disc], M = D.modes[mode], rand = mulberry32(seed);
   const len = discLen(disc, mode);
-  const strength = 0.25 + Math.min(1, skill / 100) * 0.7;
+  const strength = 0.25 + Math.min(1, skill / 100) * 0.7 + divBonus;
   const out = [];
   for (let i = 0; i < M.npcs; i++) {
     const lvl = Math.max(0.05, Math.min(1.1, strength + (rand() - 0.55) * 0.5));
-    const v = D.ref * (0.78 + lvl * 0.38);
+    const v = D.ref * (0.78 + lvl * 0.38) * (M.pace || 1);
     const total = len / v;
     const laps = [];
     let acc = 0;
