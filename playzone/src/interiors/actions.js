@@ -65,6 +65,7 @@ export async function runAction(game, action, { b, spot, staff }) {
       else if (s === 'surf-school') g.surf?.desk(b);
       else if (s === 'paintball') g.arenas?.desk('paintball');
       else if (s === 'laser') g.arenas?.desk('laser');
+      else if (s === 'padel') g.padel?.desk();
       else if (s === 'pole-emploi') poleEmploiPanel(g);
       else if (s === 'cars-used') usedCarsPanel(g, b);
       else if (s === 'rental') rentalPanel(g, b);
