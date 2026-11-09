@@ -48,6 +48,7 @@ import { Karting } from './sports/karting.js';
 import { Football } from './sports/football.js';
 import { Wingfoil } from './sports/wingfoil.js';
 import { Surf } from './sports/surf.js';
+import { Arenas } from './leisure/arena.js';
 import { Sailing } from './sports/sailing.js';
 import { TerraceDiners } from './world/terraces.js';
 import { Sea } from './world/sealife.js';
@@ -203,6 +204,7 @@ export class Game extends Emitter {
     this.football = this.addSystem(new Football(this));
     this.wingfoil = this.addSystem(new Wingfoil(this));
     this.surf = this.addSystem(new Surf(this));
+    this.arenas = this.addSystem(new Arenas(this));
     this.sailing = this.addSystem(new Sailing(this));   // voile et kitesurf (Cap Venteux)
     this.terraces = this.addSystem(new TerraceDiners(this));   // clients des terrasses de restaurants
     this.floors = this.addSystem(new Floors(this));   // étages des immeubles et toits-terrasses

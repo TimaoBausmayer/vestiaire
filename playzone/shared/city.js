@@ -689,6 +689,9 @@ add({ id: 'minigolf', name: 'Mini-golf « Le Trou Rigolo »', kind: 'shop', shop
 
 // --- PISCINE OLYMPIQUE (bassin de 50 m devant l'accueil, voir swim.js)
 add({ id: 'piscine', name: 'Piscine olympique des Dauphins', kind: 'shop', shop: 'piscine', interior: 'agency', x: 228, z: -458, w: 12, d: 12, h: 7, facing: 'S', color: '#caf0f8', roofColor: '#0077b6', sign: '🏊 PISCINE OLYMPIQUE', district: 'sport', lot: { x1: 163, z1: -489, x2: 220.5, z2: -446 } });
+// paintball (Les Hauts) et laser game (néon) : accueil au sud de chaque arène
+add({ id: 'paintball-club', name: 'Paintball des Hauts', kind: 'shop', shop: 'paintball', interior: 'agency', x: -400, z: -748, w: 16, d: 8, h: 5, facing: 'S', color: '#4f772d', roofColor: '#e63946', sign: 'PAINTBALL', district: 'hauts', lot: { x1: -472, z1: -902, x2: -328, z2: -753 } });
+add({ id: 'laser-game', name: 'Laser Quest Néon', kind: 'shop', shop: 'laser', interior: 'agency', x: 410, z: -795, w: 18, d: 8, h: 6, facing: 'S', color: '#14141c', roofColor: '#8338ec', sign: 'LASER QUEST', neon: true, district: 'hauts', lot: { x1: 376, z1: -856, x2: 444, z2: -800 } });
 // école de surf sur la Plage des Orteils (location de planches, cours, compétitions)
 add({ id: 'surf-school', name: 'École de surf des Orteils', kind: 'shop', shop: 'surf-school', interior: 'agency', x: -58, z: 73, w: 10, d: 6, h: 4, facing: 'S', color: '#ffbe0b', roofColor: '#2ec4b6', sign: 'ÉCOLE DE SURF', district: 'plage' });
 // stades d'athlétisme supplémentaires (piste rouge autour d'une pelouse, club-house au sud)

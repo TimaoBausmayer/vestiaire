@@ -20,6 +20,10 @@ export const CAREER_SPORTS = {
   golf: { name: 'Mini-golf', icon: '⛳' },
   boxe: { name: 'Boxe', icon: '🥊' },
   surf: { name: 'Surf', icon: '🏄' },
+  paintball: { name: 'Paintball', icon: '🎯' },
+  laser: { name: 'Laser game', icon: '🔫' },
+  padel: { name: 'Padel', icon: '🏓' },
+  golf18: { name: 'Golf', icon: '🏌️' },
 };
 
 // pts = points de carrière nécessaires ; mult = multiplicateur des primes ; salary = PC par jour de jeu
