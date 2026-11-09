@@ -21,6 +21,7 @@ function shortcuts(g) {
   if (garages[0]) out.push({ name: `🔧 Garage le plus proche (${garages[0].name})`, x: garages[0].door.x, z: garages[0].door.z });
   if (p.career?.job?.building && at(p.career.job.building)) out.push({ name: `💼 Mon travail (${BUILDING_BY_ID[p.career.job.building].name})`, ...at(p.career.job.building) });
   for (const sp of Object.keys(SPORT_CLUBS)) { const c = myClub(p, sp, g.now()); if (c?.site && at(c.site)) out.push({ name: `${CAREER_SPORTS[sp].icon} Mon club : ${c.name}`, ...at(c.site) }); }
+  if (p.unlocks?.vip || p.admin) out.push({ name: '🍾 Le Velours (club privé)', ...at('club-vip') });
   for (const [id, n] of [['club-foot', '⚽🏃 Stade des Crampons'], ['f1-paddock', '🏎️ Paddock F1'], ['surf-school', '🏄 École de surf'], ['piscine', '🏊 Piscine olympique'], ['tennis-1', '🎾 Tennis'], ['minigolf', '⛳ Mini-golf'], ['circuit-stand', '🏁 Karting'], ['bike-park', '🚵 Bike Park'], ['athle-est', '🏟️ Stade de l\'Est'], ['athle-vignes', '🍇 Stade des Vignes'], ['surf-shop', '🪁 Surf Shop (wingfoil, jet ski)'], ['hightech', '📱 MégaTech']]) if (at(id)) out.push({ name: n, ...at(id) });
   return out;
 }

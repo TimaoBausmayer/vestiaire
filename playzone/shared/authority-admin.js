@@ -37,6 +37,13 @@ export const ADMIN_HANDLERS = {
     if (ctx.session) { ctx.session.stolen = null; }
     return { ok: true, changed: true, data: { cost, at: { x, z } } };
   },
+  // codes secrets (carte du téléphone) : 49309117 = Le Velours, le club privé
+  'secret.code'(ctx, { code }) {
+    const p = ctx.profile;
+    if (norm(code) !== '49309117') return err('Code incorrect.');
+    p.unlocks = { ...(p.unlocks || {}), vip: true };
+    return { ok: true, changed: true, data: { unlocked: 'vip', at: { x: 149, z: -515 } } };
+  },
   'admin.unlock'(ctx, { code }) {
     const p = ctx.profile;
     const expected = ctx.adminCode !== undefined ? ctx.adminCode : SOLO_ADMIN_CODE;

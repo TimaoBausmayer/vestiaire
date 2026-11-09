@@ -679,6 +679,9 @@ for (const P of PARKS) add({ id: `kiosque-${P.id}`, name: `Kiosque à glaces —
 const CLUB_SITES = [[110, -400, 'E', 'Le Bounce'], [590, -220, 'W', 'Prestige Night'], [-110, -1370, 'S', 'L\'Aurore Club'], [340, -1330, 'N', 'Le Frigo (boîte polaire)'], [1450, -280, 'N', 'Le Bateau Ivre... de joie']];
 CLUB_SITES.forEach(([x, z, facing, name], i) => add({ id: `club-${i + 1}`, name, kind: 'service', interior: 'club', x, z, w: 26, d: 22, h: 9, facing, color: ['#14213d', '#3a0ca3', '#03045e', '#1b263b', '#240046'][i], roofColor: '#0b0b10', sign: `🪩 ${name.toUpperCase()}`, neon: true, district: 'nuit' }));
 
+// club privé secret (débloqué par un code tapé sur la carte du téléphone)
+add({ id: 'club-vip', name: 'Le Velours (club privé)', kind: 'service', interior: 'club', x: 165, z: -515, w: 24, d: 22, h: 9, facing: 'W', color: '#590d22', roofColor: '#0b0b10', sign: '🔒 LE VELOURS', neon: true, district: 'nuit', secret: 'vip' });
+
 // --- TENNIS : club-house + 2 courts par club (voir tennis.js)
 for (const [id, name, x, z, facing] of [['tennis-1', 'Tennis Club des Affaires', 520, -260, 'E'], ['tennis-2', 'Roland-Gros-Pull (terre battue)', -160, -1410, 'N'], ['tennis-3', 'Tennis des Tilleuls (gazon)', -180, -510, 'E']]) {
   add({ id, name, kind: 'shop', shop: 'tennis', interior: 'agency', x, z: z - 20, w: 14, d: 8, h: 6, facing, color: '#f1faee', roofColor: '#2a9d8f', sign: `🎾 ${name.toUpperCase()}`, district: 'sport', lot: { x1: x - 23, z1: z - 15.5, x2: x + 23, z2: z + 25 } });

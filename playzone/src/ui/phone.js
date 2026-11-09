@@ -168,7 +168,11 @@ export class Phone {
       let code = '';
       b.append(h('div.map-code', h('input.input', { type: 'password', placeholder: 'Code…', autocomplete: 'off', oninput: (e) => { code = e.target.value; }, onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); } }), h('button.btn.small.ghost', { onclick: () => go() }, 'OK')));
       const go = async () => {
-        try { await g.net.request('admin.unlock', { code }); g.sfx('levelup'); g.ui.toast('👑 Mode admin activé ! Appli Admin dans le téléphone.', 'good', 5000); this.go('admin'); } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+        try {
+          const s = await g.net.request('secret.code', { code }).catch(() => null);
+          if (s?.unlocked === 'vip') { g.sfx('levelup'); g.ui.toast('🔓 Code secret : Le Velours, le club privé, t\'ouvre ses portes ! Le GPS t\'y emmène.', 'good', 6000); this.goTo({ x: s.at.x, z: s.at.z, name: 'Le Velours (club privé)' }); return; }
+          await g.net.request('admin.unlock', { code }); g.sfx('levelup'); g.ui.toast('👑 Mode admin activé ! Appli Admin dans le téléphone.', 'good', 5000); this.go('admin');
+        } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
       };
     }, 0);
     const B = WORLD_BOUNDS, MW = B.maxX - B.minX, MH = B.maxZ - B.minZ;
