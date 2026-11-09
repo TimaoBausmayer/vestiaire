@@ -32,6 +32,13 @@ await ev(() => document.querySelector('.modal .close-x')?.click());
 await ev(() => window.playzone.net.request('admin.unlock', { code: 'Timao3049Bausmayer' }));
 const couple = await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const b = BUILDING_BY_ID['club-1'], g = window.playzone; const it = g.interiors.loaded.get(b.id); const p = it.people.find((q) => q.role === 'fetarde'); const id = `club:${b.id}:${p.name}`; for (let k = 0; k < 3; k++) await g.net.request('club.bottle', { size: 'jeroboam', girls: [id] }); return g.net.request('love.ask', { id, name: p.name, role: 'Fêtarde' }); });
 check(couple.yes, `elle est tombée amoureuse : en couple avec ${couple.partner?.name}`);
+// Le Velours : méga-boîte, 10 carrés VIP, 100 filles, 10 garçons
+const mega = await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const b = BUILDING_BY_ID['club-vip'], g = window.playzone; g.player.teleport(b.x, b.z + 10, Math.PI); g.debugStep(1); let it = g.interiors.loaded.get(b.id); for (let k = 0; k < 10 && !it; k++) { g.debugStep(0.5); it = g.interiors.loaded.get(b.id); } if (!it) return null; const t0 = performance.now(); g.debugStep(1); const ms = (performance.now() - t0) / 30; const girls = it.people.filter((p) => p.role === 'fetarde'); return { girls: girls.length, boys: it.people.filter((p) => p.role === 'fetard').length, vip: [...document.querySelectorAll('.prompt')].length, longHair: true, ms, names: new Set(girls.map((p) => p.name)).size }; });
+check(mega && mega.girls === 100 && mega.boys === 10 && mega.names === 100, `Le Velours : ${mega?.girls} filles (prénoms uniques : ${mega?.names}), ${mega?.boys} garçons, ${mega?.ms?.toFixed(1)} ms par image`);
+const booths = await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const g = window.playzone; return [...g.interactions.list].filter((d) => typeof d.label === 'string' && /Carré VIP n°/.test(d.label) && /réserver/.test(d.label)).length; });
+check(booths === 10, `10 carrés VIP (${booths})`);
+await ev(() => { const g = window.playzone; g.cam.pitch = 0.75; g.cam.dist = 22; g.debugStep(0.5); });
+await page.screenshot({ path: 'tests/e2e/out/boite-velours.png' });
 const errs = errors.filter((e) => !/404/.test(e));
 check(!errs.length, `pas d'erreur console ${errs.slice(0, 3).join(' | ')}`);
 await browser.close(); srv.close();

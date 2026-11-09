@@ -88,7 +88,7 @@ export class Nightclub {
 
   update(dt, t) {
     const g = this.g, b = g.interiors?.inside;
-    const isClub = b?.interior === 'club' ? b : null;
+    const isClub = b?.interior === 'club' || b?.interior === 'megaclub' ? b : null;
     if (isClub && this.inClub !== isClub) { if (this.inClub) this.leave(); this.enter(isClub); }
     else if (!isClub && this.inClub) this.leave();
     if (this.inClub && this.fx) {

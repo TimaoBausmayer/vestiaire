@@ -3,7 +3,7 @@ import { BUILDINGS } from './world-layout.js';
 import { applyNeeds, needsStatus } from './needs.js';
 
 const err = (error) => ({ ok: false, error });
-const atClub = (self, ctx) => BUILDINGS.some((b) => b.interior === 'club' && self.atBuilding(ctx, b, 1));
+const atClub = (self, ctx) => BUILDINGS.some((b) => (b.interior === 'club' || b.interior === 'megaclub') && self.atBuilding(ctx, b, 1));
 export const CLUB = { cocktail: 12, vip: 200, danceMax: 30, vipMs: 10 * 60_000 };
 // Service bouteilles du carré VIP (bulles SANS alcool, comme tout le bar) : plus elle est grosse,
 // plus le spectacle est beau (cierges magiques) et plus les fêtardes qui te rejoignent craquent pour toi.

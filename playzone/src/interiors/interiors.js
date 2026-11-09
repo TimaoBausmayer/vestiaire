@@ -25,7 +25,7 @@ const ENTERABLE = BUILDINGS.filter(isEnterable);
 
 // Tenues du personnel selon le rôle.
 const ROLE_LOOK = {
-  fetarde: { top: 'debardeur' },
+  fetarde: { top: 'debardeur' }, fetard: { top: 'chemise', topColor: '#14141c' },
   cuisinier: { hat: 'toque', top: 'tablier', topColor: '#f4f1ea' }, boulanger: { hat: 'toque', top: 'tablier', topColor: '#f4f1ea' },
   serveur: { top: 'chemise', topColor: '#2b2d42' }, equipier: { hat: 'casquette', top: 'tshirt', topColor: '#e63946' },
   coiffeur: { top: 'chemise', topColor: '#cdb4db' }, policier: { hat: 'casquette', top: 'chemise', topColor: '#1d3557' }, gardien: { hat: 'casquette', top: 'chemise', topColor: '#4a4e69' },
@@ -43,11 +43,12 @@ export const ROLE_NAME = {
   vendeur: 'Vendeur·se', geek: 'Technicien·ne', soigneur: 'Soigneur·se', boulanger: 'Boulanger·ère', serveur: 'Serveur·se', cuisinier: 'Cuisinier·ère',
   equipier: 'Équipier·ère', caissier: 'Caissier·ère', commercial: 'Commercial·e', mecano: 'Mécanicien·ne', manutentionnaire: 'Chef d\'entrepôt', ouvrier: 'Ouvrier·ère',
   accueil: 'Accueil', juge: 'Juge', greffier: 'Greffier·ère', agent: 'Agent·e', ferrailleur: 'Ferrailleur·se', policier: 'Policier·ère', infirmier: 'Infirmier·ère', medecin: 'Médecin', pompier: 'Pompier·ère',
-  habitant: 'Habitant·e', concierge: 'Concierge', banquier: 'Banquier·ère', secretaire: 'Secrétaire de mairie', maire: 'Le Maire', gerant: 'Gérant·e', coach: 'Coach', entraineur: 'Entraîneur·e de boxe', guide: 'Guide du musée', dj: 'DJ', barman: 'Barman·aid', videur: 'Videur·se', danseur: 'Danseur·se', fetarde: 'Fêtarde', boxeur: 'Boxeur·se',
+  habitant: 'Habitant·e', concierge: 'Concierge', banquier: 'Banquier·ère', secretaire: 'Secrétaire de mairie', maire: 'Le Maire', gerant: 'Gérant·e', coach: 'Coach', entraineur: 'Entraîneur·e de boxe', guide: 'Guide du musée', dj: 'DJ', barman: 'Barman·aid', videur: 'Videur·se', danseur: 'Danseur·se', fetarde: 'Fêtarde', fetard: 'Fêtard', boxeur: 'Boxeur·se',
   professeur: 'Professeur·e', gardien: 'Gardien·ne', fermier: 'Fermier·ère', coiffeur: 'Coiffeur·se',
   croupier: 'Croupier·ère', vigile: 'Vigile', hotesse: 'Hôte·sse d\'accueil', moniteur: 'Moniteur·rice de tir', commissaire: 'Commissaire de piste',
 };
-const GIRLS = ['Jessica', 'Inès', 'Léa', 'Camila', 'Sarah', 'Yasmine', 'Chloé', 'Manon', 'Nina', 'Océane', 'Lina', 'Maeva', 'Clara', 'Jade', 'Emma', 'Zoé', 'Anaïs', 'Kenza', 'Luna', 'Eva'];
+const GIRLS = ['Alicia', 'Bella', 'Mila', 'Rose', 'Victoria', 'Elena', 'Sofia', 'Ambre', 'Lou', 'Iris', 'Jessica', 'Inès', 'Léa', 'Camila', 'Sarah', 'Yasmine', 'Chloé', 'Manon', 'Nina', 'Océane', 'Lina', 'Maeva', 'Clara', 'Jade', 'Emma', 'Zoé', 'Anaïs', 'Kenza', 'Luna', 'Eva'];
+const BOYS = ['Kevin', 'Yanis', 'Lucas', 'Enzo', 'Rayan', 'Hugo', 'Théo', 'Mehdi', 'Nathan', 'Sacha', 'Adam', 'Tom'];
 const FIRST = ['Gégé', 'Josiane', 'Kévin', 'Mireille', 'Bertrand', 'Sonia', 'Jean-Claude', 'Lulu', 'Fatou', 'Yannick', 'Paulette', 'Momo', 'Ginette', 'Rachid', 'Odette', 'Nono'];
 
 export class Interiors {
@@ -236,7 +237,12 @@ export class Interiors {
     const people = staff.map((s, i) => {
       const look = staffLook(s.role, hashString(`${b.id}-${i}`));
       // prénoms uniques dans un même lieu (les fêtardes ont chacune leur affection)
-      if (s.role === 'fetarde') { let k = 0; while (usedNames.has(look.name) && k < GIRLS.length) look.name = GIRLS[(GIRLS.indexOf(look.name) + 1) % GIRLS.length], k++; usedNames.add(look.name); }
+      if (s.role === 'fetarde') {
+        // 100 filles : prénom + initiale pour qu'elles soient toutes différentes
+        let k = 0, base = look.name;
+        while (usedNames.has(look.name) && k < 400) { k++; look.name = k < GIRLS.length ? GIRLS[(GIRLS.indexOf(base) + k) % GIRLS.length] : `${GIRLS[k % GIRLS.length]} ${'ABCDEFGHJKLMNPRSTV'[Math.floor(k / GIRLS.length) % 18]}.`; }
+        usedNames.add(look.name);
+      }
       const av = new Avatar(look.app, look.extra);
       av.root.position.set(s.x, 0.05, s.z); av.root.rotation.y = s.yaw;
       g.engine.scene.add(av.root);
@@ -305,7 +311,10 @@ export class Interiors {
         const want = d < 6 ? Math.atan2(P.x - p.x, P.z - p.z) : p.baseYaw;
         let dy = want - p.av.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
         p.av.root.rotation.y += dy * Math.min(1, dt * 4);
-        if (p.role === 'danseur' || p.role === 'fetarde') { p.av.root.rotation.y += dt * 0.8; p.av.update(dt, { speed: 0, grounded: true, pose: 'dance', dance: (p.x * 7 | 0) % 2 }); }
+        // loin du joueur (grandes boîtes) : animation une image sur quatre, pour rester fluide
+        if (d > 24) { p.skip = ((p.skip || 0) + 1) % 4; if (p.skip) continue; }
+        const pdt = d > 24 ? dt * 4 : dt;
+        if (p.role === 'danseur' || p.role === 'fetarde' || p.role === 'fetard') { p.av.root.rotation.y += pdt * 0.8; p.av.update(pdt, { speed: 0, grounded: true, pose: 'dance', dance: (p.x * 7 | 0) % 2 }); }
         else p.av.update(dt, { speed: 0, grounded: true, pose: p.role === 'dj' ? 'cook' : d < 3.5 ? 'wave' : 'idle' });
         if (d < 4 && performance.now() - p.greeted > 25000) {
           p.greeted = performance.now();
@@ -363,10 +372,12 @@ function staffLook(role, seed) {
   };
   const extra = ROLE_LOOK[role] || { top: 'chemise', topColor: pick(COLORS) };
   if (role === 'fetarde') {   // filles de la soirée : coiffures longues, tenues de fête colorées
-    app.hair = pick(['long', 'chignon', 'couettes', 'meche', 'afro']); app.body = pick(['mince', 'moyen']); app.glasses = null;
+    app.hair = pick(['long', 'long', 'chignon', 'couettes']); app.body = 'mince'; app.glasses = null; app.eyes = pick(['rond', 'joyeux']); app.height = 0.96 + r() * 0.06;
+    app.hairColor = pick(['#1f1611', '#4a2f1b', '#8a5a2b', '#d9a441', '#f2e2b1', '#b5452f']);
     app.bottom = r() < 0.6 ? 'short' : 'jean'; app.bottomColor = pick(['#14141c', '#ff006e', '#f4f1ea', '#8338ec']);
     return { app, extra: { top: 'debardeur', topColor: pick(['#ff006e', '#ffbe0b', '#8338ec', '#06d6a0', '#ff70a6', '#f4f1ea', '#e63946', '#3a86ff']) }, name: pick(GIRLS) };
   }
+  if (role === 'fetard') { app.hair = pick(['court', 'herisse', 'meche', 'crete']); app.body = pick(['moyen', 'costaud']); return { app, extra: { top: 'chemise', topColor: pick(['#14141c', '#f4f1ea', '#3a86ff', '#e63946']) }, name: pick(BOYS) }; }
   return { app, extra, name: pick(FIRST) };
 }
 

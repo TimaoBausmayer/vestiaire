@@ -627,6 +627,54 @@ export const TEMPLATES = {
     t.spot(vx - 0.4, vz + 1.6, { label: '🍾 Service bouteilles du carré VIP', action: 'clubbottle', r: 1.6 });
   },
 
+  // MÉGA-BOÎTE (Le Velours) : immense, 10 carrés VIP, 2 bars, grande scène, 100 fêtardes et 10 fêtards.
+  megaclub(t) {
+    const I = t.inner, W = I.x2 - I.x1, D = I.z2 - I.z1, cx = (I.x1 + I.x2) / 2, cz = (I.z1 + I.z2) / 2;
+    const COLS = ['#ff006e', '#8338ec', '#3a86ff', '#06d6a0', '#ffbe0b', '#fb5607'];
+    t.box(cx, 0.002, cz, W, 0.01, D, '#120f1c');   // sol noir de boîte de nuit
+    for (let k = 0; k < 12; k++) t.box(I.x1 + 0.15, 2.2 + (k % 3) * 1.4, I.z1 + 3 + k * (D - 6) / 11, 0.08, 0.3, 2.4, COLS[k % COLS.length], 'glow');
+    for (let k = 0; k < 12; k++) t.box(I.x2 - 0.15, 2.2 + (k % 3) * 1.4, I.z1 + 3 + k * (D - 6) / 11, 0.08, 0.3, 2.4, COLS[(k + 3) % COLS.length], 'glow');
+    // grande piste lumineuse au centre
+    const nx = 13, nz = 9, tile = 1.7;
+    for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) t.box(cx + (ix - (nx - 1) / 2) * tile, 0.01, cz + (iz - (nz - 1) / 2) * tile, tile - 0.08, 0.06, tile - 0.08, COLS[(ix * 7 + iz * 3) % COLS.length], 'glow');
+    t.spot(cx, cz, { label: '💃 Danser sur la grande piste', action: 'clubdance', r: 6 });
+    // scène du DJ au fond, écrans, enceintes géantes
+    t.box(cx, 0, I.z1 + 2, 14, 1.2, 3, '#22223b'); t.solid(cx, I.z1 + 2, 14, 3, 1.2);
+    t.box(cx, 1.2, I.z1 + 2, 4, 1, 1.2, '#14141c');
+    t.box(cx, 2.4, I.z1 + 0.6, 16, 4, 0.2, '#3a0ca3', 'glow');
+    for (const sx of [-1, 1]) { t.box(cx + sx * 9, 0, I.z1 + 1.6, 2.2, 4.5, 2, '#0b0b10'); t.solid(cx + sx * 9, I.z1 + 1.6, 2.2, 2, 4.5); }
+    t.staff(cx, I.z1 + 1.8, 0, 'dj');
+    t.spot(cx, I.z1 + 4.8, { label: '🎧 Demander un son au DJ', action: 'clubdj', r: 2 });
+    // 2 bars près de l'entrée (gauche et droite)
+    for (const sx of [-1, 1]) {
+      const bx = cx + sx * (W / 2 - 3.5), bz = I.z2 - 7;
+      t.box(bx, 0, bz, 7, 1.1, 1.2, '#3a0ca3'); t.box(bx, 1.1, bz, 7.2, 0.08, 1.4, '#d4a017'); t.box(bx, 0.4, bz - 0.62, 7, 0.06, 0.02, '#06d6a0', 'glow'); t.solid(bx, bz, 7, 1.2, 1.2);
+      t.staff(bx, bz + 1, Math.PI, 'barman');
+      t.spot(bx, bz - 1.4, { label: '🍹 Commander un cocktail (sans alcool)', action: 'clubbar', r: 2.6 });
+    }
+    // 10 carrés VIP : 5 le long de chaque mur latéral
+    const booths = [];
+    for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) {
+      const vx = cx + sx * (W / 2 - 3), vz = I.z1 + 7 + k * ((D - 18) / 4);
+      booths.push([vx, vz, sx]);
+      t.box(vx, 0.01, vz, 5, 0.12, 4.6, k % 2 ? '#5a189a' : '#7b2cbf');
+      t.furn('canape', vx + sx * 1.6, vz, sx > 0 ? -Math.PI / 2 : Math.PI / 2); t.seat(vx + sx * 1.6, vz, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 0.45); t.solid(vx + sx * 1.6, vz, 1, 2.2, 0.9);
+      t.box(vx, 0, vz, 1.2, 0.45, 0.8, '#d4a017'); t.cyl(vx, 0.45, vz, 0.12, 0.35, '#e0fbfc', 10);
+      for (const z of [vz - 2.3, vz + 2.3]) t.cyl(vx - sx * 2.5, 0, z, 0.06, 1, '#d4a017', 8);
+      t.box(vx - sx * 2.5, 0.9, vz, 0.04, 0.04, 4.6, '#c1121f');
+      t.spot(vx - sx * 1.3, vz - 1.5, { label: `🍾 Carré VIP n°${booths.length} : réserver (200 PC)`, action: 'clubvip', r: 1.4 });
+      t.spot(vx - sx * 1.3, vz + 1.5, { label: `🍾 Carré VIP n°${booths.length} : service bouteilles`, action: 'clubbottle', r: 1.4 });
+    }
+    // videurs à l'entrée
+    for (const sx of [-1, 1]) t.staff(t.door.x + sx * 2.4, I.z2 - 1.2, Math.PI, 'videur');
+    // 100 fêtardes : 55 sur la piste, 15 aux bars, 30 dans et autour des carrés VIP ; 10 fêtards
+    const r = t.rand;
+    for (let k = 0; k < 55; k++) t.staff(cx + (r() - 0.5) * (nx * tile - 1), cz + (r() - 0.5) * (nz * tile - 1), r() * 6.28, 'fetarde');
+    for (let k = 0; k < 15; k++) { const sx = k % 2 ? 1 : -1; t.staff(cx + sx * (W / 2 - 3.5) + (r() - 0.5) * 7, I.z2 - 9 - r() * 2.5, r() * 6.28, 'fetarde'); }
+    for (const [vx, vz, sx] of booths) for (let k = 0; k < 3; k++) t.staff(vx - sx * (0.4 + r() * 1.6), vz + (k - 1) * 1.4, r() * 6.28, 'fetarde');
+    for (let k = 0; k < 10; k++) t.staff(cx + (r() - 0.5) * (W - 14), cz + (r() - 0.5) * (D - 14), r() * 6.28, 'fetard');
+  },
+
   // Musée des Arts Rigolos : tableaux encadrés, statues, squelette de dinosaure, vitrines.
   museum(t) {
     const I = t.inner;

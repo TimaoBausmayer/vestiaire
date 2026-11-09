@@ -10,16 +10,19 @@ export class VipClub {
   constructor(g) {
     this.g = g;
     const b = this.b = BUILDING_BY_ID['club-vip'];
-    const d = b.door, fx = d.x - b.x > 0 ? 1 : -1;   // façade ouest
+    const d = b.door;
+    // vecteur sortant de la façade (n) et le long de la façade (t)
+    const n = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] }[b.facing], tv = [-n[1], n[0]];
     // cordon qui bloque l'entrée (collision) tant que le club n'est pas débloqué
-    this.rope = g.collision.addBox(d.x - 1.2, 0, d.z - 2.4, d.x + 0.3, 2.2, d.z + 2.4, { noCamera: true });
+    const ax = d.x - n[0] * 1.2, az = d.z - n[1] * 1.2;
+    this.rope = g.collision.addBox(Math.min(ax - tv[0] * 2.6, ax + tv[0] * 2.6) - Math.abs(n[0]) * 0.6, 0, Math.min(az - tv[1] * 2.6, az + tv[1] * 2.6) - Math.abs(n[1]) * 0.6, Math.max(ax - tv[0] * 2.6, ax + tv[0] * 2.6) + Math.abs(n[0]) * 0.6, 2.2, Math.max(az - tv[1] * 2.6, az + tv[1] * 2.6) + Math.abs(n[1]) * 0.6, { noCamera: true });
     this.bouncer = new Avatar({ ...DEFAULT_APPEARANCE, skin: '#8d5524', hair: 'chauve', body: 'costaud', top: 'sweat', topColor: '#0b0b10', bottom: 'jean', bottomColor: '#0b0b10', glasses: 'lunettes-soleil' }, {});
-    this.bouncer.root.position.set(d.x + fx * 1.5, 0, d.z + 2.6);
-    this.bouncer.root.rotation.y = fx > 0 ? Math.PI / 2 : -Math.PI / 2;
+    this.bouncer.root.position.set(d.x + n[0] * 1.2 + tv[0] * 3, 0, d.z + n[1] * 1.2 + tv[1] * 3);
+    this.bouncer.root.rotation.y = Math.atan2(n[0], n[1]);
     g.engine.scene.add(this.bouncer.root);
     g.labels.add(this.bouncer.root, h('div.wlabel', 'Le videur'), 2.3, 25);
     g.interactions.add({
-      x: d.x + fx * 1.2, z: d.z + 1.6, r: 2.6, priority: 5,
+      x: d.x + n[0] * 1.5, z: d.z + n[1] * 1.5, r: 3.2, priority: 5,
       enabled: () => g.player.zone === 'world',
       label: () => (this.open() ? '🍾 Le Velours : « Bonsoir, entrez ! »' : '🔒 Le Velours : club privé'),
       action: () => {

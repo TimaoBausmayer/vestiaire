@@ -42,7 +42,7 @@ export const ADMIN_HANDLERS = {
     const p = ctx.profile;
     if (norm(code) !== '49309117') return err('Code incorrect.');
     p.unlocks = { ...(p.unlocks || {}), vip: true };
-    return { ok: true, changed: true, data: { unlocked: 'vip', at: { x: 149, z: -515 } } };
+    return { ok: true, changed: true, data: { unlocked: 'vip', at: { x: 184, z: -929 } } };
   },
   'admin.unlock'(ctx, { code }) {
     const p = ctx.profile;
