@@ -4,8 +4,11 @@ import { PROFILS, runGain, RUN_CAP } from './athlete.js';
 import { dailySalary, salaryClaimable, careerDiv } from './career.js';
 import { SPORT_CLUBS, STARS, CLUB_WEEK, clubOf, myClub } from './clubs.js';
 import { todayKey } from './rules.js';
-import { applyNeeds } from './needs.js';
+import { applyNeeds, needsStatus, NEED_KEYS } from './needs.js';
+export const RESTORE_PRICE = { faim: 1.5, energie: 2, humeur: 1.5, hygiene: 1, sante: 2 };   // PC par point manquant
 import { taxiPrice } from './taxi.js';
+import { BUILDINGS } from './world-layout.js';
+export const CLAW = { price: 5, prizes: { 'peluche-coeur': { name: 'Peluche cœur (cadeau d\'amour +12)', coins: 0 }, 'peluche-poulet': { name: 'Peluche poulet géante (meuble)', coins: 0 }, ticket: { name: 'Capsule jackpot', coins: 120 } } };
 import { inBounds, groundHeight, WATER_LEVEL } from './world-layout.js';
 
 const err = (error) => ({ ok: false, error });
@@ -77,6 +80,47 @@ export const ATHLETE_HANDLERS = {
     this.addCoins(p, -price);
     if (ctx.pos) { ctx.pos.x = x; ctx.pos.z = z; }
     return { ok: true, changed: true, data: { price } };
+  },
+
+  // RESTAURER ses jauges en payant (faim, énergie, humeur, propreté, santé) — gratuit pour l'admin
+  'needs.restore'(ctx, { need }) {
+    const p = ctx.profile, st = needsStatus(p.needs, ctx.now);
+    const list = need === 'all' ? [...NEED_KEYS, 'sante'] : [need];
+    if (!list.every((k) => RESTORE_PRICE[k])) return err('Jauge inconnue.');
+    let cost = 0;
+    const missing = {};
+    for (const k of list) { const v = k === 'sante' ? p.body.health : st[k]; const m = Math.max(0, 100 - v); missing[k] = m; cost += m * RESTORE_PRICE[k]; }
+    cost = p.admin ? 0 : Math.ceil(cost);
+    if (cost <= 0 && !p.admin && Object.values(missing).every((m) => m < 0.5)) return err('Déjà au maximum !');
+    if (p.coins < cost) return err(`Il faut ${cost} PC.`);
+    this.addCoins(p, -cost);
+    const delta = {};
+    for (const k of list) { if (k === 'sante') p.body.health = Math.max(p.body.health, 100 - (p.body.injury ? 30 : 0)); else delta[k] = missing[k]; }
+    applyNeeds(p.needs, ctx.now, delta);
+    return { ok: true, changed: true, data: { cost, needs: needsStatus(p.needs, ctx.now) } };
+  },
+
+  // JEU DE PINCE (salles d'arcade) : une partie payée, le client joue, l'autorité valide le lot
+  'claw.start'(ctx) {
+    const p = ctx.profile;
+    if (!BUILDINGS.some((b) => b.interior === 'arcade' && this.atBuilding(ctx, b, 2))) return err('Il faut être dans une salle d\'arcade.');
+    const cost = p.admin ? 0 : CLAW.price;
+    if (p.coins < cost) return err(`Une partie coûte ${CLAW.price} PC.`);
+    this.addCoins(p, -cost);
+    ctx.session.claw = { at: ctx.now };
+    return { ok: true, changed: true, data: { cost } };
+  },
+  'claw.end'(ctx, { prize }) {
+    const p = ctx.profile, s = ctx.session.claw;
+    if (!s) return err('Aucune partie.');
+    ctx.session.claw = null;
+    const secs = (ctx.now - s.at) / 1000;
+    if (!prize || !CLAW.prizes[prize] || secs < 2.5) { applyNeeds(p.needs, ctx.now, { humeur: 2 }); return { ok: true, changed: true, data: { prize: null } }; }
+    const P = CLAW.prizes[prize];
+    if (P.coins) this.addCoins(p, P.coins); else p.inventory[prize] = (p.inventory[prize] || 0) + 1;
+    applyNeeds(p.needs, ctx.now, { humeur: 15 });
+    p.stats.claw = (p.stats.claw || 0) + 1;
+    return { ok: true, changed: true, data: { prize, name: P.name } };
   },
 
   'career.salary'(ctx) {

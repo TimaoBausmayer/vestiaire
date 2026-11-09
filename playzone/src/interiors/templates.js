@@ -553,7 +553,7 @@ export const TEMPLATES = {
     // pince à peluches
     t.box(I.x2 - 1.2, 0, I.z2 - 2, 1.2, 0.9, 1.2, '#ff3fa4'); t.box(I.x2 - 1.2, 0.9, I.z2 - 2, 1.15, 1.2, 1.15, '#cfe8ff', 'windows');
     t.solid(I.x2 - 1.2, I.z2 - 2, 1.2, 1.2, 2.1);
-    t.spot(I.x2 - 2.2, I.z2 - 2, { label: '🧸 Pince à peluches (2 PC)', action: 'claw', r: 1.4 });
+    t.spot(I.x2 - 2.2, I.z2 - 2, { label: '🧸 Pince à peluches (5 PC)', action: 'claw', r: 1.4 });
     t.staff(I.x1 + 1.5, I.z2 - 1.5, Math.PI / 2, 'gerant');
   },
 

@@ -20,6 +20,7 @@ import { cookPanel, shower, sleep, showerFx, swim } from '../life/home-life.js';
 import { slotsPanel, roulettePanel, blackjackPanel, pokerPanel, casinoDesk } from '../leisure/casino.js';
 import { casinoHall } from '../leisure/casino-hall.js';
 import { rangePanel } from '../leisure/range.js';
+import { openClaw } from '../leisure/claw.js';
 import { kartingDesk } from '../sports/karting.js';
 import { adminKiosk } from '../ui/admin.js';
 
@@ -188,11 +189,7 @@ export async function runAction(game, action, { b, spot, staff }) {
       if (r) { g.sfx(r.jackpot ? 'levelup' : 'beep'); g.labels.bubble(g.avatar.root, r.jackpot ? `JACKPOT ! +${r.coins} PC` : pick(['GAME OVER', 'Nouveau record ! (de défaites)', 'Niveau 2 atteint... puis perdu.', 'Bip bip boup !']), 2500, 'player'); }
       break;
     }
-    case 'claw': {
-      const r = await activity(g, 'claw', b);
-      if (r) { g.sfx(r.prize ? 'success' : 'fail'); g.ui.toast(r.prize ? '🐥 Vous avez attrapé la PELUCHE POULET GÉANTE ! (installez-la chez vous)' : 'La pince a lâché la peluche au dernier moment. Classique.', r.prize ? 'good' : '', 4000); }
-      break;
-    }
+    case 'claw': openClaw(g, b); break;
     case 'movie': {
       const r = await activity(g, 'movie', b);
       if (r) { g.labels.bubble(g.avatar.root, `🎬 ${pick(MOVIES)}... quel film !`, 5000, 'player'); needsToast(g, r, '🍿 Bonne séance'); }

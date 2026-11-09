@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { h } from '../ui/dom.js';
+import { RESTORE_PRICE } from '../../shared/authority-athlete.js';
+import { h, fmt } from '../ui/dom.js';
 import { needsStatus, needsEffects, NEED_KEYS } from '../../shared/needs.js';
 import { openShop } from '../ui/shop.js';
 
@@ -34,6 +35,10 @@ export class Life {
     this.el = h('div.needs',
       this.bars = NEED_KEYS.map((k) => h(`div.need.${k}`, h('span', ICONS[k]), h('div.nb', h('div')))));
     game.hud.tl.insertBefore(this.el, game.hud.tracker);
+    // cliquer sur les jauges : les remplir en payant
+    this.el.title = 'Cliquer pour remplir tes jauges (PlayCoins)';
+    this.el.style.cursor = 'pointer';
+    this.el.addEventListener('click', () => this.restorePanel());
     this.t = 0; this.talkT = 30;
     game.player.onSit = () => {};
     game.on('needs', () => this.refresh());
@@ -75,6 +80,30 @@ export class Life {
   }
 
   sit(seat) { this.game.player.sit(seat); }
+
+  // Remplir ses jauges contre des PlayCoins (une par une, ou tout d'un coup)
+  restorePanel() {
+    const g = this.game;
+    const NAMES = { faim: '🍔 Faim (manger)', energie: '⚡ Énergie (repos)', humeur: '🙂 Humeur', hygiene: '🧼 Propreté (odeur)', sante: '❤️ Santé' };
+    const m = g.ui.modal({
+      title: '🔄 Restaurer mes jauges', sub: 'Pas le temps de manger, dormir ou te doucher ? Paie et tout revient au maximum.', width: 'min(460px, 96vw)',
+      build: (body) => {
+        const st = needsStatus(g.profile.needs, g.now()), P = g.profile, admin = !!P.admin;
+        let total = 0;
+        for (const k of [...NEED_KEYS, 'sante']) {
+          const v = k === 'sante' ? P.body.health : st[k], miss = Math.max(0, 100 - v), cost = Math.ceil(miss * RESTORE_PRICE[k]);
+          total += cost;
+          body.append(h('div.list-item', h('div.grow', h('div.t', `${NAMES[k]} : ${Math.round(v)}/100`), h('div', { style: { height: '6px', background: 'rgba(255,255,255,.12)', borderRadius: '6px', marginTop: '4px' } }, h('div', { style: { width: `${v}%`, height: '100%', background: v < 25 ? '#e63946' : '#2ec4b6', borderRadius: '6px' } }))),
+            h('button.btn.small', { disabled: miss < 0.5, onclick: () => go(k) }, miss < 0.5 ? 'Plein' : admin ? 'Gratuit' : `${fmt(cost)} PC`)));
+        }
+        body.append(h('button.btn.block', { style: { marginTop: '10px' }, disabled: total <= 0, onclick: () => go('all') }, admin ? '✨ Tout remplir (gratuit)' : `✨ Tout remplir : ${fmt(total)} PC`));
+      },
+    });
+    const go = async (need) => {
+      try { const r = await g.net.request('needs.restore', { need }); g.emit('needs', r.needs); g.sfx('cash'); g.ui.toast(`✨ Jauges remplies ! ${r.cost ? `-${fmt(r.cost)} PC` : ''}`, 'good', 2500); m.refresh(); }
+      catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+    };
+  }
 
   refresh() {
     const p = this.game.profile;
