@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { phoneOf } from '../../shared/phones.js';
 import { h, clear, fmt } from './dom.js';
 import { drawMapBase, drawMarkers, drawRoute, MAP_PX } from './hud.js';
 import { WORLD_BOUNDS, SECRETS, POI } from '../../shared/world-layout.js';
@@ -73,6 +74,19 @@ export class Phone {
   get isOpen() { return !!this.el; }
   toggle() { if (this.el) this.close(); else this.open(); }
 
+  // apparence selon le téléphone possédé : taille, coins, couleur du cadre, encoche / île / poinçon, rétro
+  restyle() {
+    if (!this.el) return;
+    const ph = phoneOf(this.game.profile), P = ph.P;
+    this.el.style.setProperty('--ph-frame', ph.hex);
+    this.el.style.width = `min(${P.width}px, 96vw)`;
+    this.el.style.borderRadius = `${P.radius}px`;
+    this.el.dataset.screen = P.screen;
+    this.el.classList.toggle('retro', !!P.retro);
+    this.el.classList.toggle('fold', !!P.fold);
+    if (this.mesh) this.mesh.material.color.set(ph.hex);
+  }
+
   open(app = null) {
     const g = this.game;
     if (!this.el) {
@@ -82,6 +96,7 @@ export class Phone {
       this.modal = { el: this.el, blocking: false, close: () => this.close() };
       g.ui.stack.push(this.modal);
       g.ui.root.append(this.el);
+      this.restyle();
       g.sfx('click');
       // le personnage sort son téléphone
       if (!this.mesh) {
@@ -114,7 +129,7 @@ export class Phone {
     // barre d'état façon smartphone : heure, Dynamic Island, réseau, wifi, batterie
     const online = g.net.mode !== 'solo';
     const bat = Math.max(8, Math.round(100 - ((g.now() / 60000) % 90)));
-    this.status.append(h('span.ps-time', formatHour(g.world.dayNight.hour)), h('span.ps-island'),
+    this.status.append(h('span.ps-time', formatHour(g.world.dayNight.hour)), h(`span.ps-island.${phoneOf(g.profile).P.screen}`),
       h('span.ps-right', h('span.ps-bars', [1, 2, 3, 4].map((k) => h(`i${online || k < 3 ? '.on' : ''}`))), h('span.ps-wifi', online ? '📶' : '✈️'), h('span.ps-bat', h('i', { style: { width: `${bat}%` } }), h('b', String(bat)))));
     clear(this.screen);
     this.el.classList.toggle('home', !this.app);

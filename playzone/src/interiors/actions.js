@@ -1,4 +1,5 @@
 import { h } from '../ui/dom.js';
+import { openPhoneStore } from '../ui/phone-store.js';
 import { openShop, openWardrobe, openBasket } from '../ui/shop.js';
 import { STAFF_LINES } from './templates.js';
 import { chatMode } from '../characters/chat-ui.js';
@@ -47,6 +48,11 @@ export async function runAction(game, action, { b, spot, staff }) {
       const s = b.shop;
       if (s === 'cars-new' || s === 'cars-luxe') dealerPanel(g, b, () => openShop(g, s, b));
       else if (s === 'auto-ecole') policeDesk(g, true);
+      else if (s === 'electronics' || s === 'hightech') g.ui.dialog({ name: 'Vendeur·euse', role: b.name, text: 'Bonjour ! Un nouveau téléphone, ou autre chose ?', choices: [
+        { label: '📱 Rayon téléphones (aperçu 3D)', action: (m) => { m.close(); openPhoneStore(g, b); } },
+        { label: '🛒 Les autres produits', action: (m) => { m.close(); openShop(g, s, b); } },
+        { label: 'Au revoir', ghost: true, action: (m) => m.close() },
+      ] });
       else if (s === 'foot-club') g.races?.clubDesk(b);
       else if (s === 'athle-club') g.races?.desk('course');
       else if (s === 'tennis') g.tennis?.desk(b);

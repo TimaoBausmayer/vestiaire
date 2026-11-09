@@ -1,4 +1,5 @@
 import { h } from './dom.js';
+import { phoneOf } from '../../shared/phones.js';
 
 // APPAREIL PHOTO du téléphone : viseur plein écran, mode selfie (la caméra passe devant le personnage,
 // qui prend la pose), filtres, flash. La photo (JPEG ~260 px) peut être publiée sur PlayGram ou gardée
@@ -61,7 +62,8 @@ export function openCamera(g, onDone) {
   const shoot = () => {
     ui.style.visibility = 'hidden';
     setTimeout(() => {
-      const photo = capture(g, FILTERS[fi].css);
+      const cam = phoneOf(g.profile).P.cam;   // le téléphone change la qualité de la photo
+      const photo = capture(g, cam < 1 ? `${FILTERS[fi].css === 'none' ? '' : FILTERS[fi].css} grayscale(0.6) contrast(1.3)`.trim() : FILTERS[fi].css, Math.round(cam < 1 ? 110 : Math.min(340, 220 + cam * 50)));
       ui.style.visibility = '';
       g.sfx?.('pop');
       const flash = h('div.cam-flash'); document.body.append(flash); setTimeout(() => flash.remove(), 350);
