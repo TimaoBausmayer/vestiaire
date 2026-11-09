@@ -657,9 +657,10 @@ export const TEMPLATES = {
     for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) {
       const vx = cx + sx * (W / 2 - 3), vz = I.z1 + 7 + k * ((D - 18) / 4);
       booths.push([vx, vz, sx]);
-      t.box(vx, 0.01, vz, 5, 0.12, 4.6, k % 2 ? '#5a189a' : '#7b2cbf');
+      t.box(vx, 0.01, vz, 5, 0.25, 4.6, '#1b1b24'); t.box(vx, 0.25, vz, 5.04, 0.04, 4.64, k % 2 ? '#bc00ff' : '#00e5ff', 'glow');   // estrade avec liseré LED
+      t.box(vx - sx * 2.5, 0.25, vz, 0.05, 1, 4.6, '#bfe9ff', 'windows');   // balustrade en verre
       t.furn('canape', vx + sx * 1.6, vz, sx > 0 ? -Math.PI / 2 : Math.PI / 2); t.seat(vx + sx * 1.6, vz, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 0.45); t.solid(vx + sx * 1.6, vz, 1, 2.2, 0.9);
-      t.box(vx, 0, vz, 1.2, 0.45, 0.8, '#d4a017'); t.cyl(vx, 0.45, vz, 0.12, 0.35, '#e0fbfc', 10);
+      t.box(vx, 0.25, vz, 1.2, 0.45, 0.8, '#f4f1ea'); t.box(vx, 0.7, vz, 1.24, 0.03, 0.84, '#00e5ff', 'glow'); t.cyl(vx, 0.73, vz, 0.12, 0.35, '#e0fbfc', 10);
       for (const z of [vz - 2.3, vz + 2.3]) t.cyl(vx - sx * 2.5, 0, z, 0.06, 1, '#d4a017', 8);
       t.box(vx - sx * 2.5, 0.9, vz, 0.04, 0.04, 4.6, '#c1121f');
       t.spot(vx - sx * 1.3, vz - 1.5, { label: `🍾 Carré VIP n°${booths.length} : réserver (200 PC)`, action: 'clubvip', r: 1.4 });
@@ -667,12 +668,13 @@ export const TEMPLATES = {
     }
     // videurs à l'entrée
     for (const sx of [-1, 1]) t.staff(t.door.x + sx * 2.4, I.z2 - 1.2, Math.PI, 'videur');
-    // 100 fêtardes : 55 sur la piste, 15 aux bars, 30 dans et autour des carrés VIP ; 10 fêtards
+    // 150 fêtardes (piste, entrée, bars, carrés VIP) et 15 fêtards : la boîte est bondée
     const r = t.rand;
-    for (let k = 0; k < 55; k++) t.staff(cx + (r() - 0.5) * (nx * tile - 1), cz + (r() - 0.5) * (nz * tile - 1), r() * 6.28, 'fetarde');
+    for (let k = 0; k < 80; k++) t.staff(cx + (r() - 0.5) * (nx * tile - 1), cz + (r() - 0.5) * (nz * tile - 1), r() * 6.28, 'fetarde');
+    for (let k = 0; k < 25; k++) t.staff(cx + (r() - 0.5) * (W - 16), I.z2 - 13 - r() * 6, r() * 6.28, 'fetarde');   // la foule près de l'entrée
     for (let k = 0; k < 15; k++) { const sx = k % 2 ? 1 : -1; t.staff(cx + sx * (W / 2 - 3.5) + (r() - 0.5) * 7, I.z2 - 9 - r() * 2.5, r() * 6.28, 'fetarde'); }
     for (const [vx, vz, sx] of booths) for (let k = 0; k < 3; k++) t.staff(vx - sx * (0.4 + r() * 1.6), vz + (k - 1) * 1.4, r() * 6.28, 'fetarde');
-    for (let k = 0; k < 10; k++) t.staff(cx + (r() - 0.5) * (W - 14), cz + (r() - 0.5) * (D - 14), r() * 6.28, 'fetard');
+    for (let k = 0; k < 15; k++) t.staff(cx + (r() - 0.5) * (W - 14), cz + (r() - 0.5) * (D - 14), r() * 6.28, 'fetard');
   },
 
   // Musée des Arts Rigolos : tableaux encadrés, statues, squelette de dinosaure, vitrines.

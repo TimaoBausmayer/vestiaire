@@ -258,7 +258,7 @@ export class Interiors {
       label: sp.label, action: () => runAction(g, sp.action, { b, spot: sp, interior: this.loaded.get(b.id) }),
     }));
     // le personnel est aussi bavard
-    for (const p of people) inters.push(g.interactions.add({ x: p.x, z: p.z, r: 1.7, priority: 0, level: (b.floors || 1) >= 3 ? 0 : undefined, label: `💬 Parler : ${p.name}`, action: () => runAction(g, 'talk', { b, staff: p }) }));
+    for (const p of people) { p.inter = g.interactions.add({ x: p.x, z: p.z, r: 1.7, priority: 0, level: (b.floors || 1) >= 3 ? 0 : undefined, label: `💬 Parler : ${p.name}`, action: () => runAction(g, 'talk', { b, staff: p }) }); inters.push(p.inter); }
     const it = { b, group, colliders, inters, people, objects };
     this.loaded.set(b.id, it);
     return it;
@@ -307,6 +307,13 @@ export class Interiors {
     // personnel : regarde le joueur proche, salue
     for (const it of this.loaded.values()) {
       for (const p of it.people) {
+        // déplacement (une fêtarde qui vient vers toi ou à ta table)
+        if (p.walkTo) {
+          const wx = p.walkTo.x - p.x, wz = p.walkTo.z - p.z, wl = Math.hypot(wx, wz), st = Math.min(wl, dt * 2.4);
+          if (wl > 0.15) { p.x += wx / wl * st; p.z += wz / wl * st; p.av.root.position.x = p.x; p.av.root.position.z = p.z; if (p.inter) { p.inter.x = p.x; p.inter.z = p.z; } p.av.root.rotation.y = Math.atan2(wx, wz); p.av.update(dt, { speed: 1.8, grounded: true }); continue; }
+          const done = p.walkTo.done; p.walkTo = null; p.baseYaw = Math.atan2(P.x - p.x, P.z - p.z); done?.(p);
+        }
+        if (p.pairT > 0) { p.pairT -= dt; p.av.root.rotation.y = Math.atan2(P.x - p.x, P.z - p.z); p.av.update(dt, { speed: 0, grounded: true, pose: 'dance', dance: 1 }); continue; }
         const d = Math.hypot(p.x - P.x, p.z - P.z);
         const want = d < 6 ? Math.atan2(P.x - p.x, P.z - p.z) : p.baseYaw;
         let dy = want - p.av.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));

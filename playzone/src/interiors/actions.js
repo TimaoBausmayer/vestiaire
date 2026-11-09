@@ -260,7 +260,25 @@ let g0 = null;
 function partyGirl(g, b, p) {
   g0 = g;
   const n = girlNpc(b, p);
-  const build = () => [...loveChoices(g, n, build), { label: 'Au revoir', ghost: true, action: (m) => m.close() }];
+  const id = `club:${b.id}:${p.name}`;
+  const girlDo = async (kind, m) => {
+    try {
+      const r = await g.net.request('club.girl', { id, kind });
+      if (r.needs) g.emit('needs', r.needs);
+      if (kind === 'dance') {
+        // vous dansez face à face quelques secondes
+        p.pairT = 8; g.player.setPose('dance'); g.clubShow?.boost(8, 'tout le monde vous regarde danser !');
+        g.labels.bubble(p.av.root, pick(['💃 Trop bien !', '😍 Tu danses trop bien', '🎶 J\'adore ce son !']), 3000);
+        m.show(`💃 Vous dansez ensemble... ${loveEmoji(r.aff)} Affection : ${r.aff}/100`, build());
+      } else {
+        g.clubShow?.boost(5, 'ton selfie fait le buzz !');
+        g.fx?.emit?.({ x: g.player.pos.x, y: 1.8, z: g.player.pos.z, n: 12, colors: ['#ffffff'], speed: 2, gravity: 0, life: 0.3, size: 0.3 });
+        g.sfx('pop');
+        m.show(`🤳 Clic ! Super photo avec ${p.name} (+1 réputation). ${loveEmoji(r.aff)} Affection : ${r.aff}/100`, build());
+      }
+    } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+  };
+  const build = () => [{ label: '💃 Danser avec elle', action: (m) => girlDo('dance', m) }, { label: '🤳 Selfie ensemble', action: (m) => girlDo('selfie', m) }, ...loveChoices(g, n, build), { label: 'Au revoir', ghost: true, action: (m) => m.close() }];
   const line = loveLine(g, n);
   g.ui.dialog({ name: p.name, role: line ? `Fêtarde · ${line}` : `Fêtarde · ${b.name}`, text: pick(GIRL_LINES), choices: build() });
 }
@@ -282,6 +300,7 @@ function bottleService(g, b) {
             m.close(); g.sfx('levelup');
             g.fx?.confetti?.(g.player.pos, id === 'jeroboam' ? 120 : 50);
             for (const q of chosen) g.labels.bubble(q.av.root, pick(['😍 Waouh !', '🥂 Santé !', '💕 Trop classe !', '✨ Merci !']), 2500);
+            g.clubShow?.gather(chosen); g.clubShow?.boost({ bulles: 20, magnum: 40, jeroboam: 80 }[id] || 20, 'toute la boîte parle de ta table !');
             const list = chosen.map((q) => ({ q, a: r.affs[`club:${b.id}:${q.name}`] || 0 }));
             g.ui.dialog({ name: '🍾 Carré VIP', role: b.name, text: `${B.name} ! ${list.length ? `${list.map((x) => x.q.name).join(', ')} te rejoignent à ta table.` : 'Personne autour... va chercher du monde sur la piste !'}${r.cost ? ` -${fmt(r.cost)} PC.` : ''}`,
               choices: [...list.map((x) => ({ label: `💬 Parler à ${x.q.name} (${loveEmoji(x.a)} ${x.a}/100)`, action: (mm) => { mm.close(); partyGirl(g, b, x.q); } })), { label: 'OK', ghost: true, action: (mm) => mm.close() }] });

@@ -51,6 +51,7 @@ import { Surf } from './sports/surf.js';
 import { Arenas } from './leisure/arena.js';
 import { Padel } from './sports/padel.js';
 import { VipClub } from './leisure/vip-club.js';
+import { ClubShow } from './leisure/club-show.js';
 import { Sailing } from './sports/sailing.js';
 import { TerraceDiners } from './world/terraces.js';
 import { Sea } from './world/sealife.js';
@@ -209,6 +210,7 @@ export class Game extends Emitter {
     this.arenas = this.addSystem(new Arenas(this));
     this.padel = this.addSystem(new Padel(this));
     this.vipClub = this.addSystem(new VipClub(this));
+    this.clubShow = this.addSystem(new ClubShow(this));
     this.sailing = this.addSystem(new Sailing(this));   // voile et kitesurf (Cap Venteux)
     this.terraces = this.addSystem(new TerraceDiners(this));   // clients des terrasses de restaurants
     this.floors = this.addSystem(new Floors(this));   // étages des immeubles et toits-terrasses

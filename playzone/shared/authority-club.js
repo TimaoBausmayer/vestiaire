@@ -63,4 +63,20 @@ export const CLUB_HANDLERS = {
     p.rep = (p.rep || 0) + (size === 'jeroboam' ? 5 : 1);
     return { ok: true, changed: true, data: { cost, affs, bottle: B.name } };
   },
+  // avec une fêtarde : danser ensemble, selfie, ou elle vient t'aborder (popularité)
+  'club.girl'(ctx, { id, kind }) {
+    const p = ctx.profile, G = { dance: { aff: 6, cd: 20_000, humeur: 12 }, selfie: { aff: 3, cd: 30_000, humeur: 6 }, approach: { aff: 4, cd: 15_000, humeur: 8 } }[kind];
+    if (!G) return err('Action inconnue.');
+    id = String(id || '').slice(0, 60);
+    if (!id.startsWith('club:')) return err('Personne.');
+    if (!atClub(this, ctx)) return err('Il faut être dans une boîte de nuit.');
+    const key = `club:${kind}`, wait = (p.cooldowns[key] || 0) + G.cd - ctx.now;
+    if (wait > 0 && !p.admin) return err(`Encore ${Math.ceil(wait / 1000)} s.`);
+    p.cooldowns[key] = ctx.now;
+    p.love = { aff: {}, partner: null, married: false, since: 0, dates: 0, cd: {}, ...(p.love || {}) };
+    p.love.aff[id] = Math.min(100, (p.love.aff[id] || 0) + G.aff);
+    applyNeeds(p.needs, ctx.now, { humeur: G.humeur, ...(kind === 'dance' ? { energie: -3 } : {}) });
+    if (kind === 'selfie') p.rep = (p.rep || 0) + 1;
+    return { ok: true, changed: true, data: { aff: p.love.aff[id], needs: needsStatus(p.needs, ctx.now) } };
+  },
 };

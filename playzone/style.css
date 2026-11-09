@@ -27,7 +27,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 #ui > * { pointer-events: auto; }
 #ui .passthrough { pointer-events: none; }
 /* calques d'affichage : ils ne doivent jamais intercepter les clics destinés au jeu */
-#ui > .labels, #ui > .toasts, #ui > .notes, #ui > .rep-mini, #ui > .ar-cross, #ui > .ar-hud, #ui > .floater, #ui > .crosshair, #ui > .countdown, #ui > .mg-hud, #ui > .compass,
+#ui > .labels, #ui > .toasts, #ui > .notes, #ui > .rep-mini, #ui > .ar-cross, #ui > .ar-hud, #ui > .club-pop, #ui > .floater, #ui > .crosshair, #ui > .countdown, #ui > .mg-hud, #ui > .compass,
 #ui > .dash, #ui > .hud-zone, #ui > .touch, #ui > .tracker, #ui > .hud-tl, #ui > .event-banner { pointer-events: none; }
 #ui .tbtns, #ui .tracker > div, #ui .hud-tl > *, #ui .toast button { pointer-events: auto; }
 button { font-family: inherit; }
@@ -647,3 +647,4 @@ body.camera-mode #ui > .rep-mini { visibility: hidden !important; }
 .ar-hud b { font-size: 17px; }
 .ar-hud small { font-size: 12px; opacity: .95; }
 .ar-feed { font-size: 11px; opacity: .8; }
+.club-pop { position: absolute; top: calc(70px + var(--safe-t, 0px)); left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; padding: 5px 14px; border-radius: 14px; background: linear-gradient(90deg, rgba(188, 0, 255, .55), rgba(0, 229, 255, .45)); color: #fff; font-size: 13px; pointer-events: none; z-index: 4; box-shadow: 0 0 18px rgba(188, 0, 255, .5); }

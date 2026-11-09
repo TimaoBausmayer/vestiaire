@@ -21,8 +21,8 @@ export class Nightclub {
   }
 
   async bar() { const r = await this.req('cocktail'); if (r) { this.g.sfx('cash'); this.g.ui.toast(`🍹 ${r.drink} ! Délicieux (et sans alcool). ${r.cost ? `-${r.cost} PC` : ''}`, 'good', 4000); } }
-  async vip() { const r = await this.req('vip'); if (r) { this.g.sfx('levelup'); this.g.ui.toast(`🍾 Carré VIP réservé pour 10 min ! Commande des bouteilles à ta table : les filles viendront te rejoindre. ${r.cost ? `-${fmt(r.cost)} PC` : ''}`, 'good', 6000); } }
-  async dj() { const r = await this.req('dj'); if (r) this.g.ui.toast(`🎧 Le DJ lance ${pick(SONGS)} ! La piste s'enflamme 🔥`, 'good', 4000); }
+  async vip() { const r = await this.req('vip'); if (r) { this.g.clubShow?.boost(15, 'carré VIP !'); this.g.sfx('levelup'); this.g.ui.toast(`🍾 Carré VIP réservé pour 10 min ! Commande des bouteilles à ta table : les filles viendront te rejoindre. ${r.cost ? `-${fmt(r.cost)} PC` : ''}`, 'good', 6000); } }
+  async dj() { const r = await this.req('dj'); if (r) this.g.clubShow?.boost(4); if (r) this.g.ui.toast(`🎧 Le DJ lance ${pick(SONGS)} ! La piste s'enflamme 🔥`, 'good', 4000); }
 
   // ------------------------------------------------------------------ danse en rythme
   dance() {
@@ -61,6 +61,7 @@ export class Nightclub {
     const r = await this.req('dance', { score });
     if (!r) return;
     g.sfx(r.star ? 'levelup' : 'success');
+    g.clubShow?.boost(r.score * 1.6, 'tu as enflammé la piste !');
     g.ui.toast(r.star ? `🌟 Roi / reine de la piste ! Score ${r.score} (record ${r.best}) · +1 réputation` : `💃 Belle danse ! Score ${r.score} (record ${r.best})`, 'good', 4500);
   }
 
@@ -69,12 +70,7 @@ export class Nightclub {
     const g = this.g;
     this.inClub = b;
     g.sound.music(true);
-    const grp = this.fx = new THREE.Group();
-    const cols = ['#ff006e', '#3a86ff', '#06d6a0', '#ffbe0b'];
-    this.lights = cols.map((c) => { const l = new THREE.PointLight(c, 6, 14, 1.6); grp.add(l); return l; });
-    this.ball = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 1), new THREE.MeshStandardMaterial({ color: '#e9ecef', metalness: 1, roughness: 0.15, flatShading: true }));
-    grp.add(this.ball);
-    g.engine.scene.add(grp);
+    // le show lumière (lasers, écran LED, lyres, sol qui pulse...) est géré par ClubShow
     g.ui.toast(`🪩 Bienvenue au ${b.name} ! Danse sur la piste, cocktails au bar, carré VIP à droite.`, 'good', 4500);
   }
 
@@ -91,11 +87,6 @@ export class Nightclub {
     const isClub = b?.interior === 'club' || b?.interior === 'megaclub' ? b : null;
     if (isClub && this.inClub !== isClub) { if (this.inClub) this.leave(); this.enter(isClub); }
     else if (!isClub && this.inClub) this.leave();
-    if (this.inClub && this.fx) {
-      const bb = this.inClub;
-      this.ball.position.set(bb.x, (bb.h || 8) * 0.7, bb.z); this.ball.rotation.y = t * 0.8;
-      this.lights.forEach((l, i) => l.position.set(bb.x + Math.cos(t * (0.9 + i * 0.3) + i * 1.6) * 5, 3.2, bb.z + Math.sin(t * (0.7 + i * 0.2) + i) * 4));
-    }
     const d = this.d;
     if (d) {
       d.t += dt;
