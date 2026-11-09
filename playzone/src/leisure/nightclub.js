@@ -21,7 +21,7 @@ export class Nightclub {
   }
 
   async bar() { const r = await this.req('cocktail'); if (r) { this.g.sfx('cash'); this.g.ui.toast(`🍹 ${r.drink} ! Délicieux (et sans alcool). ${r.cost ? `-${r.cost} PC` : ''}`, 'good', 4000); } }
-  async vip() { const r = await this.req('vip'); if (r) { this.g.sfx('levelup'); this.g.ui.toast(`🍾 Carré VIP réservé ! Tout le monde te regarde... 🙂 +30 humeur, +2 réputation. ${r.cost ? `-${fmt(r.cost)} PC` : ''}`, 'good', 5000); } }
+  async vip() { const r = await this.req('vip'); if (r) { this.g.sfx('levelup'); this.g.ui.toast(`🍾 Carré VIP réservé pour 10 min ! Commande des bouteilles à ta table : les filles viendront te rejoindre. ${r.cost ? `-${fmt(r.cost)} PC` : ''}`, 'good', 6000); } }
   async dj() { const r = await this.req('dj'); if (r) this.g.ui.toast(`🎧 Le DJ lance ${pick(SONGS)} ! La piste s'enflamme 🔥`, 'good', 4000); }
 
   // ------------------------------------------------------------------ danse en rythme

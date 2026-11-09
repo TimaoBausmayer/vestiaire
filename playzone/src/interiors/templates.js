@@ -620,6 +620,11 @@ export const TEMPLATES = {
     // videur à l'entrée et danseurs sur la piste
     t.staff(t.door.x + 2.2, I.z2 - 1.2, Math.PI, 'videur');
     for (const [dx, dz] of [[-2.4, -1], [2.2, 0.6], [-0.8, 1.8], [1.2, -1.8]]) t.staff(dx, cz + dz, Math.random() * 6.28, 'danseur');
+    // beaucoup de fêtardes : sur la piste, au bar et autour du carré VIP (encore plus au Velours)
+    const girls = [[-3.4, 0.2], [3.3, -0.8], [0.4, 2.6], [-1.6, -2.6], [2.6, 2.2], [-3, 2.4], [bx + 1.9 - 0, 3.2], [bx + 1.9, -2.4], [vx - 2.6, vz - 1], [vx - 2.6, vz + 1.2]].map(([x, z], k) => (k < 6 ? [x, cz + z] : [x, k < 8 ? cz + z : z]));
+    if (t.b?.id === 'club-vip') girls.push([-4.2, cz - 1.6], [4.1, cz + 1.4], [1.8, cz - 3], [-0.2, cz - 3.2], [bx + 1.9, cz + 0.4], [vx - 2.6, vz + 2.6]);
+    for (const [x, z] of girls) t.staff(x, z, Math.random() * 6.28, 'fetarde');
+    t.spot(vx - 0.4, vz + 1.6, { label: '🍾 Service bouteilles du carré VIP', action: 'clubbottle', r: 1.6 });
   },
 
   // Musée des Arts Rigolos : tableaux encadrés, statues, squelette de dinosaure, vitrines.

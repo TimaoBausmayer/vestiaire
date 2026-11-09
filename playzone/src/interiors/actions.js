@@ -1,4 +1,7 @@
-import { h } from '../ui/dom.js';
+import { h, fmt } from '../ui/dom.js';
+import { loveChoices, loveLine } from '../characters/romance-ui.js';
+import { loveEmoji } from '../../shared/romance.js';
+import { BOTTLES } from '../../shared/authority-club.js';
 import { openPhoneStore } from '../ui/phone-store.js';
 import { openShop, openWardrobe, openBasket } from '../ui/shop.js';
 import { STAFF_LINES } from './templates.js';
@@ -103,6 +106,7 @@ export async function runAction(game, action, { b, spot, staff }) {
       break;
     }
     case 'talk': {
+      if (staff?.role === 'fetarde') { partyGirl(g, b, staff); break; }
       const who = staff || (g.interiors.loaded.get(b.id)?.people[0]);
       const lines = STAFF_LINES[who?.role] || ['Bonjour ! Belle journée, n\'est-ce pas ?'];
       const chat = { id: `${b.id}:${who?.name}`, name: who?.name || 'Quelqu\'un', role: ROLE_LABEL[who?.role] || b.name, root: who?.av?.root };
@@ -148,6 +152,7 @@ export async function runAction(game, action, { b, spot, staff }) {
     case 'clubdance': g.nightclub.dance(); break;
     case 'clubbar': g.nightclub.bar(); break;
     case 'clubvip': g.nightclub.vip(); break;
+    case 'clubbottle': bottleService(g, b); break;
     case 'clubdj': g.nightclub.dj(); break;
     case 'musee': {
       try {
@@ -246,6 +251,44 @@ function carDialog(g, model) {
     } }] : []),
     { label: 'Fermer', ghost: true, action: (m) => m.close() },
   ] });
+}
+
+// ---------------------------------------------------------------- boîtes de nuit : fêtardes et bouteilles
+const GIRL_LINES = ['Salut toi ! Tu danses ?', 'Il est trop bien ce son !', 'C\'est la première fois que je te vois ici...', 'J\'adore cette boîte !', 'Tu viens souvent ?', 'Le DJ est en feu ce soir 🔥'];
+const girlNpc = (b, p) => ({ def: { id: `club:${b.id}:${p.name}`, name: p.name, role: 'Fêtarde' }, pos: { x: p.x, z: p.z }, command: (c) => { if (c === 'happy' || c === 'hug') g0?.labels.bubble(p.av.root, pick(['😍', '🥰', '💕', '😊']), 1500); } });
+let g0 = null;
+function partyGirl(g, b, p) {
+  g0 = g;
+  const n = girlNpc(b, p);
+  const build = () => [...loveChoices(g, n, build), { label: 'Au revoir', ghost: true, action: (m) => m.close() }];
+  const line = loveLine(g, n);
+  g.ui.dialog({ name: p.name, role: line ? `Fêtarde · ${line}` : `Fêtarde · ${b.name}`, text: pick(GIRL_LINES), choices: build() });
+}
+// Service bouteilles (carré VIP réservé) : les fêtardes les plus proches te rejoignent et craquent pour toi
+function bottleService(g, b) {
+  g0 = g;
+  const P = g.profile;
+  if (!(P.vipUntil > g.now()) && !P.admin) { g.ui.toast('🍾 Réserve d\'abord le carré VIP (200 PC), puis commande une bouteille ici.', 'bad', 3500); return; }
+  const it = g.interiors.loaded.get(b.id), pos = g.player.pos;
+  const girls = (it?.people || []).filter((q) => q.role === 'fetarde').sort((x, y) => Math.hypot(x.x - pos.x, x.z - pos.z) - Math.hypot(y.x - pos.x, y.z - pos.z));
+  const m = g.ui.modal({
+    title: '🍾 Service bouteilles · carré VIP', sub: 'Les bouteilles (sans alcool, comme tout le bar) arrivent avec un show lumière : les filles de la soirée viennent à ta table !', width: 'min(520px, 96vw)',
+    build: (body) => {
+      for (const [id, B] of Object.entries(BOTTLES)) body.append(h('div.list-item', h('span', { style: { fontSize: '26px' } }, B.emoji), h('div.grow', h('div.t', B.name), h('div.d', `${B.girls} fille(s) te rejoignent · +${B.aff} affection chacune`)),
+        h('button.btn.small', { onclick: async () => {
+          const chosen = girls.slice(0, B.girls);
+          try {
+            const r = await g.net.request('club.bottle', { size: id, girls: chosen.map((q) => `club:${b.id}:${q.name}`) });
+            m.close(); g.sfx('levelup');
+            g.fx?.confetti?.(g.player.pos, id === 'jeroboam' ? 120 : 50);
+            for (const q of chosen) g.labels.bubble(q.av.root, pick(['😍 Waouh !', '🥂 Santé !', '💕 Trop classe !', '✨ Merci !']), 2500);
+            const list = chosen.map((q) => ({ q, a: r.affs[`club:${b.id}:${q.name}`] || 0 }));
+            g.ui.dialog({ name: '🍾 Carré VIP', role: b.name, text: `${B.name} ! ${list.length ? `${list.map((x) => x.q.name).join(', ')} te rejoignent à ta table.` : 'Personne autour... va chercher du monde sur la piste !'}${r.cost ? ` -${fmt(r.cost)} PC.` : ''}`,
+              choices: [...list.map((x) => ({ label: `💬 Parler à ${x.q.name} (${loveEmoji(x.a)} ${x.a}/100)`, action: (mm) => { mm.close(); partyGirl(g, b, x.q); } })), { label: 'OK', ghost: true, action: (mm) => mm.close() }] });
+          } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
+        } }, P.admin ? 'Gratuit' : `${fmt(B.price)} PC`)));
+    },
+  });
 }
 
 export { h };
