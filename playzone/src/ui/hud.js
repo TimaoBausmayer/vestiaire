@@ -9,6 +9,7 @@ import { BUILDINGS, ROADS, POND, LAKE, MARINA, CAP_PORT, zoneAt, WORLD_BOUNDS, P
 import { levelProgress } from '../../shared/rules.js';
 import { PITCH } from '../../shared/sports.js';
 import { SKI, ROUTES } from '../../shared/courses.js';
+import { CIRCUITS } from '../../shared/circuits.js';
 import { formatHour } from '../world/daynight.js';
 
 // Affichage tête haute : argent, niveau, réputation, zone, horloge, mini-carte, missions, boussole.
@@ -53,6 +54,7 @@ export function drawMapBase(px = 2) {
   rect(PITCH.x - PITCH.w / 2, PITCH.z - PITCH.d / 2, PITCH.x + PITCH.w / 2, PITCH.z + PITCH.d / 2, '#3f9a3a'); // stade
   rect(SKI.x1, SKI.top, SKI.x2, SKI.bottom, '#f4f8fb'); rect(SKI.x1 - 26, SKI.top, SKI.x1, SKI.bottom, '#c9d2d8'); rect(SKI.x2, SKI.top, SKI.x2 + 26, SKI.bottom, '#c9d2d8'); // station de ski
   g.strokeStyle = '#3a3d42'; g.lineWidth = 13 * px; g.beginPath(); ROUTES.f1.pts.forEach((p, i) => (i ? g.lineTo(X(p.x), Y(p.z)) : g.moveTo(X(p.x), Y(p.z)))); g.closePath(); g.stroke(); // circuit F1
+  g.lineWidth = 16 * px; for (const C of Object.values(CIRCUITS)) { g.beginPath(); C.pts.forEach((p, i) => (i ? g.lineTo(X(p.x), Y(p.z)) : g.moveTo(X(p.x), Y(p.z)))); g.closePath(); g.stroke(); } // grands circuits
   g.fillStyle = '#2e9fd6'; g.beginPath(); g.arc(X(POND.x), Y(POND.z), POND.r * px, 0, 7); g.fill();
   rect(-24, -24, 24, 24, '#e8d5b5');                       // place
   g.fillStyle = '#e9d8a6'; g.beginPath(); g.arc(X(CITY_POI.arena.x), Y(CITY_POI.arena.z), CITY_POI.arena.r * px, 0, 7); g.fill();

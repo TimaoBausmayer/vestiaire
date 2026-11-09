@@ -4,6 +4,7 @@
 // (compétence du sport + endurance du corps), et plus les adversaires PNJ sont relevés.
 import { PITCH } from './sports.js';
 import { mulberry32 } from './rng.js';
+import { CIRCUITS } from './circuits.js';
 
 // ------------------------------------------------------------------------------ tracés (boucles fermées)
 function roundedRect(cx, cz, hx, hz, r, n = 6) {
@@ -25,6 +26,8 @@ export const ROUTES = {
   sprint: { name: 'Ligne droite du 100 m', width: 8, open: true, pts: [{ x: 395, z: -600 }, { x: 495, z: -600 }] },
   f1: { name: 'Circuit de l\'Académie F1', width: 13, pts: [{ x: 640, z: -748 }, { x: 790, z: -748 }, { x: 806, z: -762 }, { x: 806, z: -792 }, { x: 790, z: -806 }, { x: 735, z: -812 }, { x: 722, z: -826 }, { x: 735, z: -840 }, { x: 790, z: -846 }, { x: 806, z: -862 }, { x: 806, z: -888 }, { x: 790, z: -902 }, { x: 640, z: -902 }, { x: 622, z: -886 }, { x: 622, z: -764 }] },
 };
+// les trois grands circuits de F1
+for (const C of Object.values(CIRCUITS)) ROUTES[C.id] = { name: C.name, width: C.width, pts: C.pts, big: true };
 // longueurs cumulées
 for (const r of Object.values(ROUTES)) {
   r.cum = [0];
@@ -60,7 +63,7 @@ export function distToRoute(r, x, z) {
   }
   return best;
 }
-export const GATE_R = { sprint: 6, piste: 7, hauts: 12, f1: 16, bouees: 14, vtt: 11, cols: 14 };
+export const GATE_R = { dunes: 26, collines: 26, nord: 26, sprint: 6, piste: 7, hauts: 12, f1: 16, bouees: 14, vtt: 11, cols: 14 };
 
 // ------------------------------------------------------------------------------ station de ski du Mont-Pinard
 // 5 pistes côte à côte qui descendent du nord (sommet) vers le sud (front de neige) : verte, bleue,
@@ -163,6 +166,12 @@ export const DISC = {
       essais: { name: 'Essais libres (3 tours)', laps: 3, npcs: 0, fee: 0, prizes: [] },
       qualif: { name: 'Qualifications (meilleur tour = place sur la grille)', laps: 3, npcs: 0, fee: 0, prizes: [], qualif: true },
       course: { name: 'Grand Prix de PLAYZONE (5 tours, 10 voitures)', laps: 5, npcs: 9, fee: 200, prizes: [8000, 4000, 2000] },
+      // grands circuits (environ 3 à 4 min par tour) : essais, qualifications (place sur la grille), Grand Prix
+      ...Object.fromEntries(Object.values(CIRCUITS).flatMap((C) => [
+        [`${C.id}-essais`, { name: `${C.name} · essais libres (1 tour)`, route: C.id, laps: 1, npcs: 0, fee: 0, prizes: [], circuit: C.id }],
+        [`${C.id}-qualif`, { name: `${C.name} · qualifications (1 tour)`, route: C.id, laps: 1, npcs: 0, fee: 0, prizes: [], qualif: true, gp: `${C.id}-gp`, circuit: C.id }],
+        [`${C.id}-gp`, { name: `🏆 ${C.name} · Grand Prix (2 tours, 10 voitures)`, route: C.id, laps: 2, npcs: 9, fee: 400, prizes: [20000, 10000, 5000], pace: 1.25, circuit: C.id }],
+      ])),
     },
   },
   jetski: {

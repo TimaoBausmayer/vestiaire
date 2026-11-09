@@ -10,6 +10,8 @@ import { mulberry32, hashString } from '../../shared/rng.js';
 import { DISC, ROUTES, ATHLE, GATE_R, routeAt, distToRoute, fmtTime, modeRoute } from '../../shared/courses.js';
 import { fatigueCapacity, PROFILS, profilOf } from '../../shared/athlete.js';
 import { divisionOf, CAREER_SPORTS } from '../../shared/career.js';
+import { buildCircuits } from './f1-circuits.js';
+import { BUILDING_BY_ID } from '../../shared/world-layout.js';
 
 // COURSES SUR PARCOURS : course à pied (piste d'athlétisme), cyclisme (boucle des Hauts, vélo prêté),
 // Formule 1 (circuit de l'Académie, monoplace prêtée). Feux de départ, portes de contrôle, tours,
@@ -86,7 +88,11 @@ export class Races {
     this.f1Lights = [];
     for (let k = 0; k < 5; k++) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), new THREE.MeshStandardMaterial({ color: '#330000', emissive: '#ff0000', emissiveIntensity: 0 })); l.position.set(p0.x - 0.45, 7.2, p0.z - 3 + k * 1.5); root.add(l); this.f1Lights.push(l); }
     g.engine.scene.add(root);
+    this.circuits = buildCircuits(g);
   }
+
+  // feux de départ du circuit de l'épreuve en cours
+  lightsFor(s) { return s.route.big ? this.circuits.lights.find((l) => l.id === (s.M.route))?.set || [] : this.f1Lights; }
 
   // ------------------------------------------------------------------------------ accueils
   // Club-house du Stade des Crampons : foot, course à pied, vélo.
@@ -136,7 +142,13 @@ export class Races {
               D.day ? h('button.btn.small.ghost', { onclick: () => this.member(disc, 'day', m) }, `Journée ${D.day} PC`) : null,
               h('button.btn.small', { onclick: () => this.member(disc, 'season', m) }, `${D.member.days} jours : ${fmt(D.member.price)} PC`))));
         }
+        let lastC = null;
         for (const [id, M] of Object.entries(D.modes)) {
+          if ((M.circuit || null) !== lastC) {
+            lastC = M.circuit || null;
+            const R = ROUTES[M.route || D.route];
+            body.append(h('h4', { style: { margin: '12px 0 4px' } }, lastC ? `🏁 ${R.name} · ${(R.len / 1000).toFixed(1).replace('.', ',')} km (≈ ${Math.round(R.len / 34 / 60 * 10) / 10} min par tour)${d.grids?.[`${lastC}-gp`] ? ` · grille : P${d.grids[`${lastC}-gp`]}` : ''}` : D.how === 'f1' ? `🏎️ Circuit de l'Académie (${Math.round(R.len)} m)` : ''));
+          }
           body.append(h('div.list-item', h('span', { style: { fontSize: '22px' } }, M.npcs ? '🏁' : '⏱️'),
             h('div.grow', h('div.t', M.name), h('div.d', `${M.npcs ? `${M.npcs + 1} participants · prix ${M.prizes.join(' / ')} PC` : 'Chronométré, sans adversaire'}${M.fee ? ` · inscription ${M.fee} PC` : ''} · record ${fmtTime(d.best[id])}`)),
             h('button.btn.small', { onclick: () => { m.close(); D.how === 'ski' ? g.ski.go(id) : D.how === 'jet' ? g.jetski.go(id) : this.start(disc, id); } }, 'Y aller')));
@@ -184,6 +196,7 @@ export class Races {
     g.ui.root.append(this.lights);
     g.ui.toast(`${D.icon} ${M.name} : ${M.laps} tour(s). Départ à l'extinction des feux !`, 'event', 4000);
     g.cam.dist = Math.max(D.how === 'f1' ? 7 : 5.5, g.cam.dist);
+    g.cam.yaw = me.yaw + Math.PI; g.cam.pitch = Math.min(g.cam.pitch, 0.3);
   }
 
   makeNpc(n, sl, D) {
@@ -222,9 +235,9 @@ export class Races {
       if (s.v) s.v.sim.place(s.start.x, s.start.z, s.start.yaw); else g.player.teleport(s.start.x, s.start.z, s.start.yaw);
       const on = Math.min(5, Math.floor((3 - left) / 0.55) + 1);
       [...this.lights.children].forEach((e, i) => e.classList.toggle('on', i < on));
-      if (s.D.how === 'f1') this.f1Lights.forEach((l, i) => { l.material.emissiveIntensity = i < on ? 2 : 0; });
+      if (s.D.how === 'f1') this.lightsFor(s).forEach((l, i) => { l.material.emissiveIntensity = i < on ? 2 : 0; });
       if (on !== s.lastOn) { s.lastOn = on; g.sfx('beep'); }
-    } else if (this.lights?.isConnected) { this.lights.remove(); this.f1Lights.forEach((l) => { l.material.emissiveIntensity = 0; }); g.sfx('go'); g.ui.toast('🟢 GO !', 'good', 1200); }
+    } else if (this.lights?.isConnected) { this.lights.remove(); this.lightsFor(s).forEach((l) => { l.material.emissiveIntensity = 0; }); g.sfx('go'); g.ui.toast('🟢 GO !', 'good', 1200); }
     if (s.v && g.vehicles.current !== s.v) { this.finish(true, 'Tu es descendu·e.'); return; }
     if (!s.v && g.player.zone !== 'world') { this.finish(true); return; }
     const t = Math.max(0, (now - s.go) / 1000);
@@ -243,7 +256,7 @@ export class Races {
         s.next = (s.next + 1) % s.route.gates.length;
       }
       // sortie du parcours
-      const off = distToRoute(s.route, P.x, P.z) > (s.D.how === 'foot' ? 12 : s.D.how === 'bike' ? 18 : 25);
+      const off = distToRoute(s.route, P.x, P.z) > (s.D.how === 'foot' ? 12 : s.D.how === 'bike' ? 18 : s.route.big ? 34 : 25);
       s.off = off ? s.off + dt : 0;
       if (s.off > 6) { this.finish(true, 'Tu as quitté le parcours.'); return; }
     }
@@ -302,13 +315,15 @@ export class Races {
     g.net.sendState?.(g.player.netState(), g.player.zone);   // position exacte sur la ligne
     const r = await req(g, 'sport.finish', abandon ? { abandon: true } : { time, laps: s.laps });
     if (s.v) { if (g.vehicles.current === s.v) g.vehicles.exit(true); g.vehicles.despawn(s.v, false); }
-    if (abandon) { g.ui.toast(`🏳️ Abandon. ${why}`, 'bad', 3000); return; }
+    const home = () => { const b = BUILDING_BY_ID[s.D.place]; if (b?.door) g.player.teleport(b.door.x, b.door.z, 0); };
+    if (abandon) { g.ui.toast(`🏳️ Abandon. ${why}`, 'bad', 3000); if (s.route.big) setTimeout(home, 600); return; }
     if (!r) return;
     g.sfx(r.rank === 1 || r.record ? 'levelup' : 'success');
     careerToast(g, r.career);
     const pos = r.rank ? `${r.rank === 1 ? '🥇 VICTOIRE' : r.rank === 2 ? '🥈 2e' : r.rank === 3 ? '🥉 3e' : `${r.rank}e`} sur ${r.of}. ` : '';
     g.ui.dialog({ name: s.D.how === 'f1' ? 'Ton ingénieur·e de course' : 'Coach Jean-Mich', role: s.M.name, text: `${pos}Temps : ${fmtTime(r.total)}${r.bestLap ? ` · meilleur tour ${fmtTime(r.bestLap)}` : ''}.${r.record ? ' NOUVEAU RECORD PERSO !' : ` Record : ${fmtTime(r.best)}.`}${r.prize ? ` Prix : ${fmt(r.prize)} PC.` : ''}${r.grid ? ` Tu partiras P${r.grid} au prochain Grand Prix.` : ''} Niveau ${Math.round(r.skill)}/100, endurance ${r.endurance}/100${s.D.how === 'foot' ? `, vitesse ${r.vitesse}/100` : ''}.${r.career ? ` Carrière : +${r.career.pts} pts (${r.career.div}).` : ''}`, choices: [
-      { label: '🔁 Recommencer', action: (m) => { m.close(); g.player.teleport(s.start.x, s.start.z, s.start.yaw); this.desk(s.disc); } },
+      { label: '🔁 Recommencer', action: (m) => { m.close(); if (s.route.big) home(); else g.player.teleport(s.start.x, s.start.z, s.start.yaw); this.desk(s.disc); } },
+      ...(s.route.big ? [{ label: '🏁 Retour au paddock', action: (m) => { m.close(); home(); } }] : []),
       { label: 'OK', ghost: true, action: (m) => m.close() },
     ] });
   }

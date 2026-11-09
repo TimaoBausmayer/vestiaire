@@ -5,6 +5,7 @@
 import { BOUNDS, STREETS, streetRect, CITY_ZONES, CITY_BUILDINGS, CITY_POI, PARKINGS, GAS_STATIONS } from './city.js';
 import { seaFloor } from './sea.js';
 import { islandHeight } from './islands.js';
+import { onCircuit } from './circuits.js';
 
 export { STREETS, STREET_BY_ID, ROAD_GRAPH, findRoute, nearestRoadPoint, nearestNode, PARKINGS, GAS_STATIONS, CITY_POI } from './city.js';
 export const WORLD_BOUNDS = BOUNDS;     // la carte va de -3000 à 3000 (X) et de -3400 à 400 (Z)
@@ -267,7 +268,6 @@ const PAVED = new Map();
 }
 export function isPaved(x, z) {
   const list = PAVED.get(`${Math.floor(x / PAVED_CELL)},${Math.floor(z / PAVED_CELL)}`);
-  if (!list) return false;
-  for (const r of list) if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) return true;
-  return false;
+  if (list) for (const r of list) if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) return true;
+  return onCircuit(x, z);   // grands circuits de F1
 }

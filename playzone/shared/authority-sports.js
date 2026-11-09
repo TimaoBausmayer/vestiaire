@@ -228,18 +228,18 @@ Object.assign(SPORTS_HANDLERS, {
     if (p.justice?.jail) return err('Pas depuis la prison !');
     const d = discOf(p, disc);
     let trial = false;
-    if (D.member && !memberOf(d, ctx.now) && !(D.item && (p.inventory[D.item] || 0) > 0)) {
+    if (D.member && !p.admin && !memberOf(d, ctx.now) && !(D.item && (p.inventory[D.item] || 0) > 0)) {
       if (d.trial) return err(`Ton essai gratuit est passé : prends ${D.day ? `un forfait journée (${D.day} PC) ou ` : ''}l'adhésion « ${D.member.name} » (${D.member.price} PC).`);
       d.trial = true; trial = true;
     }
-    const fee = trial ? 0 : M.fee;
+    const fee = trial || p.admin ? 0 : M.fee;
     if (p.coins < fee) return err(`Inscription : ${fee} PC.`);
     if (fee) this.addCoins(p, -fee);
     const seed = randInt(ctx.rand, 1, 2 ** 31 - 2);
     const field = npcField(disc, mode, seed, d.skill, M.npcs ? careerDiv(p, disc).npc : 0);
     ctx.session.race = { disc, mode, at: ctx.now, go: ctx.now + 3000, field };
     d.sessions++;
-    return { ok: true, changed: true, data: { seed, field, trial, fee, laps: M.laps, go: ctx.now + 3000, grid: mode === 'course' ? d.grid : null } };
+    return { ok: true, changed: true, data: { seed, field, trial, fee, laps: M.laps, go: ctx.now + 3000, grid: mode === 'course' ? d.grid : D.how === 'f1' && M.npcs ? d.grids?.[mode] ?? null : null } };
   },
   'sport.finish'(ctx, { time, laps, gates, abandon, score }) {
     const p = ctx.profile, s = ctx.session.race;
@@ -273,13 +273,14 @@ Object.assign(SPORTS_HANDLERS, {
       rank = 1 + s.field.filter((n) => n.total < total).length;
       prize = M.prizes[rank - 1] || 0;
       d.races++; if (rank === 1) d.wins++; if (rank <= 3) d.podiums++;
-      d.grid = null;
+      if (s.mode === 'course') d.grid = null; else if (d.grids) delete d.grids[s.mode];
     }
     if (M.qualif && bestLap) {
       // grille : on compare au meilleur tour typique des pilotes PNJ de ton niveau
-      const field = npcField(s.disc, 'course', 7, d.skill);
-      grid = 1 + field.filter((n) => n.total / 5 * 0.985 < bestLap).length;
-      d.grid = grid;
+      const gpMode = M.gp || 'course', GP = D.modes[gpMode];
+      const field = npcField(s.disc, gpMode, 7, d.skill);
+      grid = 1 + field.filter((n) => n.total / GP.laps * 0.985 < bestLap).length;
+      if (gpMode === 'course') d.grid = grid; else d.grids = { ...(d.grids || {}), [gpMode]: grid };
     }
     // carrière : points selon la place, primes multipliées par la division
     let career = null;
