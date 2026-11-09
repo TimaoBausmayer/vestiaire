@@ -195,7 +195,7 @@ const SKI_HUT = { x: SKI.hut.x, z: SKI.hut.z };
 function atDiscPlace(self, ctx, disc, mode) {
   const D = DISC[disc];
   if (D.place === 'ski-hut') return self.near(ctx, SKI_HUT.x, SKI_HUT.z, 14);
-  if (disc === 'course' && ['athle-est', 'athle-vignes'].some((id) => self.atBuilding(ctx, BUILDING_BY_ID[id], 4))) return true;   // tous les stades d'athlétisme
+  if (disc === 'course' && ['athle-est', 'athle-vignes', 'bike-park'].some((id) => self.atBuilding(ctx, BUILDING_BY_ID[id], 4))) return true;   // tous les stades d'athlétisme
   const st = ROUTES[D.route]?.pts[0], st2 = mode && D.modes[mode]?.route ? ROUTES[D.modes[mode].route].pts[0] : null;
   return self.atBuilding(ctx, BUILDING_BY_ID[D.place], 4) || (st && self.near(ctx, st.x, st.z, 45)) || (st2 && self.near(ctx, st2.x, st2.z, 45));
 }

@@ -124,6 +124,7 @@ export class Races {
     g.ui.dialog({ name: 'Accueil', role: 'Bike Park des Géants', text: 'Salut ! Sentier VTT plein de bosses (essai gratuit puis pass), Route des Cols gratuite en vélo de route. Et on vend des vélos !', choices: [
       { label: '🚵 VTT : sentier et Enduro', action: (m) => { m.close(); this.desk('vtt'); } },
       { label: '🚴‍♂️ Vélo de route : Route des Cols', action: (m) => { m.close(); this.desk('route'); } },
+      { label: '🏃 Course à pied : trail en montagne, route des Cols', action: (m) => { m.close(); this.desk('course'); } },
       { label: '🛒 Acheter un vélo', action: (m) => { m.close(); openShop(g, 'bikes', b); } },
       { label: 'Au revoir', ghost: true, action: (m) => m.close() },
     ] });
