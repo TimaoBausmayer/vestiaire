@@ -342,7 +342,11 @@ export class Phone {
     if (g.profile.admin) b.append(h('p', '👑 Le mode admin est déjà activé.'), h('button.btn.block', { onclick: () => this.go('admin') }, 'Ouvrir l\'appli Admin'));
     let code = '';
     const go = async () => {
-      try { await g.net.request('admin.unlock', { code }); g.sfx('levelup'); g.ui.toast('👑 Code accepté : mode admin activé !', 'good', 5000); this.go('admin'); }
+      try {
+        const s = await g.net.request('secret.code', { code }).catch(() => null);
+        if (s?.unlocked === 'vip') { g.sfx('levelup'); g.ui.toast('🔓 Le Velours, le club privé, t\'ouvre ses portes ! Le GPS t\'y emmène.', 'good', 6000); this.goTo({ x: s.at.x, z: s.at.z, name: 'Le Velours (club privé)' }); return; }
+        await g.net.request('admin.unlock', { code }); g.sfx('levelup'); g.ui.toast('👑 Code accepté : mode admin activé !', 'good', 5000); this.go('admin');
+      }
       catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
     };
     const inp = h('input.input', { type: 'password', placeholder: 'Entre ton code', autocomplete: 'off', oninput: (e) => { code = e.target.value; }, onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); } });

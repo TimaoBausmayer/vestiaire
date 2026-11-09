@@ -25,6 +25,10 @@ await ev(() => window.playzone.phone.close());
 const inside = await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const b = BUILDING_BY_ID['club-vip'], g = window.playzone; g.debugStep(0.3); const open = !g.vipClub.rope.enabled; g.player.teleport(b.x, b.z, Math.PI / 2); g.debugStep(1.5); return { in: open, inside: g.interiors?.inside?.id }; });
 check(inside.in && inside.inside === 'club-vip', `cordon retiré, on entre au Velours (${inside.inside})`);
 await page.screenshot({ path: 'tests/e2e/out/velours-dedans.png' });
+// nouveau joueur : code donné directement au videur
+await ev(() => { const p = window.playzone.profile; p.unlocks = {}; });
+const door = await ev(async () => { const g = window.playzone, V = g.vipClub; V.askCode(); await new Promise((r) => setTimeout(r, 200)); const inp = document.querySelector('.modal input'); inp.value = '49309117'; inp.dispatchEvent(new Event('input')); document.querySelector('.modal .btn.block').click(); await new Promise((r) => setTimeout(r, 400)); g.debugStep(0.2); return { vip: !!g.profile.unlocks?.vip, rope: g.vipClub.rope.enabled }; });
+check(door.vip && !door.rope, 'code donné au videur, à la porte : entrée ouverte');
 const bad = await ev(() => window.playzone.net.request('secret.code', { code: '1234' }).then(() => false).catch(() => true));
 check(bad, 'un mauvais code est refusé');
 const errs = errors.filter((e) => !/404/.test(e));

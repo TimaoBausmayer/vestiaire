@@ -24,10 +24,28 @@ export class VipClub {
       label: () => (this.open() ? '🍾 Le Velours : « Bonsoir, entrez ! »' : '🔒 Le Velours : club privé'),
       action: () => {
         if (this.open()) g.ui.toast('🍾 Bienvenue au Velours ! Piste, bar, carré VIP et DJ t\'attendent.', 'good', 3500);
-        else g.ui.dialog({ name: 'Le videur', role: 'Le Velours (club privé)', text: 'Désolé, c\'est privé. Sans le code, tu n\'entres pas. (Les habitués disent qu\'on le tape quelque part sur la carte...)', choices: [{ label: 'D\'accord', ghost: true, action: (m) => m.close() }] });
+        else this.askCode();
       },
     });
   }
+  // le videur demande le code : on peut le taper ici, à la porte
+  askCode() {
+    const g = this.g;
+    let code = '';
+    const m = g.ui.modal({
+      title: '🔒 Le Velours (club privé)', sub: 'Le videur : « C\'est privé. Le code ? »', width: 'min(420px, 94vw)',
+      build: (body) => {
+        const inp = h('input.input', { type: 'password', inputmode: 'numeric', placeholder: 'Code du club', autocomplete: 'off', oninput: (e) => { code = e.target.value; }, onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter') go(); } });
+        body.append(inp, h('button.btn.block', { style: { marginTop: '8px' }, onclick: () => go() }, 'Donner le code'));
+        setTimeout(() => inp.focus(), 60);
+      },
+    });
+    const go = async () => {
+      try { await g.net.request('secret.code', { code }); m.close(); g.sfx('levelup'); g.ui.toast('🍾 Le videur s\'écarte : « Bonsoir, entrez ! » Le cordon est retiré.', 'good', 4000); }
+      catch (e) { g.sfx('error'); g.ui.toast('🚫 « Mauvais code. » Le videur ne bouge pas.', 'bad', 2500); }
+    };
+  }
+
   open() { return !!this.g.profile?.unlocks?.vip || !!this.g.profile?.admin; }
   update(dt) {
     const P = this.g.player.pos, b = this.b;

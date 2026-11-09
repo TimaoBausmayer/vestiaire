@@ -56,6 +56,7 @@ export function destinations(profile = null) {
   out.push({ id: 'marmottes', name: '🏡 Village des Marmottes', cat: 'other', x: -1350, z: -300 });
   out.push({ id: 'grand-large', name: '⛵ Port Grand-Large', cat: 'leisure', x: 1400, z: 40 });
   out.push({ id: 'place', name: 'Grande Place', cat: 'other', x: 0, z: 12 });
+  { const v = BUILDING_BY_ID['club-vip']; if (v) out.push({ id: 'club-vip', name: '🍾 Le Velours (club privé, code au videur)', cat: 'leisure', x: v.door.x, z: v.door.z }); }
   out.push({ id: 'plage', name: 'Plage des Orteils', cat: 'leisure', x: 0, z: 74 });
   for (const g of GAS_STATIONS) out.push({ id: `gaz-${g.id}`, name: `⛽ ${g.name}`, cat: 'cars', x: g.x, z: g.z });
   for (const p of PARKINGS) out.push({ id: p.id, name: `🅿️ ${p.name}`, cat: 'cars', x: (p.x1 + p.x2) / 2, z: (p.z1 + p.z2) / 2 });
