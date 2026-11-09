@@ -5,6 +5,8 @@ import { dailySalary, salaryClaimable, careerDiv } from './career.js';
 import { SPORT_CLUBS, STARS, CLUB_WEEK, clubOf, myClub } from './clubs.js';
 import { todayKey } from './rules.js';
 import { applyNeeds } from './needs.js';
+import { taxiPrice } from './taxi.js';
+import { inBounds, groundHeight, WATER_LEVEL } from './world-layout.js';
 
 const err = (error) => ({ ok: false, error });
 const MAX_RUN_SPEED = 12;   // m/s : personne ne court plus vite
@@ -61,6 +63,20 @@ export const ATHLETE_HANDLERS = {
     if (!p.clubs?.[sport]) return err('Tu n\'as pas de club dans ce sport.');
     delete p.clubs[sport];
     return { ok: true, changed: true, data: {} };
+  },
+
+  // TAXI : on est déposé tout de suite (pas depuis la prison ni pendant une poursuite)
+  'taxi.ride'(ctx, { x, z }) {
+    const p = ctx.profile;
+    if (typeof x !== 'number' || typeof z !== 'number' || !inBounds(x, z) || groundHeight(x, z) < WATER_LEVEL) return err('Le taxi ne va pas là-bas.');
+    if (p.justice?.jail) return err('Pas de taxi depuis la prison !');
+    if ((p.justice?.stars || 0) > 0 && !p.admin) return err('Recherché·e par la police : aucun taxi ne veut te prendre !');
+    const dist = ctx.pos ? Math.hypot(ctx.pos.x - x, ctx.pos.z - z) : 0;
+    const price = p.admin ? 0 : taxiPrice(dist);
+    if (p.coins < price) return err(`La course coûte ${price} PC.`);
+    this.addCoins(p, -price);
+    if (ctx.pos) { ctx.pos.x = x; ctx.pos.z = z; }
+    return { ok: true, changed: true, data: { price } };
   },
 
   'career.salary'(ctx) {

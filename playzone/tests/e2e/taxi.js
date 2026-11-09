@@ -1,0 +1,33 @@
+// Taxi (raccourcis : chez moi, garage, sports...) et téléphone acheté en ligne depuis PlayAzon.
+import { staticServer, launch, watchConsole, sleep } from './lib.js';
+const { srv, url } = await staticServer();
+const { browser, context } = await launch();
+const page = await context.newPage();
+const errors = watchConsole(page);
+await page.addInitScript(() => localStorage.setItem('playzone.save.v1', JSON.stringify({ v: 1, id: 'solo-tx', name: 'Client', createdAt: 0, coins: 30000, xp: 20000, rep: 0, appearance: {} })));
+await page.goto(url + 'index.html?heure=11&auto=solo&qualite=low', { timeout: 120000 });
+await sleep(4500);
+const ev = (fn, arg) => page.evaluate(fn, arg);
+let ok = true;
+const check = (c, m) => { console.log(c ? '✔' : '✘', m); if (!c) ok = false; };
+await ev(() => window.playzone.phone.open('taxi'));
+await sleep(500);
+const txt = await ev(() => document.querySelector('.phone-screen').textContent);
+check(/Chez moi/.test(txt) && /Garage le plus proche/.test(txt) && /École de surf/.test(txt), 'raccourcis du taxi (chez moi, garage, sports)');
+await page.screenshot({ path: 'tests/e2e/out/taxi-app.png' });
+const c0 = await ev(() => window.playzone.profile.coins);
+await page.locator('.phone-screen .list-item', { hasText: 'École de surf' }).locator('button', { hasText: 'Y aller' }).click();
+await sleep(2200);
+const d = await ev(async () => { const { BUILDING_BY_ID } = await import('/shared/world-layout.js'); const b = BUILDING_BY_ID['surf-school'], P = window.playzone.player.pos; return { d: Math.hypot(P.x - b.door.x, P.z - b.door.z), paid: 0 }; });
+const c1 = await ev(() => window.playzone.profile.coins);
+check(d.d < 5 && c1 < c0, `taxi jusqu'à l'école de surf (${c0 - c1} PC)`);
+// téléphone en ligne (loin de tout magasin)
+const r = await ev(() => window.playzone.net.request('phone.buy', { model: 'pixou', color: 'menthe', online: true }).catch((e) => ({ err: e.message })));
+check(r.price === 6049, `téléphone acheté en ligne, livré (${r.price ?? r.err} PC)`);
+const r2 = await ev(() => window.playzone.net.request('phone.buy', { model: 'mini', color: 'rose' }).catch((e) => ({ err: e.message })));
+check(!!r2.err, 'hors magasin sans commande en ligne : refusé');
+const errs = errors.filter((e) => !/404/.test(e));
+check(!errs.length, `pas d'erreur console ${errs.slice(0, 3).join(' | ')}`);
+await browser.close(); srv.close();
+console.log(ok ? 'TAXI OK' : 'TAXI ÉCHEC');
+process.exit(ok ? 0 : 1);

@@ -99,6 +99,10 @@ export default {
     // ---------- Surf Shop : wingfoil (aile + planche + foil)
     { id: 'jetski', name: 'Jet ski Turbo-Mouette 1600', shop: 'surf', special: true, price: 9500, emoji: '🚤', desc: 'À toi pour toujours : balades et courses sans abonnement.', max: 1, level: 4 },
     { id: 'wingfoil', name: 'Wingfoil complet (aile 5 m², planche, foil)', shop: 'surf', special: true, price: 1800, emoji: '🪁', desc: 'Pour voler au-dessus de l\'eau quand il y a du vent (10 nœuds minimum).', max: 1 },
+    { id: 'surf-mousse', name: 'Planche de surf en mousse 8\'', shop: 'surf', special: true, price: 180, emoji: '🏄', desc: 'La planche des débutants : décolle très facilement sur la vague. École de surf de la Plage des Orteils.', max: 1 },
+    { id: 'surf-long', name: 'Longboard 9\'2', shop: 'surf', special: true, price: 650, emoji: '🏄', desc: 'Grande et stable : on attrape toutes les vagues et on glisse longtemps.', max: 1 },
+    { id: 'surf-fish', name: 'Fish 5\'10', shop: 'surf', special: true, price: 820, emoji: '🐟', desc: 'Courte et large : très rapide, parfaite pour les petites vagues.', max: 1 },
+    { id: 'surf-short', name: 'Shortboard pro 5\'11', shop: 'surf', special: true, price: 1100, emoji: '🏄‍♂️', desc: 'Pour les experts : virages serrés, aerials et tubes. Plus dure pour décoller.', max: 1 },
     { id: 'pumpfoil', name: 'Pumpfoil (planche courte + foil 1800 cm²)', shop: 'surf', special: true, price: 950, emoji: '🏄', desc: 'Sans aile ni vent : on décolle et on vole en pompant (Espace en rythme). Mise à l\'eau partout.', max: 1 },
     // ailes, planches et foils à la carte (à régler dans l'appli « Équipement » du téléphone)
     ...GEAR_ITEMS,

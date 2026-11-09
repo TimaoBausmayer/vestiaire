@@ -71,7 +71,7 @@ export function phoneMesh(P, hex) {
   return g;
 }
 
-export function openPhoneStore(g, b) {
+export function openPhoneStore(g, b, online = false) {
   let sel = phoneOf(g.profile).model, col = phoneOf(g.profile).color;
   // petite scène 3D dédiée à l'aperçu
   const canvas = h('canvas.ph-preview', { width: 300, height: 380 });
@@ -90,7 +90,7 @@ export function openPhoneStore(g, b) {
   canvas.addEventListener('pointerup', () => { drag = null; });
   const loop = () => { if (!alive) return; if (drag === null) spin += 0.012; if (mesh) { mesh.rotation.y = spin; mesh.rotation.x = Math.sin(spin * 0.7) * 0.12; } renderer.render(scene, cam); raf = requestAnimationFrame(loop); };
   const m = g.ui.modal({
-    title: '📱 Rayon téléphones', sub: `${b?.name || 'Magasin high-tech'} · fais tourner l'aperçu avec la souris ou le doigt`,
+    title: online ? '📱 Téléphones · PlayAzon' : '📱 Rayon téléphones', sub: `${online ? 'Commande en ligne, livraison express par drone (+49 PC)' : b?.name || 'Magasin high-tech'} · fais tourner l'aperçu avec la souris ou le doigt`,
     width: 'min(820px, 96vw)',
     onClose: () => { alive = false; cancelAnimationFrame(raf); renderer.dispose(); },
     build: (body, mm) => {
@@ -106,13 +106,13 @@ export function openPhoneStore(g, b) {
         h('div.opt-row', { style: { margin: '8px 0' } }, Object.entries(P.colors).map(([cn, hex]) => h(`button.opt${cn === col ? '.sel' : ''}`, { onclick: () => { col = cn; mm.refresh(); } }, h('span', { style: { display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: hex, marginRight: '5px', verticalAlign: 'middle', boxShadow: '0 0 0 1px rgba(255,255,255,.4)' } }), cn))),
         h('button.btn', { onclick: async () => {
           try {
-            const r = owned.includes(sel) ? await g.net.request('phone.equip', { model: sel, color: col }) : await g.net.request('phone.buy', { model: sel, color: col });
+            const r = owned.includes(sel) ? await g.net.request('phone.equip', { model: sel, color: col }) : await g.net.request('phone.buy', { model: sel, color: col, online });
             g.sfx(r.price ? 'cash' : 'success');
             g.ui.toast(`📱 ${P.name} (${col})${r.price ? ` acheté : -${fmt(r.price)} PC` : ' : c\'est ton téléphone maintenant'} !`, 'good', 3500);
             g.phone?.restyle?.();
             mm.refresh();
           } catch (e) { g.sfx('error'); g.ui.toast(e.message, 'bad'); }
-        } }, owned.includes(sel) ? (cur.model === sel && cur.color === col ? '✅ En main' : 'Utiliser ce téléphone') : `Acheter · ${fmt(P.price)} PC`));
+        } }, owned.includes(sel) ? (cur.model === sel && cur.color === col ? '✅ En main' : 'Utiliser ce téléphone') : `Acheter · ${fmt(P.price + (online && !g.profile.admin ? 49 : 0))} PC${online ? ' (livré)' : ''}`));
       body.append(h('div.ph-store', list, info));
       show();
     },

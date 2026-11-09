@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { taxiApp } from './taxi-app.js';
 import { phoneOf } from '../../shared/phones.js';
 import { h, clear, fmt } from './dom.js';
 import { drawMapBase, drawMarkers, drawRoute, MAP_PX } from './hud.js';
@@ -46,6 +47,7 @@ const APPS = [
   { id: 'urgences', name: 'Urgences', icon: '🚨', bg: '#d62828' },
   { id: 'premium', name: 'Boutique', icon: '💎', bg: '#7b2cbf' },
   { id: 'achats', name: 'PlayAzon', icon: '🛒', bg: '#ff9900' },
+  { id: 'taxi', name: 'Taxi', icon: '🚕', bg: '#ffbe0b' },
   { id: 'gear', name: 'Équipement', icon: '🎛️', bg: '#0096c7' },
   { id: 'meteo', name: 'Météo', icon: '🌤️', bg: '#48cae4' },
   { id: 'avocat', name: 'Avocat', icon: '⚖️', bg: '#495057' },
@@ -325,6 +327,7 @@ export class Phone {
   app_premium(b) { premiumApp(this.game, b); }
   app_gear(b) { gearApp(this.game, b, this); }
   app_achats(b) { shoppingApp(this.game, b, this); }
+  app_taxi(b) { taxiApp(this.game, b, this); }
   app_meteo(b) { meteoApp(this.game, b); }
   app_avocat(b) { lawyerApp(this.game, b, this); }
   app_loto(b) { lottoApp(this.game, b, this); }
@@ -409,6 +412,9 @@ export class Phone {
     const g = this.game;
     const q = h('div.opt-row', ['low', 'medium', 'high'].map((v) => h(`button.opt${g.engine.quality === v ? '.sel' : ''}`, { onclick: () => { g.engine.setQuality(v); this.render(); } }, { low: 'Léger', medium: 'Moyen', high: 'Élevé' }[v])));
     b.append(h('div.field', h('label', 'Graphismes'), q));
+    { const ph = phoneOf(g.profile);
+      b.append(h('div.field', h('label', 'Mon téléphone'), h('div.row', { style: { gap: '8px', alignItems: 'center' } }, h('span', `📱 ${ph.P.name} (${ph.color})`),
+        h('button.btn.small', { onclick: () => { this.close(); import('./phone-store.js').then(({ openPhoneStore }) => openPhoneStore(g, null, true)); } }, 'Changer / acheter en ligne')))); }
     b.append(h('div.field', h('label', 'Son'), h('button.btn.small.ghost', { onclick: () => { g.sound.setMuted(!g.sound.muted); this.render(); } }, g.sound.muted ? '🔇 Activer le son' : '🔊 Couper le son')));
     if (g.net.mode === 'solo') {
       b.append(h('div.field', h('label', 'Sauvegarde (solo)'),

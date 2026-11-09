@@ -83,6 +83,12 @@ export const SPORT_CLUBS = {
     C('green', 'Green Masters', 3, null, 'Concours mensuels.'),
     C('golf-pro', 'Mini-Golf Pro Tour', 5, null, 'Circuit professionnel.'),
   ],
+  surf: [
+    C('orteils', 'Surf Club des Orteils', 1, 'surf-school', 'L\'école de la plage : on apprend en rigolant.'),
+    C('mouettes-surf', 'Les Mouettes Surfeuses', 2, null, 'Les locaux du spot.'),
+    C('reef', 'Reef Riders', 4, null, 'Spécialistes du récif et des tubes.'),
+    C('pro-surf', 'PLAYZONE Pro Surf Team', 5, null, 'Les champions du tour mondial.'),
+  ],
   boxe: [
     C('punching', 'Le Punching-Ball', 1, 'boxe-6', 'Boxe loisir.'),
     C('gants-or', 'Les Gants d\'Or', 3, 'boxe-2', 'Champions régionaux.'),

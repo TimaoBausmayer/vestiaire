@@ -19,6 +19,7 @@ export const CAREER_SPORTS = {
   natation: { name: 'Natation', icon: '🏊' },
   golf: { name: 'Mini-golf', icon: '⛳' },
   boxe: { name: 'Boxe', icon: '🥊' },
+  surf: { name: 'Surf', icon: '🏄' },
 };
 
 // pts = points de carrière nécessaires ; mult = multiplicateur des primes ; salary = PC par jour de jeu

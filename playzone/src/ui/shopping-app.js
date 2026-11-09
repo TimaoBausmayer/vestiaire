@@ -21,6 +21,8 @@ export function shoppingApp(g, b, phone) {
     h(`button${view.tab === 'orders' ? '.on' : ''}`, { onclick: () => { view.tab = 'orders'; phone.render(); } }, `📦 Mes colis${orders.length ? ` (${orders.length})` : ''}`)));
   if (view.tab === 'orders') return ordersView(g, b, phone, orders);
   if (view.item) return itemView(g, b, phone, g.net.content.items[view.item]);
+  b.append(h('button.list-item.clickable', { style: { background: 'linear-gradient(90deg, #3a86ff, #8338ec)' }, onclick: () => { phone.close(); import('./phone-store.js').then(({ openPhoneStore }) => openPhoneStore(g, null, true)); } },
+    h('span', { style: { fontSize: '26px' } }, '📱'), h('div.grow', h('div.t', 'Nouveau téléphone'), h('div.d', '7 modèles, aperçu 3D, livré par drone'))));
   const search = h('input.ph-search', { placeholder: '🔍 Chercher un article (aile, canapé, pizza...)', value: view.q, onkeydown: (e) => e.stopPropagation(), oninput: (e) => { view.q = e.target.value; draw(); } });
   const shops = [...new Set(items.map((i) => i.shop))].sort((a, c) => shopName(a).localeCompare(shopName(c)));
   const cats = h('select.input', { onchange: (e) => { view.shop = e.target.value; draw(); } }, h('option', { value: '' }, 'Tous les magasins'), shops.map((s) => h('option', { value: s, selected: view.shop === s }, shopName(s))));

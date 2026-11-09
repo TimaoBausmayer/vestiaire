@@ -633,3 +633,7 @@ body.camera-mode #ui > .rep-mini { visibility: hidden !important; }
 .ph-preview { width: 100%; max-width: 230px; aspect-ratio: 300 / 380; border-radius: 18px; background: radial-gradient(circle at 50% 40%, #2b2f55, #0d0f22); touch-action: none; cursor: grab; align-self: center; }
 @media (max-width: 640px) { .ph-store { grid-template-columns: 1fr; } .ph-info { order: -1; } }
 .phone.retro .ph-dock { position: static; background: rgba(15, 56, 15, .15); }
+.taxi-veil { position: absolute; inset: 0; z-index: 40; display: grid; place-content: center; justify-items: center; gap: 10px; background: rgba(12, 10, 35, .92); color: #ffbe0b; font-size: 18px; animation: toastIn .3s; pointer-events: none; }
+.taxi-veil div { font-size: 64px; animation: taxiGo .9s ease-in-out infinite alternate; }
+.taxi-veil.out { opacity: 0; transition: .5s; }
+@keyframes taxiGo { from { transform: translateX(-30px); } to { transform: translateX(30px); } }
