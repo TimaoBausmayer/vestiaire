@@ -19,7 +19,7 @@ const labels = (id) => ev(([id]) => [...(window.playzone.interiors.loaded.get(id
 // boîte de nuit
 check(await enter('club-1') === 'club-1', 'dans la boîte de nuit « Le Bounce »');
 await step(0.5);
-check(await ev(() => !!window.playzone.nightclub.inClub && !!window.playzone.nightclub.fx), 'musique et lumières allumées');
+check(await ev(() => !!window.playzone.nightclub.inClub && !!window.playzone.clubShow.root), 'musique et show lumière allumés');
 const c0 = (await prof()).coins;
 check(await spot('club-1', 'cocktail'), '🍹 cocktail'); await sleep(400);
 check((await prof()).coins === c0 - 12, 'cocktail : 12 PC');
