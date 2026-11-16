@@ -66,7 +66,7 @@ export class PostFX {
     this.blur = mk(BLUR_FRAG, { tSrc: { value: null }, dir: { value: new THREE.Vector2() } }, { toneMapped: false });
     this.final = mk(FINAL_FRAG, {
       tScene: { value: this.scene.texture }, tBloom: { value: this.b.texture }, tBloom2: { value: this.d.texture },
-      bloom: { value: 0.25 }, saturation: { value: 1.03 }, contrast: { value: 1.06 }, tint: { value: new THREE.Color(1.02, 1.0, 0.97) }, vignette: { value: 0.22 },
+      bloom: { value: 0.22 }, saturation: { value: 1.08 }, contrast: { value: 1.04 }, tint: { value: new THREE.Color(1.02, 1.0, 0.98) }, vignette: { value: 0.1 },
     });
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.final);
     this.quad.frustumCulled = false;

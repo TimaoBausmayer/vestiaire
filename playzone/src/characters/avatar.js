@@ -3,7 +3,7 @@ import { buildMergedGeometry, SHAPES } from '../core/static-builder.js';
 import { actorMaterial } from '../core/materials.js';
 import { DEFAULT_APPEARANCE } from '../../shared/appearance.js';
 
-// Personnage stylisé construit en code : 6 maillages (tronc, tête, 2 bras, 2 jambes) articulés,
+// Personnage réaliste construit en code : tronc, tête, bras / avant-bras, cuisses / tibias articulés,
 // couleurs dans les sommets (1 seul matériau), animations procédurales.
 
 const BODY_W = { mince: 0.88, moyen: 1, costaud: 1.22 };
@@ -11,132 +11,151 @@ const B = SHAPES;
 
 function darker(hex, f = 0.75) { const c = new THREE.Color(hex); c.multiplyScalar(f); return `#${c.getHexString()}`; }
 
-// ---------- Tronc (pivot aux hanches, y = 0.85)
+// Proportions humaines réalistes (≈ 7 têtes, 1,72 m) : hanches à 0,85 m, genou à mi-jambe, épaules à
+// 1,33 m, tête de 25 cm. Le squelette (hanches, cou, bras, avant-bras, jambes, tibias) garde ses noms.
+const HIP = 0.85, NECK = 0.55, SHOULDER = 0.48, ELBOW = -0.29, HAND = -0.26, KNEE = -0.43, SOLE = -0.85;
+const HEAD_SCALE = [0.385, 0.42, 0.39], HEAD_Y = 0.07;
+const mix = (a, b, t) => `#${new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString()}`;
+// silhouette féminine : coiffures longues / jupe (ou choix explicite)
+const isFem = (a, extra) => (extra.fem ?? a.fem) ?? (['long', 'chignon', 'couettes'].includes(a.hair) || a.bottom === 'jupe');
+
+// largeur du buste selon la hauteur (hanches → taille → poitrine → épaules)
+function profile(fem) {
+  const P = fem ? [0.37, 0.27, 0.35, 0.3] : [0.35, 0.31, 0.41, 0.35];
+  return (y) => (y <= 0.2 ? P[0] + (P[1] - P[0]) * Math.max(0, y) / 0.2 : y <= 0.42 ? P[1] + (P[2] - P[1]) * (y - 0.2) / 0.22 : P[2] + (P[3] - P[2]) * Math.min(1, (y - 0.42) / 0.1));
+}
+
+// ---------- Tronc (pivot aux hanches)
 function buildTorso(sb, a, w, extra) {
   const top = extra.top || a.top;
   const tc = top === 'torse' ? a.skin : extra.topColor || a.topColor;
-  const skinArms = top === 'debardeur' || top === 'torse';
+  const fem = isFem(a, extra);
+  const pr = profile(fem), wd = 0.5 + 0.5 * w, fat = Math.max(0, extra.fat || 0);
+  const W = (y) => pr(y) * w, D = (y) => pr(y) * 0.6 * wd, FZ = (y) => D(y) / 2;
+  const band = (y, t, color, grow = 0.012) => sb.add(B.cyl(20), { y, sx: W(y) + grow, sy: t, sz: D(y) + grow, color });
+  const seg = (y0, y1, color) => sb.add(B.frustum(24, +(W(y0) / W(y1)).toFixed(3)), { y: y0, sx: W(y1), sy: y1 - y0, sz: D(y1), color });
   // bassin (couleur du bas)
-  sb.add(B.sphere(12), { y: 0.06, sx: 0.5 * w, sy: 0.28, sz: 0.36, color: a.bottomColor });
-  if (a.bottom === 'jupe') sb.add(B.cone(12), { y: -0.32, sx: 0.78 * w, sy: 0.5, sz: 0.62, rx: Math.PI, color: a.bottomColor });
-  // buste
-  // buste en V : taille fine, poitrine et épaules plus larges, dos légèrement arrondi
-  sb.add(B.frustum(22, 0.82), { y: 0.06, sx: 0.56 * w, sy: 0.42, sz: 0.38, color: tc });
-  sb.add(B.sphere(22), { y: 0.47, sx: 0.64 * w, sy: 0.3, sz: 0.41, color: tc });
-  sb.add(B.sphere(16), { y: 0.36, z: 0.04, sx: 0.54 * w, sy: 0.26, sz: 0.36, color: tc });
-  sb.add(B.sphere(14), { y: 0.36, z: -0.05, sx: 0.5 * w, sy: 0.3, sz: 0.32, color: tc });
-  for (const sx of [-1, 1]) sb.add(B.sphere(16), { x: sx * 0.27 * w, y: 0.47, sx: 0.24, sy: 0.2, sz: 0.3, color: tc });   // haut des épaules : raccord buste / bras
-  sb.add(B.cyl(12), { y: 0.04, sx: 0.55 * w, sy: 0.07, sz: 0.39, color: '#2b2d42' }); // ceinture
-  sb.add(B.box(), { y: 0.045, z: 0.19, sx: 0.08, sy: 0.06, sz: 0.03, color: '#ffd23f' });
-  sb.add(B.frustum(14, 1.15), { y: 0.52, sx: 0.17, sy: 0.16, sz: 0.17, color: a.skin }); // cou
-  if (top === 'tshirt' || top === 'sweat' || top === 'debardeur') sb.add(B.cyl(14), { y: 0.6, sx: 0.22, sy: 0.035, sz: 0.2, color: darker(tc, 0.8) });   // col
-  if (top !== 'torse') sb.add(B.cyl(14), { y: 0.13, sx: 0.555 * w, sy: 0.03, sz: 0.385, color: darker(tc, 0.88) });   // ourlet du haut
-  if (top === 'debardeur') { sb.add(B.box(), { y: 0.5, x: 0.17 * w, z: 0.01, sx: 0.08, sy: 0.12, sz: 0.36, color: tc }); }
+  sb.add(B.sphere(16), { y: 0.0, sx: W(0) * 1.0, sy: 0.2, sz: D(0) * 0.98, color: a.bottomColor });
+  sb.add(B.sphere(12), { y: -0.03, z: -0.05, sx: W(0) * 0.92, sy: 0.22, sz: 0.2 * wd, color: a.bottomColor });   // fessier
+  if (a.bottom === 'jupe') sb.add(B.frustum(18, 1.5), { y: -0.38, sx: W(0) * 1.04, sy: 0.42, sz: D(0) * 1.15, color: a.bottomColor });
+  // buste : taille, poitrine, épaules tombantes
+  seg(0, 0.2, tc); seg(0.2, 0.42, tc); seg(0.42, 0.52, tc);
+  sb.add(B.sphere(20), { y: 0.5, sx: W(0.52) * 1.0, sy: 0.1, sz: D(0.52) * 0.96, color: tc });   // dessus des épaules
+  sb.add(B.sphere(16), { y: 0.38, z: -0.03, sx: W(0.4) * 0.9, sy: 0.26, sz: D(0.4) * 0.9, color: tc });   // dos arrondi
+  for (const sx of [-1, 1]) sb.add(B.sphere(14), { x: sx * W(0.5) * 0.5, y: 0.475, sx: 0.13, sy: 0.11, sz: 0.14 * wd, color: top === 'debardeur' ? a.skin : tc });   // raccord buste / bras
+  if (fem) for (const sx of [-1, 1]) sb.add(B.sphere(14), { x: sx * 0.075 * w, y: 0.355, z: FZ(0.36) - 0.05, sx: 0.12 * w, sy: 0.1, sz: 0.085, color: tc });   // poitrine
+  if (fat > 0.15) sb.add(B.sphere(16), { y: 0.16, z: 0.04, sx: W(0.15) * 1.05, sy: 0.3, sz: D(0.15) + fat * 0.22, color: tc });   // ventre
+  band(-0.005, 0.04, '#2b2d42'); // ceinture
+  sb.add(B.box(), { y: 0.0, z: FZ(0) + 0.004, sx: 0.045, sy: 0.035, sz: 0.012, color: '#d9b24a' });
+  sb.add(B.cyl(14), { y: 0.5, sx: fem ? 0.095 : 0.115, sy: 0.14, sz: fem ? 0.1 : 0.12, color: a.skin }); // cou
+  if (top !== 'torse') sb.add(B.frustum(14, 0.72), { y: 0.495, sx: 0.2, sy: 0.05, sz: 0.19, color: a.skin });   // base du cou (trapèzes)
+  if (top === 'tshirt' || top === 'sweat' || top === 'debardeur' || top === 'raye') sb.add(B.torus(), { y: 0.52, z: 0.008, sx: 0.15, sy: 0.14, sz: 0.12, rx: Math.PI / 2 - 0.2, color: darker(tc, 0.82) });   // col
+  if (top !== 'torse') band(0.045, 0.018, darker(tc, 0.86), 0.006);   // ourlet du haut
   if (top === 'sweat') {
-    sb.add(B.sphere(10), { y: 0.56, z: -0.16, sx: 0.36, sy: 0.22, sz: 0.2, color: darker(tc, 0.85) }); // capuche
-    sb.add(B.box(), { y: 0.14, z: 0.19, sx: 0.32 * w, sy: 0.14, sz: 0.02, color: darker(tc, 0.85) });
+    sb.add(B.sphere(12), { y: 0.5, z: -0.1, sx: 0.24, sy: 0.16, sz: 0.14, color: darker(tc, 0.85) }); // capuche
+    sb.add(B.box(), { y: 0.07, z: FZ(0.1) - 0.004, sx: 0.2 * w, sy: 0.09, sz: 0.012, color: darker(tc, 0.85) });   // poche kangourou
+    for (const sx of [-1, 1]) sb.add(B.cyl(6), { x: sx * 0.03, y: 0.38, z: FZ(0.42) - 0.005, sx: 0.008, sy: 0.12, sz: 0.008, color: '#f1f1f1' });   // cordons
+  }
+  if (top === 'chemise' || top === 'hawai' || top === 'costume' || top === 'veste-luxe') {
+    for (const sx of [-1, 1]) sb.add(B.box(), { y: 0.5, z: 0.075, x: sx * 0.045, sx: 0.085, sy: 0.05, sz: 0.035, rz: sx * -0.55, rx: 0.3, color: top === 'hawai' ? tc : '#ffffff' });   // col de chemise
   }
   if (top === 'chemise' || top === 'hawai') {
-    sb.add(B.box(), { y: 0.56, z: 0.12, x: -0.06, sx: 0.12, sy: 0.08, sz: 0.06, rz: 0.5, color: '#ffffff' });
-    sb.add(B.box(), { y: 0.56, z: 0.12, x: 0.06, sx: 0.12, sy: 0.08, sz: 0.06, rz: -0.5, color: '#ffffff' });
-    for (let i = 0; i < 3; i++) sb.add(B.sphere(5), { y: 0.42 - i * 0.12, z: 0.2, sx: 0.035, sy: 0.035, sz: 0.02, color: '#ffffff' });
+    sb.add(B.box(), { y: 0.06, z: FZ(0.3) - 0.012, sx: 0.022, sy: 0.44, sz: 0.012, color: darker(tc, 0.9) });   // patte de boutonnage
+    for (let i = 0; i < 4; i++) sb.add(B.sphere(6), { y: 0.44 - i * 0.1, z: FZ(0.44 - i * 0.1) + 0.002, sx: 0.018, sy: 0.018, sz: 0.01, color: '#ffffff' });
   }
   if (top === 'hawai') {
     const cols = ['#ffd23f', '#ff5a5f', '#ffffff', '#7ac74f'];
-    for (let i = 0; i < 12; i++) {
-      const ang = (i / 12) * Math.PI * 2 + 0.3, yy = 0.12 + ((i * 37) % 10) / 24;
-      sb.add(B.sphere(5), { x: Math.sin(ang) * 0.27 * w, y: yy, z: Math.cos(ang) * 0.19, sx: 0.07, sy: 0.07, sz: 0.04, color: cols[i % 4] });
+    for (let i = 0; i < 14; i++) {
+      const ang = (i / 14) * Math.PI * 2 + 0.3, yy = 0.08 + ((i * 37) % 10) / 26;
+      sb.add(B.sphere(6), { x: Math.sin(ang) * W(yy) * 0.5, y: yy, z: Math.cos(ang) * D(yy) * 0.5, sx: 0.045, sy: 0.045, sz: 0.045, color: cols[i % 4] });
     }
   }
-  if (top === 'raye') for (let i = 0; i < 4; i++) sb.add(B.cyl(14), { y: 0.1 + i * 0.1, sx: 0.555 * w, sy: 0.035, sz: 0.385, color: '#ffffff' });
+  if (top === 'raye') for (let i = 0; i < 6; i++) band(0.08 + i * 0.07, 0.028, '#ffffff', 0.008);
   if (top === 'costume') {
-    sb.add(B.box(), { y: 0.2, z: 0.19, sx: 0.06, sy: 0.32, sz: 0.02, color: '#c0392b' }); // cravate
-    sb.add(B.box(), { y: 0.48, z: 0.19, sx: 0.14, sy: 0.12, sz: 0.02, color: '#ffffff' });
+    sb.add(B.box(), { y: 0.3, z: FZ(0.4) - 0.01, sx: 0.09, sy: 0.2, sz: 0.012, color: '#ffffff' });   // plastron
+    sb.add(B.box(), { y: 0.16, z: FZ(0.3) + 0.002, sx: 0.04, sy: 0.32, sz: 0.012, color: '#c0392b' }); // cravate
+    for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.07, y: 0.24, z: FZ(0.35) + 0.002, sx: 0.07, sy: 0.27, sz: 0.012, rz: sx * 0.22, color: darker(tc, 0.82) });   // revers
   }
   if (top === 'veste-luxe') {
-    for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.09, y: 0.36, z: 0.2, sx: 0.1, sy: 0.34, sz: 0.02, rz: sx * 0.25, color: '#fca311' });
-    for (let i = 0; i < 2; i++) sb.add(B.sphere(5), { y: 0.22 - i * 0.12, z: 0.21, x: 0.04, sx: 0.04, sy: 0.04, sz: 0.02, color: '#fca311' });
-    sb.add(B.box(), { y: 0.5, z: 0.18, sx: 0.12, sy: 0.12, sz: 0.02, color: '#ffffff' });
+    for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.065, y: 0.24, z: FZ(0.35) + 0.002, sx: 0.06, sy: 0.27, sz: 0.012, rz: sx * 0.22, color: '#fca311' });
+    for (let i = 0; i < 2; i++) sb.add(B.sphere(6), { y: 0.16 - i * 0.08, z: FZ(0.15) + 0.006, x: 0.025, sx: 0.025, sy: 0.025, sz: 0.012, color: '#fca311' });
+    sb.add(B.box(), { y: 0.38, z: FZ(0.42) - 0.012, sx: 0.08, sy: 0.1, sz: 0.012, color: '#ffffff' });
   }
   if (top === 'torse') {
     const m = extra.strong || 0;
-    if (m > 0.3) for (const sx of [-1, 1]) sb.add(B.sphere(10), { x: sx * 0.12 * w, y: 0.4, z: 0.15, sx: 0.24 * w, sy: 0.16, sz: 0.1 + m * 0.06, color: darker(a.skin, 0.93) }); // pectoraux
-    if (m > 0.55) for (let r = 0; r < 3; r++) for (const sx of [-1, 1]) sb.add(B.sphere(6), { x: sx * 0.055, y: 0.24 - r * 0.075, z: 0.18, sx: 0.08, sy: 0.06, sz: 0.04, color: darker(a.skin, 0.9) }); // abdos
-    sb.add(B.box(), { y: 0.04, sx: 0.4 * w, sy: 0.05, sz: 0.39, color: '#2b2d42' });
+    if (!fem) for (const sx of [-1, 1]) sb.add(B.sphere(12), { x: sx * 0.085 * w, y: 0.37, z: FZ(0.37) - 0.04, sx: 0.17 * w, sy: 0.12, sz: 0.09 + m * 0.04, color: darker(a.skin, 0.95) }); // pectoraux
+    if (m > 0.4) for (let r = 0; r < 3; r++) for (const sx of [-1, 1]) sb.add(B.sphere(8), { x: sx * 0.036, y: 0.25 - r * 0.058, z: FZ(0.25 - r * 0.058) - 0.014, sx: 0.06, sy: 0.048, sz: 0.035, color: darker(a.skin, 0.92) }); // abdos
+    sb.add(B.sphere(6), { y: 0.085, z: FZ(0.09) - 0.004, sx: 0.016, sy: 0.02, sz: 0.01, color: darker(a.skin, 0.7) });   // nombril
+    if (fem) band(0.33, 0.1, extra.topColor || a.topColor, 0.01);   // brassière
   }
   if (top === 'tablier') {
-    sb.add(B.box(), { y: -0.25, z: 0.2, sx: 0.46 * w, sy: 0.75, sz: 0.03, color: '#ffffff' });
-    sb.add(B.box(), { y: 0.3, z: 0.18, sx: 0.04, sy: 0.4, sz: 0.02, x: 0.12, color: '#eeeeee' });
-    sb.add(B.box(), { y: 0.3, z: 0.18, sx: 0.04, sy: 0.4, sz: 0.02, x: -0.12, color: '#eeeeee' });
+    sb.add(B.box(), { y: -0.38, z: FZ(0.1) + 0.008, sx: 0.3 * w, sy: 0.74, sz: 0.014, color: '#ffffff' });
+    for (const sx of [-1, 1]) sb.add(B.box(), { y: 0.3, z: FZ(0.42), sx: 0.03, sy: 0.22, sz: 0.012, x: sx * 0.08, color: '#eeeeee' });
   }
-  if (top === 'uniforme-pompier') {
-    for (const yy of [0.12, 0.34]) sb.add(B.cyl(14), { y: yy, sx: 0.56 * w, sy: 0.05, sz: 0.395, color: '#ffe14d' });
-  }
-  if (top === 'gilet-livreur') {
-    sb.add(B.box(), { y: 0.28, z: 0.19, sx: 0.4 * w, sy: 0.1, sz: 0.02, color: '#2d3a8c' });
-  }
+  if (top === 'uniforme-pompier') for (const yy of [0.08, 0.26]) band(yy, 0.035, '#ffe14d');
+  if (top === 'gilet-livreur') band(0.24, 0.07, '#2d3a8c');
   // dos
-  const back = extra.back || a.back;
+  const back = extra.back || a.back, BZ = -D(0.35) / 2;
   if (back === 'sac-a-dos' || back === 'sac-livreur') {
     const col = back === 'sac-livreur' ? '#ffd23f' : '#3d8ee8';
-    sb.add(B.box(), { y: 0.12, z: -0.3, sx: 0.42, sy: 0.46, sz: 0.24, color: col });
-    sb.add(B.box(), { y: 0.14, z: -0.42, sx: 0.32, sy: 0.22, sz: 0.06, color: darker(col) });
+    sb.add(B.box(), { y: 0.1, z: BZ - 0.08, sx: 0.28, sy: 0.38, sz: 0.16, color: col });
+    sb.add(B.box(), { y: 0.13, z: BZ - 0.17, sx: 0.2, sy: 0.16, sz: 0.04, color: darker(col) });
+    for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.11 * w, y: 0.16, z: FZ(0.4) - 0.01, sx: 0.035, sy: 0.36, sz: 0.014, color: darker(col, 0.85) });   // bretelles
   }
-  if (back === 'cape') sb.add(B.box(), { y: -0.55, z: -0.22, sx: 0.62 * w, sy: 1.1, sz: 0.04, rx: 0.12, color: '#c0392b' });
-  if (back === 'ailes') {
-    for (const s of [-1, 1]) sb.add(B.sphere(8), { x: s * 0.35, y: 0.35, z: -0.28, sx: 0.12, sy: 0.6, sz: 0.4, rz: s * -0.6, color: '#ffffff' });
-  }
-  if (back === 'bouee') sb.add(B.ring(), { y: 0.0, sx: 1.05 * w, sy: 1.0, sz: 0.85, color: '#ffd23f' });
+  if (back === 'cape' || back === 'cape-vampire') sb.add(B.box(), { y: -0.6, z: BZ - 0.04, sx: 0.44 * w, sy: 1.1, sz: 0.03, rx: 0.1, color: back === 'cape' ? '#c0392b' : '#1d1029' });
+  if (back === 'ailes') for (const s of [-1, 1]) sb.add(B.sphere(10), { x: s * 0.26, y: 0.36, z: BZ - 0.08, sx: 0.09, sy: 0.5, sz: 0.3, rz: s * -0.6, color: '#ffffff' });
+  if (back === 'bouee') sb.add(B.ring(), { y: 0.05, sx: 0.72 * w, sy: 0.7, sz: 0.6, color: '#ffd23f' });
   if (back === 'guitare') {
-    sb.add(B.sphere(10), { y: 0.0, z: -0.3, sx: 0.4, sy: 0.45, sz: 0.12, rz: 0.4, color: '#b5562d' });
-    sb.add(B.box(), { y: 0.35, z: -0.3, x: 0.15, sx: 0.06, sy: 0.6, sz: 0.05, rz: 0.4, color: '#5b3a1e' });
+    sb.add(B.sphere(12), { y: 0.05, z: BZ - 0.06, sx: 0.3, sy: 0.36, sz: 0.09, rz: 0.4, color: '#b5562d' });
+    sb.add(B.box(), { y: 0.32, z: BZ - 0.06, x: 0.12, sx: 0.045, sy: 0.5, sz: 0.035, rz: 0.4, color: '#5b3a1e' });
   }
-  if (back === 'echarpe') sb.add(B.ring(), { y: 0.58, sx: 0.4, sy: 0.6, sz: 0.4, color: '#ff5a5f' });
-  if (back === 'sac-luxe') { sb.add(B.box(), { x: 0.3 * w, y: -0.2, z: 0.02, sx: 0.12, sy: 0.3, sz: 0.34, color: '#7f5539' }); sb.add(B.box(), { x: 0.3 * w, y: -0.12, z: 0.2, sx: 0.13, sy: 0.05, sz: 0.02, color: '#fca311' }); sb.add(B.ring(), { x: 0.22 * w, y: 0.22, rz: 0.4, sx: 0.16, sy: 0.7, sz: 0.16, color: '#7f5539' }); }
-  if (back === 'cape-vampire') sb.add(B.box(), { y: -0.55, z: -0.22, sx: 0.66 * w, sy: 1.1, sz: 0.04, rx: 0.12, color: '#1d1029' });
+  if (back === 'echarpe') { sb.add(B.ring(), { y: 0.55, sx: 0.24, sy: 0.4, sz: 0.24, color: '#ff5a5f' }); sb.add(B.box(), { x: 0.06, y: 0.28, z: FZ(0.4) + 0.005, sx: 0.07, sy: 0.26, sz: 0.02, color: '#ff5a5f' }); }
+  if (back === 'sac-luxe') { sb.add(B.box(), { x: 0.24 * w, y: -0.18, z: 0.0, sx: 0.07, sy: 0.2, sz: 0.24, color: '#7f5539' }); sb.add(B.box(), { x: 0.24 * w, y: -0.06, z: 0.12, sx: 0.075, sy: 0.035, sz: 0.012, color: '#fca311' }); sb.add(B.box(), { x: 0.215 * w, y: 0.0, sx: 0.016, sy: 0.5, sz: 0.03, color: '#7f5539' }); }
 }
 
-// ---------- Tête (pivot au cou, y = 1.43)
+// ---------- Tête (pivot au cou ; construite dans un repère « large », puis réduite à 30 cm)
 function buildHead(sb, a, extra) {
-  const s = a.skin;
-  sb.add(B.sphere(32), { y: 0.3, sx: 0.58, sy: 0.6, sz: 0.56, color: s });
-  sb.add(B.sphere(20), { y: 0.13, z: 0.04, sx: 0.46, sy: 0.3, sz: 0.46, color: s });   // mâchoire arrondie
+  const s = a.skin, fem = isFem(a, extra);
+  const lip = mix(s, fem ? '#c2415a' : '#a8544e', fem ? 0.62 : 0.4);
+  sb.add(B.sphere(32), { y: 0.3, sx: 0.56, sy: 0.6, sz: 0.58, color: s });   // crâne
+  sb.add(B.sphere(24), { y: 0.14, z: 0.035, sx: fem ? 0.44 : 0.47, sy: 0.38, sz: 0.48, color: s });   // mâchoire
+  sb.add(B.sphere(16), { y: 0.04, z: 0.17, sx: fem ? 0.2 : 0.24, sy: 0.12, sz: 0.12, color: s });   // menton
   for (const sx of [-1, 1]) {
-    sb.add(B.sphere(14), { x: sx * 0.16, y: 0.22, z: 0.17, sx: 0.16, sy: 0.12, sz: 0.12, color: s });   // pommettes
-    sb.add(B.sphere(16), { x: sx * 0.29, y: 0.29, sx: 0.085, sy: 0.15, sz: 0.09, rz: sx * 0.1, color: s });   // oreille
-    sb.add(B.torus(), { x: sx * 0.315, y: 0.295, z: 0.005, sx: 0.11, sy: 0.17, sz: 0.2, ry: Math.PI / 2, color: darker(s, 0.93) });   // ourlet
-    sb.add(B.sphere(10), { x: sx * 0.318, y: 0.285, z: 0.012, sx: 0.035, sy: 0.07, sz: 0.04, color: darker(s, 0.78) });   // creux de l'oreille
-    sb.add(B.sphere(10), { x: sx * 0.3, y: 0.205, z: 0.008, sx: 0.045, sy: 0.045, sz: 0.04, color: s });   // lobe
+    sb.add(B.sphere(14), { x: sx * 0.15, y: 0.22, z: 0.16, sx: 0.17, sy: 0.12, sz: 0.1, color: s });   // pommettes
+    sb.add(B.sphere(16), { x: sx * 0.275, y: 0.27, z: -0.01, sx: 0.06, sy: 0.14, sz: 0.085, rz: sx * 0.12, color: s });   // oreille
+    sb.add(B.sphere(10), { x: sx * 0.292, y: 0.275, z: 0.0, sx: 0.03, sy: 0.08, sz: 0.045, color: darker(s, 0.8) });   // creux de l'oreille
   }
-  // yeux
-  const ey = 0.33, ez = 0.245;
-  for (const sx of [-0.1, 0.1]) {
+  // yeux en amande, à mi-hauteur du visage
+  const ey = 0.29, ez = 0.258, ex = 0.097;
+  const brow = darker(a.hairColor, 0.72);
+  for (const sx of [-ex, ex]) {
+    sb.add(B.sphere(12), { x: sx, y: ey + 0.005, z: ez - 0.012, sx: 0.125, sy: 0.085, sz: 0.04, color: darker(s, 0.93) });   // orbite
     if (a.eyes === 'joyeux') {
-      sb.add(B.box(), { x: sx - 0.025, y: ey, z: ez + 0.02, sx: 0.07, sy: 0.022, sz: 0.02, rz: 0.6, color: '#1b1b24' });
-      sb.add(B.box(), { x: sx + 0.025, y: ey, z: ez + 0.02, sx: 0.07, sy: 0.022, sz: 0.02, rz: -0.6, color: '#1b1b24' });
+      for (const k of [-1, 1]) sb.add(B.box(), { x: sx + k * 0.02, y: ey - 0.004, z: ez + 0.018, sx: 0.046, sy: 0.011, sz: 0.012, rz: k * -0.45, color: '#1b1b24' });
     } else {
-      sb.add(B.sphere(20), { x: sx, y: ey, z: ez, sx: 0.12, sy: a.eyes === 'endormi' ? 0.06 : 0.13, sz: 0.06, color: '#fbfbf7' });
-      // iris coloré + pupille + reflet de lumière
-      sb.add(B.sphere(12), { x: sx * 1.05, y: ey - (a.eyes === 'endormi' ? 0.005 : 0), z: ez + 0.024, sx: 0.075, sy: a.eyes === 'endormi' ? 0.04 : 0.085, sz: 0.03, color: a.eyeColor || '#5b3a1e' });
-      sb.add(B.sphere(10), { x: sx * 1.05, y: ey - (a.eyes === 'endormi' ? 0.005 : 0), z: ez + 0.034, sx: 0.04, sy: a.eyes === 'endormi' ? 0.025 : 0.05, sz: 0.024, color: '#0e0e14' });
-      if (a.eyes !== 'endormi') sb.add(B.sphere(6), { x: sx * 1.05 + 0.018, y: ey + 0.022, z: ez + 0.046, sx: 0.018, sy: 0.018, sz: 0.01, color: '#ffffff' });
-      sb.add(B.hemi(16), { x: sx, y: ey + 0.012, z: ez - 0.005, sx: 0.125, sy: 0.07, sz: 0.065, rx: -0.15, color: darker(s, 0.95) });   // paupière
-      // cils : petite frange recourbée sur le bord de la paupière
-      for (let k = -2; k <= 2; k++) sb.add(B.box(), { x: sx + k * 0.022 + (sx > 0 ? 0.004 : -0.004), y: ey + 0.06 - Math.abs(k) * 0.006, z: ez + 0.03, sx: 0.006, sy: 0.022, sz: 0.006, rx: -0.5, rz: k * 0.18 + (sx > 0 ? -0.25 : 0.25), color: '#1b1b24' });
-      if (a.eyes === 'endormi') sb.add(B.box(), { x: sx, y: ey + 0.03, z: ez + 0.02, sx: 0.13, sy: 0.04, sz: 0.03, color: s });
+      const sleepy = a.eyes === 'endormi', hgt = sleepy ? 0.026 : 0.044;
+      sb.add(B.sphere(16), { x: sx, y: ey, z: ez, sx: 0.088, sy: hgt, sz: 0.04, color: '#f3f0ea' });
+      sb.add(B.sphere(14), { x: sx * 1.03, y: ey, z: ez + 0.013, sx: 0.043, sy: Math.min(hgt, 0.043), sz: 0.022, color: a.eyeColor || '#5b3a1e' });   // iris
+      sb.add(B.sphere(10), { x: sx * 1.03, y: ey, z: ez + 0.02, sx: 0.02, sy: Math.min(hgt * 0.6, 0.021), sz: 0.014, color: '#0b0b10' });   // pupille
+      sb.add(B.sphere(6), { x: sx * 1.03 + 0.01, y: ey + 0.009, z: ez + 0.027, sx: 0.008, sy: 0.008, sz: 0.004, color: '#ffffff' });   // reflet
+      sb.add(B.hemi(16), { x: sx, y: ey + (sleepy ? 0.0 : 0.009), z: ez - 0.004, sx: 0.096, sy: 0.05, sz: 0.052, rx: -0.2, color: darker(s, 0.9) });   // paupière
+      sb.add(B.sphere(8), { x: sx, y: ey + (sleepy ? 0.006 : 0.021), z: ez + 0.016, sx: 0.09, sy: fem ? 0.012 : 0.008, sz: 0.012, rz: sx > 0 ? -0.08 : 0.08, color: '#1b1b24' });   // ligne des cils
+      if (fem) sb.add(B.box(), { x: sx * 1.42, y: ey + 0.024, z: ez + 0.004, sx: 0.022, sy: 0.007, sz: 0.008, rz: sx > 0 ? 0.5 : -0.5, color: '#1b1b24' });   // cils extérieurs
     }
-    if (a.eyes === 'serieux') sb.add(B.box(), { x: sx, y: ey + 0.1, z: ez + 0.02, sx: 0.12, sy: 0.03, sz: 0.02, rz: sx > 0 ? 0.25 : -0.25, color: darker(a.hairColor, 0.8) });
-    else sb.add(B.sphere(10), { x: sx * 1.05, y: ey + 0.105, z: ez + 0.005, sx: 0.13, sy: 0.032, sz: 0.04, rz: sx > 0 ? -0.18 : 0.18, color: darker(a.hairColor, 0.8) });   // sourcil arrondi
+    const ang = a.eyes === 'serieux' ? 0.3 : 0.1;
+    sb.add(B.sphere(10), { x: sx * 1.06, y: ey + (a.eyes === 'serieux' ? 0.052 : 0.064), z: ez + 0.012, sx: fem ? 0.095 : 0.105, sy: fem ? 0.014 : 0.022, sz: 0.026, rz: sx > 0 ? ang : -ang, color: brow });   // sourcil
   }
-  sb.add(B.sphere(10), { y: 0.29, z: 0.27, sx: 0.05, sy: 0.12, sz: 0.06, rx: -0.3, color: s });   // arête du nez
-  sb.add(B.sphere(10), { y: 0.245, z: 0.29, sx: 0.08, sy: 0.06, sz: 0.07, color: darker(s, 0.94) }); // bout du nez
-  for (const nx of [-0.022, 0.022]) sb.add(B.sphere(6), { x: nx, y: 0.228, z: 0.305, sx: 0.018, sy: 0.012, sz: 0.012, color: darker(s, 0.6) });   // narines
-  sb.add(B.sphere(10), { y: 0.155, z: 0.255, sx: 0.09, sy: 0.03, sz: 0.03, color: darker(s, 0.85) });   // lèvre inférieure
-  sb.add(B.sphere(10), { y: 0.1, z: 0.22, sx: 0.14, sy: 0.08, sz: 0.08, color: s });   // menton
-  // bouche : sourire arrondi (petits segments en arc) et lèvre inférieure
-  for (let i = 0; i < 9; i++) { const t = (i - 4) / 4; sb.add(B.sphere(8), { x: t * 0.07, y: 0.17 + t * t * 0.02, z: 0.263 - t * t * 0.012, sx: 0.034, sy: 0.02, sz: 0.018, color: '#7a2e2e' }); }
-  sb.add(B.sphere(6), { x: -0.17, y: 0.22, z: 0.22, sx: 0.08, sy: 0.04, sz: 0.03, color: '#ff9aa2' });
-  sb.add(B.sphere(6), { x: 0.17, y: 0.22, z: 0.22, sx: 0.08, sy: 0.04, sz: 0.03, color: '#ff9aa2' });
+  sb.add(B.sphere(12), { y: 0.25, z: 0.275, sx: 0.05, sy: 0.14, sz: 0.06, rx: -0.22, color: s });   // arête du nez
+  sb.add(B.sphere(12), { y: 0.19, z: 0.305, sx: fem ? 0.055 : 0.066, sy: 0.05, sz: 0.058, color: s }); // bout du nez
+  for (const nx of [-1, 1]) {
+    sb.add(B.sphere(8), { x: nx * 0.03, y: 0.182, z: 0.283, sx: 0.036, sy: 0.032, sz: 0.04, color: s });   // ailes du nez
+    sb.add(B.sphere(6), { x: nx * 0.017, y: 0.17, z: 0.3, sx: 0.014, sy: 0.008, sz: 0.012, color: darker(s, 0.55) });   // narines
+  }
+  // bouche : lèvres dessinées, léger sourire
+  sb.add(B.sphere(12), { y: 0.128, z: 0.272, sx: 0.105, sy: 0.024, sz: 0.034, color: lip });   // lèvre supérieure
+  sb.add(B.sphere(12), { y: 0.106, z: 0.27, sx: 0.09, sy: fem ? 0.034 : 0.028, sz: 0.036, color: mix(lip, '#ffffff', 0.08) });   // lèvre inférieure
+  sb.add(B.box(), { y: 0.114, z: 0.284, sx: 0.088, sy: 0.005, sz: 0.008, color: darker(lip, 0.5) });   // commissure
+  for (const k of [-1, 1]) sb.add(B.sphere(6), { x: k * 0.055, y: 0.122, z: 0.266, sx: 0.016, sy: 0.012, sz: 0.012, color: darker(lip, 0.6) });
 
   const hat = extra.hat !== undefined ? extra.hat : a.hat;
   const hc = a.hairColor;
@@ -169,12 +188,16 @@ function buildHead(sb, a, extra) {
       }
       break;
     case 'long':
-      cap(0.64, 0.68, 0.63, -0.2);
-      // longue chevelure : masse arrondie dans le dos, mèches de côté sur les épaules, raie au milieu
-      sb.add(B.sphere(20), { y: 0.18, z: -0.17, sx: 0.66, sy: 0.82, sz: 0.34, color: hc });
-      sb.add(B.sphere(16), { y: -0.12, z: -0.2, sx: 0.56, sy: 0.4, sz: 0.24, color: hc });
-      for (const sx of [-1, 1]) { sb.add(B.sphere(14), { x: sx * 0.27, y: 0.12, z: 0.05, sx: 0.14, sy: 0.5, sz: 0.18, rz: sx * 0.08, color: hc }); sb.add(B.sphere(12), { x: sx * 0.24, y: -0.1, z: 0.08, sx: 0.12, sy: 0.22, sz: 0.14, color: hc }); }
-      if (!hairUnderHat) sb.add(B.box(), { y: 0.61, z: 0.12, sx: 0.012, sy: 0.02, sz: 0.24, rx: 0.3, color: darker(hc, 0.7) });
+      cap(0.62, 0.68, 0.62, -0.2);
+      // longue chevelure qui tombe dans le dos jusqu'aux omoplates, mèches devant les épaules, raie au milieu
+      sb.add(B.sphere(22), { y: 0.12, z: -0.17, sx: 0.66, sy: 0.9, sz: 0.36, color: hc });
+      sb.add(B.sphere(18), { y: -0.42, z: -0.22, sx: 0.6, sy: 0.75, sz: 0.24, color: hc });
+      sb.add(B.sphere(14), { y: -0.8, z: -0.24, sx: 0.48, sy: 0.4, sz: 0.18, color: darker(hc, 0.92) });
+      for (const sx of [-1, 1]) {
+        sb.add(B.sphere(16), { x: sx * 0.26, y: 0.1, z: 0.04, sx: 0.14, sy: 0.6, sz: 0.2, rz: sx * 0.06, color: hc });
+        sb.add(B.sphere(14), { x: sx * 0.27, y: -0.3, z: 0.1, sx: 0.13, sy: 0.55, sz: 0.16, rz: sx * -0.08, color: hc });
+        sb.add(B.sphere(10), { x: sx * 0.25, y: -0.6, z: 0.13, sx: 0.09, sy: 0.22, sz: 0.11, color: darker(hc, 0.9) });
+      }
       break;
     case 'chignon':
       cap(0.63, 0.66, 0.62, -0.25);
@@ -253,108 +276,121 @@ function buildHead(sb, a, extra) {
   const glasses = extra.glasses !== undefined ? extra.glasses : a.glasses;
   switch (glasses) {
     case 'lunettes-rondes':
-      for (const sx of [-0.1, 0.1]) sb.add(B.torus(), { x: sx, y: 0.33, z: 0.29, sx: 0.2, sy: 0.2, sz: 0.2, color: '#1b1b24' });
-      sb.add(B.box(), { y: 0.34, z: 0.29, sx: 0.06, sy: 0.015, sz: 0.015, color: '#1b1b24' });
+      for (const sx of [-0.1, 0.1]) sb.add(B.torus(), { x: sx, y: 0.29, z: 0.29, sx: 0.2, sy: 0.2, sz: 0.2, color: '#1b1b24' });
+      sb.add(B.box(), { y: 0.3, z: 0.29, sx: 0.06, sy: 0.015, sz: 0.015, color: '#1b1b24' });
       break;
     case 'lunettes-soleil':
-      for (const sx of [-0.1, 0.1]) sb.add(B.box(), { x: sx, y: 0.33, z: 0.29, sx: 0.16, sy: 0.09, sz: 0.03, color: '#14141c' });
-      sb.add(B.box(), { y: 0.36, z: 0.29, sx: 0.4, sy: 0.02, sz: 0.02, color: '#14141c' });
+      for (const sx of [-0.1, 0.1]) sb.add(B.box(), { x: sx, y: 0.29, z: 0.29, sx: 0.16, sy: 0.09, sz: 0.03, color: '#14141c' });
+      sb.add(B.box(), { y: 0.32, z: 0.29, sx: 0.4, sy: 0.02, sz: 0.02, color: '#14141c' });
       break;
     case 'lunettes-coeur':
-      for (const sx of [-0.1, 0.1]) { sb.add(B.sphere(8), { x: sx - 0.025, y: 0.34, z: 0.29, sx: 0.08, sy: 0.08, sz: 0.03, color: '#ff3f7f' }); sb.add(B.sphere(8), { x: sx + 0.025, y: 0.34, z: 0.29, sx: 0.08, sy: 0.08, sz: 0.03, color: '#ff3f7f' }); sb.add(B.cone(4), { x: sx, y: 0.32, z: 0.29, sx: 0.12, sy: 0.07, sz: 0.03, rx: Math.PI, color: '#ff3f7f' }); }
+      for (const sx of [-0.1, 0.1]) { sb.add(B.sphere(8), { x: sx - 0.025, y: 0.3, z: 0.29, sx: 0.08, sy: 0.08, sz: 0.03, color: '#ff3f7f' }); sb.add(B.sphere(8), { x: sx + 0.025, y: 0.3, z: 0.29, sx: 0.08, sy: 0.08, sz: 0.03, color: '#ff3f7f' }); sb.add(B.cone(4), { x: sx, y: 0.28, z: 0.29, sx: 0.12, sy: 0.07, sz: 0.03, rx: Math.PI, color: '#ff3f7f' }); }
       break;
     case 'lunettes-luxe':
-      for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.12, y: 0.3, z: 0.29, sx: 0.2, sy: 0.11, sz: 0.03, color: '#111111' });
-      sb.add(B.box(), { y: 0.33, z: 0.29, sx: 0.46, sy: 0.025, sz: 0.03, color: '#fca311' });
+      for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.12, y: 0.27, z: 0.29, sx: 0.2, sy: 0.11, sz: 0.03, color: '#111111' });
+      sb.add(B.box(), { y: 0.29, z: 0.29, sx: 0.46, sy: 0.025, sz: 0.03, color: '#fca311' });
       break;
-    case 'monocle': sb.add(B.torus(), { x: 0.1, y: 0.33, z: 0.29, sx: 0.2, sy: 0.2, sz: 0.2, color: '#ffd23f' }); sb.add(B.box(), { x: 0.17, y: 0.15, z: 0.27, sx: 0.01, sy: 0.3, sz: 0.01, color: '#ffd23f' }); break;
+    case 'monocle': sb.add(B.torus(), { x: 0.1, y: 0.29, z: 0.29, sx: 0.2, sy: 0.2, sz: 0.2, color: '#ffd23f' }); sb.add(B.box(), { x: 0.17, y: 0.15, z: 0.27, sx: 0.01, sy: 0.3, sz: 0.01, color: '#ffd23f' }); break;
     case 'masque-plongee':
-      sb.add(B.box(), { y: 0.33, z: 0.28, sx: 0.36, sy: 0.16, sz: 0.06, color: '#2ec4b6' });
-      sb.add(B.box(), { y: 0.33, z: 0.31, sx: 0.3, sy: 0.11, sz: 0.02, color: '#bfefff' });
-      sb.add(B.cyl(6), { x: 0.25, y: 0.35, z: 0.15, sx: 0.05, sy: 0.4, sz: 0.05, color: '#ffd23f' });
+      sb.add(B.box(), { y: 0.29, z: 0.28, sx: 0.36, sy: 0.16, sz: 0.06, color: '#2ec4b6' });
+      sb.add(B.box(), { y: 0.29, z: 0.31, sx: 0.3, sy: 0.11, sz: 0.02, color: '#bfefff' });
+      sb.add(B.cyl(6), { x: 0.25, y: 0.31, z: 0.15, sx: 0.05, sy: 0.4, sz: 0.05, color: '#ffd23f' });
       break;
-    case 'moustache': sb.add(B.sphere(8), { x: -0.06, y: 0.21, z: 0.28, sx: 0.13, sy: 0.05, sz: 0.04, rz: 0.2, color: '#3a2a1e' }); sb.add(B.sphere(8), { x: 0.06, y: 0.21, z: 0.28, sx: 0.13, sy: 0.05, sz: 0.04, rz: -0.2, color: '#3a2a1e' }); break;
+    case 'moustache': sb.add(B.sphere(8), { x: -0.06, y: 0.15, z: 0.29, sx: 0.13, sy: 0.05, sz: 0.04, rz: 0.2, color: '#3a2a1e' }); sb.add(B.sphere(8), { x: 0.06, y: 0.15, z: 0.29, sx: 0.13, sy: 0.05, sz: 0.04, rz: -0.2, color: '#3a2a1e' }); break;
     default: break;
   }
 }
 
-// ---------- Bras (pivot à l'épaule)
-function buildArm(sb, a, extra) {
+// ---------- Bras : haut (pivot à l'épaule) et avant-bras + main (pivot au coude)
+function armStyle(a, extra) {
   const top = extra.top || a.top;
   const tc = extra.topColor || a.topColor;
   const long = ['sweat', 'chemise', 'costume', 'uniforme-pompier', 'raye', 'veste-luxe'].includes(top);
   const bare = top === 'debardeur' || top === 'torse';
-  const m = 1 + (extra.strong || 0) * 0.45 + Math.max(0, extra.fat || 0) * 0.3;
-  sb.add(B.sphere(18), { x: 0.0, y: -0.05, sx: 0.17 * m, sy: 0.19, sz: 0.18 * m, color: bare ? a.skin : tc });   // épaule (deltoïde)
-  sb.add(B.frustum(18, 0.82), { y: -0.44, sx: 0.17 * m, sy: 0.42, sz: 0.17 * m, color: long ? tc : a.skin });   // biceps
+  const fem = isFem(a, extra);
+  const m = (fem ? 0.86 : 1) * (1 + (extra.strong || 0) * 0.4 + Math.max(0, extra.fat || 0) * 0.3);
+  return { top, tc, long, bare, m };
+}
+function buildUpperArm(sb, a, extra) {
+  const { top, tc, long, bare, m } = armStyle(a, extra);
+  sb.add(B.sphere(18), { y: -0.04, sx: 0.125 * m, sy: 0.15, sz: 0.125 * m, color: bare ? a.skin : tc });   // deltoïde
+  sb.add(B.frustum(18, 0.8), { y: ELBOW, sx: 0.105 * m, sy: -ELBOW - 0.02, sz: 0.11 * m, color: long ? tc : a.skin });   // bras
+  sb.add(B.sphere(12), { y: -0.17, z: 0.012, sx: 0.09 * m, sy: 0.14, sz: 0.085 * m, color: long ? tc : a.skin });   // biceps
   if (!bare && !long) {
-    // manche courte : évasée, qui s'arrête à mi-bras, avec son ourlet
-    sb.add(B.frustum(18, 1.12), { y: -0.22, sx: 0.2 * m, sy: 0.22, sz: 0.2 * m, color: tc });
-    sb.add(B.cyl(18), { y: -0.235, sx: 0.225 * m, sy: 0.035, sz: 0.225 * m, color: darker(tc, 0.85) });
+    sb.add(B.frustum(18, 1.06), { y: -0.15, sx: 0.13 * m, sy: 0.15, sz: 0.135 * m, color: tc });   // manche courte
+    sb.add(B.cyl(18), { y: -0.155, sx: 0.134 * m, sy: 0.016, sz: 0.139 * m, color: darker(tc, 0.85) });
   }
-  sb.add(B.sphere(10), { y: -0.44, sx: 0.155 * m, sy: 0.12, sz: 0.155 * m, color: long ? tc : a.skin });   // coude
-  sb.add(B.frustum(14, 0.78), { y: -0.66, sx: 0.15 * m, sy: 0.22, sz: 0.15 * m, color: long ? tc : a.skin });   // avant-bras
-  if (long) sb.add(B.cyl(12), { y: -0.66, sx: 0.155 * m, sy: 0.05, sz: 0.155 * m, color: darker(tc, 0.82) });   // poignet de manche
-  if (top === 'uniforme-pompier') sb.add(B.cyl(8), { y: -0.45, sx: 0.16, sy: 0.04, sz: 0.16, color: '#ffe14d' });
-  // main : paume, quatre doigts légèrement repliés, pouce
-  sb.add(B.sphere(14), { y: -0.71, sx: 0.14, sy: 0.13, sz: 0.1, color: a.skin });
+  if (top === 'uniforme-pompier') sb.add(B.cyl(10), { y: -0.2, sx: 0.112 * m, sy: 0.03, sz: 0.115 * m, color: '#ffe14d' });
+  sb.add(B.sphere(12), { y: ELBOW, sx: 0.084 * m, sy: 0.07, sz: 0.086 * m, color: long ? tc : a.skin });   // coude
+}
+function buildForearm(sb, a, extra) {
+  const { tc, long, m } = armStyle(a, extra);
+  const s = a.skin, L = HAND;
+  sb.add(B.sphere(12), { y: 0, sx: 0.084 * m, sy: 0.07, sz: 0.086 * m, color: long ? tc : s });   // rotule du coude
+  sb.add(B.frustum(16, 0.62), { y: L + 0.01, sx: 0.086 * m, sy: -L - 0.01, sz: 0.088 * m, color: long ? tc : s });   // avant-bras
+  if (long) sb.add(B.cyl(14), { y: L + 0.02, sx: 0.072, sy: 0.04, sz: 0.068, color: darker(tc, 0.82) });   // poignet de manche
+  // main : paume, quatre doigts légèrement repliés, pouce, ongles
+  sb.add(B.sphere(14), { y: L - 0.045, sx: 0.07, sy: 0.1, sz: 0.035, color: s });
   for (let i = 0; i < 4; i++) {
-    const fx = -0.045 + i * 0.03, len = i === 0 || i === 3 ? 0.075 : 0.09;
-    sb.add(B.sphere(8), { x: fx, y: -0.79, z: 0.012, sx: 0.032, sy: len, sz: 0.034, rx: 0.25, color: a.skin });
+    const fx = -0.026 + i * 0.0175, len = [0.06, 0.075, 0.07, 0.055][i];
+    sb.add(B.sphere(8), { x: fx, y: L - 0.1 - len * 0.4, z: 0.006, sx: 0.016, sy: len, sz: 0.018, rx: 0.2, color: s });
   }
-  sb.add(B.sphere(8), { y: -0.71, z: 0.06, x: 0.04, sx: 0.04, sy: 0.08, sz: 0.04, rx: 0.5, rz: -0.3, color: a.skin });
+  sb.add(B.sphere(8), { x: 0.032, y: L - 0.05, z: 0.022, sx: 0.02, sy: 0.055, sz: 0.022, rx: 0.4, rz: -0.45, color: s });   // pouce
 }
 
-// ---------- Jambe (pivot à la hanche)
-function buildLeg(sb, a) {
-  const short = a.bottom === 'short';
-  const skirt = a.bottom === 'jupe';
-  sb.add(B.frustum(16, 0.8), { y: -0.57, sx: 0.25, sy: 0.57, sz: 0.25, color: skirt ? a.skin : a.bottomColor });   // cuisse
-  sb.add(B.sphere(10), { y: -0.6, z: 0.01, sx: 0.2, sy: 0.12, sz: 0.2, color: short || skirt ? a.skin : a.bottomColor });   // genou
-  sb.add(B.frustum(14, 0.72), { y: -0.84, sx: 0.2, sy: 0.24, sz: 0.2, color: short || skirt ? a.skin : a.bottomColor });   // mollet
-  if (!short && !skirt) sb.add(B.cyl(12), { y: -0.82, sx: 0.185, sy: 0.04, sz: 0.185, color: darker(a.bottomColor, 0.85) });   // bas du pantalon
-  if (short) sb.add(B.cyl(12), { y: -0.57, sx: 0.235, sy: 0.04, sz: 0.235, color: darker(a.bottomColor, 0.85) });   // ourlet du short
-  if (!skirt && a.bottom === 'jean') { sb.add(B.box(), { x: 0.115, y: -0.45, sx: 0.006, sy: 0.6, sz: 0.04, color: darker(a.bottomColor, 0.8) }); sb.add(B.box(), { y: -0.2, z: -0.11, sx: 0.12, sy: 0.12, sz: 0.01, color: darker(a.bottomColor, 0.85) }); }   // couture + poche
-  const f = a.feet;
+// ---------- Jambes : cuisse (pivot à la hanche) et tibia + pied (pivot au genou)
+function buildThigh(sb, a, extra) {
+  const short = a.bottom === 'short', skirt = a.bottom === 'jupe', fem = isFem(a, extra);
+  const t = fem ? 0.95 : 1;
+  const c = skirt ? a.skin : a.bottomColor;
+  sb.add(B.frustum(18, 0.62), { y: KNEE, sx: 0.175 * t, sy: -KNEE, sz: 0.18 * t, color: c });   // cuisse
+  sb.add(B.sphere(14), { y: -0.04, sx: 0.165 * t, sy: 0.12, sz: 0.16 * t, color: skirt ? a.skin : a.bottomColor });   // haut de cuisse
+  if (short) sb.add(B.cyl(16), { y: -0.27, sx: 0.162, sy: 0.02, sz: 0.168, color: darker(a.bottomColor, 0.85) });   // ourlet du short
+  if (short) sb.add(B.frustum(16, 0.75), { y: KNEE, sx: 0.125, sy: 0.2, sz: 0.13, color: a.skin });
+  sb.add(B.sphere(12), { y: KNEE, z: 0.01, sx: 0.11, sy: 0.09, sz: 0.11, color: short || skirt ? a.skin : a.bottomColor });   // genou
+}
+function buildShin(sb, a) {
+  const short = a.bottom === 'short', skirt = a.bottom === 'jupe';
+  const c = short || skirt ? a.skin : a.bottomColor, H = SOLE - KNEE;   // longueur du tibia (négative)
+  sb.add(B.sphere(12), { y: 0, z: 0.012, sx: 0.11, sy: 0.09, sz: 0.11, color: c });   // rotule
+  sb.add(B.frustum(16, 0.62), { y: H + 0.07, sx: 0.112, sy: -H - 0.07, sz: 0.115, color: c });   // jambe
+  sb.add(B.sphere(12), { y: H * 0.35, z: -0.022, sx: 0.1, sy: 0.18, sz: 0.09, color: c });   // mollet
+  if (!short && !skirt) sb.add(B.cyl(14), { y: H + 0.07, sx: 0.088, sy: 0.03, sz: 0.09, color: darker(a.bottomColor, 0.85) });   // bas du pantalon
+  const f = a.feet, y0 = H;
   if (f === 'bottes-cuir' || f === 'bottes-pluie') {
-    const c = f === 'bottes-pluie' ? '#ffd23f' : '#5c3d2e';
-    sb.add(B.cyl(8), { y: -0.74, sx: 0.21, sy: 0.24, sz: 0.21, color: c });
-    sb.add(B.box(), { y: -0.86, z: 0.06, sx: 0.22, sy: 0.12, sz: 0.36, color: c });
-  } else if (f === 'mocassins-cuir') {
-    sb.add(B.box(), { y: -0.87, z: 0.06, sx: 0.2, sy: 0.09, sz: 0.34, color: '#6f1d1b' }); sb.add(B.box(), { y: -0.82, z: 0.16, sx: 0.12, sy: 0.02, sz: 0.06, color: '#fca311' });
-  } else if (f === 'talons-or') {
-    sb.add(B.box(), { y: -0.84, z: 0.08, sx: 0.18, sy: 0.08, sz: 0.3, rx: 0.25, color: '#fca311' }); sb.add(B.cyl(6), { y: -0.9, z: -0.08, sx: 0.04, sy: 0.12, sz: 0.04, color: '#fca311' });
+    const col = f === 'bottes-pluie' ? '#ffd23f' : '#5c3d2e';
+    sb.add(B.cyl(12), { y: y0 + 0.03, sx: 0.1, sy: 0.24, sz: 0.11, color: col });
+    sb.add(B.sphere(14), { y: y0 + 0.045, z: 0.045, sx: 0.105, sy: 0.09, sz: 0.26, color: col });
+    sb.add(B.box(), { y: y0, z: 0.04, sx: 0.105, sy: 0.022, sz: 0.27, color: darker(col, 0.6) });
+  } else if (f === 'mocassins-cuir' || f === 'talons-or') {
+    const col = f === 'talons-or' ? '#fca311' : '#6f1d1b';
+    sb.add(B.sphere(14), { y: y0 + 0.035, z: 0.05, sx: 0.09, sy: 0.07, sz: 0.24, rx: f === 'talons-or' ? 0.25 : 0, color: col });
+    sb.add(B.sphere(10), { y: y0 + 0.06, z: 0.0, sx: 0.08, sy: 0.07, sz: 0.1, color: a.skin });
+    if (f === 'talons-or') sb.add(B.cyl(6), { y: y0, z: -0.06, sx: 0.02, sy: 0.07, sz: 0.02, color: col });
+    else sb.add(B.box(), { y: y0 + 0.06, z: 0.11, sx: 0.06, sy: 0.01, sz: 0.03, color: '#fca311' });
   } else if (f === 'tongs') {
-    sb.add(B.box(), { y: -0.9, z: 0.05, sx: 0.22, sy: 0.03, sz: 0.34, color: '#2ec4b6' }); sb.add(B.box(), { y: -0.86, z: 0.1, sx: 0.03, sy: 0.05, sz: 0.1, color: '#2ec4b6' }); sb.add(B.box(), { y: -0.86, z: 0.05, sx: 0.18, sy: 0.05, sz: 0.25, color: a.skin });
+    sb.add(B.sphere(12), { y: y0 + 0.03, z: 0.05, sx: 0.085, sy: 0.05, sz: 0.23, color: a.skin });
+    sb.add(B.box(), { y: y0, z: 0.05, sx: 0.1, sy: 0.015, sz: 0.26, color: '#2ec4b6' });
+    sb.add(B.box(), { y: y0 + 0.02, z: 0.1, sx: 0.012, sy: 0.04, sz: 0.06, color: '#2ec4b6' });
   } else {
-    // baskets (couleur au choix), version luxe : blanches et dorées, ou blanches
+    // baskets : tige arrondie, semelle épaisse, lacets, virgule
     const lux = f === 'baskets-luxe', white = f === 'baskets-blanches';
-    const sc = lux || white ? '#f8f9fa' : a.shoes;
-    sb.add(B.sphere(12), { y: -0.84, z: 0.08, sx: 0.23, sy: 0.15, sz: 0.38, color: sc });                  // chaussure arrondie
-    sb.add(B.sphere(14), { y: -0.895, z: 0.07, sx: 0.245, sy: 0.07, sz: 0.4, color: lux ? '#fca311' : '#e9e4d8' });   // semelle arrondie
-    for (let i = 0; i < 3; i++) sb.add(B.box(), { y: -0.775 + i * 0.012, z: 0.13 + i * 0.035, sx: 0.1, sy: 0.012, sz: 0.012, color: lux || white ? '#d0d4da' : '#ffffff' });   // lacets
-    if (lux) sb.add(B.box(), { x: 0.115, y: -0.83, z: 0.02, sx: 0.01, sy: 0.05, sz: 0.16, color: '#fca311' });
+    const sc = lux || white ? '#f4f5f7' : a.shoes;
+    sb.add(B.sphere(16), { y: y0 + 0.055, z: 0.04, sx: 0.112, sy: 0.1, sz: 0.27, color: sc });
+    sb.add(B.sphere(12), { y: y0 + 0.075, z: -0.035, sx: 0.105, sy: 0.12, sz: 0.13, color: sc });   // talon / cheville
+    sb.add(B.sphere(16), { y: y0 + 0.018, z: 0.04, sx: 0.122, sy: 0.045, sz: 0.285, color: lux ? '#fca311' : '#ece7dc' });   // semelle
+    for (let i = 0; i < 3; i++) sb.add(B.box(), { y: y0 + 0.098 - i * 0.012, z: 0.06 + i * 0.03, sx: 0.05, sy: 0.006, sz: 0.008, rx: -0.4, color: lux || white ? '#c9ced6' : '#f2f2f2' });   // lacets
+    for (const sx of [-1, 1]) sb.add(B.box(), { x: sx * 0.056, y: y0 + 0.055, z: 0.03, sx: 0.004, sy: 0.02, sz: 0.1, rx: 0.25, color: lux ? '#fca311' : white ? '#2b2d42' : '#ffffff' });   // virgule
   }
 }
-
-// Découpe un membre en deux à l'articulation (coude, genou) : la partie basse est recentrée sur
-// l'articulation pour pouvoir plier. La rotule appartient aux deux parties (pas de trou en pliant).
-function splitLimb(build, cutY) {
-  const parts = [];
-  build({ add: (shape, o) => parts.push([shape, o]) });
-  const upper = buildMergedGeometry((sb) => { for (const [sh, o] of parts) if (o.y > cutY - 0.025) sb.add(sh, o); });
-  const lower = buildMergedGeometry((sb) => { for (const [sh, o] of parts) if (o.y < cutY + 0.025) sb.add(sh, { ...o, y: o.y - cutY }); });
-  return [upper, lower];
-}
-const ELBOW = -0.44, KNEE = -0.6;
 
 export class Avatar {
   constructor(appearance = DEFAULT_APPEARANCE, extra = {}) {
     this.root = new THREE.Group();     // aux pieds, orienté selon le lacet
     this.body = new THREE.Group();     // rebond, inclinaison
     this.root.add(this.body);
-    this.hips = new THREE.Group(); this.hips.position.y = 0.85; this.body.add(this.hips);
-    this.neck = new THREE.Group(); this.neck.position.y = 0.58; this.hips.add(this.neck);
+    this.hips = new THREE.Group(); this.hips.position.y = HIP; this.body.add(this.hips);
+    this.neck = new THREE.Group(); this.neck.position.y = NECK; this.hips.add(this.neck);
     this.armL = new THREE.Group(); this.armR = new THREE.Group();
     this.legL = new THREE.Group(); this.legR = new THREE.Group();
     this.hips.add(this.armL, this.armR, this.legL, this.legR);
@@ -384,13 +420,16 @@ export class Avatar {
       return m;
     };
     add(this.hips, buildMergedGeometry((sb) => buildTorso(sb, a, w, extra)));
-    add(this.neck, buildMergedGeometry((sb) => buildHead(sb, a, extra)));
-    const [armUp, armLow] = splitLimb((sb) => buildArm(sb, a, extra), ELBOW);
+    const head = add(this.neck, buildMergedGeometry((sb) => buildHead(sb, a, extra)));
+    head.scale.set(...HEAD_SCALE); head.position.y = HEAD_Y;
+    const armUp = buildMergedGeometry((sb) => buildUpperArm(sb, a, extra)), armLow = buildMergedGeometry((sb) => buildForearm(sb, a, extra));
     add(this.armL, armUp); add(this.armR, armUp.clone()); add(this.foreL, armLow); add(this.foreR, armLow.clone());
-    const [legUp, legLow] = splitLimb((sb) => buildLeg(sb, a), KNEE);
+    const legUp = buildMergedGeometry((sb) => buildThigh(sb, a, extra)), legLow = buildMergedGeometry((sb) => buildShin(sb, a));
     add(this.legL, legUp); add(this.legR, legUp.clone()); add(this.shinL, legLow); add(this.shinR, legLow.clone());
-    this.armL.position.set(0.33 * w + 0.07, 0.5, 0); this.armR.position.set(-(0.33 * w + 0.07), 0.5, 0);
-    this.legL.position.set(0.13 * w, 0, 0); this.legR.position.set(-0.13 * w, 0, 0);
+    const fem = isFem(a, extra), sw = profile(fem)(0.5) * w;
+    this.armL.position.set(sw / 2 + 0.05, SHOULDER, 0); this.armR.position.set(-(sw / 2 + 0.05), SHOULDER, 0);
+    const hx = (fem ? 0.095 : 0.088) * Math.max(0.9, w);
+    this.legL.position.set(hx, -0.02, 0); this.legR.position.set(-hx, -0.02, 0);
     this.root.scale.setScalar(a.height || 1);
   }
 
@@ -401,7 +440,7 @@ export class Avatar {
     if (!color) return;
     for (const fore of [this.foreL, this.foreR]) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), new THREE.MeshStandardMaterial({ color, roughness: 0.35 }));
-      m.position.set(0, -0.3, 0.02); m.scale.set(1, 1.15, 1.1);
+      m.position.set(0, HAND - 0.04, 0.02); m.scale.set(0.75, 0.85, 0.85);
       fore.add(m); this._gloves.push(m);
     }
   }
@@ -409,7 +448,7 @@ export class Avatar {
   hold(obj) {
     if (this.held) this.foreR.remove(this.held);
     this.held = obj;
-    if (obj) { obj.position.set(0, -0.7 - ELBOW, 0.12); this.foreR.add(obj); }
+    if (obj) { obj.position.set(0, HAND - 0.07, 0.05); this.foreR.add(obj); }
   }
 
   // m = { speed (m/s), grounded, swimming, vy, pose, dance }
@@ -553,3 +592,4 @@ export class Avatar {
     this.root.removeFromParent();
   }
 }
+
