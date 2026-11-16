@@ -62,6 +62,11 @@ function withDetail(mat, strength, ground) {
     float micro = pzN(q * 2.3) * 0.55 + pzN(q * 7.1) * 0.45;
     float d = (macro - 0.5) * ${ground ? '0.42' : '0.08'} + (micro - 0.5) * ${strength.toFixed(3)} * fade;
     diffuseColor.rgb *= 1.0 + d;
+    ${ground ? '' : `// teintes moins « jouet » : couleurs légèrement désaturées, comme de vraies peintures
+    float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+    diffuseColor.rgb = mix(vec3(lum), diffuseColor.rgb, 0.84);
+    // ombre de contact au pied des murs (occlusion ambiante simulée)
+    if (abs(nW.y) < 0.6 && wp.y > -0.3) diffuseColor.rgb *= mix(0.7, 1.0, smoothstep(0.0, 1.1, wp.y));`}
     ${ground ? '// brins d\'herbe plus clairs, éparpillés\n    float blade = step(0.83, pzN(q * 11.0)) * fade * step(0.0, diffuseColor.g - diffuseColor.r);\n    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.12, 1.2, 0.95), blade * 0.6);' : ''}
   }`);
   };

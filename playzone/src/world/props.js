@@ -30,33 +30,54 @@ function free(x, z, pad = 0) {
 }
 
 // --- Arbres
+// Détails déterministes par position (n'altère pas la suite aléatoire de la carte).
+const th = (x, z, k) => { const v = Math.sin(x * 12.9898 + z * 78.233 + k * 37.719) * 43758.5453; return v - Math.floor(v); };
+const shade = (hex, f) => { const c = new THREE.Color(hex); c.multiplyScalar(f); return `#${c.getHexString()}`; };
 export function tree(sb, col, x, z, kind = 'round', s = 1) {
   const y = groundHeight(x, z);
   if (kind === 'pine') {
-    sb.cyl(x, y, z, 0.3 * s, 1.6 * s, PALETTE.trunk, 6);
+    // sapin : tronc élancé, 5 étages de branches irréguliers, plus sombres en dessous
+    sb.add(SHAPES.frustum(7, 1.6), { x, y, z, sx: 0.36 * s, sy: 2.2 * s, sz: 0.36 * s, color: '#5e4128' });
     const c = rand() > 0.5 ? '#2f7a45' : '#3a8a4f';
-    sb.cone(x, y + 1.2 * s, z, 2.2 * s, 3 * s, c, 7);
-    sb.cone(x, y + 2.8 * s, z, 1.7 * s, 2.6 * s, c, 7);
-    sb.cone(x, y + 4.2 * s, z, 1.1 * s, 2.2 * s, c, 7);
+    for (let i = 0; i < 5; i++) {
+      const t = i / 4, r = (2.3 - t * 1.6) * s, jx = (th(x, z, i) - 0.5) * 0.25 * s, jz = (th(z, x, i) - 0.5) * 0.25 * s;
+      sb.add(SHAPES.cone(9), { x: x + jx, y: y + (1.0 + i * 1.05) * s, z: z + jz, sx: r * 2, sy: (2.0 - t * 0.5) * s, sz: r * 2, ry: th(x, z, i + 9) * 3, color: shade(c, 0.78 + t * 0.32) });
+    }
   } else if (kind === 'palm') {
+    // palmier : tronc courbé en anneaux, couronne de palmes retombantes en folioles, noix de coco
     let px = x, pz = z, py = y;
-    const lean = rand() * Math.PI * 2;
-    for (let i = 0; i < 6; i++) {
-      sb.cyl(px, py, pz, 0.28 - i * 0.02, 1.1, i % 2 ? '#9c7748' : '#b08a58', 7);
-      py += 1.05; px += Math.cos(lean) * 0.18; pz += Math.sin(lean) * 0.18;
+    const lean = rand() * Math.PI * 2, bend = 0.05 + th(x, z, 1) * 0.06;
+    for (let i = 0; i < 9; i++) {
+      sb.add(SHAPES.frustum(8, 1.12), { x: px, y: py, z: pz, sx: 0.5 - i * 0.025, sy: 0.74, sz: 0.5 - i * 0.025, color: i % 2 ? '#9c7748' : '#a98455' });
+      py += 0.7; px += Math.cos(lean) * bend * i * 0.5; pz += Math.sin(lean) * bend * i * 0.5;
     }
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2;
-      sb.add(SHAPES.box(), { x: px + Math.cos(a) * 1.3, y: py - 0.2, z: pz + Math.sin(a) * 1.3, sx: 0.7, sy: 0.08, sz: 3, rx: 0.35, ry: -a + Math.PI / 2, color: i % 2 ? '#3f9b45' : '#57b04f' });
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + th(x, z, i) * 0.4, droop = 0.25 + th(x, z, i + 20) * 0.35;
+      const g = i % 2 ? '#3f8f45' : '#4fa54d';
+      for (let k = 0; k < 4; k++) {
+        const d = 0.55 + k * 0.62, dy = -Math.pow(k / 3, 1.6) * (0.9 + droop);
+        sb.add(SHAPES.box(), { x: px + Math.cos(a) * d, y: py + 0.05 + dy, z: pz + Math.sin(a) * d, sx: 1.05 - k * 0.2, sy: 0.04, sz: 0.7, rx: 0.12 + k * 0.28, ry: -a + Math.PI / 2, color: shade(g, 1 - k * 0.06) });
+      }
     }
-    sb.sphere(px, py - 0.1, pz, 0.35, '#6b4a2a', 6);
+    for (let i = 0; i < 3; i++) sb.sphere(px + Math.cos(i * 2.1) * 0.25, py - 0.25, pz + Math.sin(i * 2.1) * 0.25, 0.17, '#6b4a2a', 7);
   } else {
+    // feuillu : tronc conique avec deux branches maîtresses, houppier fait de nombreuses touffes
+    // (claires en haut, sombres en dessous : volume et ombre interne)
     const h = (1.8 + rand() * 0.8) * s;
-    sb.cyl(x, y, z, 0.32 * s, h + 0.5, PALETTE.trunk, 7);
     const c1 = rand() > 0.5 ? PALETTE.leaf : PALETTE.leafAlt;
-    sb.blob(x, y + h + 1.1 * s, z, 1.9 * s, c1, 0.9);
-    sb.blob(x + 0.9 * s, y + h + 0.6 * s, z + 0.4 * s, 1.2 * s, c1, 0.9);
-    sb.blob(x - 0.7 * s, y + h + 0.8 * s, z - 0.6 * s, 1.3 * s, c1, 0.9);
+    sb.add(SHAPES.frustum(8, 1.5), { x, y, z, sx: 0.5 * s, sy: h + 0.6, sz: 0.5 * s, color: '#6a4a2c' });
+    for (let b = 0; b < 2; b++) {
+      const a = th(x, z, b + 3) * 6.28;
+      sb.add(SHAPES.frustum(6, 1.6), { x: x + Math.cos(a) * 0.2 * s, y: y + h * 0.75, z: z + Math.sin(a) * 0.2 * s, sx: 0.2 * s, sy: 1.4 * s, sz: 0.2 * s, rx: Math.sin(a) * 0.7, rz: -Math.cos(a) * 0.7, color: '#6a4a2c' });
+    }
+    const cy = y + h + 1.0 * s;
+    sb.blob(x, cy - 0.15 * s, z, 1.75 * s, shade(c1, 0.78), 0.82);   // cœur du houppier (ombre interne)
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + th(x, z, i) * 0.6, up = th(z, x, i);
+      const r = (1.2 + th(x, z, i + 11) * 0.3) * s, rr = (0.85 + th(x, z, i + 5) * 0.4) * s;
+      sb.blob(x + Math.cos(a) * r, cy + (up - 0.4) * 1.3 * s, z + Math.sin(a) * r, rr, shade(c1, 0.82 + up * 0.3), 0.85);
+    }
+    sb.blob(x + 0.2 * s, cy + 1.0 * s, z - 0.1 * s, 1.15 * s, shade(c1, 1.12), 0.85);   // cime éclairée
     if (rand() > 0.7) for (let i = 0; i < 4; i++) sb.sphere(x + (rand() - 0.5) * 3 * s, y + h + 0.5 + rand() * 1.6, z + (rand() - 0.5) * 3 * s, 0.16, '#e63946', 6);
   }
   col.addCyl(x, z, 0.45 * s, y, 6 * s);
