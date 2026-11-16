@@ -580,11 +580,21 @@ export class Avatar {
     set(this.foreL.rotation, eL, 0, 0); set(this.foreR.rotation, eR, 0, 0);
     set(this.shinL.rotation, kL, 0, 0); set(this.shinR.rotation, kR, 0, 0);
 
+    // démarche naturelle : bassin qui se balance d'un pied sur l'autre, épaules en contre-rotation,
+    // tête stabilisée ; à l'arrêt, transfert du poids lent d'une jambe sur l'autre et respiration.
+    const plain = !m.swimming && m.grounded !== false && (pose === 'idle' || pose === 'carry' || pose === 'phone' || pose === 'wave' || pose === 'hold-forward');
+    let swayX = 0, roll = 0, twist = 0;
+    if (plain && moving) { swayX = Math.sin(ph) * (0.03 - run * 0.015); roll = Math.sin(ph) * 0.035; twist = Math.sin(ph) * (0.07 + run * 0.06); }
+    else if (plain) { const w8 = Math.sin(t * 0.45); swayX = w8 * 0.025; roll = -w8 * 0.02; headY += Math.sin(t * 0.23 + 1) * 0.12; }
+    this.body.position.x += (swayX - this.body.position.x) * Math.min(1, k * 3);
+    this.body.rotation.z += (roll - this.body.rotation.z) * Math.min(1, k * 3);
+    this.hips.rotation.y += (twist - this.hips.rotation.y) * Math.min(1, k * 3);
+    headY -= this.hips.rotation.y * 0.8;
     this.body.position.y += ((bob + bodyY) - this.body.position.y) * Math.min(1, k * 3);
     this.body.rotation.x += ((lean + bodyRotX) - this.body.rotation.x) * k * 1.5;
     this.neck.rotation.x += (headX - this.neck.rotation.x) * k;
     this.neck.rotation.y += (headY - this.neck.rotation.y) * k;
-    this.hips.scale.y = 1 + (moving ? 0 : Math.sin(t * 2.2) * 0.012);
+    this.hips.scale.y = 1 + (moving ? 0 : Math.sin(t * 1.7) * 0.008);   // respiration
   }
 
   dispose() {
