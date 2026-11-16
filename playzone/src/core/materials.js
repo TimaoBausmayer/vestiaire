@@ -92,8 +92,8 @@ export const MATS = {
   main: withCut(withDetail(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }), 0.07, false), 'pz-main'),
   ground: withDetail(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96, metalness: 0 }), 0.16, true),
   // Vitres : sombres et réfléchissantes le jour, éclairées (teinte des sommets) la nuit.
-  windows: withCut(new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x3a4a60, roughness: 0.08, metalness: 0.6, emissive: 0xffffff, emissiveIntensity: 0 }), 'pz-windows',
-    (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;'); }),
+  windows: withCut(new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x7d93ad, roughness: 0.12, metalness: 0.45, emissive: 0xffffff, emissiveIntensity: 0 }), 'pz-windows',
+    (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.45, 0.53, 0.63), 0.6);'); }),
   // Ampoules et néons : s'allument la nuit.
   glow: withCut(new THREE.MeshBasicMaterial({ vertexColors: true, color: 0x777777 }), 'pz-glow'),
   // Ombres des parties escamotables (le toit escamoté ne fait plus d'ombre à l'intérieur).
@@ -110,7 +110,7 @@ export function solidMaterial(color, opts = {}) {
 }
 
 export const PALETTE = {
-  grass: '#79c25a', grassDark: '#5ea64a', sand: '#f2d59b', sandWet: '#d9b97c', road: '#4a4e5a',
+  grass: '#79c25a', grassDark: '#5ea64a', sand: '#f2d59b', sandWet: '#d9b97c', road: '#505257',
   roadLine: '#f5f1e3', sidewalk: '#c9c3b6', plaza: '#e8d5b5', plazaAlt: '#d9bf98', wood: '#a0703c',
   woodDark: '#6e4a26', leaf: '#4f9a3b', leafAlt: '#6db33f', trunk: '#7a5230', rock: '#9a9a9a',
   water: '#2e9fd6', white: '#ffffff', metal: '#a9b1bd', dark: '#2a2a33', red: '#e23d3d',
