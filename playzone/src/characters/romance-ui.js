@@ -1,5 +1,5 @@
 import { h, fmt } from '../ui/dom.js';
-import { LOVE, DATES, GIFTS, FLIRT_YES, FLIRT_NO, lovePhase, loveEmoji } from '../../shared/romance.js';
+import { LOVE, DATES, GIFTS, FLIRT_YES, FLIRT_NO, NUMBER_YES, NUMBER_NO, lovePhase, loveEmoji } from '../../shared/romance.js';
 
 // AMOUR, côté dialogue : complimenter, offrir, inviter, se mettre en couple, venir à la maison,
 // câlin, demande en mariage. Les règles et les tirages sont dans l'autorité (love.*).
@@ -16,6 +16,13 @@ export function loveChoices(g, n, back) {
   const L = g.profile.love || {}, id = idOf(n), a = L.aff?.[id] || 0, mine = L.partner?.id === id;
   const req = async (type, payload) => { try { return await g.net.request(type, payload); } catch (e) { g.ui.toast(e.message, 'bad', 3500); g.sfx('error'); return null; } };
   const out = [];
+  if (!L.contacts?.[id]) out.push({ label: '📱 Demander son numéro', action: async (m) => {
+    const r = await req('love.number', { id, name: n.def.name, role: n.def.role, where: g.interiors?.inside?.id || '' });
+    if (!r) return;
+    if (r.yes) { n.command('happy'); g.sfx('success'); g.ui.toast(`📇 ${n.def.name} ajouté·e à tes Contacts (téléphone)`, 'good', 4000); m.show(`${pick(NUMBER_YES)}\n${loveEmoji(r.aff)} Affection : ${r.aff}/100`, back()); }
+    else m.show(pick(NUMBER_NO), back());
+  } });
+  else out.push({ label: '📱 Elle est dans tes contacts', ghost: true, action: (m) => { m.close(); g.phone?.open('contacts'); } });
   out.push({ label: '💘 Faire un compliment', action: async (m) => {
     const r = await req('love.flirt', { id, name: n.def.name });
     if (!r) return;

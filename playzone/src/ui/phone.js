@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { taxiApp } from './taxi-app.js';
+import { contactsApp } from './contacts-app.js';
 import { phoneOf } from '../../shared/phones.js';
 import { h, clear, fmt } from './dom.js';
 import { drawMapBase, drawMarkers, drawRoute, MAP_PX } from './hud.js';
@@ -56,6 +57,7 @@ const APPS = [
   { id: 'bag', name: 'Sac', icon: '🎒', bg: '#7ac74f' },
   { id: 'code', name: 'Espace code', icon: '🔐', bg: '#2b2d42', hidden: true },
   { id: 'events', name: 'Agenda', icon: '📅', bg: '#ff5a5f' },
+  { id: 'contacts', name: 'Contacts', icon: '📇', bg: '#ff4d8d' },
   { id: 'messages', name: 'Messages', icon: '💬', bg: '#5fd068' },
   { id: 'friends', name: 'Joueurs', icon: '👥', bg: '#8b5cf6' },
   { id: 'profile', name: 'Profil', icon: '🏆', bg: '#c77dff' },
@@ -332,6 +334,7 @@ export class Phone {
   app_gear(b) { gearApp(this.game, b, this); }
   app_achats(b) { shoppingApp(this.game, b, this); }
   app_taxi(b) { taxiApp(this.game, b, this); }
+  app_contacts(b) { contactsApp(this.game, b, this); }
   app_meteo(b) { meteoApp(this.game, b); }
   app_avocat(b) { lawyerApp(this.game, b, this); }
   app_loto(b) { lottoApp(this.game, b, this); }

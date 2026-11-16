@@ -1,5 +1,5 @@
 // AUTORITÉ — AMOUR : drague, cadeaux, rendez-vous, couple, mariage, câlin à la maison.
-import { LOVE, DATES, GIFTS, defaultLove, flirtChance } from './romance.js';
+import { LOVE, DATES, GIFTS, defaultLove, flirtChance, numberChance } from './romance.js';
 import { attractiveness } from './body.js';
 import { applyNeeds, needsStatus } from './needs.js';
 
@@ -25,6 +25,39 @@ function cool(L, key, ms, now, admin = false) {
 const person = (id, name, role) => ({ id: clean(id, 60), name: clean(name), role: clean(role, 60) });
 
 export const ROMANCE_HANDLERS = {
+  // Demander le numéro : presque toujours oui. Le contact apparaît dans l'appli Contacts du téléphone.
+  'love.number'(ctx, { id, name, role, where }) {
+    const p = ctx.profile, L = love(p);
+    id = clean(id, 60); if (!id) return err('Personne à qui parler.');
+    L.contacts = L.contacts || {};
+    if (L.contacts[id]) return { ok: true, changed: false, data: { yes: true, already: true, aff: L.aff[id] || 0, name: L.contacts[id].name } };
+    const w = cool(L, `num:${id}`, 8_000, ctx.now, p.admin); if (w) return err(w);
+    const att = attractiveness(p, this.content.items, ctx.now, needsStatus(p.needs, ctx.now).hygiene).total;
+    const yes = p.admin || ctx.rand() < numberChance(att, L.aff[id] || 0);
+    if (!yes) return { ok: true, changed: true, data: { yes: false, aff: L.aff[id] || 0 } };
+    const keys = Object.keys(L.contacts);
+    if (keys.length >= LOVE.maxContacts) { keys.sort((a, b) => L.contacts[a].at - L.contacts[b].at); delete L.contacts[keys[0]]; }
+    L.contacts[id] = { name: clean(name) || 'Inconnu·e', role: clean(role, 60), where: clean(where, 40), at: ctx.now };
+    const aff = bump(L, id, 5);
+    applyNeeds(p.needs, ctx.now, { humeur: 5 });
+    return { ok: true, changed: true, data: { yes: true, aff, name: L.contacts[id].name } };
+  },
+  // SMS ou appel à un contact : l'affection monte (petite attente entre deux).
+  'love.text'(ctx, { id, kind }) {
+    const p = ctx.profile, L = love(p);
+    id = clean(id, 60);
+    if (!L.contacts?.[id]) return err('Tu n\'as pas son numéro.');
+    const call = kind === 'call';
+    const w = cool(L, `${call ? 'call' : 'sms'}:${id}`, call ? LOVE.callCd : LOVE.textCd, ctx.now, p.admin); if (w) return err(w);
+    const aff = bump(L, id, call ? 5 : 3);
+    applyNeeds(p.needs, ctx.now, { humeur: call ? 6 : 3 });
+    return { ok: true, changed: true, data: { aff, needs: needsStatus(p.needs, ctx.now) } };
+  },
+  'love.forget'(ctx, { id }) {
+    const L = love(ctx.profile);
+    if (L.contacts) delete L.contacts[clean(id, 60)];
+    return { ok: true, changed: true, data: {} };
+  },
   'love.flirt'(ctx, { id, name }) {
     const p = ctx.profile, L = love(p);
     id = clean(id, 60); if (!id) return err('Personne à qui parler.');

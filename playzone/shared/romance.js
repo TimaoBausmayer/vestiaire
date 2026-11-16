@@ -9,7 +9,17 @@ export const LOVE = {
   marry: 90,
   dateMin: 25,
   maxKnown: 40,         // nombre de personnes dont on retient l'affection
+  maxContacts: 80,      // numéros enregistrés dans le téléphone
+  textCd: 20_000,       // entre deux SMS à la même personne
+  callCd: 45_000,       // entre deux appels
 };
+// Donner son numéro : c'est facile ! Presque toujours oui, et de plus en plus avec l'affection.
+export const numberChance = (attract, aff) => Math.max(0.8, Math.min(0.99, 0.82 + aff / 200 + attract / 600));
+export const NUMBER_YES = ['📱 Bien sûr ! Note-le vite avant que je change d\'avis 😉', '😊 Avec plaisir, écris-moi !', '🥰 Tiens, voilà mon numéro. Appelle-moi ce soir ?', '😄 Ok ! Mais tu m\'envoies un message, hein ?', '💕 J\'espérais que tu me le demandes !'];
+export const NUMBER_NO = ['😅 Pas tout de suite... redemande-moi un peu plus tard !', '🙈 Je suis timide... retente ta chance !'];
+export const TEXTS = ['Coucou toi 😊', 'Tu fais quoi ce soir ?', 'Je pensais à toi 💭', 'Bien dormi ? ☀️', 'On se voit bientôt ?', 'Tu me manques un peu 🙈'];
+export const TEXT_REPLIES = ['Coucou ! 😊 Ça me fait plaisir que tu m\'écrives', 'Haha t\'es trop mignon·ne 🥰', 'Moi aussi je pensais à toi 💕', 'On se voit quand tu veux 😘', 'Tu me fais sourire 😄', 'J\'attendais ton message !'];
+export const CALL_LINES = ['📞 « Allô ? Oh, c\'est toi ! 😊 » — vous discutez et rigolez pendant un long moment.', '📞 « Ça me fait trop plaisir de t\'entendre ! » — elle te raconte sa journée.', '📞 « T\'as une voix trop sympa au téléphone 🥰 » — vous parlez de tout et de rien.'];
 // Rendez-vous : prix (PlayCoins) et affection gagnée.
 export const DATES = {
   cafe: { name: 'Un café en terrasse', emoji: '☕', price: 30, aff: 8, humeur: 10 },
